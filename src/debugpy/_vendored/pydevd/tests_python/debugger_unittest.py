@@ -199,6 +199,7 @@ class ReaderThread(threading.Thread):
         self._queue = Queue()
         self._kill = False
         self.accept_xml_messages = True
+        self.on_message_found = lambda msg: None
 
     def set_messages_timeout(self, timeout):
         self.MESSAGES_TIMEOUT = timeout
@@ -208,6 +209,7 @@ class ReaderThread(threading.Thread):
             timeout = self.MESSAGES_TIMEOUT
         try:
             msg = self._queue.get(block=True, timeout=timeout)
+            self.on_message_found(msg)
         except:
             raise TimeoutError('No message was written in %s seconds. Error message:\n%s' % (timeout, context_message,))
         else:

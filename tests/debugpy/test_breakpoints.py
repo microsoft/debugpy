@@ -8,7 +8,7 @@ import re
 import sys
 
 import tests
-from tests import debug, test_data
+from tests import debug, test_data, timeline
 from tests.debug import runners, targets
 from tests.patterns import some
 
@@ -163,15 +163,16 @@ def test_error_in_condition(pyfile, target, run, error_name):
                     ],
                 },
             )
-
-    if "internalConsole" not in str(run):
-        assert not session.captured_stdout()
-
-        error_name = error_name.encode("ascii")
-        if expect_traceback:
-            assert error_name in session.captured_stderr()
-        else:
-            assert error_name not in session.captured_stderr()
+    occurrences = session.timeline.all_occurrences_of(
+        timeline.Event("output", some.dict.containing({"category": "important"})),
+    )
+    
+    if expect_traceback:
+        assert len(occurrences) == 10
+        for occurrence in occurrences:
+            assert error_name in occurrence.body['output']
+    else:
+        assert len(occurrences) == 0
 
 
 @pytest.mark.parametrize("condition", ["condition", ""])

@@ -129,7 +129,8 @@ class PyDevdAPI(object):
         py_db._gui_event_loop = gui_event_loop
 
     def send_error_message(self, py_db, msg):
-        sys.stderr.write('pydevd: %s\n' % (msg,))
+        cmd = py_db.cmd_factory.make_warning_message('pydevd: %s\n' % (msg,))
+        py_db.writer.add_command(cmd)
 
     def set_show_return_values(self, py_db, show_return_values):
         if show_return_values:

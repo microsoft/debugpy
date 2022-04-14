@@ -652,6 +652,33 @@ def test_case_json_hit_count_and_step(case_setup):
         writer.finished_ok = True
 
 
+def test_case_json_hit_condition_error(case_setup):
+    with case_setup.test_file('_debugger_case_hit_count.py') as writer:
+        json_facade = JsonFacade(writer)
+
+        json_facade.write_launch()
+        bp = writer.get_line_index_with_content('before loop line')
+        json_facade.write_set_breakpoints(
+            [bp],
+            line_to_info={
+                bp: {'condition': 'range.range.range'}
+        })
+        json_facade.write_make_initial_run()
+
+        def accept_message(msg):
+            if msg.body.category == 'important':
+                if 'Error while evaluating expression in conditional breakpoint' in msg.body.output:
+                    return True
+            return False
+
+        json_facade.wait_for_json_message(OutputEvent, accept_message=accept_message)
+
+        json_facade.wait_for_thread_stopped(line=bp)
+        json_facade.write_continue()
+
+        writer.finished_ok = True
+
+
 def test_case_process_event(case_setup):
     with case_setup.test_file('_debugger_case_change_breaks.py') as writer:
         json_facade = JsonFacade(writer)

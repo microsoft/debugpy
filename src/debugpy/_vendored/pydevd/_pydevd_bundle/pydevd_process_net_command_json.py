@@ -15,7 +15,7 @@ from _pydevd_bundle._debug_adapter.pydevd_schema import (
     ProcessEvent, Scope, ScopesResponseBody, SetExpressionResponseBody,
     SetVariableResponseBody, SourceBreakpoint, SourceResponseBody,
     VariablesResponseBody, SetBreakpointsResponseBody, Response,
-    Capabilities, PydevdAuthorizeRequest, Request, StepInTargetsResponse, StepInTarget,
+    Capabilities, PydevdAuthorizeRequest, Request,
     StepInTargetsResponseBody, SetFunctionBreakpointsResponseBody, BreakpointEvent,
     BreakpointEventBody)
 from _pydevd_bundle.pydevd_api import PyDevdAPI
@@ -35,7 +35,6 @@ from _pydevd_frame_eval.pydevd_frame_eval_main import USING_FRAME_EVAL
 from _pydevd_bundle.pydevd_comm import internal_get_step_in_targets_json
 from _pydevd_bundle.pydevd_additional_thread_info import set_additional_thread_info
 from _pydevd_bundle.pydevd_thread_lifecycle import pydevd_find_thread_by_id
-from _pydev_bundle._pydev_filesystem_encoding import getfilesystemencoding
 
 
 def _convert_rules_to_exclude_filters(rules, on_error):
