@@ -302,6 +302,11 @@ _ide_os = 'WINDOWS' if IS_WINDOWS else 'UNIX'
 
 _normcase_from_client = normcase
 
+
+def normcase_from_client(s):
+    return _normcase_from_client(s)
+
+
 DEBUG_CLIENT_SERVER_TRANSLATION = os.environ.get('DEBUG_PYDEVD_PATHS_TRANSLATION', 'False').lower() in ('1', 'true')
 
 
