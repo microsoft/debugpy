@@ -6,6 +6,7 @@ from _pydevd_bundle.pydevd_resolver import inspect, MethodWrapperType
 from _pydevd_bundle.pydevd_utils import Timer
 
 from .pydevd_helpers import find_mod_attr
+from contextlib import contextmanager
 
 
 def _get_dictionary(obj, replacements):
@@ -38,6 +39,43 @@ def _get_dictionary(obj, replacements):
     return ret
 
 
+@contextmanager
+def customize_pandas_options():
+    # The default repr depends on the settings of:
+    #
+    # pandas.set_option('display.max_columns', None)
+    # pandas.set_option('display.max_rows', None)
+    #
+    # which can make the repr **very** slow on some cases, so, we customize pandas to have
+    # smaller values if the current values are too big.
+    custom_options = []
+
+    from pandas import get_option
+
+    max_rows = get_option("display.max_rows")
+    max_cols = get_option("display.max_columns")
+    max_colwidth = get_option("display.max_colwidth")
+
+    if max_rows is None or max_rows > PANDAS_MAX_ROWS:
+        custom_options.append("display.max_rows")
+        custom_options.append(PANDAS_MAX_ROWS)
+
+    if max_cols is None or max_cols > PANDAS_MAX_COLS:
+        custom_options.append("display.max_columns")
+        custom_options.append(PANDAS_MAX_COLS)
+
+    if max_colwidth is None or max_colwidth > PANDAS_MAX_COLWIDTH:
+        custom_options.append("display.max_colwidth")
+        custom_options.append(PANDAS_MAX_COLWIDTH)
+
+    if custom_options:
+        from pandas import option_context
+        with option_context(*custom_options):
+            yield
+    else:
+        yield
+
+
 class PandasDataFrameTypeResolveProvider(object):
 
     def can_provide(self, type_object, type_name):
@@ -62,18 +100,8 @@ class PandasDataFrameTypeResolveProvider(object):
         return _get_dictionary(obj, replacements)
 
     def get_str(self, df):
-        # The default repr depends on the settings of:
-        # pandas.set_option('display.max_columns', None)
-        # pandas.set_option('display.max_rows', None)
-        # which can make the repr **very** slow on some cases, so, let's use a
-        # version which
-
-        return df.to_string(
-            max_rows=PANDAS_MAX_ROWS,
-            max_cols=PANDAS_MAX_COLS,
-            max_colwidth=PANDAS_MAX_COLWIDTH,
-            show_dimensions=True,
-        )
+        with customize_pandas_options():
+            return repr(df)
 
 
 class PandasSeriesTypeResolveProvider(object):
@@ -100,9 +128,8 @@ class PandasSeriesTypeResolveProvider(object):
         return _get_dictionary(obj, replacements)
 
     def get_str(self, series):
-        return (series.to_string(
-            max_rows=PANDAS_MAX_ROWS,
-        ))
+        with customize_pandas_options():
+            return repr(series)
 
 
 class PandasStylerTypeResolveProvider(object):

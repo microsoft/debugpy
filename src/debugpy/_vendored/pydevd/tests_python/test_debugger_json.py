@@ -5862,11 +5862,11 @@ def test_pandas(case_setup, pyfile):
         name_to_var = json_facade.get_locals_name_to_var(json_hit.frame_id)
 
         # Check the custom repr(DataFrame)
-        assert name_to_var['df'].value.count('\n') == 303
+        assert name_to_var['df'].value.count('\n') <= 63
         assert '...' in name_to_var['df'].value
 
         # Check the custom repr(Series)
-        assert name_to_var['series'].value.count('\n') == 300
+        assert name_to_var['series'].value.count('\n') <= 60
         assert '...' in name_to_var['series'].value
 
         # Check custom listing (DataFrame)
