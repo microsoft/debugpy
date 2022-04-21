@@ -559,7 +559,7 @@ def test_case_json_logpoints(case_setup):
         writer.finished_ok = True
 
 
-def test_case_json_logpoint_and_step(case_setup):
+def test_case_json_logpoint_and_step_failure_ok(case_setup):
     with case_setup.test_file('_debugger_case_hit_count.py') as writer:
         json_facade = JsonFacade(writer)
 
@@ -583,6 +583,42 @@ def test_case_json_logpoint_and_step(case_setup):
         json_hit = json_facade.wait_for_thread_stopped('step', line=print_line)
 
         json_facade.write_continue()
+
+        writer.finished_ok = True
+
+
+def test_case_json_logpoint_and_step_still_prints(case_setup):
+    with case_setup.test_file('_debugger_case_hit_count.py') as writer:
+        json_facade = JsonFacade(writer)
+
+        json_facade.write_launch()
+        before_loop_line = writer.get_line_index_with_content('before loop line')
+        print_line = writer.get_line_index_with_content('print line')
+        json_facade.write_set_breakpoints(
+            [before_loop_line, print_line],
+            line_to_info={
+                print_line: {'log_message': 'var {repr("i")} is {i}'}
+        })
+        json_facade.write_make_initial_run()
+
+        json_hit = json_facade.wait_for_thread_stopped(line=before_loop_line)
+
+        for _i in range(4):
+            # I.e.: even when stepping we should have the messages.
+            json_facade.write_step_next(json_hit.thread_id)
+            json_hit = json_facade.wait_for_thread_stopped('step')
+
+        json_facade.write_continue()
+
+        def accept_last_output_message(output_event):
+            return output_event.body.output.startswith("var 'i' is 9")
+
+        json_facade.wait_for_json_message(OutputEvent, accept_last_output_message)
+
+        def accept_message(output_event):
+            return output_event.body.output.startswith("var 'i' is ")
+
+        assert len(json_facade.mark_messages(OutputEvent, accept_message)) == 10
 
         writer.finished_ok = True
 
