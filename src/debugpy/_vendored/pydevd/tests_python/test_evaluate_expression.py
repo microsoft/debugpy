@@ -9,6 +9,8 @@ global_frame = sys._getframe()
 
 
 def obtain_frame():
+    A = 1
+    B = 2
     yield sys._getframe()
 
 
@@ -116,3 +118,15 @@ def test_evaluate_expression_4(disable_critical_log):
     assert 'email' in sys._getframe().f_globals
     del sys._getframe().f_globals['email']
     assert 'email' not in sys._getframe().f_globals
+
+
+def test_evaluate_expression_5(disable_critical_log):
+    from _pydevd_bundle.pydevd_vars import evaluate_expression
+
+    def check(frame):
+        eval_txt = 'A, B = 5, 6'
+        evaluate_expression(None, frame, eval_txt, is_exec=True)
+        assert frame.f_locals['A'] == 5
+        assert frame.f_locals['B'] == 6
+
+    check(next(iter(obtain_frame())))

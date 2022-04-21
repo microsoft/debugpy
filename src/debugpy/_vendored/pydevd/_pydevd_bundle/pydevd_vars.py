@@ -377,13 +377,17 @@ def _update_globals_and_locals(updated_globals, initial_globals, frame):
     # Still, the approach to have a single namespace was chosen because it was the only
     # one that enabled creating and using variables during the same evaluation.
     assert updated_globals is not None
-    changed = False
+    f_locals = None
     for key, val in updated_globals.items():
         if initial_globals.get(key) is not val:
-            changed = True
-            frame.f_locals[key] = val
+            if f_locals is None:
+                # Note: we call f_locals only once because each time
+                # we call it the values may be reset.
+                f_locals = frame.f_locals
 
-    if changed:
+            f_locals[key] = val
+
+    if f_locals is not None:
         pydevd_save_locals.save_locals(frame)
 
 
