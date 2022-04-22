@@ -7,6 +7,7 @@ import weakref
 import struct
 import warnings
 import functools
+from contextlib import contextmanager
 
 STATE_RUN = 1
 STATE_SUSPEND = 2
@@ -443,12 +444,18 @@ def as_str(s):
     return s
 
 
+@contextmanager
+def filter_all_warnings():
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore")
+        yield
+
+
 def silence_warnings_decorator(func):
 
     @functools.wraps(func)
     def new_func(*args, **kwargs):
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore")
+        with filter_all_warnings():
             return func(*args, **kwargs)
 
     return new_func
