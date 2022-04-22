@@ -1854,6 +1854,31 @@ def test_getattr_warning(case_setup):
         writer.finished_ok = True
 
 
+def test_warning_on_repl(case_setup):
+
+    def additional_output_checks(writer, stdout, stderr):
+        assert "WarningCalledOnRepl" in stderr
+
+    with case_setup.test_file(
+        '_debugger_case_evaluate.py',
+        additional_output_checks=additional_output_checks
+        ) as writer:
+        json_facade = JsonFacade(writer)
+
+        json_facade.write_set_breakpoints(writer.get_line_index_with_content('Break here'))
+        json_facade.write_make_initial_run()
+
+        json_hit = json_facade.wait_for_thread_stopped()
+
+        # We want warnings from the in evaluate in the repl (but not hover/watch).
+        json_facade.evaluate(
+            'import warnings; warnings.warn("WarningCalledOnRepl")', json_hit.frame_id, context='repl')
+
+        json_facade.write_continue()
+
+        writer.finished_ok = True
+
+
 def test_evaluate_numpy(case_setup, pyfile):
     try:
         import numpy

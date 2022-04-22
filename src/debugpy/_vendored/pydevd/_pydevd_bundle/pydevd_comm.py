@@ -72,7 +72,8 @@ from _pydev_bundle._pydev_saved_modules import threading
 from _pydev_bundle._pydev_saved_modules import socket as socket_module
 from _pydevd_bundle.pydevd_constants import (DebugInfoHolder, IS_WINDOWS, IS_JYTHON,
     IS_PY36_OR_GREATER, STATE_RUN, ASYNC_EVAL_TIMEOUT_SEC,
-    get_global_debugger, GetGlobalDebugger, set_global_debugger, silence_warnings_decorator)  # Keep for backward compatibility @UnusedImport
+    get_global_debugger, GetGlobalDebugger, set_global_debugger,  # Keep for backward compatibility @UnusedImport
+    silence_warnings_decorator, filter_all_warnings)
 from _pydev_bundle.pydev_override import overrides
 import weakref
 from _pydev_bundle._pydev_completer import extract_token_and_qualifier
@@ -1121,7 +1122,6 @@ def _evaluate_response(py_db, request, result, error_message=''):
 _global_frame = None
 
 
-@silence_warnings_decorator
 def internal_evaluate_expression_json(py_db, request, thread_id):
     '''
     :param EvaluateRequest request:
@@ -1137,13 +1137,15 @@ def internal_evaluate_expression_json(py_db, request, thread_id):
     if hasattr(fmt, 'to_dict'):
         fmt = fmt.to_dict()
 
-    if context == 'repl' and not py_db.is_output_redirected:
-        ctx = pydevd_io.redirect_stream_to_pydb_io_messages_context()
+    ctx = NULL
+    if context == 'repl':
+        if not py_db.is_output_redirected:
+            ctx = pydevd_io.redirect_stream_to_pydb_io_messages_context()
     else:
-        ctx = NULL
+        # If we're not in a repl (watch, hover, ...) don't show warnings.
+        ctx = filter_all_warnings()
 
     with ctx:
-
         try_exec = False
         if frame_id is None:
             if _global_frame is None:
@@ -1204,36 +1206,36 @@ def internal_evaluate_expression_json(py_db, request, thread_id):
             _evaluate_response(py_db, request, result='', error_message='Thread id: %s is not current thread id.' % (thread_id,))
             return
 
-    safe_repr_custom_attrs = {}
-    if context == 'clipboard':
-        safe_repr_custom_attrs = dict(
-            maxstring_outer=2 ** 64,
-            maxstring_inner=2 ** 64,
-            maxother_outer=2 ** 64,
-            maxother_inner=2 ** 64,
-        )
+        safe_repr_custom_attrs = {}
+        if context == 'clipboard':
+            safe_repr_custom_attrs = dict(
+                maxstring_outer=2 ** 64,
+                maxstring_inner=2 ** 64,
+                maxother_outer=2 ** 64,
+                maxother_inner=2 ** 64,
+            )
 
-    if context == 'repl' and eval_result is None:
-        # We don't want "None" to appear when typing in the repl.
-        body = pydevd_schema.EvaluateResponseBody(
-            result=None,
-            variablesReference=0,
-        )
+        if context == 'repl' and eval_result is None:
+            # We don't want "None" to appear when typing in the repl.
+            body = pydevd_schema.EvaluateResponseBody(
+                result=None,
+                variablesReference=0,
+            )
 
-    else:
-        variable = frame_tracker.obtain_as_variable(expression, eval_result, frame=frame)
-        var_data = variable.get_var_data(fmt=fmt, **safe_repr_custom_attrs)
+        else:
+            variable = frame_tracker.obtain_as_variable(expression, eval_result, frame=frame)
+            var_data = variable.get_var_data(fmt=fmt, **safe_repr_custom_attrs)
 
-        body = pydevd_schema.EvaluateResponseBody(
-            result=var_data['value'],
-            variablesReference=var_data.get('variablesReference', 0),
-            type=var_data.get('type'),
-            presentationHint=var_data.get('presentationHint'),
-            namedVariables=var_data.get('namedVariables'),
-            indexedVariables=var_data.get('indexedVariables'),
-        )
-    variables_response = pydevd_base_schema.build_response(request, kwargs={'body':body})
-    py_db.writer.add_command(NetCommand(CMD_RETURN, 0, variables_response, is_json=True))
+            body = pydevd_schema.EvaluateResponseBody(
+                result=var_data['value'],
+                variablesReference=var_data.get('variablesReference', 0),
+                type=var_data.get('type'),
+                presentationHint=var_data.get('presentationHint'),
+                namedVariables=var_data.get('namedVariables'),
+                indexedVariables=var_data.get('indexedVariables'),
+            )
+        variables_response = pydevd_base_schema.build_response(request, kwargs={'body':body})
+        py_db.writer.add_command(NetCommand(CMD_RETURN, 0, variables_response, is_json=True))
 
 
 def _evaluate_response_return_exception(py_db, request, exc_type, exc, initial_tb):
