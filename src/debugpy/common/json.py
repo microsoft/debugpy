@@ -8,6 +8,8 @@
 import builtins
 import json
 import operator
+import string
+import numbers
 
 
 JsonDecoder = json.JSONDecoder
@@ -106,6 +108,11 @@ def of_type(*classinfo, **kwargs):
     def validate(value):
         if (optional and value == ()) or isinstance(value, classinfo):
             return value
+        elif isinstance(value, str) and all(x in string.digits + '.' for x in value) and any(issubclass(x, numbers.Number) for x in classinfo):
+            try:
+                return int(value)
+            except ValueError:
+                return float(value)
         else:
             if not optional and value == ():
                 raise ValueError("must be specified")
