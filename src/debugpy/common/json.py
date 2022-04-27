@@ -108,7 +108,11 @@ def of_type(*classinfo, **kwargs):
     def validate(value):
         if (optional and value == ()) or isinstance(value, classinfo):
             return value
-        elif isinstance(value, str) and all(x in string.digits + '.' for x in value) and any(issubclass(x, numbers.Number) for x in classinfo):
+        elif (
+            isinstance(value, str)
+            and all(x in string.digits + "." for x in value)
+            and any(issubclass(x, numbers.Number) for x in classinfo)
+        ):
             try:
                 return int(value)
             except ValueError:
