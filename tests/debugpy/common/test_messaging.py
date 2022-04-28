@@ -659,13 +659,14 @@ class TestJsonMessageChannel(object):
 
 
 class TestTypeConversion(object):
-
     def test_str_to_num(self):
 
         # test conversion that are expected to work
         correct_trials = [("1.0", float), ("1", int), ("1", bool)]
         for val_trial, type_trial in correct_trials:
-            assert isinstance(json.of_type(type_trial)(val_trial), type_trial), f"Wrong type coversion"
+            assert isinstance(
+                json.of_type(type_trial)(val_trial), type_trial
+            ), f"Wrong type coversion"
 
         # test conversion that are not expected to work
         try:
