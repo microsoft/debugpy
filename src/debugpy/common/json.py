@@ -93,6 +93,16 @@ class JsonObject(object):
 # some substitutions - e.g. replacing () with some default value.
 
 
+def _converter(value, classinfo):
+    """Convert value (str) to number, otherwise return None if is not possible"""
+    for one_info in classinfo:
+        if issubclass(one_info, numbers.Number):
+            try:
+                return one_info(value)
+            except ValueError:
+                pass
+
+
 def of_type(*classinfo, **kwargs):
     """Returns a validator for a JSON property that requires it to have a value of
     the specified type. If optional=True, () is also allowed.
@@ -108,12 +118,9 @@ def of_type(*classinfo, **kwargs):
         if (optional and value == ()) or isinstance(value, classinfo):
             return value
         else:
-            for one_info in classinfo:
-                if issubclass(one_info, numbers.Number):
-                    try:
-                        return one_info(value)
-                    except ValueError:
-                        pass
+            converted_value = _converter(value, classinfo)
+            if converted_value:
+                return converted_value
 
             if not optional and value == ():
                 raise ValueError("must be specified")
