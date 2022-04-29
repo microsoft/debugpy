@@ -43,7 +43,7 @@ r'''
 
 from _pydev_bundle import pydev_log
 from _pydevd_bundle.pydevd_constants import DebugInfoHolder, IS_WINDOWS, IS_JYTHON, \
-    DISABLE_FILE_VALIDATION
+    DISABLE_FILE_VALIDATION, is_true_in_env
 from _pydev_bundle._pydev_filesystem_encoding import getfilesystemencoding
 from _pydevd_bundle.pydevd_comm_constants import file_system_encoding, filesystem_encoding_is_utf8
 from _pydev_bundle.pydev_log import error_once
@@ -401,6 +401,9 @@ def _abs_and_canonical_path(filename, NORM_PATHS_CONTAINER=NORM_PATHS_CONTAINER)
 
         isabs = os_path_isabs(filename)
 
+        if _global_resolve_symlinks:
+            os_path_abspath = os_path_real_path
+
         normalize = False
         abs_path = _apply_func_and_normalize_case(filename, os_path_abspath, isabs, normalize)
 
@@ -641,6 +644,14 @@ def create_source_reference_for_frame_id(frame_id, original_filename):
 
 def get_frame_id_from_source_reference(source_reference):
     return _source_reference_to_frame_id.get(source_reference)
+
+
+_global_resolve_symlinks = is_true_in_env('PYDEVD_RESOLVE_SYMLINKS')
+
+
+def set_resolve_symlinks(resolve_symlinks):
+    global _global_resolve_symlinks
+    _global_resolve_symlinks = resolve_symlinks
 
 
 def setup_client_server_paths(paths):

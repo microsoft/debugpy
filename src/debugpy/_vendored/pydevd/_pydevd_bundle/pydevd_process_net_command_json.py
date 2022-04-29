@@ -388,6 +388,10 @@ class PyDevJsonCommandProcessor(object):
         if bool(path_mappings):
             pydevd_file_utils.setup_client_server_paths(path_mappings)
 
+        resolve_symlinks = args.get('resolveSymlinks', None)
+        if resolve_symlinks is not None:
+            pydevd_file_utils.set_resolve_symlinks(resolve_symlinks)
+
         redirecting = args.get("isOutputRedirected")
         if self._options.redirect_output:
             py_db.enable_output_redirection(True, True)
