@@ -6088,6 +6088,43 @@ def test_replace_process(case_setup_multiprocessing):
         writer.finished_ok = True
 
 
+@pytest.mark.parametrize('resolve_symlinks', [True, False])
+def test_use_real_path_and_not_links(case_setup, tmpdir, resolve_symlinks):
+    dira = tmpdir.join('dira')
+    dira.mkdir()
+
+    dirb = tmpdir.join('dirb')
+    dirb.mkdir()
+
+    original_file = dira.join('test.py')
+    original_file.write('''
+print('p1')  # Break here
+print('p2')
+print('TEST SUCEEDED')
+''')
+
+    symlinked_file = dirb.join('testit.py')
+    os.symlink(str(original_file), str(symlinked_file))
+
+    # I.e.: we're launching the symlinked file but we're actually
+    # working with the original file afterwards.
+    with case_setup.test_file(str(symlinked_file)) as writer:
+        json_facade = JsonFacade(writer)
+
+        writer.write_add_breakpoint(writer.get_line_index_with_content('Break here'), filename=str(original_file))
+        json_facade.write_launch(justMyCode=False, resolveSymlinks=resolve_symlinks)
+        json_facade.write_make_initial_run()
+
+        json_hit = json_facade.wait_for_thread_stopped()
+        filename = json_hit.stack_trace_response.body.stackFrames[0]['source']['path']
+        if resolve_symlinks:
+            assert filename == str(original_file)
+        else:
+            assert filename == str(symlinked_file)
+        json_facade.write_continue()
+        writer.finished_ok = True
+
+
 if __name__ == '__main__':
     pytest.main(['-k', 'test_replace_process', '-s'])
 
