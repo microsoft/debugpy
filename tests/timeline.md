@@ -71,7 +71,7 @@ the return value of `wait_until_realized()` is the first occurrence that realize
 
 ### Basic expectations
 
-A *basic* expectation is described by the circumstances of the occurrence the expectation is to be realized (`expectation.circumstances`). Whereas the circumstances of an occurrence is a data object, the circumstances of the expectation is a *pattern*, as represented by a `Pattern` object from the `pattern` module. An expectation is realized by an occurrence if `occurrence.circumstances in expectation.circumstances` is true (where `in` is an overloaded operator of the `Pattern` object that is used to match values against it; see the docstrings for the `pattern` module for details on patterns). For example, given a basic expectation with these circumstances:
+A *basic* expectation is described by the circumstances of the occurrence the expectation is to be realized (`expectation.circumstances`). Whereas the circumstances of an occurrence is a data object, the circumstances of the expectation is usually a *pattern*, as represented by a `Some` object from the `patterns` package. An expectation is realized by an occurrence if `occurrence.circumstances == expectation.circumstances` is true (for patterns, the overloaded `==` operator is used for matching rather than equality; see the docstrings for the `patterns` package for details). For example, given a basic expectation with these circumstances:
 ```py
 ('Event', ANY, some.dict.containing({'threadId': 1}))
 ```
@@ -96,7 +96,7 @@ Event(event, body)              # Expectation('Event', event, body)
 Mark(id)                        # Expectation('Mark', id)
 ```
 
-For responses, it is often desirable to specify success or failure in general, without details. This can be done by using `some.exception` in the pattern:
+For responses, it is often desirable to specify success or failure in general, without details. This can be done by using `some.error` in the pattern:
 ```py
 Response(request, some.error)
 Response(request, ~some.error)  # success
