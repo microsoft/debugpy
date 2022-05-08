@@ -280,7 +280,7 @@ class NetCommandFactoryJson(NetCommandFactory):
         total_frames = len(frames)
         stack_frames = frames
         if bool(levels):
-            start = start_frame
+            start = start_frame if bool(start_frame) else 0
             end = min(start + levels, total_frames)
             stack_frames = frames[start:end]
 
