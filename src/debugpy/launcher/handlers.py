@@ -10,9 +10,6 @@ from debugpy import launcher
 from debugpy.common import json
 from debugpy.launcher import debuggee
 
-# see https://github.com/microsoft/debugpy/issues/861
-PYTHON_311 = sys.version_info[:2] == (3, 11)
-
 def launch_request(request):
     debug_options = set(request("debugOptions", json.array(str)))
 
@@ -40,11 +37,11 @@ def launch_request(request):
     python = request("python", json.array(str, size=(1,)))
     cmdline = list(python)
 
-    # see https://github.com/microsoft/debugpy/issues/861
-    if PYTHON_311:
-        cmdline += ["-X", "frozen_modules=off"]
-
     if not request("noDebug", json.default(False)):
+        # see https://github.com/microsoft/debugpy/issues/861
+        if sys.version_info[:2] >= (3, 11):
+            cmdline += ["-X", "frozen_modules=off"]
+
         port = request("port", int)
         cmdline += [
             os.path.dirname(debugpy.__file__),
