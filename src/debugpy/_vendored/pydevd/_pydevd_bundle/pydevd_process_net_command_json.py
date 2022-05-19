@@ -944,8 +944,16 @@ class PyDevJsonCommandProcessor(object):
         # : :type stack_trace_arguments: StackTraceArguments
         stack_trace_arguments = request.arguments
         thread_id = stack_trace_arguments.threadId
-        start_frame = stack_trace_arguments.startFrame
-        levels = stack_trace_arguments.levels
+
+        if stack_trace_arguments.startFrame:
+            start_frame = int(stack_trace_arguments.startFrame)
+        else:
+            start_frame = 0
+
+        if stack_trace_arguments.levels:
+            levels = int(stack_trace_arguments.levels)
+        else:
+            levels = 0
 
         fmt = stack_trace_arguments.format
         if hasattr(fmt, 'to_dict'):
