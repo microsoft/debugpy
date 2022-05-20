@@ -28,7 +28,7 @@ def _api(cancelable=False):
             from debugpy.server import api
 
             wrapped = getattr(api, f.__name__)
-            wrapped(*args, **kwargs)
+            return wrapped(*args, **kwargs)
 
         if cancelable:
 
@@ -36,7 +36,7 @@ def _api(cancelable=False):
                 from debugpy.server import api
 
                 wrapped = getattr(api, f.__name__)
-                wrapped.cancel(*args, **kwargs)
+                return wrapped.cancel(*args, **kwargs)
 
             wrapper.cancel = cancel
 

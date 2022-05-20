@@ -209,3 +209,42 @@ def test_attach_pid_client(pyfile, target, pid_type):
         )
         session2.scratchpad["exit"] = True
         session2.request_continue()
+
+
+def test_cancel_wait(pyfile):
+    @pyfile
+    def code_to_debug():
+        import debuggee
+        import debugpy
+        import sys
+        import threading
+        import time
+
+        from debuggee import backchannel
+
+        def cancel():
+            time.sleep(1)
+            debugpy.wait_for_client.cancel()
+
+        _, host, port = sys.argv
+        port = int(port)
+        debugpy.listen(address=(host, port))
+        threading.Thread(target=cancel).start()
+        debugpy.wait_for_client()
+        backchannel.send("exit")
+
+    with debug.Session() as session:
+        host, port = runners.attach_connect.host, runners.attach_connect.port
+        session.config.update({"connect": {"host": host, "port": port}})
+        session.expected_exit_code = None
+
+        backchannel = session.open_backchannel()
+        session.spawn_debuggee(
+            [
+                code_to_debug,
+                host,
+                port,
+            ]
+        )
+
+        assert backchannel.receive() == "exit"
