@@ -113,7 +113,7 @@ def _starts_debugging(func):
             port.__index__()  # ensure it's int-like
         except Exception:
             raise ValueError("expected port or (host, port)")
-        if not (0 <= port < 2**16):
+        if not (0 <= port < 2 ** 16):
             raise ValueError("invalid port number")
 
         ensure_logging()
@@ -269,22 +269,30 @@ def listen(address, settrace_kwargs):
 
 
 @_starts_debugging
-def connect(address, settrace_kwargs, access_token):
+def connect(address, settrace_kwargs, access_token=None):
     host, port = address
     _settrace(host=host, port=port, client_access_token=access_token, **settrace_kwargs)
 
 
-def wait_for_client():
-    ensure_logging()
-    log.debug("wait_for_client()")
+class wait_for_client:
+    def __call__(self):
+        ensure_logging()
+        log.debug("wait_for_client()")
 
-    pydb = get_global_debugger()
-    if pydb is None:
-        raise RuntimeError("listen() or connect() must be called first")
+        pydb = get_global_debugger()
+        if pydb is None:
+            raise RuntimeError("listen() or connect() must be called first")
 
-    cancel_event = threading.Event()
-    debugpy.wait_for_client.cancel = wait_for_client.cancel = cancel_event.set
-    pydevd._wait_for_attach(cancel=cancel_event)
+        cancel_event = threading.Event()
+        self.cancel = cancel_event.set
+        pydevd._wait_for_attach(cancel=cancel_event)
+
+    @staticmethod
+    def cancel():
+        raise RuntimeError("wait_for_client() must be called first")
+
+
+wait_for_client = wait_for_client()
 
 
 def is_client_connected():
