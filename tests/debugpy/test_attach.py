@@ -6,7 +6,7 @@ import pytest
 import sys
 
 from tests import debug
-from tests.debug import runners, targets
+from tests.debug import runners
 from tests.patterns import some
 
 
@@ -213,7 +213,6 @@ def test_attach_pid_client(pyfile, target, pid_type):
 def test_cancel_wait(pyfile):
     @pyfile
     def code_to_debug():
-        import debuggee
         import debugpy
         import sys
         import threading
