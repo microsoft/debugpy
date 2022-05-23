@@ -14,5 +14,6 @@ def test_docstrings():
         member = getattr(debugpy, attr)
 
         doc = inspect.getdoc(member)
+        assert doc is not None, f"debugpy.{member} doesn't have a docstring"
         for lineno, line in enumerate(doc.split("\n")):
             assert len(line) <= 72
