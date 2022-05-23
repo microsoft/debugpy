@@ -3,6 +3,7 @@
 # for license information.
 
 from __future__ import annotations
+import functools
 import typing
 
 from debugpy import _version
@@ -24,6 +25,7 @@ if typing.TYPE_CHECKING:
 
 def _api(cancelable=False):
     def apply(f):
+        @functools.wraps(f)
         def wrapper(*args, **kwargs):
             from debugpy.server import api
 
