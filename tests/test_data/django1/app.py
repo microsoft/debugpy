@@ -25,7 +25,7 @@ def on_request_finished(sender, **kwargs):
 settings.configure(
     MIDDLEWARE=[],
     DEBUG=True,
-    SECRET_KEY="CD8FF4C1-7E6C-4E45-922D-C796271F2345",
+    SECRET_KEY="Placeholder_CD8FF4C1-7E6C-4E45-922D-C796271F2345",
     ROOT_URLCONF=sys.modules[__name__],
     SETTINGS_MODULE="",  # Added to avoid a KeyError during shutdown on the bad template test.
     TEMPLATES=[
