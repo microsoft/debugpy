@@ -1,0 +1,3 @@
+<PoliCheckExclusions>
+    <Exclusion Type="FolderPathFull">_vendored\pydevd</Exclusion>
+</PoliCheckExclusions>
