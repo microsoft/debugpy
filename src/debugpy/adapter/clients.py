@@ -2,6 +2,8 @@
 # Licensed under the MIT License. See LICENSE in the project root
 # for license information.
 
+from __future__ import annotations
+
 import atexit
 import os
 import sys
@@ -16,6 +18,10 @@ class Client(components.Component):
     """Handles the client side of a debug session."""
 
     message_handler = components.Component.message_handler
+
+    known_subprocesses: set[servers.Connection]
+    """Server connections to subprocesses that this client has been made aware of.
+    """
 
     class Capabilities(components.Capabilities):
         PROPERTIES = {
@@ -70,10 +76,7 @@ class Client(components.Component):
             only if and when the "launch" or "attach" response is sent.
             """
 
-            self._known_subprocesses = set()
-            """servers.Connection instances for subprocesses that this client has been
-            made aware of.
-            """
+            self.known_subprocesses = set()
 
             session.client = self
             session.register()
@@ -630,8 +633,9 @@ class Client(components.Component):
         return {}
 
     def notify_of_subprocess(self, conn):
+        log.info("{1} is a subprocess of {0}.", self, conn)
         with self.session:
-            if self.start_request is None or conn in self._known_subprocesses:
+            if self.start_request is None or conn in self.known_subprocesses:
                 return
             if "processId" in self.start_request.arguments:
                 log.warning(
@@ -643,7 +647,8 @@ class Client(components.Component):
 
             log.info("Notifying {0} about {1}.", self, conn)
             body = dict(self.start_request.arguments)
-            self._known_subprocesses.add(conn)
+            self.known_subprocesses.add(conn)
+            self.session.notify_changed()
 
         for key in "processId", "listen", "preLaunchTask", "postDebugTask":
             body.pop(key, None)

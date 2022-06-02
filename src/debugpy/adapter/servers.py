@@ -2,6 +2,8 @@
 # Licensed under the MIT License. See LICENSE in the project root
 # for license information.
 
+from __future__ import annotations
+
 import os
 import subprocess
 import sys
@@ -37,14 +39,31 @@ class Connection(object):
     once the session ends.
     """
 
+    disconnected: bool
+
+    process_replaced: bool
+    """Whether this is a connection to a process that is being replaced in situ
+    by another process, e.g. via exec().
+    """
+
+    server: Server | None
+    """The Server component, if this debug server belongs to Session.
+    """
+
+    pid: int | None
+
+    ppid: int | None
+
+    channel: messaging.JsonMessageChannel
+
     def __init__(self, sock):
         from debugpy.adapter import sessions
 
         self.disconnected = False
 
+        self.process_replaced = False
+
         self.server = None
-        """The Server component, if this debug server belongs to Session.
-        """
 
         self.pid = None
 
@@ -109,7 +128,13 @@ if 'debugpy' not in sys.modules:
                 if self.disconnected:
                     return
 
-                if any(conn.pid == self.pid for conn in _connections):
+                # An existing connection with the same PID and process_replaced == True
+                # corresponds to the process that replaced itself with this one, so it's
+                # not an error.
+                if any(
+                    conn.pid == self.pid and not conn.process_replaced
+                    for conn in _connections
+                ):
                     raise KeyError(f"{self} is already connected to this adapter")
 
                 is_first_server = len(_connections) == 0
@@ -131,8 +156,16 @@ if 'debugpy' not in sys.modules:
 
         parent_session = sessions.get(self.ppid)
         if parent_session is None:
+            parent_session = sessions.get(self.pid)
+        if parent_session is None:
             log.info("No active debug session for parent process of {0}.", self)
         else:
+            if self.pid == parent_session.pid:
+                parent_server = parent_session.server
+                if not (parent_server and parent_server.connection.process_replaced):
+                    log.error("{0} is not expecting replacement.", parent_session)
+                    self.channel.close()
+                    return
             try:
                 parent_session.client.notify_of_subprocess(self)
                 return
@@ -217,6 +250,8 @@ class Server(components.Component):
     """Handles the debug server side of a debug session."""
 
     message_handler = components.Component.message_handler
+
+    connection: Connection
 
     class Capabilities(components.Capabilities):
         PROPERTIES = {
@@ -340,10 +375,17 @@ class Server(components.Component):
             self.client.propagate_after_start(event)
 
     @message_handler
-    def exited_event(self, event):
-        # If there is a launcher, it's handling the exit code.
-        if not self.launcher:
-            self.client.propagate_after_start(event)
+    def exited_event(self, event: messaging.Event):
+        if event("pydevdReason", str, optional=True) == "processReplaced":
+            # The parent process used some API like exec() that replaced it with another
+            # process in situ. The connection will shut down immediately afterwards, but
+            # we need to keep the corresponding session alive long enough to report the
+            # subprocess to it.
+            self.connection.process_replaced = True
+        else:
+            # If there is a launcher, it's handling the exit code.
+            if not self.launcher:
+                self.client.propagate_after_start(event)
 
     @message_handler
     def terminated_event(self, event):
@@ -358,6 +400,27 @@ class Server(components.Component):
             self.connection.server = None
 
     def disconnect(self):
+        if self.connection.process_replaced:
+            # Wait for the replacement server to connect to the adapter, and to report
+            # itself to the client for this session if there is one.
+            log.info("{0} is waiting for replacement subprocess.", self)
+            session = self.session
+            if not session.client or not session.client.is_connected:
+                wait_for_connection(
+                    session, lambda conn: conn.pid == self.pid, timeout=30
+                )
+            else:
+                self.wait_for(
+                    lambda: (
+                        not session.client
+                        or not session.client.is_connected
+                        or any(
+                            conn.pid == self.pid
+                            for conn in session.client.known_subprocesses
+                        )
+                    ),
+                    timeout=30,
+                )
         with _lock:
             _connections.remove(self.connection)
             _connections_changed.set()
@@ -383,8 +446,8 @@ def connections():
 
 
 def wait_for_connection(session, predicate, timeout=None):
-    """Waits until there is a server with the specified PID connected to this adapter,
-    and returns the corresponding Connection.
+    """Waits until there is a server matching the specified predicate connected to
+    this adapter, and returns the corresponding Connection.
 
     If there is more than one server connection already available, returns the oldest
     one.

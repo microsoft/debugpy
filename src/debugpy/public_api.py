@@ -3,6 +3,7 @@
 # for license information.
 
 from __future__ import annotations
+
 import functools
 import typing
 
@@ -17,10 +18,7 @@ from debugpy import _version
 # than 72 characters per line! - and must be readable when retrieved via help().
 
 
-# Type aliases and protocols must be guarded to avoid runtime errors due to unsupported
-# syntax in Python <3.9; since they aren't annotations, they're eagerly evaluated!
-if typing.TYPE_CHECKING:
-    Endpoint = tuple[str, int]
+Endpoint = typing.Tuple[str, int]
 
 
 def _api(cancelable=False):
@@ -57,7 +55,7 @@ def log_to(__path: str) -> None:
 
 
 @_api()
-def configure(__properties: dict[str] = None, **kwargs) -> None:
+def configure(__properties: dict[str, typing.Any] | None = None, **kwargs) -> None:
     """Sets debug configuration properties that cannot be set in the
     "attach" request, because they must be applied as early as possible
     in the process being debugged.
@@ -113,7 +111,7 @@ def listen(__endpoint: Endpoint | int) -> Endpoint:
 
 
 @_api()
-def connect(__endpoint: Endpoint | int, *, access_token: str = None) -> Endpoint:
+def connect(__endpoint: Endpoint | int, *, access_token: str | None = None) -> Endpoint:
     """Tells an existing debug adapter instance that is listening on the
     specified address to debug this process.
 

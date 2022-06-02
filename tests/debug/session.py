@@ -474,6 +474,7 @@ class Session(object):
         if event.event == "exited":
             self.observe(occ)
             self.exit_code = event("exitCode", int)
+            self.exit_reason = event("reason", str, optional=True)
             assert self.exit_code == self.expected_exit_code
         elif event.event == "debugpyAttach":
             self.observe(occ)
