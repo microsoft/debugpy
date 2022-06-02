@@ -1391,7 +1391,8 @@ class AbstractWriterThread(threading.Thread):
         def condition():
             return self.get_frame_names(main_thread_id) in (
                 ['wait', 'join', '<module>'],
-                ['_wait_for_tstate_lock', 'join', '<module>']
+                ['_wait_for_tstate_lock', 'join', '<module>'],
+                ['_wait_for_tstate_lock', 'join', '<module>', '_run_code', '_run_module_code', 'run_path'],
             )
 
         def msg():
