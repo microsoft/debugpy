@@ -295,7 +295,7 @@ class Timeline(object):
             # Otherwise, break it down expectation by expectation.
             message += ":"
             for exp, reason in reasons.items():
-                message += "\n\n   where {exp!r}\n      == {reason!r}"
+                message += f"\n\n   where {exp!r}\n      == {reason!r}"
         else:
             message += "."
 

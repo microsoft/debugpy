@@ -12,3 +12,9 @@ exclude = '''
 | ^/src/debugpy/_version.py
 )
 '''
+
+[tool.pyright]
+pythonVersion = "3.7"
+include = ["src"]
+extraPaths = ["src/debugpy/_vendored/pydevd"]
+ignore = ["src/debugpy/_vendored/pydevd", "src/debugpy/_version.py"]

@@ -192,8 +192,9 @@ class Session(util.Observable):
 
         if self.launcher and self.launcher.is_connected:
             # If there was a server, we just disconnected from it above, which should
-            # cause the debuggee process to exit - so let's wait for that first.
-            if self.server:
+            # cause the debuggee process to exit, unless it is being replaced in situ -
+            # so let's wait for that first.
+            if self.server and not self.server.connection.process_replaced:
                 log.info('{0} waiting for "exited" event...', self)
                 if not self.wait_for(
                     lambda: self.launcher.exit_code is not None,
@@ -203,12 +204,16 @@ class Session(util.Observable):
 
             # Terminate the debuggee process if it's still alive for any reason -
             # whether it's because there was no server to handle graceful shutdown,
-            # or because the server couldn't handle it for some reason.
-            self.launcher.terminate_debuggee()
+            # or because the server couldn't handle it for some reason - unless the
+            # process is being replaced in situ.
+            if not (self.server and self.server.connection.process_replaced):
+                self.launcher.terminate_debuggee()
 
             # Wait until the launcher message queue fully drains. There is no timeout
             # here, because the final "terminated" event will only come after reading
-            # user input in wait-on-exit scenarios.
+            # user input in wait-on-exit scenarios. In addition, if the process was
+            # replaced in situ, the launcher might still have more output to capture
+            # from its replacement.
             log.info("{0} waiting for {1} to disconnect...", self, self.launcher)
             self.wait_for(lambda: not self.launcher.is_connected)
 
@@ -229,6 +234,7 @@ class Session(util.Observable):
             if (
                 self.client.start_request is not None
                 and self.client.start_request.command == "launch"
+                and not (self.server and self.server.connection.process_replaced)
             ):
                 servers.stop_serving()
                 log.info(

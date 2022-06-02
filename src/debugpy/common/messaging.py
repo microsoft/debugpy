@@ -9,6 +9,8 @@ responses, and events.
 https://microsoft.github.io/debug-adapter-protocol/overview#base-protocol
 """
 
+from __future__ import annotations
+
 import collections
 import contextlib
 import functools
@@ -460,7 +462,7 @@ class Message(object):
         raise NotImplementedError
 
     @property
-    def payload(self):
+    def payload(self) -> MessageDict:
         """Payload of the message - self.body or self.arguments, depending on the
         message type.
         """

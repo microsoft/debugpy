@@ -537,3 +537,49 @@ def test_breakaway_job(pyfile, target, run):
 
     log.info("Waiting for child process...")
     child_process.wait()
+
+
+@pytest.mark.parametrize("run", runners.all_launch)
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="os.exec() is specific to POSIX"
+)
+def test_subprocess_replace(pyfile, target, run):
+    @pyfile
+    def child():
+        import os
+        import sys
+
+        assert "debugpy" in sys.modules
+
+        from debuggee import backchannel
+
+        backchannel.send(os.getpid())
+
+    @pyfile
+    def parent():
+        import debuggee
+        import os
+        import sys
+
+        debuggee.setup()
+        print(f"execl({sys.executable!r}, {sys.argv[1]!r})")
+        os.execl(sys.executable, sys.executable, sys.argv[1])
+
+    with debug.Session() as parent_session:
+        backchannel = parent_session.open_backchannel()
+        with run(parent_session, target(parent, args=[child])):
+            pass
+
+        expected_child_config = expected_subprocess_config(parent_session)
+        child_config = parent_session.wait_for_next_event("debugpyAttach")
+        child_config.pop("isOutputRedirected", None)
+        assert child_config == expected_child_config
+        parent_session.proceed()
+
+        with debug.Session(child_config) as child_session:
+            with child_session.start():
+                pass
+
+            child_pid = backchannel.receive()
+            assert child_pid == child_config["subProcessId"]
+            assert str(child_pid) in child_config["name"]
