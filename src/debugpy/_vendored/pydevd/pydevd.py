@@ -43,6 +43,7 @@ from _pydevd_bundle import pydevd_extension_utils, pydevd_frame_utils
 from _pydevd_bundle.pydevd_filtering import FilesFiltering, glob_matches_path
 from _pydevd_bundle import pydevd_io, pydevd_vm_type
 from _pydevd_bundle import pydevd_utils
+from _pydevd_bundle import pydevd_runpy
 from _pydev_bundle.pydev_console_utils import DebugConsoleStdIn
 from _pydevd_bundle.pydevd_additional_thread_info import set_additional_thread_info
 from _pydevd_bundle.pydevd_breakpoints import ExceptionBreakpoint, get_exception_breakpoint
@@ -2481,7 +2482,7 @@ class PyDB(object):
         This function should have frames tracked by unhandled exceptions (the `_exec` name is important).
         '''
         if not is_module:
-            pydev_imports.execfile(file, globals, locals)  # execute the script
+            globals = pydevd_runpy.run_path(file, globals, '__main__')
         else:
             # treat ':' as a separator between module and entry point function
             # if there is no entry point we run we same as with -m switch. Otherwise we perform
@@ -2492,15 +2493,7 @@ class PyDB(object):
                 func()
             else:
                 # Run with the -m switch
-                import runpy
-                if hasattr(runpy, '_run_module_as_main'):
-                    # Newer versions of Python actually use this when the -m switch is used.
-                    if sys.version_info[:2] <= (2, 6):
-                        runpy._run_module_as_main(module_name, set_argv0=False)
-                    else:
-                        runpy._run_module_as_main(module_name, alter_argv=False)
-                else:
-                    runpy.run_module(module_name)
+                globals = pydevd_runpy._run_module_as_main(module_name, alter_argv=False)
         return globals
 
     def wait_for_commands(self, globals):

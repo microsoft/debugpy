@@ -188,8 +188,8 @@ DONT_TRACE['codecs.py'] = LIB_FILE
                     pydev_files.append("    '%s': PYDEV_FILE," % (f,))
 
     contents = template % (dict(
-        pydev_files='\n'.join(sorted(pydev_files)),
-        pydev_dirs='\n'.join(sorted(pydev_dirs)),
+        pydev_files='\n'.join(sorted(set(pydev_files))),
+        pydev_dirs='\n'.join(sorted(set(pydev_dirs))),
     ))
     assert 'pydevd.py' in contents
     assert 'pydevd_dont_trace.py' in contents

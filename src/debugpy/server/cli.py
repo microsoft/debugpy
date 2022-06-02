@@ -5,7 +5,6 @@
 import json
 import os
 import re
-import runpy
 import sys
 from importlib.util import find_spec
 
@@ -14,6 +13,9 @@ from importlib.util import find_spec
 # could perform the necessary detours in it.
 assert "pydevd" in sys.modules
 import pydevd
+
+# Note: use the one bundled from pydevd so that it's invisible for the user.
+from _pydevd_bundle import pydevd_runpy as runpy
 
 import debugpy
 from debugpy.common import log

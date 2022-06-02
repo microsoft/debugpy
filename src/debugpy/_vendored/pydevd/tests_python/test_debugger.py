@@ -2667,10 +2667,13 @@ def test_multiprocessing_with_stopped_breakpoints(case_setup_multiprocessing, co
 
 
 @pytest.mark.skipif(not IS_CPYTHON, reason='CPython only test.')
-def test_subprocess_quoted_args(case_setup_multiprocessing):
-    import threading
+@pytest.mark.parametrize('target', [
+    '_debugger_case_quoting.py',
+    '_debugger_case_subprocess_zip.py'
+])
+def test_subprocess_quoted_args(case_setup_multiprocessing, target):
     from tests_python.debugger_unittest import AbstractWriterThread
-    with case_setup_multiprocessing.test_file('_debugger_case_quoting.py') as writer:
+    with case_setup_multiprocessing.test_file(target) as writer:
         break_subprocess_line = writer.get_line_index_with_content('break here')
 
         writer.write_add_breakpoint(break_subprocess_line)

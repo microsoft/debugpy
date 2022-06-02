@@ -17,7 +17,7 @@ def run_file(file, globals=None, locals=None, is_module=False):
     module_name = None
     entry_point_fn = None
     if is_module:
-        file, _,  entry_point_fn = file.partition(':')
+        file, _, entry_point_fn = file.partition(':')
         module_name = file
         filename = get_fullname(file)
         if filename is None:
@@ -60,11 +60,8 @@ def run_file(file, globals=None, locals=None, is_module=False):
                 func()
             else:
                 # Run with the -m switch
-                import runpy
-                if hasattr(runpy, '_run_module_as_main'):
-                    runpy._run_module_as_main(module_name)
-                else:
-                    runpy.run_module(module_name)
+                from _pydevd_bundle import pydevd_runpy
+                pydevd_runpy._run_module_as_main(module_name)
     except:
         traceback.print_exc()
 
@@ -121,8 +118,8 @@ if __name__ == '__main__':
 
     host = pydev_localhost.get_localhost()
 
-    #replace exit (see comments on method)
-    #note that this does not work in jython!!! (sys method can't be replaced).
+    # replace exit (see comments on method)
+    # note that this does not work in jython!!! (sys method can't be replaced).
     sys.exit = skip_successful_exit
 
     connect_status_queue = _queue.Queue()

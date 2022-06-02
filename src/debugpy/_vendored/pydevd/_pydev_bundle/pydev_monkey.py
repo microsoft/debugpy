@@ -487,14 +487,14 @@ def patch_args(args, is_exec=False):
                 # It doesn't start with '-' and we didn't ignore this entry:
                 # this means that this is the file to be executed.
                 filename = unquoted_args[i]
-                filename_i = i
 
-                # When executing .zip applications, don't attach the debugger.
-                extensions = _get_str_type_compatible(filename, ['.zip', '.pyz', '.pyzw'])
-                for ext in extensions:
-                    if filename.endswith(ext):
-                        pydev_log.debug('Executing a PyZip (debugger will not be attached to subprocess).')
-                        return original_args
+                # Note that the filename is not validated here.
+                # There are cases where even a .exe is valid (xonsh.exe):
+                # https://github.com/microsoft/debugpy/issues/945
+                # So, we should support whatever runpy.run_path
+                # supports in this case.
+
+                filename_i = i
 
                 if _is_managed_arg(filename):  # no need to add pydevd twice
                     pydev_log.debug('Skipped monkey-patching as pydevd.py is in args already.')

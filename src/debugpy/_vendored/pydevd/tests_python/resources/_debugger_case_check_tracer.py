@@ -40,7 +40,7 @@ def check_frame_info(expected):
     for found_info, expected_info in  zip(found, expected):
         if found_info.filename != expected_info.filename or found_info.name != expected_info.name:
             fail()
-            
+
         for f_trace in expected_info.f_trace.split('|'):
             if f_trace == found_info.f_trace:
                 break
@@ -49,22 +49,13 @@ def check_frame_info(expected):
 
 
 def thread_func():
-    if sys.version_info[0] >= 3:
-        check_frame_info([
-            FrameInfo(filename='_debugger_case_check_tracer.py', name='thread_func', f_trace='trace_exception'),
-            FrameInfo(filename='threading.py', name='run', f_trace='None'),
-            FrameInfo(filename='threading.py', name='_bootstrap_inner', f_trace='trace_unhandled_exceptions'),
-            FrameInfo(filename='threading.py', name='_bootstrap', f_trace='None'),
-            FrameInfo(filename='pydev_monkey.py', name='__call__', f_trace='None')
-        ])
-    else:
-        check_frame_info([
-            FrameInfo(filename='_debugger_case_check_tracer.py', name='thread_func', f_trace='trace_exception'),
-            FrameInfo(filename='threading.py', name='run', f_trace='None'),
-            FrameInfo(filename='threading.py', name='__bootstrap_inner', f_trace='trace_unhandled_exceptions'),
-            FrameInfo(filename='threading.py', name='__bootstrap', f_trace='None'),
-            FrameInfo(filename='pydev_monkey.py', name='__call__', f_trace='None'),
-        ])
+    check_frame_info([
+        FrameInfo(filename='_debugger_case_check_tracer.py', name='thread_func', f_trace='trace_exception'),
+        FrameInfo(filename='threading.py', name='run', f_trace='None'),
+        FrameInfo(filename='threading.py', name='_bootstrap_inner', f_trace='trace_unhandled_exceptions'),
+        FrameInfo(filename='threading.py', name='_bootstrap', f_trace='None'),
+        FrameInfo(filename='pydev_monkey.py', name='__call__', f_trace='None')
+    ])
 
 
 th = threading.Thread(target=thread_func)
@@ -95,22 +86,15 @@ th.join()
 import time
 time.sleep(.3)
 
-if sys.version_info[0] >= 3:
-    check_frame_info([
-        FrameInfo(filename='_debugger_case_check_tracer.py', name='<module>', f_trace='trace_exception'),
-        FrameInfo(filename='_pydev_execfile.py', name='execfile', f_trace='None'),
-        FrameInfo(filename='pydevd.py', name='_exec', f_trace='trace_unhandled_exceptions'),
-        FrameInfo(filename='pydevd.py', name='run', f_trace='trace_dispatch|None'),
-        FrameInfo(filename='pydevd.py', name='main', f_trace='trace_dispatch|None'),
-        FrameInfo(filename='pydevd.py', name='<module>', f_trace='trace_dispatch|None')
-    ])
-else:
-    check_frame_info([
-        FrameInfo(filename='_debugger_case_check_tracer.py', name='<module>', f_trace='trace_exception'),
-        FrameInfo(filename='pydevd.py', name='_exec', f_trace='trace_unhandled_exceptions'),
-        FrameInfo(filename='pydevd.py', name='run', f_trace='trace_dispatch|None'),
-        FrameInfo(filename='pydevd.py', name='main', f_trace='trace_dispatch|None'),
-        FrameInfo(filename='pydevd.py', name='<module>', f_trace='trace_dispatch|None'),
-    ])
+check_frame_info([
+    FrameInfo(filename='_debugger_case_check_tracer.py', name='<module>', f_trace='trace_exception'),
+    FrameInfo(filename='pydevd_runpy.py', name='_run_code', f_trace='None'),
+    FrameInfo(filename='pydevd_runpy.py', name='_run_module_code', f_trace='None'),
+    FrameInfo(filename='pydevd_runpy.py', name='run_path', f_trace='None'),
+    FrameInfo(filename='pydevd.py', name='_exec', f_trace='trace_unhandled_exceptions'),
+    FrameInfo(filename='pydevd.py', name='run', f_trace='trace_dispatch|None'),
+    FrameInfo(filename='pydevd.py', name='main', f_trace='trace_dispatch|None'),
+    FrameInfo(filename='pydevd.py', name='<module>', f_trace='trace_dispatch|None')
+])
 
 print('TEST SUCEEDED')
