@@ -46,6 +46,8 @@ class CaptureOutput(object):
                     level="warning",
                 )
                 self._encode = codecs.getencoder("utf-8")
+            else:
+                log.info("Using encoding {0!r} for {1}", encoding, category)
 
         self._worker_thread = threading.Thread(target=self._worker, name=category)
         self._worker_thread.start()
@@ -86,19 +88,22 @@ class CaptureOutput(object):
         if self._stream is None:
             return
 
-        s, _ = self._encode(s, "surrogateescape")
-        size = len(s)
-        i = 0
-        while i < size:
-            written = self._stream.write(s[i:])
-            self._stream.flush()
-            if written == 0:
-                # This means that the output stream was closed from the other end.
-                # Do the same to the debuggee, so that it knows as well.
-                os.close(self._fd)
-                self._fd = None
-                break
-            i += written
+        try:
+            s, _ = self._encode(s, "surrogateescape")
+            size = len(s)
+            i = 0
+            while i < size:
+                written = self._stream.write(s[i:])
+                self._stream.flush()
+                if written == 0:
+                    # This means that the output stream was closed from the other end.
+                    # Do the same to the debuggee, so that it knows as well.
+                    os.close(self._fd)
+                    self._fd = None
+                    break
+                i += written
+        except Exception:
+            log.swallow_exception("Error printing {0!r} to {1}", s, self.category)
 
 
 def wait_for_remaining_output():
