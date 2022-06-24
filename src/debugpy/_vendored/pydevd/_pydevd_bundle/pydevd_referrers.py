@@ -3,6 +3,7 @@ from _pydevd_bundle import pydevd_xml
 from os.path import basename
 from _pydev_bundle import pydev_log
 from urllib.parse import unquote_plus
+from _pydevd_bundle.pydevd_constants import IS_PY311_OR_GREATER
 
 
 #===================================================================================================
@@ -194,6 +195,24 @@ def get_referrer_info(searched_obj):
                             if DEBUG:
                                 sys.stderr.write('    Found as %s in tuple: \n' % (found_as,))
                             break
+
+                elif IS_PY311_OR_GREATER:
+                    # Up to Python 3.10, gc.get_referrers for an instance actually returned the
+                    # object.__dict__, but on Python 3.11 it returns the actual object, so,
+                    # handling is a bit easier (we don't need the workaround from the dict
+                    # case to find the actual instance, we just need to find the attribute name).
+                    if DEBUG:
+                        sys.stderr.write('Found dict referrer: %r\n' % (r,))
+
+                    dct = getattr(r, '__dict__', None)
+                    if dct:
+                        # Try to check if it's a value in the dict (and under which key it was found)
+                        for key, val in dct.items():
+                            if val is searched_obj:
+                                found_as = key
+                                if DEBUG:
+                                    sys.stderr.write('    Found as %r in object instance\n' % (found_as,))
+                                break
 
                 if found_as:
                     if not isinstance(found_as, str):

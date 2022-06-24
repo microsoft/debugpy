@@ -43,13 +43,15 @@ def collect_smart_step_into_variants(*args, **kwargs):
     try:
         return pydevd_bytecode_utils.calculate_smart_step_into_variants(*args, **kwargs)
     except:
-        # In a failure, rerun with DEBUG!
-        debug = pydevd_bytecode_utils.DEBUG
-        pydevd_bytecode_utils.DEBUG = True
-        try:
-            return pydevd_bytecode_utils.calculate_smart_step_into_variants(*args, **kwargs)
-        finally:
-            pydevd_bytecode_utils.DEBUG = debug
+        pass
+
+    # In a failure, rerun with DEBUG!
+    debug = pydevd_bytecode_utils.DEBUG
+    pydevd_bytecode_utils.DEBUG = True
+    try:
+        return pydevd_bytecode_utils.calculate_smart_step_into_variants(*args, **kwargs)
+    finally:
+        pydevd_bytecode_utils.DEBUG = debug
 
 
 def check_names_from_func_str(func_str, expected):

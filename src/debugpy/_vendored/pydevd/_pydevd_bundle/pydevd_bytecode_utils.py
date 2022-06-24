@@ -12,7 +12,7 @@ from _pydevd_frame_eval.vendored.bytecode import cfg as bytecode_cfg
 import dis
 import opcode as _opcode
 
-from _pydevd_bundle.pydevd_constants import KeyifyList, DebugInfoHolder
+from _pydevd_bundle.pydevd_constants import KeyifyList, DebugInfoHolder, IS_PY311_OR_GREATER
 from bisect import bisect
 from collections import deque
 
@@ -125,6 +125,8 @@ class _StackInterpreter(object):
         if instr.name == 'LOAD_ASSERTION_ERROR':
             return 'AssertionError'
         name = self._getname(instr)
+        if isinstance(name, CodeType):
+            name = name.co_qualname  # Note: only available for Python 3.11
         if isinstance(name, _Variable):
             name = name.name
 
@@ -279,8 +281,14 @@ class _StackInterpreter(object):
         self._stack.append(instr)
 
     def on_MAKE_FUNCTION(self, instr):
-        qualname = self._stack.pop()
-        code_obj_instr = self._stack.pop()
+        if not IS_PY311_OR_GREATER:
+            # The qualifier name is no longer put in the stack.
+            qualname = self._stack.pop()
+            code_obj_instr = self._stack.pop()
+        else:
+            # In 3.11 the code object has a co_qualname which we can use.
+            qualname = code_obj_instr = self._stack.pop()
+
         arg = instr.arg
         if arg & 0x08:
             _func_closure = self._stack.pop()
@@ -312,6 +320,9 @@ class _StackInterpreter(object):
 
         func_name_instr = self._stack.pop()
         self._handle_call_from_instr(func_name_instr, instr)
+
+    def on_PUSH_NULL(self, instr):
+        self._stack.append(instr)
 
     def on_CALL_FUNCTION(self, instr):
         arg = instr.arg
@@ -523,6 +534,12 @@ class _StackInterpreter(object):
     on_GET_AWAITABLE = _no_stack_change
     on_GET_YIELD_FROM_ITER = _no_stack_change
 
+    def on_RETURN_GENERATOR(self, instr):
+        self._stack.append(instr)
+
+    on_RETURN_GENERATOR = _no_stack_change
+    on_RESUME = _no_stack_change
+
     def on_MAP_ADD(self, instr):
         self.on_POP_TOP(instr)
         self.on_POP_TOP(instr)
@@ -650,6 +667,9 @@ class _StackInterpreter(object):
     on_UNARY_NOT = _no_stack_change
     on_UNARY_INVERT = _no_stack_change
 
+    on_CACHE = _no_stack_change
+    on_PRECALL = _no_stack_change
+
 
 def _get_smart_step_into_targets(code):
     '''
@@ -668,17 +688,20 @@ def _get_smart_step_into_targets(code):
             try:
                 func_name = 'on_%s' % (instr.name,)
                 func = getattr(stack, func_name, None)
+
+                if DEBUG:
+                    if instr.name != 'CACHE':  # Filter the ones we don't want to see.
+                        print('\nWill handle: ', instr, '>>', stack._getname(instr), '<<')
+                        print('Current stack:')
+                        for entry in stack._stack:
+                            print('    arg:', stack._getname(entry), '(', entry, ')')
+
                 if func is None:
                     if STRICT_MODE:
                         raise AssertionError('%s not found.' % (func_name,))
                     else:
                         continue
-                if DEBUG:
-                    print('\nWill handle: ', instr, '>>', stack._getname(instr), '<<')
                 func(instr)
-                if DEBUG:
-                    for entry in stack._stack:
-                        print('    arg:', stack._getname(entry), '(', entry, ')')
             except:
                 if STRICT_MODE:
                     raise  # Error in strict mode.
@@ -784,7 +807,11 @@ def calculate_smart_step_into_variants(frame, start_line, end_line, base=0):
 
     call_order_cache = {}
     if DEBUG:
-        dis.dis(code)
+        print('dis.dis:')
+        if IS_PY311_OR_GREATER:
+            dis.dis(code, show_caches=False)
+        else:
+            dis.dis(code)
 
     for target in _get_smart_step_into_targets(code):
         variant = _convert_target_to_variant(target, start_line, end_line, call_order_cache, lasti, base)

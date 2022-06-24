@@ -160,7 +160,7 @@ class _ExcVerifier(object):
             if update_try_except_infos is not None:
                 update_try_except_infos(try_except_infos)
 
-            if sys.version_info[:2] != (3, 10):
+            if sys.version_info[:2] not in ((3, 10), (3, 11)):
                 assert str(try_except_infos) == expected_as_str
             from _pydevd_bundle.pydevd_collect_bytecode_info import collect_try_except_info_from_source
 

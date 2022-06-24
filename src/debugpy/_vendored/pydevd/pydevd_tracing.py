@@ -240,7 +240,7 @@ def get_python_helper_lib_filename():
 
 
 def _load_python_helper_lib_uncached():
-    if (not IS_CPYTHON or sys.version_info[:2] > (3, 10)
+    if (not IS_CPYTHON or sys.version_info[:2] > (3, 11)
             or hasattr(sys, 'gettotalrefcount') or LOAD_NATIVE_LIB_FLAG in ENV_FALSE_LOWER_VALUES):
         pydev_log.info('Helper lib to set tracing to all threads not loaded.')
         return None

@@ -171,6 +171,7 @@ IS_PY37_OR_GREATER = sys.version_info >= (3, 7)
 IS_PY38_OR_GREATER = sys.version_info >= (3, 8)
 IS_PY39_OR_GREATER = sys.version_info >= (3, 9)
 IS_PY310_OR_GREATER = sys.version_info >= (3, 10)
+IS_PY311_OR_GREATER = sys.version_info >= (3, 11)
 
 
 def version_str(v):

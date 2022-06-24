@@ -31,6 +31,7 @@ def get_main_thread_id(unlikely_thread_id=None):
 
         if (frame.f_code.co_name, basename) in [
                 ('_run_module_as_main', 'runpy.py'),
+                ('_run_module_as_main', '<frozen runpy>'),
                 ('run_module_as_main', 'runpy.py'),
                 ('run_module', 'runpy.py'),
                 ('run_path', 'runpy.py'),

@@ -327,7 +327,7 @@ if sys.version_info[:2] <= (3, 9):
 
         return try_except_info_lst
 
-if sys.version_info[:2] >= (3, 10):
+elif sys.version_info[:2] == (3, 10):
 
     class _TargetInfo(object):
 
@@ -459,6 +459,16 @@ if sys.version_info[:2] >= (3, 10):
                                     _get_line(op_offset_to_line, raise_instruction.offset, firstlineno, search=True))
 
         return try_except_info_lst
+
+elif sys.version_info[:2] >= (3, 11):
+
+    def collect_try_except_info(co, use_func_first_line=False):
+        '''
+        Note: if the filename is available and we can get the source,
+        `collect_try_except_info_from_source` is preferred (this is kept as
+        a fallback for cases where sources aren't available).
+        '''
+        return []
 
 import ast as ast_module
 

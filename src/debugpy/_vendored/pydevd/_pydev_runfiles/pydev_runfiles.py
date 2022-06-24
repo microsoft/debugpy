@@ -209,7 +209,7 @@ def parse_cmdline(argv=None):
         elif opt in ("-c", "--config_file"):
             config_file = value.strip()
             if os.path.exists(config_file):
-                f = open(config_file, 'rU')
+                f = open(config_file, 'r')
                 try:
                     config_file_contents = f.read()
                 finally:
