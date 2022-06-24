@@ -35,6 +35,7 @@ typedef PyObject* PyEval_CallObjectWithKeywords(PyObject *callable, PyObject *ar
 
 typedef void (PyEval_SetTrace)(Py_tracefunc, PyObject *);
 typedef int (*Py_tracefunc)(PyObject *, PyFrameObject *frame, int, PyObject *);
+typedef int (_PyEval_SetTrace)(PyThreadState *tstate, Py_tracefunc func, PyObject *arg);
 
 typedef PyObject* PyObject_Repr(PyObject *);
 typedef const char* PyUnicode_AsUTF8(PyObject *unicode);

@@ -80,14 +80,18 @@ typedef struct {
 } PyUnicodeObject;
 
 
-class PyFrameObject : public PyVarObject {
+class PyFrameObject : public PyObject {
     // After 3.10 we don't really have things we want to reuse common, so,
-    // create an empty base (based on PyVarObject).
+    // create an empty base (it's not based on PyVarObject because on Python 3.11
+    // it's just a PyObject and no longer a PyVarObject -- the part related to
+    // the var object must be declared in ech subclass in this case).
 };
 
 // 2.4 - 3.7 compatible
 class PyFrameObjectBaseUpTo39 : public PyFrameObject {
 public:
+    size_t ob_size; /* Number of items in variable part -- i.e.: PyVarObject*/
+    
     PyFrameObjectBaseUpTo39 *f_back;  /* previous frame, or nullptr */
     PyObject *f_code;           /* code segment */
     PyObject *f_builtins;       /* builtin symbol table (PyDictObject) */
@@ -108,6 +112,8 @@ public:
 // https://github.com/python/cpython/blob/3.10/Include/cpython/frameobject.h
 class PyFrameObject310 : public PyFrameObject {
 public:
+    size_t ob_size; /* Number of items in variable part -- i.e.: PyVarObject*/
+
     PyFrameObject310 *f_back;      /* previous frame, or NULL */
     PyObject *f_code;       /* code segment */
     PyObject *f_builtins;       /* builtin symbol table (PyDictObject) */
@@ -117,6 +123,45 @@ public:
     PyObject *f_trace;          /* Trace function */
 
     // It has more things, but we're only interested in things up to f_trace.
+};
+
+typedef uint16_t _Py_CODEUNIT;
+
+// https://github.com/python/cpython/blob/3.11/Include/internal/pycore_frame.h
+typedef struct _PyInterpreterFrame311 {
+    /* "Specials" section */
+    PyFunctionObject *f_func; /* Strong reference */
+    PyObject *f_globals; /* Borrowed reference */
+    PyObject *f_builtins; /* Borrowed reference */
+    PyObject *f_locals; /* Strong reference, may be NULL */
+    void *f_code; /* Strong reference */
+    void *frame_obj; /* Strong reference, may be NULL */
+    /* Linkage section */
+    struct _PyInterpreterFrame311 *previous;
+    // NOTE: This is not necessarily the last instruction started in the given
+    // frame. Rather, it is the code unit *prior to* the *next* instruction. For
+    // example, it may be an inline CACHE entry, an instruction we just jumped
+    // over, or (in the case of a newly-created frame) a totally invalid value:
+    _Py_CODEUNIT *prev_instr;
+    int stacktop;     /* Offset of TOS from localsplus  */
+    bool is_entry;  // Whether this is the "root" frame for the current _PyCFrame.
+    char owner;
+    /* Locals and stack */
+    PyObject *localsplus[1];
+} _PyInterpreterFrame311;
+
+// https://github.com/python/cpython/blob/3.11/Include/internal/pycore_frame.h
+// Note that in 3.11 it's no longer a "PyVarObject".
+class PyFrameObject311 : public PyFrameObject {
+public:
+    PyFrameObject311 *f_back;      /* previous frame, or NULL */
+    struct _PyInterpreterFrame311 *f_frame; /* points to the frame data */
+    PyObject *f_trace;          /* Trace function */
+    int f_lineno;               /* Current line number. Only valid if non-zero */
+    char f_trace_lines;         /* Emit per-line trace events? */
+    char f_trace_opcodes;       /* Emit per-opcode trace events? */
+    char f_fast_as_locals;      /* Have the fast locals of this frame been converted to a dict? */
+    // It has more things, but we're not interested on those.
 };
 
 
@@ -569,6 +614,60 @@ public:
 
     static bool IsFor(PythonVersion version) {
         return version == PythonVersion_310;
+    }
+};
+
+// i.e.: https://github.com/python/cpython/blob/3.11/Include/cpython/pystate.h
+class PyThreadState_311 : public PyThreadState {
+public:
+    PyThreadState *prev;
+    PyThreadState *next;
+    PyInterpreterState *interp;
+
+    int _initialized;
+
+    int _static;
+    
+    int recursion_remaining;
+    int recursion_limit;
+    int recursion_headroom; /* Allow 50 more calls to handle any errors. */
+
+    /* 'tracing' keeps track of the execution depth when tracing/profiling.
+       This is to prevent the actual trace/profile code from being recorded in
+       the trace/profile. */
+    int tracing;
+    int tracing_what;
+
+    /* Pointer to current CFrame in the C stack frame of the currently,
+     * or most recently, executing _PyEval_EvalFrameDefault. */
+    CFrame *cframe;
+
+
+    Py_tracefunc c_profilefunc;
+    Py_tracefunc c_tracefunc;
+    PyObject *c_profileobj;
+    PyObject *c_traceobj;
+
+    PyObject *curexc_type;
+    PyObject *curexc_value;
+    PyObject *curexc_traceback;
+
+    _PyErr_StackItem *exc_info;
+
+    PyObject *dict;  /* Stores per-thread state */
+
+    int gilstate_counter;
+
+    PyObject *async_exc; /* Asynchronous exception to raise */
+
+    unsigned long thread_id; /* Thread id where this tstate was created */
+
+    static bool IsFor(int majorVersion, int minorVersion) {
+        return majorVersion == 3 && minorVersion == 11;
+    }
+
+    static bool IsFor(PythonVersion version) {
+        return version == PythonVersion_311;
     }
 };
 

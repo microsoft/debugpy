@@ -90,7 +90,10 @@ def _patch_threading_to_hide_pydevd_threads():
 
     new_threading_enumerate = None
 
-    if found_load_names == set(('_active_limbo_lock', '_limbo', '_active', 'values', 'list')):
+    if found_load_names in (
+        {'_active_limbo_lock', '_limbo', '_active', 'values', 'list'},
+        {'_active_limbo_lock', '_limbo', '_active', 'values', 'NULL + list'}
+        ):
         pydev_log.debug('Applying patching to hide pydevd threads (Py3 version).')
 
         def new_threading_enumerate():

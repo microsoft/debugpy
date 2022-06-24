@@ -5,6 +5,7 @@
 #include "py_utils.hpp"
 #include "py_custom_pyeval_settrace_common.hpp"
 #include "py_custom_pyeval_settrace_310.hpp"
+#include "py_custom_pyeval_settrace_311.hpp"
 
 // On Python 3.7 onwards the thread state is not kept in PyThread_set_key_value (rather
 // it uses PyThread_tss_set using PyThread_tss_set(&_PyRuntime.gilstate.autoTSSkey, (void *)tstate)
@@ -181,6 +182,8 @@ void InternalPySetTrace(PyThreadState* curThread, PyObjectHolder* traceFunc, boo
     } else if (PyThreadState_310::IsFor(version)) {
         // 3.10 has other changes on the actual algorithm (use_tracing is per-frame now), so, we have a full new version for it.
         InternalPySetTrace_Template310<PyThreadState_310*>(reinterpret_cast<PyThreadState_310*>(curThread), traceFunc, isDebug);
+    } else if (PyThreadState_311::IsFor(version)) {
+        InternalPySetTrace_Template311<PyThreadState_311*>(reinterpret_cast<PyThreadState_311*>(curThread), traceFunc, isDebug);
     } else {
         printf("Unable to set trace to target thread with Python version: %d", version);
     }
