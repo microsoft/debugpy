@@ -155,7 +155,9 @@ def spawn_debuggee(
             if cwd is not None:
                 request_args["cwd"] = cwd
             try:
-                session.client.channel.request("runInTerminal", request_args)
+                # It is unspecified whether this request receives a response immediately, or only
+                # after the spawned command has completed running, so do not block waiting for it.
+                session.client.channel.send_request("runInTerminal", request_args)
             except messaging.MessageHandlingError as exc:
                 exc.propagate(start_request)
 
