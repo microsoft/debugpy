@@ -5,13 +5,13 @@ import time
 
 from contextlib import contextmanager
 from tests_python.debugger_unittest import IS_PY36_OR_GREATER, IS_CPYTHON
-from tests_python.debug_constants import TEST_CYTHON
+from tests_python.debug_constants import TEST_CYTHON, TODO_PY311
 
 pytest_plugins = [
     str('tests_python.debugger_fixtures'),
 ]
 
-pytestmark = pytest.mark.skipif(not IS_PY36_OR_GREATER or not IS_CPYTHON or not TEST_CYTHON, reason='Requires CPython >= 3.6')
+pytestmark = pytest.mark.skipif(not IS_PY36_OR_GREATER or not IS_CPYTHON or not TEST_CYTHON or TODO_PY311, reason='Requires CPython >= 3.6')
 
 
 @pytest.fixture

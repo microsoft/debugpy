@@ -1,11 +1,14 @@
 import sys
+from tests_python.debug_constants import TODO_PY311
 try:
     from _pydevd_bundle import pydevd_bytecode_utils
 except ImportError:
     pass
 import pytest
 
-pytestmark = pytest.mark.skipif(sys.version_info[0] < 3, reason='Only available for Python 3.')
+pytestmark = pytest.mark.skipif(
+    sys.version_info[0] < 3 or
+    TODO_PY311, reason='Only available for Python 3. / Requires bytecode support in Python 3.11')
 
 
 @pytest.fixture(autouse=True, scope='function')
