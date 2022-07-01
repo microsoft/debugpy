@@ -8,6 +8,7 @@ from _pydevd_bundle.pydevd_collect_bytecode_info import collect_try_except_info,
     collect_return_info, code_to_bytecode_representation
 from tests_python.debugger_unittest import IS_CPYTHON, IS_PYPY
 from _pydevd_bundle.pydevd_constants import IS_PY38_OR_GREATER, IS_JYTHON
+from tests_python.debug_constants import IS_PY311_OR_GREATER
 
 
 def _method_call_with_error():
@@ -192,7 +193,7 @@ def test_collect_try_except_info(data_regression, pyfile):
             info = collect_try_except_info(method.__code__, use_func_first_line=True)
             method_to_info[key] = sorted(str(x) for x in info)
 
-    if sys.version_info[:2] != (3, 10):
+    if sys.version_info[:2] not in ((3, 10), (3, 11)):
         data_regression.check(method_to_info)
 
     data_regression.check(method_to_info_from_source)
@@ -385,6 +386,8 @@ def test_collect_try_except_info_multiple_except(exc_verifier):
 
 
 def test_collect_try_except_info_async_for():
+    if IS_PY311_OR_GREATER:
+        pytest.skip('On Python 3.11 we just support collecting info from the AST.')
 
     # Not valid on Python 2.
     code_str = '''
@@ -482,7 +485,8 @@ def test_simple_code_to_bytecode_repr():
                 3,
                 call('tnh %s' % 1))
 
-    assert code_to_bytecode_representation(method4.__code__, use_func_first_line=True).count('\n') == 4
+    contents = code_to_bytecode_representation(method4.__code__, use_func_first_line=True)
+    assert contents.count('\n') == 4, 'Found:%s' % (contents,)
 
 
 @pytest.mark.skipif(IS_JYTHON, reason='Jython does not have bytecode support.')
@@ -537,6 +541,7 @@ def test_simple_code_to_bytecode_repr_simple_method_calls():
     new_repr = code_to_bytecode_representation(method4.__code__, use_func_first_line=True)
     assert 'call()' in new_repr
     assert 'call(1, 2, 3, a, b, \'x\')' in new_repr
+    assert 'NULL' not in new_repr
 
 
 @pytest.mark.skipif(IS_JYTHON, reason='Jython does not have bytecode support.')

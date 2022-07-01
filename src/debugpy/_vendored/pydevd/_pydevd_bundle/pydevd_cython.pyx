@@ -704,7 +704,11 @@ cdef class PyDBFrame:
         # if DEBUG: print('frame trace_dispatch %s %s %s %s %s %s, stop: %s' % (frame.f_lineno, frame.f_code.co_name, frame.f_code.co_filename, event, constant_to_str(info.pydev_step_cmd), arg, info.pydev_step_stop))
         try:
             info.is_tracing += 1
-            line = frame.f_lineno
+
+            # TODO: This shouldn't be needed. The fact that frame.f_lineno
+            # is None seems like a bug in Python 3.11.
+            # Reported in: https://github.com/python/cpython/issues/94485
+            line = frame.f_lineno or 0  # Workaround or case where frame.f_lineno is None
             line_cache_key = (frame_cache_key, line)
 
             if main_debugger.pydb_disposed:

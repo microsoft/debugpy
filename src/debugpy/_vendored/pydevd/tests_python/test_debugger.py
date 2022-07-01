@@ -1689,6 +1689,8 @@ def test_case_get_next_statement_targets(case_setup):
         # it's also not that bad (that line has no code in the source and
         # executing it will just set the tracing for the method).
         targets.discard(20)
+        # On Python 3.11 there's now a line 1 (which should be harmless).
+        targets.discard(1)
         expected = set((2, 3, 5, 8, 9, 10, 12, 13, 14, 15, 17, 18, 19, 21))
         assert targets == expected, 'Expected targets to be %s, was: %s' % (expected, targets)
 
@@ -3457,7 +3459,7 @@ def test_frame_eval_limitations(case_setup, filename, break_at_lines):
             hit = writer.wait_for_breakpoint_hit()
             thread_id = hit.thread_id
 
-            if IS_PY36_OR_GREATER and TEST_CYTHON:
+            if (IS_PY36_OR_GREATER and TEST_CYTHON) and not TODO_PY311:
                 assert hit.suspend_type == break_mode
             else:
                 # Before 3.6 frame eval is not available.
@@ -3496,6 +3498,7 @@ def test_step_return_my_code(case_setup):
         writer.finished_ok = True
 
 
+@pytest.mark.skipif(TODO_PY311, reason='Needs bytecode support in Python 3.11')
 def test_smart_step_into_case1(case_setup):
     with case_setup.test_file('_debugger_case_smart_step_into.py') as writer:
         line = writer.get_line_index_with_content('break here')
@@ -3518,6 +3521,7 @@ def test_smart_step_into_case1(case_setup):
         writer.finished_ok = True
 
 
+@pytest.mark.skipif(TODO_PY311, reason='Needs bytecode support in Python 3.11')
 def test_smart_step_into_case2(case_setup):
     with case_setup.test_file('_debugger_case_smart_step_into2.py') as writer:
         line = writer.get_line_index_with_content('break here')
@@ -3546,6 +3550,7 @@ def test_smart_step_into_case2(case_setup):
         writer.finished_ok = True
 
 
+@pytest.mark.skipif(TODO_PY311, reason='Needs bytecode support in Python 3.11')
 def test_smart_step_into_case3(case_setup):
     with case_setup.test_file('_debugger_case_smart_step_into3.py') as writer:
         line = writer.get_line_index_with_content('break here')

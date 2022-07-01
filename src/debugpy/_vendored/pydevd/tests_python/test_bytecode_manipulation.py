@@ -5,9 +5,13 @@ import traceback
 
 import pytest
 
-from tests_python.debug_constants import IS_PY36_OR_GREATER, IS_CPYTHON, TEST_CYTHON
+from tests_python.debug_constants import IS_PY36_OR_GREATER, IS_CPYTHON, TEST_CYTHON, TODO_PY311
 
-pytestmark = pytest.mark.skipif(not IS_PY36_OR_GREATER or not IS_CPYTHON or not TEST_CYTHON, reason='Requires CPython >= 3.6')
+pytestmark = pytest.mark.skipif(
+    not IS_PY36_OR_GREATER or
+    TODO_PY311 or
+    not IS_CPYTHON or
+    not TEST_CYTHON, reason='Requires CPython >= 3.6 < 3.11')
 
 
 class _Tracer(object):

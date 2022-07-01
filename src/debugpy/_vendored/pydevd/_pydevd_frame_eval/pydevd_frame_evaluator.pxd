@@ -52,6 +52,12 @@ cdef extern from "code.h":
     ctypedef void freefunc(void *)
     int _PyCode_GetExtra(PyObject *code, Py_ssize_t index, void **extra)
     int _PyCode_SetExtra(PyObject *code, Py_ssize_t index, void *extra)
+    
+# TODO: Things are in a different place for Python 3.11.
+# cdef extern from "cpython/code.h":
+#     ctypedef void freefunc(void *)
+#     int _PyCode_GetExtra(PyObject *code, Py_ssize_t index, void **extra)
+#     int _PyCode_SetExtra(PyObject *code, Py_ssize_t index, void *extra)
 
 cdef extern from "Python.h":
     void Py_INCREF(object o)
