@@ -22,6 +22,11 @@ def test_attach_api(pyfile, wait_for_client, is_client_connected, stop_method):
         import time
         from debuggee import backchannel, scratchpad
 
+        # Test different ways of calling configure(). 
+        debugpy.configure(qt="none", subProcess=True, python=sys.executable)
+        debugpy.configure({"qt": "none", "subProcess": True, "python": sys.executable})
+        debugpy.configure({"qt": "none"}, python=sys.executable)
+
         debuggee.setup()
         _, host, port, wait_for_client, is_client_connected, stop_method = sys.argv
         port = int(port)

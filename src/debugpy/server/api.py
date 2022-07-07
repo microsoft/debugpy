@@ -74,7 +74,7 @@ def log_to(path):
         log.log_dir = path
 
 
-def configure(properties, **kwargs):
+def configure(properties=None, **kwargs):
     if _settrace.called:
         raise RuntimeError("debug adapter is already running")
 
