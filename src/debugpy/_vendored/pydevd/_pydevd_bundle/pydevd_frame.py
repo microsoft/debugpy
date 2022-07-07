@@ -376,8 +376,7 @@ class PyDBFrame:
                         try:
                             linecache.checkcache(absolute_filename)
                         except:
-                            # Jython 2.1
-                            linecache.checkcache()
+                            pydev_log.exception('Error in linecache.checkcache(%r)', absolute_filename)
 
                     from_user_input = main_debugger.filename_to_lines_where_exceptions_are_ignored.get(canonical_normalized_filename)
                     if from_user_input:
@@ -398,8 +397,8 @@ class PyDBFrame:
                         try:
                             line = linecache.getline(absolute_filename, exc_lineno, check_trace_obj.tb_frame.f_globals)
                         except:
-                            # Jython 2.1
-                            line = linecache.getline(absolute_filename, exc_lineno)
+                            pydev_log.exception('Error in linecache.getline(%r, %s, f_globals)', absolute_filename, exc_lineno)
+                            line = ''
 
                         if IGNORE_EXCEPTION_TAG.match(line) is not None:
                             lines_ignored[exc_lineno] = 1
