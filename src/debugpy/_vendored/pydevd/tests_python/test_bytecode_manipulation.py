@@ -6,6 +6,7 @@ import traceback
 import pytest
 
 from tests_python.debug_constants import IS_PY36_OR_GREATER, IS_CPYTHON, TEST_CYTHON, TODO_PY311
+import dis
 
 pytestmark = pytest.mark.skipif(
     not IS_PY36_OR_GREATER or
@@ -67,11 +68,24 @@ class _Tracer(object):
         return self.stream.getvalue()
 
 
-def check(filename, method, method_kwargs=None, skip_breaks_at_lines=None, method_to_change=None, stop_at_all_lines=False):
+def check(
+    filename,
+    method,
+    method_kwargs=None,
+    skip_breaks_at_lines=None,
+    method_to_change=None,
+    stop_at_all_lines=False,
+    has_line_event_optimized_in_original_case=False,
+    ):
     '''
-    :param filename:
-    :param method:
-    :param method_kwargs:
+    :param has_line_event_optimized_in_original_case:
+        If True, we're handling a case where we have a double jump, i.e.: some case
+        where there's a JUMP_FORWARD which points to a JUMP_ABSOLUTE and this is
+        optimized so that the JUMP_FORWARD is changed directly to a JUMP_ABSOLUTE and
+        we end up skipping one line event which is supposed to be there but isn't in
+        the initial case but appears when we run after modifying the bytecode in memory.
+
+        See: https://github.com/microsoft/debugpy/issues/973#issuecomment-1178090731
     '''
     from _pydevd_frame_eval.pydevd_modify_bytecode import _get_code_line_info
     from _pydevd_frame_eval import pydevd_modify_bytecode
@@ -123,6 +137,7 @@ def check(filename, method, method_kwargs=None, skip_breaks_at_lines=None, metho
             # the same (and if the line where we added the breakpoint was executed, see if our
             # callback got called).
             success, new_code = pydevd_modify_bytecode.insert_pydevd_breaks(code, set([line]), _pydev_needs_stop_at_break=_pydev_needs_stop_at_break)
+
             assert success
             method_to_change.__code__ = new_code
 
@@ -132,6 +147,14 @@ def check(filename, method, method_kwargs=None, skip_breaks_at_lines=None, metho
             contents = tracer.stream.getvalue()
 
             assert tracer.lines_executed
+            if has_line_event_optimized_in_original_case:
+                lines = sorted(set(x[1] for x in dis.findlinestarts(new_code)))
+                new_line_contents = []
+                last_line = str(max(lines)) + ' '
+                for l in contents.splitlines(keepends=True):
+                    if not l.strip().startswith(last_line):
+                        new_line_contents.append(l)
+                contents = ''.join(new_line_contents)
 
             if line in tracer.lines_executed:
                 assert set([line]) == set(pydev_break_stops)
@@ -159,7 +182,7 @@ def check(filename, method, method_kwargs=None, skip_breaks_at_lines=None, metho
 def test_set_pydevd_break_01():
     from tests_python.resources import _bytecode_overflow_example
 
-    check('_bytecode_overflow_example.py', _bytecode_overflow_example.Dummy.fun, method_kwargs={'text': 'ing'})
+    check('_bytecode_overflow_example.py', _bytecode_overflow_example.Dummy.fun, method_kwargs={'text': 'ing'}, has_line_event_optimized_in_original_case=True)
 
 
 def test_set_pydevd_break_01a():
