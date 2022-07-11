@@ -19,6 +19,8 @@
 
 #include "../common/py_version.hpp"
 
+#include <cstdint>
+
 #ifndef _WIN32
 typedef unsigned int DWORD;
 typedef ssize_t SSIZE_T;
