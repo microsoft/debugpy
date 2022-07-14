@@ -21,7 +21,7 @@ def find_in_pythonpath(module_name):
     return found_at
 
 
-class DebuggerInitializationError(BaseException):
+class DebuggerInitializationError(Exception):
     pass
 
 

@@ -31,6 +31,7 @@ import linecache
 from _pydevd_bundle.pydevd_utils import DAPGrouper
 from _pydevd_bundle.pydevd_daemon_thread import run_as_pydevd_daemon_thread
 from _pydevd_bundle.pydevd_thread_lifecycle import pydevd_find_thread_by_id, resume_threads
+import tokenize
 
 try:
     import dis
@@ -44,7 +45,7 @@ else:
     def _get_code_lines(code):
         if not isinstance(code, types.CodeType):
             path = code
-            with open(path) as f:
+            with tokenize.open(path) as f:
                 src = f.read()
             code = compile(src, path, 'exec', 0, dont_inherit=True)
             return _get_code_lines(code)
@@ -725,7 +726,7 @@ class PyDevdAPI(object):
             filename = self.filename_to_server(filename)
             assert filename.__class__ == str  # i.e.: bytes on py2 and str on py3
 
-            with open(filename, 'r') as stream:
+            with tokenize.open(filename) as stream:
                 source = stream.read()
             cmd = py_db.cmd_factory.make_load_source_message(seq, source)
         except:

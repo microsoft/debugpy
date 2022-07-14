@@ -1290,7 +1290,7 @@ class AbstractWriterThread(threading.Thread):
 
     def write_custom_operation(self, locator, style, codeOrFile, operation_fn_name):
         self.write("%s\t%s\t%s||%s\t%s\t%s" % (
-            CMD_RUN_CUSTOM_OPERATION, self.next_seq(), locator, style, codeOrFile, operation_fn_name))
+            CMD_RUN_CUSTOM_OPERATION, self.next_seq(), locator, style, quote_plus(codeOrFile), operation_fn_name))
 
     def write_evaluate_expression(self, locator, expression):
         self.write("%s\t%s\t%s\t%s\t1" % (CMD_EVALUATE_EXPRESSION, self.next_seq(), locator, expression))
