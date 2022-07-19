@@ -22,6 +22,7 @@ _tls = threading.local()
 _config = {
     "qt": "none",
     "subProcess": True,
+    "subProcessEnv": {},
     "python": sys.executable,
 }
 
@@ -191,6 +192,12 @@ def listen(address, settrace_kwargs):
             creationflags |= 0x08000000  # CREATE_NO_WINDOW
             creationflags |= 0x00000200  # CREATE_NEW_PROCESS_GROUP
 
+        # On embedded applications, environment variables might not contain
+        # Python environment settings.
+        subproc_env = _config.get("subProcessEnv")
+        if not bool(subproc_env):
+            subproc_env = None
+
         # Adapter will outlive this process, so we shouldn't wait for it. However, we
         # need to ensure that the Popen instance for it doesn't get garbage-collected
         # by holding a reference to it in a non-local variable, to avoid triggering
@@ -198,7 +205,7 @@ def listen(address, settrace_kwargs):
         try:
             global _adapter_process
             _adapter_process = subprocess.Popen(
-                adapter_args, close_fds=True, creationflags=creationflags
+                adapter_args, close_fds=True, creationflags=creationflags, env=subproc_env
             )
             if os.name == "posix":
                 # It's going to fork again to daemonize, so we need to wait on it to
