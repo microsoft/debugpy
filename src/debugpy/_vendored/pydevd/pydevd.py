@@ -1995,6 +1995,9 @@ class PyDB(object):
         thread_id = get_current_thread_id(thread)
 
         # print('do_wait_suspend %s %s %s %s %s %s (%s)' % (frame.f_lineno, frame.f_code.co_name, frame.f_code.co_filename, event, arg, constant_to_str(thread.additional_info.pydev_step_cmd), constant_to_str(thread.additional_info.pydev_original_step_cmd)))
+        # print('--- stack ---')
+        # print(traceback.print_stack(file=sys.stdout))
+        # print('--- end stack ---')
 
         # Send the suspend message
         message = thread.additional_info.pydev_message

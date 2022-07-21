@@ -262,3 +262,17 @@ def test_generator_code_cache(case_setup_force_frame_eval):
         writer.write_run_thread(hit.thread_id)
 
         writer.finished_ok = True
+
+
+def test_break_line_1(case_setup_force_frame_eval):
+    with case_setup_force_frame_eval.test_file('_debugger_case_yield_from.py') as writer:
+        break1_line = 1
+        break1_id = writer.write_add_breakpoint(break1_line, 'None')
+        writer.write_make_initial_run()
+
+        hit = writer.wait_for_breakpoint_hit(line=break1_line)
+        assert hit.suspend_type == "frame_eval"
+
+        writer.write_run_thread(hit.thread_id)
+
+        writer.finished_ok = True
