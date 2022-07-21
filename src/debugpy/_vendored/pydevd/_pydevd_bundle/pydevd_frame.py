@@ -869,7 +869,7 @@ class PyDBFrame:
                     new_frame = frame
                     stop_reason = CMD_SET_FUNCTION_BREAK
 
-                elif not is_return and info.pydev_state != STATE_SUSPEND and breakpoints_for_file is not None and line in breakpoints_for_file:
+                elif is_line and info.pydev_state != STATE_SUSPEND and breakpoints_for_file is not None and line in breakpoints_for_file:
                     breakpoint = breakpoints_for_file[line]
                     new_frame = frame
                     stop = True

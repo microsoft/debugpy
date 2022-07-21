@@ -17860,7 +17860,7 @@ static PyObject *__pyx_f_14_pydevd_bundle_13pydevd_cython_9PyDBFrame_trace_dispa
  *                     new_frame = frame
  *                     stop_reason = CMD_SET_FUNCTION_BREAK             # <<<<<<<<<<<<<<
  * 
- *                 elif not is_return and info.pydev_state != 2 and breakpoints_for_file is not None and line in breakpoints_for_file:
+ *                 elif is_line and info.pydev_state != 2 and breakpoints_for_file is not None and line in breakpoints_for_file:
  */
           __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_CMD_SET_FUNCTION_BREAK); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1003, __pyx_L101_error)
           __Pyx_GOTREF(__pyx_t_4);
@@ -17880,11 +17880,11 @@ static PyObject *__pyx_f_14_pydevd_bundle_13pydevd_cython_9PyDBFrame_trace_dispa
         /* "_pydevd_bundle/pydevd_cython.pyx":1005
  *                     stop_reason = CMD_SET_FUNCTION_BREAK
  * 
- *                 elif not is_return and info.pydev_state != 2 and breakpoints_for_file is not None and line in breakpoints_for_file:             # <<<<<<<<<<<<<<
+ *                 elif is_line and info.pydev_state != 2 and breakpoints_for_file is not None and line in breakpoints_for_file:             # <<<<<<<<<<<<<<
  *                     breakpoint = breakpoints_for_file[line]
  *                     new_frame = frame
  */
-        __pyx_t_11 = ((!(__pyx_v_is_return != 0)) != 0);
+        __pyx_t_11 = (__pyx_v_is_line != 0);
         if (__pyx_t_11) {
         } else {
           __pyx_t_9 = __pyx_t_11;
@@ -17920,7 +17920,7 @@ static PyObject *__pyx_f_14_pydevd_bundle_13pydevd_cython_9PyDBFrame_trace_dispa
 
           /* "_pydevd_bundle/pydevd_cython.pyx":1006
  * 
- *                 elif not is_return and info.pydev_state != 2 and breakpoints_for_file is not None and line in breakpoints_for_file:
+ *                 elif is_line and info.pydev_state != 2 and breakpoints_for_file is not None and line in breakpoints_for_file:
  *                     breakpoint = breakpoints_for_file[line]             # <<<<<<<<<<<<<<
  *                     new_frame = frame
  *                     stop = True
@@ -17939,7 +17939,7 @@ static PyObject *__pyx_f_14_pydevd_bundle_13pydevd_cython_9PyDBFrame_trace_dispa
           __pyx_t_1 = 0;
 
           /* "_pydevd_bundle/pydevd_cython.pyx":1007
- *                 elif not is_return and info.pydev_state != 2 and breakpoints_for_file is not None and line in breakpoints_for_file:
+ *                 elif is_line and info.pydev_state != 2 and breakpoints_for_file is not None and line in breakpoints_for_file:
  *                     breakpoint = breakpoints_for_file[line]
  *                     new_frame = frame             # <<<<<<<<<<<<<<
  *                     stop = True
@@ -18012,7 +18012,7 @@ static PyObject *__pyx_f_14_pydevd_bundle_13pydevd_cython_9PyDBFrame_trace_dispa
           /* "_pydevd_bundle/pydevd_cython.pyx":1005
  *                     stop_reason = CMD_SET_FUNCTION_BREAK
  * 
- *                 elif not is_return and info.pydev_state != 2 and breakpoints_for_file is not None and line in breakpoints_for_file:             # <<<<<<<<<<<<<<
+ *                 elif is_line and info.pydev_state != 2 and breakpoints_for_file is not None and line in breakpoints_for_file:             # <<<<<<<<<<<<<<
  *                     breakpoint = breakpoints_for_file[line]
  *                     new_frame = frame
  */

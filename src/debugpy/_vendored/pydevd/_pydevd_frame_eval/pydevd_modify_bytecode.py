@@ -87,6 +87,12 @@ def get_instructions_to_add(
     '''
     # Good reference to how things work regarding line numbers and jumps:
     # https://github.com/python/cpython/blob/3.6/Objects/lnotab_notes.txt
+
+    # Usually use a stop line -1, but if that'd be 0, using line +1 is ok too.
+    spurious_line = stop_at_line - 1
+    if spurious_line <= 0:
+        spurious_line = stop_at_line + 1
+
     label = Label()
     return [
         # -- if _pydev_needs_stop_at_break():
@@ -99,10 +105,10 @@ def get_instructions_to_add(
         #
         # Note that this has line numbers -1 so that when the NOP just below
         # is executed we have a spurious line event.
-        Instr("LOAD_CONST", _pydev_stop_at_break, lineno=stop_at_line - 1),
-        Instr("LOAD_CONST", stop_at_line, lineno=stop_at_line - 1),
-        Instr("CALL_FUNCTION", 1, lineno=stop_at_line - 1),
-        Instr("POP_TOP", lineno=stop_at_line - 1),
+        Instr("LOAD_CONST", _pydev_stop_at_break, lineno=spurious_line),
+        Instr("LOAD_CONST", stop_at_line, lineno=spurious_line),
+        Instr("CALL_FUNCTION", 1, lineno=spurious_line),
+        Instr("POP_TOP", lineno=spurious_line),
 
         # Reason for the NOP: Python will give us a 'line' trace event whenever we forward jump to
         # the first instruction of a line, so, in the case where we haven't added a programmatic
@@ -258,6 +264,12 @@ def insert_pydevd_breaks(
     # improvement.
     # if code_to_modify.co_firstlineno in breakpoint_lines:
     #     return False, code_to_modify
+
+    for line in breakpoint_lines:
+        if line <= 0:
+            # The first line is line 1, so, a break at line 0 is not valid.
+            pydev_log.info('Trying to add breakpoint in invalid line: %s', line)
+            return False, code_to_modify
 
     try:
         b = bytecode.Bytecode.from_code(code_to_modify)

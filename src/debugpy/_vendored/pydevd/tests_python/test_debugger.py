@@ -2274,9 +2274,9 @@ def test_case_method_single_line(case_setup):
         writer.write_add_breakpoint(writer.get_line_index_with_content('Break here'), 'None')
         writer.write_make_initial_run()
 
-        for _ in range(5):
-            # We'll hit the same breakpoint 5 times (method creation,
-            # (enter method, exit method) * 2.
+        for _ in range(3):
+            # We'll hit the same breakpoint 3 times (method creation,
+            # method line for each call).
             hit = writer.wait_for_breakpoint_hit()
 
             writer.write_run_thread(hit.thread_id)
