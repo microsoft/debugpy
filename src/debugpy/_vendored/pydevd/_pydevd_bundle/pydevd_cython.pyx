@@ -59,6 +59,8 @@ cdef class PyDBAdditionalThreadInfo:
 #         # of the last request for a given thread and pydev_smart_parent_offset/pydev_smart_child_offset relies on it).
 #         'pydev_smart_step_into_variants',
 #         'target_id_to_smart_step_into_variant',
+# 
+#         'pydev_use_scoped_step_frame',
 #     ]
     # ENDIF
 
@@ -95,6 +97,18 @@ cdef class PyDBAdditionalThreadInfo:
         self.pydev_smart_child_offset = -1
         self.pydev_smart_step_into_variants = ()
         self.target_id_to_smart_step_into_variant = {}
+
+        # Flag to indicate ipython use-case where each line will be executed as a call/line/return
+        # in a new new frame but in practice we want to consider each new frame as if it was all
+        # part of the same frame.
+        #
+        # In practice this means that a step over shouldn't revert to a step in and we need some
+        # special logic to know when we should stop in a step over as we need to consider 2
+        # different frames as being equal if they're logically the continuation of a frame
+        # being executed by ipython line by line.
+        #
+        # See: https://github.com/microsoft/debugpy/issues/869#issuecomment-1132141003
+        self.pydev_use_scoped_step_frame = False
 
     def get_topmost_frame(self, thread):
         '''
@@ -150,7 +164,7 @@ import re
 from _pydev_bundle import pydev_log
 from _pydevd_bundle import pydevd_dont_trace
 from _pydevd_bundle.pydevd_constants import (RETURN_VALUES_DICT, NO_FTRACE,
-    EXCEPTION_TYPE_HANDLED, EXCEPTION_TYPE_USER_UNHANDLED)
+    EXCEPTION_TYPE_HANDLED, EXCEPTION_TYPE_USER_UNHANDLED, PYDEVD_IPYTHON_CONTEXT)
 from _pydevd_bundle.pydevd_frame_utils import add_exception_to_frame, just_raised, remove_exception_from_frame, ignore_exception_trace
 from _pydevd_bundle.pydevd_utils import get_clsname_for_code
 from pydevd_file_utils import get_abs_path_real_path_and_base_from_frame
@@ -658,6 +672,31 @@ cdef class PyDBFrame:
         return f
 
     # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
+    cdef _is_same_frame(self, target_frame, current_frame):
+        cdef PyDBAdditionalThreadInfo info;
+    # ELSE
+#     def _is_same_frame(self, target_frame, current_frame):
+    # ENDIF
+        if target_frame is current_frame:
+            return True
+
+        info = self._args[2]
+        if info.pydev_use_scoped_step_frame:
+            # If using scoped step we don't check the target, we just need to check
+            # if the current matches the same heuristic where the target was defined.
+            if target_frame is not None and current_frame is not None:
+                if target_frame.f_code.co_filename == current_frame.f_code.co_filename:
+                    # The co_name may be different (it may include the line number), but
+                    # the filename must still be the same.
+                    f = current_frame.f_back
+                    if f is not None and f.f_code.co_name == PYDEVD_IPYTHON_CONTEXT[1]:
+                        f = f.f_back
+                        if f is not None and f.f_code.co_name == PYDEVD_IPYTHON_CONTEXT[2]:
+                            return True
+
+        return False
+
+    # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
     cpdef trace_dispatch(self, frame, str event, arg):
         cdef tuple abs_path_canonical_path_and_base;
         cdef bint is_exception_event;
@@ -772,7 +811,13 @@ cdef class PyDBFrame:
                         # Solving this may not be trivial as we'd need to put a scope in the step
                         # in, but we may have to do it anyways to have a step in which doesn't end
                         # up in asyncio).
-                        if stop_frame is frame:
+                        #
+                        # Note2: we don't revert to a step in if we're doing scoped stepping
+                        # (because on scoped stepping we're always receiving a call/line/return
+                        # event for each line in ipython, so, we can't revert to step in on return
+                        # as the return shouldn't mean that we've actually completed executing a
+                        # frame in this case).
+                        if stop_frame is frame and not info.pydev_use_scoped_step_frame:
                             if step_cmd in (108, 159, 107, 144):
                                 f = self._get_unfiltered_back_frame(main_debugger, frame)
                                 if f is not None:
@@ -809,7 +854,7 @@ cdef class PyDBFrame:
                     # event == 'call' or event == 'c_XXX'
                     return self.trace_dispatch
 
-            else:
+            else:  # Not coroutine nor generator
                 if event == 'line':
                     is_line = True
                     is_call = False
@@ -828,7 +873,12 @@ cdef class PyDBFrame:
                     # to make a step in or step over at that location).
                     # Note: this is especially troublesome when we're skipping code with the
                     # @DontTrace comment.
-                    if stop_frame is frame and is_return and step_cmd in (108, 109, 159, 160, 128):
+                    if (
+                            stop_frame is frame and
+                            not info.pydev_use_scoped_step_frame and is_return and
+                            step_cmd in (108, 109, 159, 160, 128)
+                        ):
+
                         if step_cmd in (108, 109, 128):
                             info.pydev_step_cmd = 107
                         else:
@@ -876,7 +926,7 @@ cdef class PyDBFrame:
                     if step_cmd == -1:
                         can_skip = True
 
-                    elif step_cmd in (108, 109, 159, 160) and stop_frame is not frame:
+                    elif step_cmd in (108, 109, 159, 160) and not self._is_same_frame(stop_frame, frame):
                         can_skip = True
 
                     elif step_cmd == 128 and (
@@ -896,7 +946,7 @@ cdef class PyDBFrame:
                     elif step_cmd == 206:
                         f = frame
                         while f is not None:
-                            if f is stop_frame:
+                            if self._is_same_frame(stop_frame, f):
                                 break
                             f = f.f_back
                         else:
@@ -907,7 +957,7 @@ cdef class PyDBFrame:
                                 main_debugger.has_plugin_line_breaks or main_debugger.has_plugin_exception_breaks):
                             can_skip = plugin_manager.can_skip(main_debugger, frame)
 
-                        if can_skip and main_debugger.show_return_values and info.pydev_step_cmd in (108, 159) and frame.f_back is stop_frame:
+                        if can_skip and main_debugger.show_return_values and info.pydev_step_cmd in (108, 159) and self._is_same_frame(stop_frame, frame.f_back):
                             # trace function for showing return values after step over
                             can_skip = False
 
@@ -1006,7 +1056,7 @@ cdef class PyDBFrame:
                     breakpoint = breakpoints_for_file[line]
                     new_frame = frame
                     stop = True
-                    if step_cmd in (108, 159) and (stop_frame is frame and is_line):
+                    if step_cmd in (108, 159) and (self._is_same_frame(stop_frame, frame) and is_line):
                         stop = False  # we don't stop on breakpoint if we have to stop by step-over (it will be processed later)
                 elif plugin_manager is not None and main_debugger.has_plugin_line_breaks:
                     result = plugin_manager.get_breakpoint(main_debugger, self, frame, event, self._args)
@@ -1050,8 +1100,8 @@ cdef class PyDBFrame:
 
                 if main_debugger.show_return_values:
                     if is_return and (
-                            (info.pydev_step_cmd in (108, 159, 128) and (frame.f_back is stop_frame)) or
-                            (info.pydev_step_cmd in (109, 160) and (frame is stop_frame)) or
+                            (info.pydev_step_cmd in (108, 159, 128) and (self._is_same_frame(stop_frame, frame.f_back))) or
+                            (info.pydev_step_cmd in (109, 160) and (self._is_same_frame(stop_frame, frame))) or
                             (info.pydev_step_cmd in (107, 206)) or
                             (
                                 info.pydev_step_cmd == 144
@@ -1115,12 +1165,36 @@ cdef class PyDBFrame:
                 elif step_cmd in (107, 144, 206):
                     force_check_project_scope = step_cmd == 144
                     if is_line:
-                        if force_check_project_scope or main_debugger.is_files_filter_enabled:
-                            stop = not main_debugger.apply_files_filter(frame, frame.f_code.co_filename, force_check_project_scope)
+                        if not info.pydev_use_scoped_step_frame:
+                            if force_check_project_scope or main_debugger.is_files_filter_enabled:
+                                stop = not main_debugger.apply_files_filter(frame, frame.f_code.co_filename, force_check_project_scope)
+                            else:
+                                stop = True
                         else:
-                            stop = True
+                            # We can only stop inside the ipython call.
+                            filename = frame.f_code.co_filename
+                            if filename.endswith('.pyc'):
+                                filename = filename[:-1]
 
-                    elif is_return and frame.f_back is not None:
+                            if not filename.endswith(PYDEVD_IPYTHON_CONTEXT[0]):
+                                f = frame.f_back
+                                while f is not None:
+                                    if f.f_code.co_name == PYDEVD_IPYTHON_CONTEXT[1]:
+                                        f2 = f.f_back
+                                        if f2 is not None and f2.f_code.co_name == PYDEVD_IPYTHON_CONTEXT[2]:
+                                            pydev_log.debug('Stop inside ipython call')
+                                            stop = True
+                                            break
+                                    f = f.f_back
+
+                                del f
+
+                            if not stop:
+                                # In scoped mode if step in didn't work in this context it won't work
+                                # afterwards anyways.
+                                return None if is_call else NO_FTRACE
+
+                    elif is_return and frame.f_back is not None and not info.pydev_use_scoped_step_frame:
                         if main_debugger.get_file_type(frame.f_back) == main_debugger.PYDEV_FILE:
                             stop = False
                         else:
@@ -1141,7 +1215,7 @@ cdef class PyDBFrame:
                             # i.e.: Check if we're stepping into the proper context.
                             f = frame
                             while f is not None:
-                                if f is stop_frame:
+                                if self._is_same_frame(stop_frame, f):
                                     break
                                 f = f.f_back
                             else:
@@ -1156,7 +1230,7 @@ cdef class PyDBFrame:
                     # Note: when dealing with a step over my code it's the same as a step over (the
                     # difference is that when we return from a frame in one we go to regular step
                     # into and in the other we go to a step into my code).
-                    stop = stop_frame is frame and is_line
+                    stop = self._is_same_frame(stop_frame, frame) and is_line
                     # Note: don't stop on a return for step over, only for line events
                     # i.e.: don't stop in: (stop_frame is frame.f_back and is_return) as we'd stop twice in that line.
 
@@ -1168,11 +1242,11 @@ cdef class PyDBFrame:
                 elif step_cmd == 128:
                     stop = False
                     back = frame.f_back
-                    if stop_frame is frame and is_return:
+                    if self._is_same_frame(stop_frame, frame) and is_return:
                         # We're exiting the smart step into initial frame (so, we probably didn't find our target).
                         stop = True
 
-                    elif stop_frame is back and is_line:
+                    elif self._is_same_frame(stop_frame, back) and is_line:
                         if info.pydev_smart_child_offset != -1:
                             # i.e.: in this case, we're not interested in the pause in the parent, rather
                             # we're interested in the pause in the child (when the parent is at the proper place).
@@ -1203,7 +1277,7 @@ cdef class PyDBFrame:
                             # not be the case next time either, so, disable tracing for this frame.
                             return None if is_call else NO_FTRACE
 
-                    elif back is not None and stop_frame is back.f_back and is_line:
+                    elif back is not None and self._is_same_frame(stop_frame, back.f_back) and is_line:
                         # Ok, we have to track 2 stops at this point, the parent and the child offset.
                         # This happens when handling a step into which targets a function inside a list comprehension
                         # or generator (in which case an intermediary frame is created due to an internal function call).
@@ -1237,7 +1311,7 @@ cdef class PyDBFrame:
                             return None if is_call else NO_FTRACE
 
                 elif step_cmd in (109, 160):
-                    stop = is_return and stop_frame is frame
+                    stop = is_return and self._is_same_frame(stop_frame, frame)
 
                 else:
                     stop = False
