@@ -55,7 +55,8 @@ from _pydevd_bundle.pydevd_constants import (get_thread_id, get_current_thread_i
     DebugInfoHolder, PYTHON_SUSPEND, STATE_SUSPEND, STATE_RUN, get_frame,
     clear_cached_thread_id, INTERACTIVE_MODE_AVAILABLE, SHOW_DEBUG_INFO_ENV, NULL,
     NO_FTRACE, IS_IRONPYTHON, JSON_PROTOCOL, IS_CPYTHON, HTTP_JSON_PROTOCOL, USE_CUSTOM_SYS_CURRENT_FRAMES_MAP, call_only_once,
-    ForkSafeLock, IGNORE_BASENAMES_STARTING_WITH, EXCEPTION_TYPE_UNHANDLED, SUPPORT_GEVENT)
+    ForkSafeLock, IGNORE_BASENAMES_STARTING_WITH, EXCEPTION_TYPE_UNHANDLED, SUPPORT_GEVENT,
+    PYDEVD_IPYTHON_COMPATIBLE_DEBUGGING, PYDEVD_IPYTHON_CONTEXT)
 from _pydevd_bundle.pydevd_defaults import PydevdCustomization  # Note: import alias used on pydev_monkey.
 from _pydevd_bundle.pydevd_custom_frames import CustomFramesContainer, custom_frames_container_init
 from _pydevd_bundle.pydevd_dont_trace_files import DONT_TRACE, PYDEV_FILE, LIB_FILE, DONT_TRACE_DIRS
@@ -181,6 +182,9 @@ _CACHE_FILE_TYPE = {}
 pydev_log.debug('Using GEVENT_SUPPORT: %s', pydevd_constants.SUPPORT_GEVENT)
 pydev_log.debug('Using GEVENT_SHOW_PAUSED_GREENLETS: %s', pydevd_constants.GEVENT_SHOW_PAUSED_GREENLETS)
 pydev_log.debug('pydevd __file__: %s', os.path.abspath(__file__))
+pydev_log.debug('Using PYDEVD_IPYTHON_COMPATIBLE_DEBUGGING: %s', pydevd_constants.PYDEVD_IPYTHON_COMPATIBLE_DEBUGGING)
+if pydevd_constants.PYDEVD_IPYTHON_COMPATIBLE_DEBUGGING:
+    pydev_log.debug('PYDEVD_IPYTHON_CONTEXT: %s', pydevd_constants.PYDEVD_IPYTHON_CONTEXT)
 
 
 #=======================================================================================================================
@@ -2169,6 +2173,23 @@ class PyDB(object):
                 info.pydev_original_step_cmd = -1
                 info.pydev_step_cmd = -1
                 info.pydev_state = STATE_RUN
+
+        if PYDEVD_IPYTHON_COMPATIBLE_DEBUGGING:
+            info.pydev_use_scoped_step_frame = False
+            if info.pydev_step_cmd in (
+                    CMD_STEP_OVER, CMD_STEP_OVER_MY_CODE,
+                    CMD_STEP_INTO, CMD_STEP_INTO_MY_CODE
+                ):
+                # i.e.: We're stepping: check if the stepping should be scoped (i.e.: in ipython
+                # each line is executed separately in a new frame, in which case we need to consider
+                # the next line as if it was still in the same frame).
+                f = frame.f_back
+                if f and f.f_code.co_name == PYDEVD_IPYTHON_CONTEXT[1]:
+                    f = f.f_back
+                    if f and f.f_code.co_name == PYDEVD_IPYTHON_CONTEXT[2]:
+                        info.pydev_use_scoped_step_frame = True
+                        pydev_log.info('Using (ipython) scoped stepping.')
+                del f
 
         del frame
         cmd = self.cmd_factory.make_thread_run_message(get_current_thread_id(thread), info.pydev_step_cmd)

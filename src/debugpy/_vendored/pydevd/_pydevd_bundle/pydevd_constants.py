@@ -255,11 +255,6 @@ INTERACTIVE_MODE_AVAILABLE = sys.platform in ('darwin', 'win32') or os.getenv('D
 # If not specified, uses default heuristic to determine if it should be loaded.
 USE_CYTHON_FLAG = os.getenv('PYDEVD_USE_CYTHON')
 
-# Use to disable loading the lib to set tracing to all threads (default is using heuristics based on where we're running).
-LOAD_NATIVE_LIB_FLAG = os.getenv('PYDEVD_LOAD_NATIVE_LIB', '').lower()
-
-LOG_TIME = os.getenv('PYDEVD_LOG_TIME', 'true').lower() in ENV_TRUE_LOWER_VALUES
-
 if USE_CYTHON_FLAG is not None:
     USE_CYTHON_FLAG = USE_CYTHON_FLAG.lower()
     if USE_CYTHON_FLAG not in ENV_TRUE_LOWER_VALUES and USE_CYTHON_FLAG not in ENV_FALSE_LOWER_VALUES:
@@ -269,6 +264,26 @@ if USE_CYTHON_FLAG is not None:
 else:
     if not CYTHON_SUPPORTED:
         USE_CYTHON_FLAG = 'no'
+
+# If true in env, forces frame eval to be used (raises error if not available).
+# If false in env, disables it.
+# If not specified, uses default heuristic to determine if it should be loaded.
+PYDEVD_USE_FRAME_EVAL = os.getenv('PYDEVD_USE_FRAME_EVAL', '').lower()
+
+PYDEVD_IPYTHON_COMPATIBLE_DEBUGGING = is_true_in_env('PYDEVD_IPYTHON_COMPATIBLE_DEBUGGING')
+
+# If specified in PYDEVD_IPYTHON_CONTEXT it must be a string with the basename
+# and then the name of 2 methods in which the evaluate is done.
+PYDEVD_IPYTHON_CONTEXT = ('interactiveshell.py', 'run_code', 'run_ast_nodes')
+_ipython_ctx = os.getenv('PYDEVD_IPYTHON_CONTEXT')
+if _ipython_ctx:
+    PYDEVD_IPYTHON_CONTEXT = tuple(x.strip() for x in _ipython_ctx.split(','))
+    assert len(PYDEVD_IPYTHON_CONTEXT) == 3, 'Invalid PYDEVD_IPYTHON_CONTEXT: %s' % (_ipython_ctx,)
+
+# Use to disable loading the lib to set tracing to all threads (default is using heuristics based on where we're running).
+LOAD_NATIVE_LIB_FLAG = os.getenv('PYDEVD_LOAD_NATIVE_LIB', '').lower()
+
+LOG_TIME = os.getenv('PYDEVD_LOG_TIME', 'true').lower() in ENV_TRUE_LOWER_VALUES
 
 SHOW_COMPILE_CYTHON_COMMAND_LINE = is_true_in_env('PYDEVD_SHOW_COMPILE_CYTHON_COMMAND_LINE')
 

@@ -6134,6 +6134,89 @@ print('TEST SUCEEDED')
         writer.finished_ok = True
 
 
+_TOP_LEVEL_AWAIT_AVAILABLE = False
+try:
+    from ast import PyCF_ONLY_AST, PyCF_ALLOW_TOP_LEVEL_AWAIT
+    _TOP_LEVEL_AWAIT_AVAILABLE = True
+except ImportError:
+    pass
+
+
+@pytest.mark.skipif(not _TOP_LEVEL_AWAIT_AVAILABLE, reason="Top-level await required.")
+def test_ipython_stepping_basic(case_setup):
+
+    def get_environ(self):
+        env = os.environ.copy()
+
+        # Test setup
+        env["SCOPED_STEPPING_TARGET"] = '_debugger_case_scoped_stepping_target.py'
+
+        # Actually setup the debugging
+        env["PYDEVD_IPYTHON_COMPATIBLE_DEBUGGING"] = "1"
+        env["PYDEVD_IPYTHON_CONTEXT"] = '_debugger_case_scoped_stepping.py, run_code, run_ast_nodes'
+        return env
+
+    with case_setup.test_file('_debugger_case_scoped_stepping.py', get_environ=get_environ) as writer:
+        json_facade = JsonFacade(writer)
+        json_facade.write_launch(justMyCode=False)
+
+        target_file = debugger_unittest._get_debugger_test_file('_debugger_case_scoped_stepping_target.py')
+        break_line = writer.get_line_index_with_content('a = 1', filename=target_file)
+        assert break_line == 1
+        json_facade.write_set_breakpoints(break_line, filename=target_file)
+        json_facade.write_make_initial_run()
+        json_hit = json_facade.wait_for_thread_stopped(line=break_line, file='_debugger_case_scoped_stepping_target.py')
+
+        json_facade.write_step_next(json_hit.thread_id)
+        json_hit = json_facade.wait_for_thread_stopped('step', line=break_line + 1, file='_debugger_case_scoped_stepping_target.py')
+
+        json_facade.write_step_next(json_hit.thread_id)
+        json_hit = json_facade.wait_for_thread_stopped('step', line=break_line + 2, file='_debugger_case_scoped_stepping_target.py')
+
+        json_facade.write_continue()
+        writer.finished_ok = True
+
+
+@pytest.mark.skipif(not _TOP_LEVEL_AWAIT_AVAILABLE, reason="Top-level await required.")
+def test_ipython_stepping_step_in(case_setup):
+
+    def get_environ(self):
+        env = os.environ.copy()
+
+        # Test setup
+        env["SCOPED_STEPPING_TARGET"] = '_debugger_case_scoped_stepping_target2.py'
+
+        # Actually setup the debugging
+        env["PYDEVD_IPYTHON_COMPATIBLE_DEBUGGING"] = "1"
+        env["PYDEVD_IPYTHON_CONTEXT"] = '_debugger_case_scoped_stepping.py, run_code, run_ast_nodes'
+        return env
+
+    with case_setup.test_file('_debugger_case_scoped_stepping.py', get_environ=get_environ) as writer:
+        json_facade = JsonFacade(writer)
+        json_facade.write_launch(justMyCode=False)
+
+        target_file = debugger_unittest._get_debugger_test_file('_debugger_case_scoped_stepping_target2.py')
+        break_line = writer.get_line_index_with_content('break here', filename=target_file)
+        json_facade.write_set_breakpoints(break_line, filename=target_file)
+        json_facade.write_make_initial_run()
+        json_hit = json_facade.wait_for_thread_stopped(line=break_line, file='_debugger_case_scoped_stepping_target2.py')
+
+        json_facade.write_step_in(json_hit.thread_id)
+        stop_at = writer.get_line_index_with_content('b = 2', filename=target_file)
+        json_hit = json_facade.wait_for_thread_stopped('step', line=stop_at, file='_debugger_case_scoped_stepping_target2.py')
+
+        json_facade.write_step_in(json_hit.thread_id)
+        stop_at = writer.get_line_index_with_content('method()  # break here', filename=target_file)
+        json_hit = json_facade.wait_for_thread_stopped('step', line=stop_at, file='_debugger_case_scoped_stepping_target2.py')
+
+        json_facade.write_step_in(json_hit.thread_id)
+        stop_at = writer.get_line_index_with_content('c = 3', filename=target_file)
+        json_hit = json_facade.wait_for_thread_stopped('step', line=stop_at, file='_debugger_case_scoped_stepping_target2.py')
+
+        json_facade.write_continue()
+        writer.finished_ok = True
+
+
 if __name__ == '__main__':
     pytest.main(['-k', 'test_replace_process', '-s'])
 

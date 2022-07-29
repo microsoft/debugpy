@@ -53,6 +53,8 @@ class PyDBAdditionalThreadInfo(object):
         # of the last request for a given thread and pydev_smart_parent_offset/pydev_smart_child_offset relies on it).
         'pydev_smart_step_into_variants',
         'target_id_to_smart_step_into_variant',
+
+        'pydev_use_scoped_step_frame',
     ]
     # ENDIF
 
@@ -89,6 +91,18 @@ class PyDBAdditionalThreadInfo(object):
         self.pydev_smart_child_offset = -1
         self.pydev_smart_step_into_variants = ()
         self.target_id_to_smart_step_into_variant = {}
+
+        # Flag to indicate ipython use-case where each line will be executed as a call/line/return
+        # in a new new frame but in practice we want to consider each new frame as if it was all
+        # part of the same frame.
+        #
+        # In practice this means that a step over shouldn't revert to a step in and we need some
+        # special logic to know when we should stop in a step over as we need to consider 2
+        # different frames as being equal if they're logically the continuation of a frame
+        # being executed by ipython line by line.
+        #
+        # See: https://github.com/microsoft/debugpy/issues/869#issuecomment-1132141003
+        self.pydev_use_scoped_step_frame = False
 
     def get_topmost_frame(self, thread):
         '''
