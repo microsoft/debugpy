@@ -29,6 +29,7 @@ class Client(components.Component):
             "supportsVariablePaging": False,
             "supportsRunInTerminalRequest": False,
             "supportsMemoryReferences": False,
+            "supportsArgsCanBeInterpretedByShell": False,
         }
 
     class Expectations(components.Capabilities):
@@ -364,20 +365,6 @@ class Client(components.Component):
                 '"program", "module", and "code" are mutually exclusive'
             )
 
-        # Propagate "args" via CLI if and only if shell expansion is requested.
-        args_expansion = request(
-            "argsExpansion", json.enum("shell", "none", optional=True)
-        )
-        if args_expansion == "shell":
-            args += request("args", json.array(str))
-            request.arguments.pop("args", None)
-
-        cwd = request("cwd", str, optional=True)
-        if cwd == ():
-            # If it's not specified, but we're launching a file rather than a module,
-            # and the specified path has a directory in it, use that.
-            cwd = None if program == () else (os.path.dirname(program) or None)
-
         console = request(
             "console",
             json.enum(
@@ -388,6 +375,30 @@ class Client(components.Component):
             ),
         )
         console_title = request("consoleTitle", json.default("Python Debug Console"))
+
+        # Propagate "args" via CLI so that shell expansion can be applied if requested.
+        target_args = request("args", json.array(str, vectorize=True))
+        args += target_args
+
+        # If "args" was a single string rather than an array, shell expansion must be applied.
+        shell_expand_args = len(target_args) > 0 and isinstance(
+            request.arguments["args"], str
+        )
+        if shell_expand_args:
+            if not self.capabilities["supportsArgsCanBeInterpretedByShell"]:
+                raise request.isnt_valid(
+                    'Shell expansion in "args" is not supported by the client'
+                )
+            if console == "internalConsole":
+                raise request.isnt_valid(
+                    'Shell expansion in "args" is not available for "console":"internalConsole"'
+                )
+
+        cwd = request("cwd", str, optional=True)
+        if cwd == ():
+            # If it's not specified, but we're launching a file rather than a module,
+            # and the specified path has a directory in it, use that.
+            cwd = None if program == () else (os.path.dirname(program) or None)
 
         sudo = bool(property_or_debug_option("sudo", "Sudo"))
         if sudo and sys.platform == "win32":
@@ -412,6 +423,7 @@ class Client(components.Component):
             launcher_path,
             adapter_host,
             args,
+            shell_expand_args,
             cwd,
             console,
             console_title,

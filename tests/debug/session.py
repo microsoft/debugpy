@@ -490,7 +490,11 @@ class Session(object):
     def _process_request(self, request):
         self.timeline.record_request(request, block=False)
         if request.command == "runInTerminal":
-            args = request("args", json.array(str))
+            args = request("args", json.array(str, vectorize=True))
+            if len(args) > 0 and request("argsCanBeInterpretedByShell", False):
+                # The final arg is a string that contains multiple actual arguments.
+                last_arg = args.pop()
+                args += last_arg.split()
             cwd = request("cwd", ".")
             env = request("env", json.object(str))
             try:
@@ -557,6 +561,7 @@ class Session(object):
                 "columnsStartAt1": True,
                 "supportsVariableType": True,
                 "supportsRunInTerminalRequest": True,
+                "supportsArgsCanBeInterpretedByShell": True,
             },
         )
 

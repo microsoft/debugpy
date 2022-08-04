@@ -46,6 +46,14 @@ class Target(object):
         raise NotImplementedError
 
     @property
+    def argslist(self):
+        args = self.args
+        if isinstance(args, str):
+            return [args]
+        else:
+            return list(args)
+
+    @property
     def co_filename(self):
         """co_filename of code objects created at runtime from the source that this
         Target describes, assuming no path mapping.
@@ -121,9 +129,11 @@ class Program(Target):
 
     def cli(self, env):
         if self._cwd:
-            return [self._get_relative_program()] + list(self.args)
+            cli = [self._get_relative_program()]
         else:
-            return [self.filename.strpath] + list(self.args)
+            cli = [self.filename.strpath]
+        cli += self.argslist
+        return cli
 
 
 class Module(Target):
@@ -150,7 +160,7 @@ class Module(Target):
     def cli(self, env):
         if self.filename is not None:
             env.prepend_to("PYTHONPATH", self.filename.dirname)
-        return ["-m", self.name] + list(self.args)
+        return ["-m", self.name] + self.argslist
 
 
 class Code(Target):
@@ -176,7 +186,7 @@ class Code(Target):
         session.config["args"] = self.args
 
     def cli(self, env):
-        return ["-c", self.code] + list(self.args)
+        return ["-c", self.code] + self.argslist
 
     @property
     def co_filename(self):

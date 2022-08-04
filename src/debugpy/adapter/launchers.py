@@ -7,7 +7,7 @@ import subprocess
 import sys
 
 from debugpy import adapter, common
-from debugpy.common import json, log, messaging, sockets
+from debugpy.common import log, messaging, sockets
 from debugpy.adapter import components, servers
 
 
@@ -70,6 +70,7 @@ def spawn_debuggee(
     launcher_path,
     adapter_host,
     args,
+    shell_expand_args,
     cwd,
     console,
     console_title,
@@ -119,16 +120,6 @@ def spawn_debuggee(
         if console == "internalConsole":
             log.info("{0} spawning launcher: {1!r}", session, cmdline)
             try:
-                for i, arg in enumerate(cmdline):
-                    try:
-                        cmdline[i] = arg
-                    except UnicodeEncodeError as exc:
-                        raise start_request.cant_handle(
-                            "Invalid command line argument {0}: {1}",
-                            json.repr(arg),
-                            exc,
-                        )
-
                 # If we are talking to the client over stdio, sys.stdin and sys.stdout
                 # are redirected to avoid mangling the DAP message stream. Make sure
                 # the launcher also respects that.
@@ -154,6 +145,8 @@ def spawn_debuggee(
             }
             if cwd is not None:
                 request_args["cwd"] = cwd
+            if shell_expand_args:
+                request_args["argsCanBeInterpretedByShell"] = True
             try:
                 # It is unspecified whether this request receives a response immediately, or only
                 # after the spawned command has completed running, so do not block waiting for it.
