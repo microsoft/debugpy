@@ -58,7 +58,7 @@ class LogFile(object):
                 platform.machine(),
                 platform.python_implementation(),
                 platform.python_version(),
-                64 if sys.maxsize > 2**32 else 32,
+                64 if sys.maxsize > 2 ** 32 else 32,
                 debugpy.__version__,
                 _to_files=[self],
             )

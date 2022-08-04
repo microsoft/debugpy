@@ -14,7 +14,7 @@ from debugpy import adapter
 from debugpy.common import json, log, sockets
 from _pydevd_bundle.pydevd_constants import get_global_debugger
 from pydevd_file_utils import absolute_path
-
+from debugpy.common.util import hide_debugpy_internals
 
 _tls = threading.local()
 
@@ -129,9 +129,10 @@ def _starts_debugging(func):
             "patch_multiprocessing": _config.get("subProcess", True),
         }
 
-        debugpy_path = os.path.dirname(absolute_path(debugpy.__file__))
-        settrace_kwargs["dont_trace_start_patterns"] = (debugpy_path,)
-        settrace_kwargs["dont_trace_end_patterns"] = (str("debugpy_launcher.py"),)
+        if hide_debugpy_internals():
+            debugpy_path = os.path.dirname(absolute_path(debugpy.__file__))
+            settrace_kwargs["dont_trace_start_patterns"] = (debugpy_path,)
+            settrace_kwargs["dont_trace_end_patterns"] = (str("debugpy_launcher.py"),)
 
         try:
             return func(address, settrace_kwargs, **kwargs)
