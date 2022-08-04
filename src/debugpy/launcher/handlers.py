@@ -10,6 +10,7 @@ from debugpy import launcher
 from debugpy.common import json
 from debugpy.launcher import debuggee
 
+
 def launch_request(request):
     debug_options = set(request("debugOptions", json.array(str)))
 
@@ -67,12 +68,9 @@ def launch_request(request):
         debugpy_args = request("debugpyArgs", json.array(str))
         cmdline += debugpy_args
 
-    # Further arguments can come via two channels: the launcher's own command line, or
-    # "args" in the request; effective arguments are concatenation of these two in order.
-    # Arguments for debugpy (such as -m) always come via CLI, but those specified by the
-    # user via "args" are passed differently by the adapter depending on "argsExpansion".
+    # Use the copy of arguments that was propagated via the command line rather than
+    # "args" in the request itself, to allow for shell expansion.
     cmdline += sys.argv[1:]
-    cmdline += request("args", json.array(str))
 
     process_name = request("processName", sys.executable)
 

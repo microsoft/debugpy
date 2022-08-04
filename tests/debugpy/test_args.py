@@ -34,8 +34,11 @@ def test_args(pyfile, target, run):
 
 @pytest.mark.parametrize("target", targets.all)
 @pytest.mark.parametrize("run", runners.all_launch)
-@pytest.mark.parametrize("expansion", ["", "none", "shell"])
+@pytest.mark.parametrize("expansion", ["preserve", "expand"])
 def test_shell_expansion(pyfile, target, run, expansion):
+    if expansion == "expand" and run.console == "internalConsole":
+        pytest.skip('Shell expansion is not supported for "internalConsole"')
+
     @pyfile
     def code_to_debug():
         import sys
@@ -46,6 +49,8 @@ def test_shell_expansion(pyfile, target, run, expansion):
         backchannel.send(sys.argv)
 
     def expand(args):
+        if expansion != "expand":
+            return
         log.info("Before expansion: {0}", args)
         for i, arg in enumerate(args):
             if arg.startswith("$"):
@@ -57,17 +62,14 @@ def test_shell_expansion(pyfile, target, run, expansion):
             expand(args)
             return super().run_in_terminal(args, cwd, env)
 
-    args = ["0", "$1", "2"]
+    argslist = ["0", "$1", "2"]
+    args = argslist if expansion == "preserve" else " ".join(argslist)
     with Session() as session:
-        if expansion:
-            session.config["argsExpansion"] = expansion
-
         backchannel = session.open_backchannel()
         with run(session, target(code_to_debug, args=args)):
             pass
 
         argv = backchannel.receive()
 
-    if session.config["console"] != "internalConsole" and expansion != "none":
-        expand(args)
-    assert argv == [some.str] + args
+    expand(argslist)
+    assert argv == [some.str] + argslist
