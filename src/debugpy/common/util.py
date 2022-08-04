@@ -150,16 +150,15 @@ def srcnameof(obj):
     return name
 
 
-def skip_trace():
-    """Returns True if tracing should be skipped for the current thread."""
+def hide_debugpy_internals():
+    """Returns True if the caller should hide something from debugpy."""
     return "DEBUGPY_TRACE_DEBUGPY" not in os.environ
 
 
-def disable_tracing(thread):
+def hide_thread_from_debugger(thread):
     """Disables tracing for the given thread if DEBUGPY_TRACE_DEBUGPY is not set.
     DEBUGPY_TRACE_DEBUGPY is used to debug debugpy with debugpy
     """
-    if skip_trace():
+    if hide_debugpy_internals():
         thread.pydev_do_not_trace = True
         thread.is_pydev_daemon_thread = True
-        thread.daemon = True
