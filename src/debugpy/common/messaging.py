@@ -21,6 +21,7 @@ import sys
 import threading
 
 from debugpy.common import json, log, util
+from debugpy.common.util import skip_trace
 
 
 class JsonIOError(IOError):
@@ -1148,9 +1149,11 @@ class JsonMessageChannel(object):
         self._parser_thread = threading.Thread(
             target=self._parse_incoming_messages, name=f"{self} message parser"
         )
-        self._parser_thread.pydev_do_not_trace = True
-        self._parser_thread.is_pydev_daemon_thread = True
-        self._parser_thread.daemon = True
+
+        if skip_trace():
+            self._parser_thread.pydev_do_not_trace = True
+            self._parser_thread.is_pydev_daemon_thread = True
+            self._parser_thread.daemon = True
         self._parser_thread.start()
 
     def wait(self):

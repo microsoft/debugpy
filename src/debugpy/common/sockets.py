@@ -7,6 +7,7 @@ import sys
 import threading
 
 from debugpy.common import log
+from debugpy.common.util import skip_trace
 
 
 def create_server(host, port=0, backlog=socket.SOMAXCONN, timeout=None):
@@ -114,9 +115,10 @@ def serve(name, handler, host, port=0, backlog=socket.SOMAXCONN, timeout=None):
             handler(sock)
 
     thread = threading.Thread(target=accept_worker)
-    thread.daemon = True
-    thread.pydev_do_not_trace = True
-    thread.is_pydev_daemon_thread = True
+    if skip_trace():
+        thread.daemon = True
+        thread.pydev_do_not_trace = True
+        thread.is_pydev_daemon_thread = True
     thread.start()
 
     return listener

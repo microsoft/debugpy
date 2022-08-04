@@ -109,7 +109,7 @@ def set_address(mode):
             port = int(port)
         except Exception:
             port = -1
-        if not (0 <= port < 2**16):
+        if not (0 <= port < 2 ** 16):
             raise ValueError("invalid port number")
 
         options.mode = mode

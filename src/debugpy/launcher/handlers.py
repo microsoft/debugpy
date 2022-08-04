@@ -10,6 +10,7 @@ from debugpy import launcher
 from debugpy.common import json
 from debugpy.launcher import debuggee
 
+
 def launch_request(request):
     debug_options = set(request("debugOptions", json.array(str)))
 
