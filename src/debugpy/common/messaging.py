@@ -1410,8 +1410,7 @@ class JsonMessageChannel(object):
                     target=self._run_handlers,
                     name=f"{self} message handler",
                 )
-                self._handler_thread.pydev_do_not_trace = True
-                self._handler_thread.is_pydev_daemon_thread = True
+                hide_thread_from_debugger(self._handler_thread)
                 self._handler_thread.start()
 
     def _run_handlers(self):
