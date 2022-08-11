@@ -339,6 +339,7 @@ def describe_environment(header):
 
     report_paths("os.__file__")
     report_paths("threading.__file__")
+    report_paths("debugpy.__file__")
 
     result = "".join(result).rstrip("\n")
     info("{0}", result)
@@ -376,3 +377,8 @@ def _vars(*names):  # pragma: no cover
 def _stack():  # pragma: no cover
     stack = "\n".join(traceback.format_stack())
     warning("$STACK:\n\n{0}", stack)
+
+
+def _threads():  # pragma: no cover
+    output = "\n".join([str(t) for t in threading.enumerate()])
+    warning("$THREADS:\n\n{0}", output)

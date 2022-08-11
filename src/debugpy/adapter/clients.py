@@ -470,12 +470,16 @@ class Client(components.Component):
             )
 
         if listen != ():
+            if servers.is_serving():
+                raise request.isnt_valid('Multiple concurrent "listen" sessions are not supported')
             host = listen("host", "127.0.0.1")
             port = listen("port", int)
             adapter.access_token = None
             host, port = servers.serve(host, port)
         else:
-            host, port = servers.serve()
+            if not servers.is_serving():
+                servers.serve()
+            host, port = servers.listener.getsockname()
 
         # There are four distinct possibilities here.
         #
