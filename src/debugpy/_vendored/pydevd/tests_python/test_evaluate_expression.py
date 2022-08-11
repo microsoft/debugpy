@@ -1,5 +1,7 @@
+from _pydevd_bundle.pydevd_constants import IS_PY38_OR_GREATER, NULL
+from _pydevd_bundle.pydevd_xml import ExceptionOnEvaluate
+
 import sys
-from _pydevd_bundle.pydevd_constants import IS_PY38_OR_GREATER
 import pytest
 
 SOME_LST = ["foo", "bar"]
@@ -130,3 +132,149 @@ def test_evaluate_expression_5(disable_critical_log):
         assert frame.f_locals['B'] == 6
 
     check(next(iter(obtain_frame())))
+
+
+class _DummyPyDB(object):
+
+    def __init__(self):
+        self.created_pydb_daemon_threads = {}
+        self.timeout_tracker = NULL
+        self.multi_threads_single_notification = False
+
+
+try:
+    from ast import PyCF_ALLOW_TOP_LEVEL_AWAIT  # @UnusedImport
+    CAN_EVALUATE_TOP_LEVEL_ASYNC = True
+except:
+    CAN_EVALUATE_TOP_LEVEL_ASYNC = False
+
+
+@pytest.mark.skipif(not CAN_EVALUATE_TOP_LEVEL_ASYNC, reason='Requires top-level async evaluation.')
+def test_evaluate_expression_async_exec(disable_critical_log):
+    py_db = _DummyPyDB()
+
+    async def async_call(a):
+        return a
+
+    async def main():
+        from _pydevd_bundle.pydevd_vars import evaluate_expression
+        a = 10
+        assert async_call is not None  # Make sure it's in the locals.
+        frame = sys._getframe()
+        eval_txt = 'y = await async_call(a)'
+        evaluate_expression(py_db, frame, eval_txt, is_exec=True)
+        assert frame.f_locals['y'] == a
+
+    import asyncio
+    asyncio.run(main())
+
+
+@pytest.mark.skipif(not CAN_EVALUATE_TOP_LEVEL_ASYNC, reason='Requires top-level async evaluation.')
+def test_evaluate_expression_async_exec_as_eval(disable_critical_log):
+    py_db = _DummyPyDB()
+
+    async def async_call(a):
+        return a
+
+    async def main():
+        from _pydevd_bundle.pydevd_vars import evaluate_expression
+        assert async_call is not None  # Make sure it's in the locals.
+        frame = sys._getframe()
+        eval_txt = 'await async_call(10)'
+        from io import StringIO
+        _original_stdout = sys.stdout
+        try:
+            stringio = sys.stdout = StringIO()
+            evaluate_expression(py_db, frame, eval_txt, is_exec=True)
+        finally:
+            sys.stdout = _original_stdout
+
+        # I.e.: Check that we printed the value obtained in the exec.
+        assert '10\n' in stringio.getvalue()
+
+    import asyncio
+    asyncio.run(main())
+
+
+@pytest.mark.skipif(not CAN_EVALUATE_TOP_LEVEL_ASYNC, reason='Requires top-level async evaluation.')
+def test_evaluate_expression_async_exec_error(disable_critical_log):
+    py_db = _DummyPyDB()
+
+    async def async_call(a):
+        raise RuntimeError('foobar')
+
+    async def main():
+        from _pydevd_bundle.pydevd_vars import evaluate_expression
+        assert async_call is not None  # Make sure it's in the locals.
+        frame = sys._getframe()
+        eval_txt = 'y = await async_call(10)'
+        with pytest.raises(RuntimeError) as e:
+            evaluate_expression(py_db, frame, eval_txt, is_exec=True)
+            assert 'foobar' in str(e)
+        assert 'y' not in frame.f_locals
+
+    import asyncio
+    asyncio.run(main())
+
+
+@pytest.mark.skipif(not CAN_EVALUATE_TOP_LEVEL_ASYNC, reason='Requires top-level async evaluation.')
+def test_evaluate_expression_async_eval(disable_critical_log):
+    py_db = _DummyPyDB()
+
+    async def async_call(a):
+        return a
+
+    async def main():
+        from _pydevd_bundle.pydevd_vars import evaluate_expression
+        a = 10
+        assert async_call is not None  # Make sure it's in the locals.
+        frame = sys._getframe()
+        eval_txt = 'await async_call(a)'
+        v = evaluate_expression(py_db, frame, eval_txt, is_exec=False)
+        if isinstance(v, ExceptionOnEvaluate):
+            raise v.result.with_traceback(v.tb)
+        assert v == a
+
+    import asyncio
+    asyncio.run(main())
+
+
+@pytest.mark.skipif(not CAN_EVALUATE_TOP_LEVEL_ASYNC, reason='Requires top-level async evaluation.')
+def test_evaluate_expression_async_eval_error(disable_critical_log):
+    py_db = _DummyPyDB()
+
+    async def async_call(a):
+        raise RuntimeError('foobar')
+
+    async def main():
+        from _pydevd_bundle.pydevd_vars import evaluate_expression
+        a = 10
+        assert async_call is not None  # Make sure it's in the locals.
+        frame = sys._getframe()
+        eval_txt = 'await async_call(a)'
+        v = evaluate_expression(py_db, frame, eval_txt, is_exec=False)
+        assert isinstance(v, ExceptionOnEvaluate)
+        assert 'foobar' in str(v.result)
+
+    import asyncio
+    asyncio.run(main())
+
+
+def test_evaluate_expression_name_mangling(disable_critical_log):
+    from _pydevd_bundle.pydevd_vars import evaluate_expression
+
+    class SomeObj(object):
+
+        def __init__(self):
+            self.__value = 10
+            self.frame = sys._getframe()
+
+    obj = SomeObj()
+    frame = obj.frame
+
+    eval_txt = '''self.__value'''
+    v = evaluate_expression(None, frame, eval_txt, is_exec=False)
+    if isinstance(v, ExceptionOnEvaluate):
+        raise v.result.with_traceback(v.tb)
+
+    assert v == 10

@@ -47,6 +47,7 @@ def make_save_locals_impl():
         pass
     else:
         if '__pypy__' in sys.builtin_module_names:
+
             def save_locals_pypy_impl(frame):
                 save_locals(frame)
 
@@ -58,6 +59,7 @@ def make_save_locals_impl():
     except:
         pass
     else:
+
         def save_locals_ctypes_impl(frame):
             locals_to_fast(ctypes.py_object(frame), ctypes.c_int(0))
 
@@ -67,3 +69,28 @@ def make_save_locals_impl():
 
 
 save_locals_impl = make_save_locals_impl()
+
+
+def update_globals_and_locals(updated_globals, initial_globals, frame):
+    # We don't have the locals and passed all in globals, so, we have to
+    # manually choose how to update the variables.
+    #
+    # Note that the current implementation is a bit tricky: it does work in general
+    # but if we do something as 'some_var = 10' and 'some_var' is already defined to have
+    # the value '10' in the globals, we won't actually put that value in the locals
+    # (which means that the frame locals won't be updated).
+    # Still, the approach to have a single namespace was chosen because it was the only
+    # one that enabled creating and using variables during the same evaluation.
+    assert updated_globals is not None
+    f_locals = None
+    for key, val in updated_globals.items():
+        if initial_globals.get(key) is not val:
+            if f_locals is None:
+                # Note: we call f_locals only once because each time
+                # we call it the values may be reset.
+                f_locals = frame.f_locals
+
+            f_locals[key] = val
+
+    if f_locals is not None:
+        save_locals(frame)

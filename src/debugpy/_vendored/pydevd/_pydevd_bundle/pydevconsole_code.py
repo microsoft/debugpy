@@ -1,11 +1,15 @@
-"""Utilities needed to emulate Python's interactive interpreter.
+"""
+A copy of the code module in the standard library with some changes to work with
+async evaluation.
 
+Utilities needed to emulate Python's interactive interpreter.
 """
 
 # Inspired by similar code by Jeff Epler and Fredrik Lundh.
 
 import sys
 import traceback
+import inspect
 
 # START --------------------------- from codeop import CommandCompiler, compile_command
 # START --------------------------- from codeop import CommandCompiler, compile_command
@@ -100,18 +104,21 @@ def _maybe_compile(compiler, source, filename, symbol):
 
     try:
         code1 = compiler(source + "\n", filename, symbol)
-    except SyntaxError as err1:
-        pass
+    except SyntaxError as e:
+        err1 = e
 
     try:
         code2 = compiler(source + "\n\n", filename, symbol)
-    except SyntaxError as err2:
-        pass
+    except SyntaxError as e:
+        err2 = e
 
-    if code:
-        return code
-    if not code1 and repr(err1) == repr(err2):
-        raise SyntaxError(err1)
+    try:
+        if code:
+            return code
+        if not code1 and repr(err1) == repr(err2):
+            raise err1
+    finally:
+        err1 = err2 = None
 
 
 def _compile(source, filename, symbol):
@@ -147,6 +154,12 @@ class Compile:
 
     def __init__(self):
         self.flags = PyCF_DONT_IMPLY_DEDENT
+
+        try:
+            from ast import PyCF_ALLOW_TOP_LEVEL_AWAIT
+            self.flags |= PyCF_ALLOW_TOP_LEVEL_AWAIT
+        except:
+            pass
 
     def __call__(self, source, filename, symbol):
         codeob = compile(source, filename, symbol, self.flags, 1)
@@ -197,19 +210,33 @@ class CommandCompiler:
 __all__ = ["InteractiveInterpreter", "InteractiveConsole", "interact",
            "compile_command"]
 
+from _pydev_bundle._pydev_saved_modules import threading
 
-def softspace(file, newvalue):
-    oldvalue = 0
-    try:
-        oldvalue = file.softspace
-    except AttributeError:
-        pass
-    try:
-        file.softspace = newvalue
-    except (AttributeError, TypeError):
-        # "attribute-less object" or "read-only attributes"
-        pass
-    return oldvalue
+
+class _EvalAwaitInNewEventLoop(threading.Thread):
+
+    def __init__(self, compiled, updated_globals, updated_locals):
+        threading.Thread.__init__(self)
+        self.daemon = True
+        self._compiled = compiled
+        self._updated_globals = updated_globals
+        self._updated_locals = updated_locals
+
+        # Output
+        self.evaluated_value = None
+        self.exc = None
+
+    async def _async_func(self):
+        return await eval(self._compiled, self._updated_locals, self._updated_globals)
+
+    def run(self):
+        try:
+            import asyncio
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            self.evaluated_value = asyncio.run(self._async_func())
+        except:
+            self.exc = sys.exc_info()
 
 
 class InteractiveInterpreter:
@@ -240,7 +267,7 @@ class InteractiveInterpreter:
 
         Arguments are as for compile_command().
 
-        One several things can happen:
+        One of several things can happen:
 
         1) The input is incorrect; compile_command() raised an
         exception (SyntaxError or OverflowError).  A syntax traceback
@@ -287,14 +314,24 @@ class InteractiveInterpreter:
 
         """
         try:
-            exec(code, self.locals)
+            is_async = False
+            if hasattr(inspect, 'CO_COROUTINE'):
+                is_async = inspect.CO_COROUTINE & code.co_flags == inspect.CO_COROUTINE
+
+            if is_async:
+                t = _EvalAwaitInNewEventLoop(code, self.locals, None)
+                t.start()
+                t.join()
+
+                if t.exc:
+                    raise t.exc[1].with_traceback(t.exc[2])
+
+            else:
+                exec(code, self.locals)
         except SystemExit:
             raise
         except:
             self.showtraceback()
-        else:
-            if softspace(sys.stdout, 0):
-                sys.stdout.write('\n')
 
     def showsyntaxerror(self, filename=None):
         """Display the syntax error that just occurred.
@@ -308,24 +345,30 @@ class InteractiveInterpreter:
         The output is written by self.write(), below.
 
         """
-        type, value, sys.last_traceback = sys.exc_info()
+        type, value, tb = sys.exc_info()
         sys.last_type = type
         sys.last_value = value
+        sys.last_traceback = tb
         if filename and type is SyntaxError:
             # Work hard to stuff the correct filename in the exception
             try:
-                msg, (dummy_filename, lineno, offset, line) = value
-            except:
+                msg, (dummy_filename, lineno, offset, line) = value.args
+            except ValueError:
                 # Not the format we expect; leave it alone
                 pass
             else:
                 # Stuff in the right filename
                 value = SyntaxError(msg, (filename, lineno, offset, line))
                 sys.last_value = value
-        list = traceback.format_exception_only(type, value)
-        map(self.write, list)
+        if sys.excepthook is sys.__excepthook__:
+            lines = traceback.format_exception_only(type, value)
+            self.write(''.join(lines))
+        else:
+            # If someone has set sys.excepthook, we let that take precedence
+            # over self.write
+            sys.excepthook(type, value, tb)
 
-    def showtraceback(self, *args, **kwargs):
+    def showtraceback(self):
         """Display the exception that just occurred.
 
         We remove the first stack item because it is our own code.
@@ -333,20 +376,18 @@ class InteractiveInterpreter:
         The output is written by self.write(), below.
 
         """
+        sys.last_type, sys.last_value, last_tb = ei = sys.exc_info()
+        sys.last_traceback = last_tb
         try:
-            type, value, tb = sys.exc_info()
-            sys.last_type = type
-            sys.last_value = value
-            sys.last_traceback = tb
-            tblist = traceback.extract_tb(tb)
-            del tblist[:1]
-            list = traceback.format_list(tblist)
-            if list:
-                list.insert(0, "Traceback (most recent call last):\n")
-            list[len(list):] = traceback.format_exception_only(type, value)
+            lines = traceback.format_exception(ei[0], ei[1], last_tb.tb_next)
+            if sys.excepthook is sys.__excepthook__:
+                self.write(''.join(lines))
+            else:
+                # If someone has set sys.excepthook, we let that take precedence
+                # over self.write
+                sys.excepthook(ei[0], ei[1], last_tb)
         finally:
-            tblist = tb = None
-        map(self.write, list)
+            last_tb = ei = None
 
     def write(self, data):
         """Write a string.
@@ -384,23 +425,28 @@ class InteractiveConsole(InteractiveInterpreter):
         """Reset the input buffer."""
         self.buffer = []
 
-    def interact(self, banner=None):
+    def interact(self, banner=None, exitmsg=None):
         """Closely emulate the interactive Python console.
 
-        The optional banner argument specify the banner to print
+        The optional banner argument specifies the banner to print
         before the first interaction; by default it prints a banner
         similar to the one printed by the real Python interpreter,
         followed by the current class name in parentheses (so as not
         to confuse this with the real interpreter -- since it's so
         close!).
 
+        The optional exitmsg argument specifies the exit message
+        printed when exiting. Pass the empty string to suppress
+        printing an exit message. If exitmsg is not given or None,
+        a default message is printed.
+
         """
         try:
-            sys.ps1  # @UndefinedVariable
+            sys.ps1
         except AttributeError:
             sys.ps1 = ">>> "
         try:
-            sys.ps2  # @UndefinedVariable
+            sys.ps2
         except AttributeError:
             sys.ps2 = "... "
         cprt = 'Type "help", "copyright", "credits" or "license" for more information.'
@@ -408,21 +454,17 @@ class InteractiveConsole(InteractiveInterpreter):
             self.write("Python %s on %s\n%s\n(%s)\n" %
                        (sys.version, sys.platform, cprt,
                         self.__class__.__name__))
-        else:
+        elif banner:
             self.write("%s\n" % str(banner))
         more = 0
         while 1:
             try:
                 if more:
-                    prompt = sys.ps2  # @UndefinedVariable
+                    prompt = sys.ps2
                 else:
-                    prompt = sys.ps1  # @UndefinedVariable
+                    prompt = sys.ps1
                 try:
                     line = self.raw_input(prompt)
-                    # Can be None if sys.stdin was redefined
-                    encoding = getattr(sys.stdin, "encoding", None)
-                    if encoding and not isinstance(line, str):
-                        line = line.decode(encoding)
                 except EOFError:
                     self.write("\n")
                     break
@@ -432,6 +474,10 @@ class InteractiveConsole(InteractiveInterpreter):
                 self.write("\nKeyboardInterrupt\n")
                 self.resetbuffer()
                 more = 0
+        if exitmsg is None:
+            self.write('now exiting %s...\n' % self.__class__.__name__)
+        elif exitmsg != '':
+            self.write('%s\n' % exitmsg)
 
     def push(self, line):
         """Push a line to the interpreter.
@@ -461,14 +507,14 @@ class InteractiveConsole(InteractiveInterpreter):
         When the user enters the EOF key sequence, EOFError is raised.
 
         The base implementation uses the built-in function
-        raw_input(); a subclass may replace this with a different
+        input(); a subclass may replace this with a different
         implementation.
 
         """
         return input(prompt)
 
 
-def interact(banner=None, readfunc=None, local=None):
+def interact(banner=None, readfunc=None, local=None, exitmsg=None):
     """Closely emulate the interactive Python interpreter.
 
     This is a backwards compatible interface to the InteractiveConsole
@@ -480,6 +526,7 @@ def interact(banner=None, readfunc=None, local=None):
     banner -- passed to InteractiveConsole.interact()
     readfunc -- if not None, replaces InteractiveConsole.raw_input()
     local -- passed to InteractiveInterpreter.__init__()
+    exitmsg -- passed to InteractiveConsole.interact()
 
     """
     console = InteractiveConsole(local)
@@ -490,9 +537,18 @@ def interact(banner=None, readfunc=None, local=None):
             import readline
         except ImportError:
             pass
-    console.interact(banner)
+    console.interact(banner, exitmsg)
 
 
-if __name__ == '__main__':
-    import pdb
-    pdb.run("interact()\n")
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-q', action='store_true',
+                       help="don't print version and copyright messages")
+    args = parser.parse_args()
+    if args.q or sys.flags.quiet:
+        banner = ''
+    else:
+        banner = None
+    interact(banner)

@@ -2,8 +2,7 @@
 '''
 import sys
 import traceback
-from code import InteractiveConsole
-
+from _pydevd_bundle.pydevconsole_code import InteractiveConsole, _EvalAwaitInNewEventLoop
 from _pydev_bundle import _pydev_completer
 from _pydev_bundle.pydev_console_utils import BaseInterpreterInterface, BaseStdIn
 from _pydev_bundle.pydev_imports import Exec
@@ -12,6 +11,8 @@ from _pydevd_bundle import pydevd_save_locals
 from _pydevd_bundle.pydevd_io import IOBuf
 from pydevd_tracing import get_exception_traceback_str
 from _pydevd_bundle.pydevd_xml import make_valid_xml_value
+import inspect
+from _pydevd_bundle.pydevd_save_locals import update_globals_and_locals
 
 CONSOLE_OUTPUT = "output"
 CONSOLE_ERROR = "error"
@@ -152,8 +153,29 @@ class DebugConsole(InteractiveConsole, BaseInterpreterInterface):
 
         """
         try:
-            Exec(code, self.frame.f_globals, self.frame.f_locals)
-            pydevd_save_locals.save_locals(self.frame)
+            updated_globals = self.get_namespace()
+            initial_globals = updated_globals.copy()
+
+            updated_locals = None
+
+            is_async = False
+            if hasattr(inspect, 'CO_COROUTINE'):
+                is_async = inspect.CO_COROUTINE & code.co_flags == inspect.CO_COROUTINE
+
+            if is_async:
+                t = _EvalAwaitInNewEventLoop(code, updated_globals, updated_locals)
+                t.start()
+                t.join()
+
+                update_globals_and_locals(updated_globals, initial_globals, self.frame)
+                if t.exc:
+                    raise t.exc[1].with_traceback(t.exc[2])
+
+            else:
+                try:
+                    exec(code, updated_globals, updated_locals)
+                finally:
+                    update_globals_and_locals(updated_globals, initial_globals, self.frame)
         except SystemExit:
             raise
         except:
