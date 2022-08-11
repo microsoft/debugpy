@@ -4,12 +4,14 @@ import sys
 import pydevconsole
 from _pydev_bundle.pydev_imports import xmlrpclib, SimpleXMLRPCServer
 from _pydevd_bundle import pydevd_io
+from contextlib import contextmanager
+import pytest
 
 try:
-    raw_input
-    raw_input_name = 'raw_input'
-except NameError:
-    raw_input_name = 'input'
+    from ast import PyCF_ALLOW_TOP_LEVEL_AWAIT  # @UnusedImport
+    CAN_EVALUATE_TOP_LEVEL_ASYNC = True
+except:
+    CAN_EVALUATE_TOP_LEVEL_ASYNC = False
 
 
 #=======================================================================================================================
@@ -17,11 +19,15 @@ except NameError:
 #=======================================================================================================================
 class Test(unittest.TestCase):
 
-    def test_console_hello(self):
+    @contextmanager
+    def interpreter(self):
         self.original_stdout = sys.stdout
+        self.original_stderr = sys.stderr
         sys.stdout = pydevd_io.IOBuf()
+        sys.stderr = pydevd_io.IOBuf()
         try:
             sys.stdout.encoding = sys.stdin.encoding
+            sys.stderr.encoding = sys.stdin.encoding
         except AttributeError:
             # In Python 3 encoding is not writable (whereas in Python 2 it doesn't exist).
             pass
@@ -34,31 +40,50 @@ class Test(unittest.TestCase):
 
             from _pydev_bundle import pydev_localhost
             interpreter = pydevconsole.InterpreterInterface(pydev_localhost.get_localhost(), client_port, threading.current_thread())
-
-            (result,) = interpreter.hello("Hello pydevconsole")
-            self.assertEqual(result, "Hello eclipse")
+            yield interpreter
+        except:
+            # if there's some error, print the output to the actual output.
+            self.original_stdout.write(sys.stdout.getvalue())
+            self.original_stderr.write(sys.stderr.getvalue())
+            raise
         finally:
+            sys.stderr = self.original_stderr
             sys.stdout = self.original_stdout
 
-    def test_console_requests(self):
-        self.original_stdout = sys.stdout
-        sys.stdout = pydevd_io.IOBuf()
+    def test_console_hello(self):
+        with self.interpreter() as interpreter:
+            (result,) = interpreter.hello("Hello pydevconsole")
+            self.assertEqual(result, "Hello eclipse")
 
-        try:
-            client_port, _server_port = self.get_free_addresses()
-            client_thread = self.start_client_thread(client_port)  # @UnusedVariable
-            import time
-            time.sleep(.3)  # let's give it some time to start the threads
-
-            from _pydev_bundle import pydev_localhost
+    @pytest.mark.skipif(not CAN_EVALUATE_TOP_LEVEL_ASYNC, reason='Requires top-level async.')
+    def test_console_async(self):
+        with self.interpreter() as interpreter:
             from _pydev_bundle.pydev_console_utils import CodeFragment
+            more = interpreter.add_exec(CodeFragment('''
+async def async_func(a):
+    return a
+'''))
+            assert not more
+            assert not sys.stderr.getvalue()
+            assert not sys.stdout.getvalue()
 
-            interpreter = pydevconsole.InterpreterInterface(pydev_localhost.get_localhost(), client_port, threading.current_thread())
-            sys.stdout = pydevd_io.IOBuf()
+            more = interpreter.add_exec(CodeFragment('''x = await async_func(1111)'''))
+            assert not more
+            assert not sys.stderr.getvalue()
+            assert not sys.stdout.getvalue()
+
+            more = interpreter.add_exec(CodeFragment('''print(x)'''))
+            assert not more
+            assert not sys.stderr.getvalue()
+            assert '1111' in sys.stdout.getvalue()
+
+    def test_console_requests(self):
+        with self.interpreter() as interpreter:
+            from _pydev_bundle.pydev_console_utils import CodeFragment
             interpreter.add_exec(CodeFragment('class Foo:\n    CONSTANT=1\n'))
             interpreter.add_exec(CodeFragment('foo=Foo()'))
             interpreter.add_exec(CodeFragment('foo.__doc__=None'))
-            interpreter.add_exec(CodeFragment('val = %s()' % (raw_input_name,)))
+            interpreter.add_exec(CodeFragment('val = input()'))
             interpreter.add_exec(CodeFragment('50'))
             interpreter.add_exec(CodeFragment('print (val)'))
             found = sys.stdout.getvalue().split()
@@ -129,8 +154,6 @@ class Test(unittest.TestCase):
                          desc.find('Concatenate any number of strings.') >= 0 or
                          desc.find('bound method str.join') >= 0,  # PyPy
                          "Could not recognize: %s" % (desc,))
-        finally:
-            sys.stdout = self.original_stdout
 
     def start_client_thread(self, client_port):
 
@@ -234,7 +257,7 @@ class Test(unittest.TestCase):
             server.execLine('    pass')
             server.execLine('')
             server.execLine('foo = Foo()')
-            server.execLine('a = %s()' % (raw_input_name,))
+            server.execLine('a = input()')
             server.execLine('print (a)')
             initial = time.time()
             while not client_thread.requested_input:

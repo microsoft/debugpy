@@ -3,7 +3,7 @@
 """
 import pickle
 from _pydevd_bundle.pydevd_constants import get_frame, get_current_thread_id, \
-    iter_chars, silence_warnings_decorator
+    iter_chars, silence_warnings_decorator, get_global_debugger
 
 from _pydevd_bundle.pydevd_xml import ExceptionOnEvaluate, get_type, var_to_xml
 from _pydev_bundle import pydev_log
@@ -17,6 +17,10 @@ from _pydev_bundle._pydev_saved_modules import threading
 from _pydevd_bundle import pydevd_save_locals, pydevd_timeout, pydevd_constants
 from _pydev_bundle.pydev_imports import Exec, execfile
 from _pydevd_bundle.pydevd_utils import to_string
+import inspect
+from _pydevd_bundle.pydevd_daemon_thread import PyDBDaemonThread
+from _pydevd_bundle.pydevd_save_locals import update_globals_and_locals
+from functools import lru_cache
 
 SENTINEL_VALUE = []
 
@@ -203,6 +207,7 @@ def custom_operation(dbg, thread_id, frame_id, scope, attrs, style, code_or_file
         pydev_log.exception()
 
 
+@lru_cache(3)
 def _expression_to_evaluate(expression):
     keepends = True
     lines = expression.splitlines(keepends)
@@ -240,13 +245,27 @@ def _expression_to_evaluate(expression):
     return expression
 
 
-def eval_in_context(expression, globals, locals=None):
+def eval_in_context(expression, global_vars, local_vars, py_db=None):
     result = None
     try:
-        if locals is None:
-            result = eval(_expression_to_evaluate(expression), globals)
+        compiled = compile_as_eval(expression)
+        is_async = inspect.CO_COROUTINE & compiled.co_flags == inspect.CO_COROUTINE
+
+        if is_async:
+            if py_db is None:
+                py_db = get_global_debugger()
+                if py_db is None:
+                    raise RuntimeError('Cannot evaluate async without py_db.')
+            t = _EvalAwaitInNewEventLoop(py_db, compiled, global_vars, local_vars)
+            t.start()
+            t.join()
+
+            if t.exc:
+                raise t.exc[1].with_traceback(t.exc[2])
+            else:
+                result = t.evaluated_value
         else:
-            result = eval(_expression_to_evaluate(expression), globals, locals)
+            result = eval(compiled, global_vars, local_vars)
     except (Exception, KeyboardInterrupt):
         etype, result, tb = sys.exc_info()
         result = ExceptionOnEvaluate(result, etype, tb)
@@ -258,9 +277,9 @@ def eval_in_context(expression, globals, locals=None):
                 split = expression.split('.')
                 entry = split[0]
 
-                if locals is None:
-                    locals = globals
-                curr = locals[entry]  # Note: we want the KeyError if it's not there.
+                if local_vars is None:
+                    local_vars = global_vars
+                curr = local_vars[entry]  # Note: we want the KeyError if it's not there.
                 for entry in split[1:]:
                     if entry.startswith('__') and not hasattr(curr, entry):
                         entry = '_%s%s' % (curr.__class__.__name__, entry)
@@ -353,60 +372,117 @@ def _evaluate_with_timeouts(original_func):
     return new_func
 
 
+_ASYNC_COMPILE_FLAGS = None
+try:
+    from ast import PyCF_ALLOW_TOP_LEVEL_AWAIT
+    _ASYNC_COMPILE_FLAGS = PyCF_ALLOW_TOP_LEVEL_AWAIT
+except:
+    pass
+
+
 def compile_as_eval(expression):
     '''
 
     :param expression:
-        The expression to be compiled.
+        The expression to be _compiled.
 
     :return: code object
 
     :raises Exception if the expression cannot be evaluated.
     '''
-    return compile(_expression_to_evaluate(expression), '<string>', 'eval')
+    expression_to_evaluate = _expression_to_evaluate(expression)
+    if _ASYNC_COMPILE_FLAGS is not None:
+        return compile(expression_to_evaluate, '<string>', 'eval', _ASYNC_COMPILE_FLAGS)
+    else:
+        return compile(expression_to_evaluate, '<string>', 'eval')
 
 
-def _update_globals_and_locals(updated_globals, initial_globals, frame):
-    # We don't have the locals and passed all in globals, so, we have to
-    # manually choose how to update the variables.
-    #
-    # Note that the current implementation is a bit tricky: it does work in general
-    # but if we do something as 'some_var = 10' and 'some_var' is already defined to have
-    # the value '10' in the globals, we won't actually put that value in the locals
-    # (which means that the frame locals won't be updated).
-    # Still, the approach to have a single namespace was chosen because it was the only
-    # one that enabled creating and using variables during the same evaluation.
-    assert updated_globals is not None
-    f_locals = None
-    for key, val in updated_globals.items():
-        if initial_globals.get(key) is not val:
-            if f_locals is None:
-                # Note: we call f_locals only once because each time
-                # we call it the values may be reset.
-                f_locals = frame.f_locals
+def _compile_as_exec(expression):
+    '''
 
-            f_locals[key] = val
+    :param expression:
+        The expression to be _compiled.
 
-    if f_locals is not None:
-        pydevd_save_locals.save_locals(frame)
+    :return: code object
+
+    :raises Exception if the expression cannot be evaluated.
+    '''
+    expression_to_evaluate = _expression_to_evaluate(expression)
+    if _ASYNC_COMPILE_FLAGS is not None:
+        return compile(expression_to_evaluate, '<string>', 'exec', _ASYNC_COMPILE_FLAGS)
+    else:
+        return compile(expression_to_evaluate, '<string>', 'exec')
+
+
+class _EvalAwaitInNewEventLoop(PyDBDaemonThread):
+
+    def __init__(self, py_db, compiled, updated_globals, updated_locals):
+        PyDBDaemonThread.__init__(self, py_db)
+        self._compiled = compiled
+        self._updated_globals = updated_globals
+        self._updated_locals = updated_locals
+
+        # Output
+        self.evaluated_value = None
+        self.exc = None
+
+    async def _async_func(self):
+        return await eval(self._compiled, self._updated_locals, self._updated_globals)
+
+    def _on_run(self):
+        try:
+            import asyncio
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            self.evaluated_value = asyncio.run(self._async_func())
+        except:
+            self.exc = sys.exc_info()
 
 
 @_evaluate_with_timeouts
 def evaluate_expression(py_db, frame, expression, is_exec):
     '''
-    There are some changes in this function depending on whether it's an exec or an eval.
+    :param str expression:
+        The expression to be evaluated.
 
-    When it's an exec (i.e.: is_exec==True):
-        This function returns None.
-        Any exception that happens during the evaluation is reraised.
-        If the expression could actually be evaluated, the variable is printed to the console if not None.
+        Note that if the expression is indented it's automatically dedented (based on the indentation
+        found on the first non-empty line).
 
-    When it's an eval (i.e.: is_exec==False):
-        This function returns the result from the evaluation.
-        If some exception happens in this case, the exception is caught and a ExceptionOnEvaluate is returned.
-        Also, in this case we try to resolve name-mangling (i.e.: to be able to add a self.__my_var watch).
+        i.e.: something as:
+
+        `
+            def method():
+                a = 1
+        `
+
+        becomes:
+
+        `
+        def method():
+            a = 1
+        `
+
+        Also, it's possible to evaluate calls with a top-level await (currently this is done by
+        creating a new event loop in a new thread and making the evaluate at that thread -- note
+        that this is still done synchronously so the evaluation has to finish before this
+        function returns).
 
     :param is_exec: determines if we should do an exec or an eval.
+        There are some changes in this function depending on whether it's an exec or an eval.
+
+        When it's an exec (i.e.: is_exec==True):
+            This function returns None.
+            Any exception that happens during the evaluation is reraised.
+            If the expression could actually be evaluated, the variable is printed to the console if not None.
+
+        When it's an eval (i.e.: is_exec==False):
+            This function returns the result from the evaluation.
+            If some exception happens in this case, the exception is caught and a ExceptionOnEvaluate is returned.
+            Also, in this case we try to resolve name-mangling (i.e.: to be able to add a self.__my_var watch).
+
+    :param py_db:
+        The debugger. Only needed if some top-level await is detected (for creating a
+        PyDBDaemonThread).
     '''
     if frame is None:
         return
@@ -457,7 +533,7 @@ def evaluate_expression(py_db, frame, expression, is_exec):
 
         if is_exec:
             try:
-                # try to make it an eval (if it is an eval we can print it, otherwise we'll exec it and
+                # Try to make it an eval (if it is an eval we can print it, otherwise we'll exec it and
                 # it will have whatever the user actually did)
                 compiled = compile_as_eval(expression)
             except Exception:
@@ -465,18 +541,39 @@ def evaluate_expression(py_db, frame, expression, is_exec):
 
             if compiled is None:
                 try:
-                    Exec(_expression_to_evaluate(expression), updated_globals, updated_locals)
+                    compiled = _compile_as_exec(expression)
+                    is_async = inspect.CO_COROUTINE & compiled.co_flags == inspect.CO_COROUTINE
+                    if is_async:
+                        t = _EvalAwaitInNewEventLoop(py_db, compiled, updated_globals, updated_locals)
+                        t.start()
+                        t.join()
+
+                        if t.exc:
+                            raise t.exc[1].with_traceback(t.exc[2])
+                    else:
+                        Exec(compiled, updated_globals, updated_locals)
                 finally:
                     # Update the globals even if it errored as it may have partially worked.
-                    _update_globals_and_locals(updated_globals, initial_globals, frame)
+                    update_globals_and_locals(updated_globals, initial_globals, frame)
             else:
-                result = eval(compiled, updated_globals, updated_locals)
+                is_async = inspect.CO_COROUTINE & compiled.co_flags == inspect.CO_COROUTINE
+                if is_async:
+                    t = _EvalAwaitInNewEventLoop(py_db, compiled, updated_globals, updated_locals)
+                    t.start()
+                    t.join()
+
+                    if t.exc:
+                        raise t.exc[1].with_traceback(t.exc[2])
+                    else:
+                        result = t.evaluated_value
+                else:
+                    result = eval(compiled, updated_globals, updated_locals)
                 if result is not None:  # Only print if it's not None (as python does)
                     sys.stdout.write('%s\n' % (result,))
             return
 
         else:
-            ret = eval_in_context(expression, updated_globals, updated_locals)
+            ret = eval_in_context(expression, updated_globals, updated_locals, py_db)
             try:
                 is_exception_returned = ret.__class__ == ExceptionOnEvaluate
             except:
@@ -485,7 +582,7 @@ def evaluate_expression(py_db, frame, expression, is_exec):
                 if not is_exception_returned:
                     # i.e.: by using a walrus assignment (:=), expressions can change the locals,
                     # so, make sure that we save the locals back to the frame.
-                    _update_globals_and_locals(updated_globals, initial_globals, frame)
+                    update_globals_and_locals(updated_globals, initial_globals, frame)
             return ret
     finally:
         # Should not be kept alive if an exception happens and this frame is kept in the stack.

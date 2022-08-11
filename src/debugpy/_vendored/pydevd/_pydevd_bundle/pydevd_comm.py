@@ -833,7 +833,7 @@ class InternalGetArray(InternalThreadCommand):
     def do_it(self, dbg):
         try:
             frame = dbg.find_frame(self.thread_id, self.frame_id)
-            var = pydevd_vars.eval_in_context(self.name, frame.f_globals, frame.f_locals)
+            var = pydevd_vars.eval_in_context(self.name, frame.f_globals, frame.f_locals, py_db=dbg)
             xml = pydevd_vars.table_like_struct_to_xml(var, self.name, self.roffset, self.coffset, self.rows, self.cols, self.format)
             cmd = dbg.cmd_factory.make_get_array_message(self.sequence, xml)
             dbg.writer.add_command(cmd)

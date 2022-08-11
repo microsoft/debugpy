@@ -5,10 +5,7 @@ from _pydev_bundle._pydev_saved_modules import thread, _code
 from _pydevd_bundle.pydevd_constants import IS_JYTHON
 start_new_thread = thread.start_new_thread
 
-try:
-    from code import InteractiveConsole
-except ImportError:
-    from _pydevd_bundle.pydevconsole_code_for_ironpython import InteractiveConsole
+from _pydevd_bundle.pydevconsole_code import InteractiveConsole
 
 compile_command = _code.compile_command
 InteractiveInterpreter = _code.InteractiveInterpreter

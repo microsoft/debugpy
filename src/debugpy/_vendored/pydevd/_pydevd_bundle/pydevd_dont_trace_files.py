@@ -70,7 +70,7 @@ DONT_TRACE = {
     'pydev_umd.py': PYDEV_FILE,
     'pydev_versioncheck.py': PYDEV_FILE,
     'pydevconsole.py': PYDEV_FILE,
-    'pydevconsole_code_for_ironpython.py': PYDEV_FILE,
+    'pydevconsole_code.py': PYDEV_FILE,
     'pydevd.py': PYDEV_FILE,
     'pydevd_additional_thread_info.py': PYDEV_FILE,
     'pydevd_additional_thread_info_regular.py': PYDEV_FILE,
