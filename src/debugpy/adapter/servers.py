@@ -19,6 +19,9 @@ from debugpy.adapter import components
 access_token = None
 """Access token used to authenticate with the servers."""
 
+listener = None
+"""Listener socket that accepts server connections."""
+
 _lock = threading.RLock()
 
 _connections = []
@@ -433,9 +436,16 @@ def serve(host="127.0.0.1", port=0):
     return listener.getsockname()
 
 
+def is_serving():
+    return listener is not None
+
+
 def stop_serving():
+    global listener
     try:
-        listener.close()
+        if listener is not None:
+            listener.close()
+            listener = None
     except Exception:
         log.swallow_exception(level="warning")
 
