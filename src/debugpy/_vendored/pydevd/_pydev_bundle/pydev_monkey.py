@@ -4,7 +4,7 @@ import re
 import sys
 from _pydev_bundle._pydev_saved_modules import threading
 from _pydevd_bundle.pydevd_constants import get_global_debugger, IS_WINDOWS, IS_JYTHON, get_current_thread_id, \
-    sorted_dict_repr
+    sorted_dict_repr, set_global_debugger
 from _pydev_bundle import pydev_log
 from contextlib import contextmanager
 from _pydevd_bundle import pydevd_constants
@@ -904,6 +904,8 @@ def create_fork(original_name):
             if is_new_python_process:
                 PydevdCustomization.DEFAULT_PROTOCOL = protocol
                 _on_forked_process(setup_tracing=apply_arg_patch and not is_subprocess_fork)
+            else:
+                set_global_debugger(None)
         else:
             if is_new_python_process:
                 send_process_created_message()
