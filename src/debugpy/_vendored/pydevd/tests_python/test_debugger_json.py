@@ -3990,6 +3990,93 @@ def test_gevent_show_paused_greenlets(case_setup, show):
         writer.finished_ok = True
 
 
+@pytest.mark.skipif(not TEST_GEVENT, reason='Gevent not installed.')
+def test_gevent_subprocess_not_python(case_setup):
+
+    def get_environ(writer):
+        env = os.environ.copy()
+        env['GEVENT_SUPPORT'] = 'True'
+        env['CALL_PYTHON_SUB'] = '0'
+        return env
+
+    with case_setup.test_file('_debugger_case_gevent_subprocess.py', get_environ=get_environ) as writer:
+        json_facade = JsonFacade(writer)
+
+        break1_line = writer.get_line_index_with_content("print('TEST SUCEEDED')")
+        json_facade.write_set_breakpoints(break1_line)
+        json_facade.write_make_initial_run()
+        json_facade.wait_for_thread_stopped(line=break1_line)
+
+        json_facade.write_continue(wait_for_response=False)
+        writer.finished_ok = True
+
+
+@pytest.mark.skipif(not TEST_GEVENT, reason='Gevent not installed.')
+def test_gevent_subprocess_python(case_setup_multiprocessing):
+    import threading
+    from tests_python.debugger_unittest import AbstractWriterThread
+
+    def get_environ(writer):
+        env = os.environ.copy()
+        env['GEVENT_SUPPORT'] = 'True'
+        env['CALL_PYTHON_SUB'] = '1'
+        return env
+
+    with case_setup_multiprocessing.test_file(
+            '_debugger_case_gevent_subprocess.py',
+            get_environ=get_environ,
+        ) as writer:
+        json_facade = JsonFacade(writer)
+        json_facade.write_launch()
+
+        break1_line = writer.get_line_index_with_content("print('foo called')")
+        json_facade.write_set_breakpoints([break1_line])
+
+        server_socket = writer.server_socket
+        secondary_finished_ok = [False]
+
+        class SecondaryProcessWriterThread(AbstractWriterThread):
+
+            TEST_FILE = writer.get_main_filename()
+            _sequence = -1
+
+        class SecondaryProcessThreadCommunication(threading.Thread):
+
+            def run(self):
+                from tests_python.debugger_unittest import ReaderThread
+                server_socket.listen(1)
+                self.server_socket = server_socket
+                new_sock, addr = server_socket.accept()
+
+                reader_thread = ReaderThread(new_sock)
+                reader_thread.name = '  *** Multiprocess Reader Thread'
+                reader_thread.start()
+
+                writer2 = SecondaryProcessWriterThread()
+                writer2.reader_thread = reader_thread
+                writer2.sock = new_sock
+                json_facade2 = JsonFacade(writer2)
+
+                json_facade2.write_set_breakpoints([break1_line, ])
+                json_facade2.write_make_initial_run()
+
+                json_facade2.wait_for_thread_stopped()
+                json_facade2.write_continue()
+                secondary_finished_ok[0] = True
+
+        secondary_process_thread_communication = SecondaryProcessThreadCommunication()
+        secondary_process_thread_communication.start()
+        time.sleep(.1)
+
+        json_facade.write_make_initial_run()
+        secondary_process_thread_communication.join(10)
+        if secondary_process_thread_communication.is_alive():
+            raise AssertionError('The SecondaryProcessThreadCommunication did not finish')
+
+        assert secondary_finished_ok[0]
+        writer.finished_ok = True
+
+
 @pytest.mark.skipif(
     not TEST_GEVENT or IS_WINDOWS,
     reason='Gevent not installed / Sometimes the debugger crashes on Windows as the compiled extensions conflict with gevent.'
