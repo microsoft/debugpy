@@ -333,6 +333,9 @@ class PyDevJsonCommandProcessor(object):
         terminate_child_processes = args.get('terminateChildProcesses', True)
         self.api.set_terminate_child_processes(py_db, terminate_child_processes)
 
+        terminate_keyboard_interrupt = args.get('onTerminate', 'kill') == 'KeyboardInterrupt'
+        self.api.set_terminate_keyboard_interrupt(py_db, terminate_keyboard_interrupt)
+
         variable_presentation = args.get('variablePresentation', None)
         if isinstance(variable_presentation, dict):
 

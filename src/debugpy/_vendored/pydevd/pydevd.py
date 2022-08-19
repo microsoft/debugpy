@@ -540,6 +540,13 @@ class PyDB(object):
         # Determines whether we should terminate child processes when asked to terminate.
         self.terminate_child_processes = True
 
+        # Determines whether we should try to do a soft terminate (i.e.: interrupt the main
+        # thread with a KeyboardInterrupt).
+        self.terminate_keyboard_interrupt = False
+
+        # Set to True after a keyboard interrupt is requested the first time.
+        self.keyboard_interrupt_requested = False
+
         # These are the breakpoints received by the PyDevdAPI. They are meant to store
         # the breakpoints in the api -- its actual contents are managed by the api.
         self.api_received_breakpoints = {}

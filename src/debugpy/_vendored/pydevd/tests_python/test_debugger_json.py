@@ -6370,6 +6370,62 @@ def test_logging_api(case_setup_multiprocessing, tmpdir):
         writer.finished_ok = True
 
 
+@pytest.mark.parametrize('soft_kill', [False, True])
+def test_soft_terminate(case_setup, pyfile, soft_kill):
+
+    @pyfile
+    def target():
+        import time
+        try:
+            while True:
+                time.sleep(.2)  # break here
+        except KeyboardInterrupt:
+            # i.e.: The test succeeds if a keyboard interrupt is received.
+            print('TEST SUCEEDED!')
+            raise
+
+    def check_test_suceeded_msg(self, stdout, stderr):
+        if soft_kill:
+            return 'TEST SUCEEDED' in ''.join(stdout)
+        else:
+            return 'TEST SUCEEDED' not in ''.join(stdout)
+
+    def additional_output_checks(writer, stdout, stderr):
+        if soft_kill:
+            assert "KeyboardInterrupt" in stderr
+        else:
+            assert not stderr
+
+    with case_setup.test_file(
+            target,
+            EXPECTED_RETURNCODE='any',
+            check_test_suceeded_msg=check_test_suceeded_msg,
+            additional_output_checks=additional_output_checks,
+        ) as writer:
+        json_facade = JsonFacade(writer)
+        json_facade.write_launch(
+            onTerminate="KeyboardInterrupt" if soft_kill else "kill",
+            justMyCode=False
+        )
+
+        break_line = writer.get_line_index_with_content('break here')
+        json_facade.write_set_breakpoints(break_line)
+        json_facade.write_make_initial_run()
+        json_hit = json_facade.wait_for_thread_stopped(line=break_line)
+
+        # Interrupting when inside a breakpoint will actually make the
+        # debugger stop working in that thread (because there's no way
+        # to keep debugging after an exception exits the tracing).
+
+        json_facade.write_terminate()
+
+        if soft_kill:
+            json_facade.wait_for_json_message(
+                OutputEvent, lambda output_event: 'raised from within the callback set' in output_event.body.output)
+
+        writer.finished_ok = True
+
+
 if __name__ == '__main__':
     pytest.main(['-k', 'test_replace_process', '-s'])
 

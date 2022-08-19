@@ -374,7 +374,7 @@ class DAPGrouper(object):
         return ''
 
 
-def interrupt_main_thread(main_thread):
+def interrupt_main_thread(main_thread=None):
     '''
     Generates a KeyboardInterrupt in the main thread by sending a Ctrl+C
     or by calling thread.interrupt_main().
@@ -386,6 +386,9 @@ def interrupt_main_thread(main_thread):
     when the next Python instruction is about to be executed (so, it won't interrupt
     a sleep(1000)).
     '''
+    if main_thread is None:
+        main_thread = threading.main_thread()
+
     pydev_log.debug('Interrupt main thread.')
     called = False
     try:

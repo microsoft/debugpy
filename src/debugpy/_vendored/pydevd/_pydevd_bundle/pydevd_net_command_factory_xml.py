@@ -131,6 +131,9 @@ class NetCommandFactory(object):
     def make_warning_message(self, msg):
         return self.make_io_message(msg, 2)
 
+    def make_console_message(self, msg):
+        return self.make_io_message(msg, 2)
+
     def make_io_message(self, msg, ctx):
         '''
         @param msg: the message to pass to the debug server

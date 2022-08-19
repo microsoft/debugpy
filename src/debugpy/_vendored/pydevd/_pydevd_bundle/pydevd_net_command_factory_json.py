@@ -305,6 +305,13 @@ class NetCommandFactoryJson(NetCommandFactory):
         event = OutputEvent(body)
         return NetCommand(CMD_WRITE_TO_CONSOLE, 0, event, is_json=True)
 
+    @overrides(NetCommandFactory.make_console_message)
+    def make_console_message(self, msg):
+        category = 'console'
+        body = OutputEventBody(msg, category)
+        event = OutputEvent(body)
+        return NetCommand(CMD_WRITE_TO_CONSOLE, 0, event, is_json=True)
+
     _STEP_REASONS = set([
         CMD_STEP_INTO,
         CMD_STEP_INTO_MY_CODE,
