@@ -90,8 +90,12 @@ def _generate_cython_from_files(target, modules):
 # DO NOT edit manually!
 ''']
 
+    found = []
     for mod in modules:
+        found.append(mod.__file__)
         contents.append(get_cython_contents(mod.__file__))
+
+    print('Generating cython from: %s' % (found,))
 
     with open(target, 'w') as stream:
         stream.write(''.join(contents))
@@ -206,6 +210,7 @@ def remove_if_exists(f):
 
 
 def generate_cython_module():
+    print('Removing pydevd_cython.pyx')
     remove_if_exists(os.path.join(root_dir, '_pydevd_bundle', 'pydevd_cython.pyx'))
 
     target = os.path.join(root_dir, '_pydevd_bundle', 'pydevd_cython.pyx')

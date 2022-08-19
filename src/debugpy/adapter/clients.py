@@ -77,6 +77,8 @@ class Client(components.Component):
             only if and when the "launch" or "attach" response is sent.
             """
 
+            self._forward_terminate_request = False
+
             self.known_subprocesses = set()
 
             session.client = self
@@ -180,7 +182,7 @@ class Client(components.Component):
             "supportsSetExpression": True,
             "supportsSetVariable": True,
             "supportsValueFormattingOptions": True,
-            "supportsTerminateDebuggee": True,
+            "supportsTerminateRequest": True,
             "supportsGotoTargetsRequest": True,
             "supportsClipboardContext": True,
             "exceptionBreakpointFilters": exception_breakpoint_filters,
@@ -192,6 +194,7 @@ class Client(components.Component):
     # See https://github.com/microsoft/vscode/issues/4902#issuecomment-368583522
     # for the sequence of request and events necessary to orchestrate the start.
     def _start_message_handler(f):
+
         @components.Component.message_handler
         def handle(self, request):
             assert request.is_request("launch", "attach")
@@ -404,6 +407,11 @@ class Client(components.Component):
         if sudo and sys.platform == "win32":
             raise request.cant_handle('"sudo":true is not supported on Windows.')
 
+        on_terminate = request("onTerminate", str, optional=True)
+
+        if on_terminate:
+            self._forward_terminate_request = on_terminate == "KeyboardInterrupt"
+
         launcher_path = request("debugLauncherPath", os.path.dirname(launcher.__file__))
         adapter_host = request("debugAdapterHost", "127.0.0.1")
 
@@ -441,6 +449,10 @@ class Client(components.Component):
         connect = request("connect", dict, optional=True)
         pid = request("processId", (int, str), optional=True)
         sub_pid = request("subProcessId", int, optional=True)
+        on_terminate = request("onTerminate", bool, optional=True)
+
+        if on_terminate:
+            self._forward_terminate_request = on_terminate == "KeyboardInterrupt"
 
         if host != () or port != ():
             if listen != ():
@@ -637,6 +649,15 @@ class Client(components.Component):
 
     @message_handler
     def terminate_request(self, request):
+        if self._forward_terminate_request:
+            # According to the spec, terminate should try to do a gracefull shutdown.
+            # We do this in the server by interrupting the main thread with a Ctrl+C.
+            # To force the kill a subsequent request would do a disconnect.
+            #
+            # We only do this if the onTerminate option is set though (the default
+            # is a hard-kill for the process and subprocesses).
+            return self.server.channel.delegate(request)
+
         self.session.finalize('client requested "terminate"', terminate_debuggee=True)
         return {}
 

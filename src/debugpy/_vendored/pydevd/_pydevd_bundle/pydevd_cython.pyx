@@ -169,6 +169,7 @@ from _pydevd_bundle.pydevd_frame_utils import add_exception_to_frame, just_raise
 from _pydevd_bundle.pydevd_utils import get_clsname_for_code
 from pydevd_file_utils import get_abs_path_real_path_and_base_from_frame
 from _pydevd_bundle.pydevd_comm_constants import constant_to_str, CMD_SET_FUNCTION_BREAK
+import sys
 try:
     from _pydevd_bundle.pydevd_bytecode_utils import get_smart_step_into_variant_from_frame_offset
 except ImportError:
@@ -737,10 +738,10 @@ cdef class PyDBFrame:
         # cost is still high (maybe we could use code-generation in the future and make the code
         # generation be better split among what each part does).
 
-        # DEBUG = '_debugger_case_generator.py' in frame.f_code.co_filename
-        main_debugger, abs_path_canonical_path_and_base, info, thread, frame_skips_cache, frame_cache_key = self._args
-        # if DEBUG: print('frame trace_dispatch %s %s %s %s %s %s, stop: %s' % (frame.f_lineno, frame.f_code.co_name, frame.f_code.co_filename, event, constant_to_str(info.pydev_step_cmd), arg, info.pydev_step_stop))
         try:
+            # DEBUG = '_debugger_case_generator.py' in frame.f_code.co_filename
+            main_debugger, abs_path_canonical_path_and_base, info, thread, frame_skips_cache, frame_cache_key = self._args
+            # if DEBUG: print('frame trace_dispatch %s %s %s %s %s %s, stop: %s' % (frame.f_lineno, frame.f_code.co_name, frame.f_code.co_filename, event, constant_to_str(info.pydev_step_cmd), arg, info.pydev_step_stop))
             info.is_tracing += 1
 
             # TODO: This shouldn't be needed. The fact that frame.f_lineno
@@ -1139,7 +1140,15 @@ cdef class PyDBFrame:
                         frame_skips_cache[line_cache_key] = 0
 
             except:
-                pydev_log.exception()
+                # Unfortunately Python itself stops the tracing when it originates from
+                # the tracing function, so, we can't do much about it (just let the user know).
+                exc = sys.exc_info()[0]
+                cmd = main_debugger.cmd_factory.make_console_message(
+                    '%s raised from within the callback set in sys.settrace.\nDebugging will be disabled for this thread (%s).\n' % (exc, thread,))
+                main_debugger.writer.add_command(cmd)
+                if not issubclass(exc, (KeyboardInterrupt, SystemExit)):
+                    pydev_log.exception()
+
                 raise
 
             # step handling. We stop when we hit the right frame
@@ -1364,22 +1373,22 @@ cdef class PyDBFrame:
                             info.pydev_step_cmd = -1
                             info.pydev_state = 1
 
-            except KeyboardInterrupt:
-                raise
-            except:
-                try:
-                    pydev_log.exception()
-                    info.pydev_original_step_cmd = -1
-                    info.pydev_step_cmd = -1
-                    info.pydev_step_stop = None
-                except:
+                # if we are quitting, let's stop the tracing
+                if main_debugger.quitting:
                     return None if is_call else NO_FTRACE
 
-            # if we are quitting, let's stop the tracing
-            if main_debugger.quitting:
-                return None if is_call else NO_FTRACE
+                return self.trace_dispatch
+            except:
+                # Unfortunately Python itself stops the tracing when it originates from
+                # the tracing function, so, we can't do much about it (just let the user know).
+                exc = sys.exc_info()[0]
+                cmd = main_debugger.cmd_factory.make_console_message(
+                    '%s raised from within the callback set in sys.settrace.\nDebugging will be disabled for this thread (%s).\n' % (exc, thread,))
+                main_debugger.writer.add_command(cmd)
+                if not issubclass(exc, (KeyboardInterrupt, SystemExit)):
+                    pydev_log.exception()
+                raise
 
-            return self.trace_dispatch
         finally:
             info.is_tracing -= 1
 

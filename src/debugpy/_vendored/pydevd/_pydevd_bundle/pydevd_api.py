@@ -28,7 +28,7 @@ import ctypes
 from _pydevd_bundle.pydevd_collect_bytecode_info import code_to_bytecode_representation
 import itertools
 import linecache
-from _pydevd_bundle.pydevd_utils import DAPGrouper
+from _pydevd_bundle.pydevd_utils import DAPGrouper, interrupt_main_thread
 from _pydevd_bundle.pydevd_daemon_thread import run_as_pydevd_daemon_thread
 from _pydevd_bundle.pydevd_thread_lifecycle import pydevd_find_thread_by_id, resume_threads
 import tokenize
@@ -1076,6 +1076,9 @@ class PyDevdAPI(object):
     def set_terminate_child_processes(self, py_db, terminate_child_processes):
         py_db.terminate_child_processes = terminate_child_processes
 
+    def set_terminate_keyboard_interrupt(self, py_db, terminate_keyboard_interrupt):
+        py_db.terminate_keyboard_interrupt = terminate_keyboard_interrupt
+
     def terminate_process(self, py_db):
         '''
         Terminates the current process (and child processes if the option to also terminate
@@ -1097,6 +1100,12 @@ class PyDevdAPI(object):
         self.terminate_process(py_db)
 
     def request_terminate_process(self, py_db):
+        if py_db.terminate_keyboard_interrupt:
+            if not py_db.keyboard_interrupt_requested:
+                py_db.keyboard_interrupt_requested = True
+                interrupt_main_thread()
+                return
+
         # We mark with a terminate_requested to avoid that paused threads start running
         # (we should terminate as is without letting any paused thread run).
         py_db.terminate_requested = True
