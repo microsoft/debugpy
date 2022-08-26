@@ -168,8 +168,6 @@ def attach(port, host, protocol=''):
         if py_db is not None:
             py_db.dispose_and_kill_all_pydevd_threads(wait=False)
 
-        # pydevd.DebugInfoHolder.DEBUG_RECORD_SOCKET_READS = True
-        # pydevd.DebugInfoHolder.DEBUG_TRACE_BREAKPOINTS = 3
         # pydevd.DebugInfoHolder.DEBUG_TRACE_LEVEL = 3
         pydevd.settrace(
             port=port,

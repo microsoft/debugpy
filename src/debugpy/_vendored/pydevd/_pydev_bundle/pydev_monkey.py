@@ -4,7 +4,7 @@ import re
 import sys
 from _pydev_bundle._pydev_saved_modules import threading
 from _pydevd_bundle.pydevd_constants import get_global_debugger, IS_WINDOWS, IS_JYTHON, get_current_thread_id, \
-    sorted_dict_repr, set_global_debugger
+    sorted_dict_repr, set_global_debugger, DebugInfoHolder
 from _pydev_bundle import pydev_log
 from contextlib import contextmanager
 from _pydevd_bundle import pydevd_constants
@@ -68,6 +68,13 @@ def _get_setup_updated_with_protocol_and_ppid(setup, is_exec=False):
 
     else:
         pydev_log.debug('Unexpected protocol: %s', protocol)
+
+    if DebugInfoHolder.PYDEVD_DEBUG_FILE:
+        setup['log-file'] = DebugInfoHolder.PYDEVD_DEBUG_FILE
+
+    if DebugInfoHolder.DEBUG_TRACE_LEVEL:
+        setup['log-level'] = DebugInfoHolder.DEBUG_TRACE_LEVEL
+
     return setup
 
 
