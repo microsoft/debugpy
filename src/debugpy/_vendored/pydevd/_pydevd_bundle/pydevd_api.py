@@ -551,8 +551,7 @@ class PyDevdAPI(object):
         if not supported_type:
             raise NameError(breakpoint_type)
 
-        if DebugInfoHolder.DEBUG_TRACE_BREAKPOINTS > 0:
-            pydev_log.debug('Added breakpoint:%s - line:%s - func_name:%s\n', canonical_normalized_filename, line, func_name)
+        pydev_log.debug('Added breakpoint:%s - line:%s - func_name:%s\n', canonical_normalized_filename, line, func_name)
 
         if canonical_normalized_filename in file_to_id_to_breakpoint:
             id_to_pybreakpoint = file_to_id_to_breakpoint[canonical_normalized_filename]
@@ -672,10 +671,10 @@ class PyDevdAPI(object):
         else:
             try:
                 id_to_pybreakpoint = file_to_id_to_breakpoint.get(canonical_normalized_filename, {})
-                if DebugInfoHolder.DEBUG_TRACE_BREAKPOINTS > 0:
+                if DebugInfoHolder.DEBUG_TRACE_LEVEL >= 1:
                     existing = id_to_pybreakpoint[breakpoint_id]
                     pydev_log.info('Removed breakpoint:%s - line:%s - func_name:%s (id: %s)\n' % (
-                        canonical_normalized_filename, existing.line, existing.func_name.encode('utf-8'), breakpoint_id))
+                        canonical_normalized_filename, existing.line, existing.func_name, breakpoint_id))
 
                 del id_to_pybreakpoint[breakpoint_id]
                 py_db.consolidate_breakpoints(canonical_normalized_filename, id_to_pybreakpoint, file_to_line_to_breakpoints)

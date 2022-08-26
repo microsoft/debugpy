@@ -397,7 +397,6 @@ class DebuggerRunner(object):
         localhost = pydev_localhost.get_localhost()
         ret = [
             writer.get_pydevd_file(),
-            '--DEBUG_RECORD_SOCKET_READS',
         ]
 
         if not IS_PY36_OR_GREATER or not IS_CPYTHON or not TEST_CYTHON:

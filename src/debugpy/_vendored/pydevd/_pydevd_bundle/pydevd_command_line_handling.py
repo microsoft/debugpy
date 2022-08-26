@@ -1,4 +1,5 @@
 import os
+import sys
 
 
 class ArgHandlerWithParam:
@@ -68,8 +69,11 @@ ACCEPTED_ARG_HANDLERS = [
     ArgHandlerWithParam('access-token'),
     ArgHandlerWithParam('client-access-token'),
 
+    # Logging
+    ArgHandlerWithParam('log-file'),
+    ArgHandlerWithParam('log-level', int, 0),
+
     ArgHandlerBool('server'),
-    ArgHandlerBool('DEBUG_RECORD_SOCKET_READS'),
     ArgHandlerBool('multiproc'),  # Used by PyCharm (reuses connection: ssh tunneling)
     ArgHandlerBool('multiprocess'),  # Used by PyDev (creates new connection to ide)
     ArgHandlerBool('save-signatures'),
@@ -132,6 +136,8 @@ def process_command_line(argv):
     setup['file'] = ''
     setup['qt-support'] = ''
 
+    initial_argv = tuple(argv)
+
     i = 0
     del argv[0]
     while i < len(argv):
@@ -169,10 +175,9 @@ def process_command_line(argv):
             i = len(argv)  # pop out, file is our last argument
 
         elif argv[i] == '--DEBUG':
-            from pydevd import set_debug
-            del argv[i]
-            set_debug(setup)
+            sys.stderr.write('pydevd: --DEBUG parameter deprecated. Use `--debug-level=3` instead.\n')
 
         else:
-            raise ValueError("Unexpected option: " + argv[i])
+            raise ValueError("Unexpected option: %s when processing: %s" % (argv[i], initial_argv))
     return setup
+

@@ -4130,8 +4130,8 @@ def test_ppid(case_setup, pyfile):
 
     def update_command_line_args(writer, args):
         ret = debugger_unittest.AbstractWriterThread.update_command_line_args(writer, args)
-        ret.insert(ret.index('--DEBUG_RECORD_SOCKET_READS'), '--ppid')
-        ret.insert(ret.index('--DEBUG_RECORD_SOCKET_READS'), '22')
+        ret.insert(ret.index('--client'), '--ppid')
+        ret.insert(ret.index('--client'), '22')
         return ret
 
     with case_setup.test_file(
@@ -4937,7 +4937,7 @@ def test_no_subprocess_patching(case_setup_multiprocessing, apply_multiprocessin
 
     def update_command_line_args(writer, args):
         ret = debugger_unittest.AbstractWriterThread.update_command_line_args(writer, args)
-        ret.insert(ret.index('--DEBUG_RECORD_SOCKET_READS'), '--multiprocess')
+        ret.insert(ret.index('--client'), '--multiprocess')
         if apply_multiprocessing_patch:
             ret.append('apply-multiprocessing-patch')
         return ret
@@ -6301,6 +6301,72 @@ def test_ipython_stepping_step_in(case_setup):
         json_hit = json_facade.wait_for_thread_stopped('step', line=stop_at, file='_debugger_case_scoped_stepping_target2.py')
 
         json_facade.write_continue()
+        writer.finished_ok = True
+
+
+def test_logging_api(case_setup_multiprocessing, tmpdir):
+    import threading
+    from tests_python.debugger_unittest import AbstractWriterThread
+
+    log_file = str(tmpdir.join('pydevd_in_test_logging.log'))
+
+    def get_environ(self):
+        env = os.environ.copy()
+        env["TARGET_LOG_FILE"] = log_file
+        return env
+
+    with case_setup_multiprocessing.test_file(
+            '_debugger_case_logging.py',
+            get_environ=get_environ
+        ) as writer:
+        json_facade = JsonFacade(writer)
+        json_facade.write_launch()
+
+        break1_line = writer.get_line_index_with_content("break on 2nd process")
+        json_facade.write_set_breakpoints([break1_line])
+
+        server_socket = writer.server_socket
+        secondary_finished_ok = [False]
+
+        class SecondaryProcessWriterThread(AbstractWriterThread):
+
+            TEST_FILE = writer.get_main_filename()
+            _sequence = -1
+
+        class SecondaryProcessThreadCommunication(threading.Thread):
+
+            def run(self):
+                from tests_python.debugger_unittest import ReaderThread
+                server_socket.listen(1)
+                self.server_socket = server_socket
+                new_sock, addr = server_socket.accept()
+
+                reader_thread = ReaderThread(new_sock)
+                reader_thread.name = '  *** Multiprocess Reader Thread'
+                reader_thread.start()
+
+                writer2 = SecondaryProcessWriterThread()
+                writer2.reader_thread = reader_thread
+                writer2.sock = new_sock
+                json_facade2 = JsonFacade(writer2)
+
+                json_facade2.write_set_breakpoints([break1_line, ])
+                json_facade2.write_make_initial_run()
+
+                json_facade2.wait_for_thread_stopped()
+                json_facade2.write_continue()
+                secondary_finished_ok[0] = True
+
+        secondary_process_thread_communication = SecondaryProcessThreadCommunication()
+        secondary_process_thread_communication.start()
+        time.sleep(.1)
+
+        json_facade.write_make_initial_run()
+        secondary_process_thread_communication.join(10)
+        if secondary_process_thread_communication.is_alive():
+            raise AssertionError('The SecondaryProcessThreadCommunication did not finish')
+
+        assert secondary_finished_ok[0]
         writer.finished_ok = True
 
 

@@ -64,11 +64,11 @@ from _pydevd_bundle.pydevd_extension_api import DebuggerEventHandler
 from _pydevd_bundle.pydevd_frame_utils import add_exception_to_frame, remove_exception_from_frame
 from _pydevd_bundle.pydevd_net_command_factory_xml import NetCommandFactory
 from _pydevd_bundle.pydevd_trace_dispatch import (
-    trace_dispatch as _trace_dispatch, global_cache_skips, global_cache_frame_skips, fix_top_level_trace_and_get_trace_func)
+    trace_dispatch as _trace_dispatch, global_cache_skips, global_cache_frame_skips, fix_top_level_trace_and_get_trace_func, USING_CYTHON)
 from _pydevd_bundle.pydevd_utils import save_main_module, is_current_thread_main_thread, \
     import_attr_from_module
 from _pydevd_frame_eval.pydevd_frame_eval_main import (
-    frame_eval_func, dummy_trace_dispatch)
+    frame_eval_func, dummy_trace_dispatch, USING_FRAME_EVAL)
 import pydev_ipython  # @UnusedImport
 from _pydevd_bundle.pydevd_source_mapping import SourceMapping
 from _pydevd_bundle.pydevd_concurrency_analyser.pydevd_concurrency_logger import ThreadingLogger, AsyncioLogger, send_concurrency_message, cur_time
@@ -1814,22 +1814,19 @@ class PyDB(object):
         if eb.notify_on_unhandled_exceptions:
             cp = self.break_on_uncaught_exceptions.copy()
             cp[exception] = eb
-            if DebugInfoHolder.DEBUG_TRACE_BREAKPOINTS > 0:
-                pydev_log.critical("Exceptions to hook on terminate: %s.", cp)
+            pydev_log.info("Exceptions to hook on terminate: %s.", cp)
             self.break_on_uncaught_exceptions = cp
 
         if eb.notify_on_handled_exceptions:
             cp = self.break_on_caught_exceptions.copy()
             cp[exception] = eb
-            if DebugInfoHolder.DEBUG_TRACE_BREAKPOINTS > 0:
-                pydev_log.critical("Exceptions to hook always: %s.", cp)
+            pydev_log.info("Exceptions to hook always: %s.", cp)
             self.break_on_caught_exceptions = cp
 
         if eb.notify_on_user_unhandled_exceptions:
             cp = self.break_on_user_uncaught_exceptions.copy()
             cp[exception] = eb
-            if DebugInfoHolder.DEBUG_TRACE_BREAKPOINTS > 0:
-                pydev_log.critical("Exceptions to hook on user uncaught code: %s.", cp)
+            pydev_log.info("Exceptions to hook on user uncaught code: %s.", cp)
             self.break_on_user_uncaught_exceptions = cp
 
         return eb
@@ -2600,12 +2597,6 @@ def send_json_message(msg):
     return True
 
 
-def set_debug(setup):
-    setup['DEBUG_RECORD_SOCKET_READS'] = True
-    setup['DEBUG_TRACE_BREAKPOINTS'] = 1
-    setup['DEBUG_TRACE_LEVEL'] = 3
-
-
 def enable_qt_support(qt_support_mode):
     from _pydev_bundle import pydev_monkey_qt
     pydev_monkey_qt.patch_qt(qt_support_mode)
@@ -3239,14 +3230,40 @@ for handler in pydevd_extension_utils.extensions_of_type(DebuggerEventHandler):
     handler.on_debugger_modules_loaded(debugger_version=__version__)
 
 
+def log_to(log_file:str, log_level=3) -> None:
+    '''
+    In pydevd it's possible to log by setting the following environment variables:
+
+    PYDEVD_DEBUG=1 (sets the default log level to 3 along with other default options)
+    PYDEVD_DEBUG_FILE=</path/to/file.log>
+
+    Note that the file will have the pid of the process added to it (so, logging to
+    /path/to/file.log would actually start logging to /path/to/file.<pid>.log -- if subprocesses are
+    logged, each new subprocess will have the logging set to its own pid).
+
+    Usually setting the environment variable is preferred as it'd log information while
+    pydevd is still doing its imports and not just after this method is called, but on
+    cases where this is hard to do this function may be called to set the tracing after
+    pydevd itself is already imported.
+    '''
+    pydev_log.log_to(log_file, log_level)
+
+
+def _log_initial_info():
+    pydev_log.debug("Initial arguments: %s", (sys.argv,))
+    pydev_log.debug("Current pid: %s", os.getpid())
+    pydev_log.debug("Using cython: %s", USING_CYTHON)
+    pydev_log.debug("Using frame eval: %s", USING_FRAME_EVAL)
+    pydev_log.debug("Using gevent mode: %s / imported gevent module support: %s", SUPPORT_GEVENT, bool(pydevd_gevent_integration))
+
+
 #=======================================================================================================================
 # main
 #=======================================================================================================================
 def main():
 
     # parse the command line. --file is our last argument that is required
-    pydev_log.debug("Initial arguments: %s", (sys.argv,))
-    pydev_log.debug("Current pid: %s", os.getpid())
+    _log_initial_info()
     try:
         from _pydevd_bundle.pydevd_command_line_handling import process_command_line
         setup = process_command_line(sys.argv)
@@ -3254,6 +3271,24 @@ def main():
     except ValueError:
         pydev_log.exception()
         usage(1)
+
+    log_trace_level = setup.get('log-level')
+
+    # Note: the logging info could've been changed (this would happen if this is a
+    # subprocess and the value in the environment variable does not match the value in the
+    # argument because the user used `pydevd.log_to` instead of supplying the environment
+    # variable). If this is the case, update the logging info and re-log some information
+    # in the new target.
+    new_debug_file = setup.get('log-file')
+    if new_debug_file and DebugInfoHolder.PYDEVD_DEBUG_FILE != new_debug_file:
+        # The debug file can't be set directly, we need to use log_to() so that the a
+        # new stream is actually created for the new file.
+        log_to(new_debug_file, log_trace_level if log_trace_level is not None else 3)
+        _log_initial_info()  # The redirection info just changed, log it again.
+
+    elif log_trace_level is not None:
+        # The log file was not specified
+        DebugInfoHolder.DEBUG_TRACE_LEVEL = log_trace_level
 
     if setup['print-in-debugger-startup']:
         try:
@@ -3266,13 +3301,6 @@ def main():
     pydev_log.debug("arguments: %s", (sys.argv,))
 
     pydevd_vm_type.setup_type(setup.get('vm_type', None))
-
-    if SHOW_DEBUG_INFO_ENV:
-        set_debug(setup)
-
-    DebugInfoHolder.DEBUG_RECORD_SOCKET_READS = setup.get('DEBUG_RECORD_SOCKET_READS', DebugInfoHolder.DEBUG_RECORD_SOCKET_READS)
-    DebugInfoHolder.DEBUG_TRACE_BREAKPOINTS = setup.get('DEBUG_TRACE_BREAKPOINTS', DebugInfoHolder.DEBUG_TRACE_BREAKPOINTS)
-    DebugInfoHolder.DEBUG_TRACE_LEVEL = setup.get('DEBUG_TRACE_LEVEL', DebugInfoHolder.DEBUG_TRACE_LEVEL)
 
     port = setup['port']
     host = setup['client']

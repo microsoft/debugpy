@@ -255,10 +255,7 @@ def _check_tracing_other_threads():
     import pydevd_tracing
     import time
     from tests_python.debugger_unittest import wait_for_condition
-    try:
-        import _thread
-    except ImportError:
-        import thread as _thread
+    import _thread
 
     # This method is called in a subprocess, so, make sure we exit properly even if we somehow
     # deadlock somewhere else.

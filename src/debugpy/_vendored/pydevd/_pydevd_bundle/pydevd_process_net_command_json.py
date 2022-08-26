@@ -163,7 +163,7 @@ class PyDevJsonCommandProcessor(object):
                 return NetCommand(CMD_RETURN, 0, error_response, is_json=True)
 
         else:
-            if DebugInfoHolder.DEBUG_RECORD_SOCKET_READS and DebugInfoHolder.DEBUG_TRACE_LEVEL >= 1:
+            if DebugInfoHolder.DEBUG_TRACE_LEVEL >= 1:
                 pydev_log.info('Process %s: %s\n' % (
                     request.__class__.__name__, json.dumps(request.to_dict(update_ids_to_dap=True), indent=4, sort_keys=True),))
 

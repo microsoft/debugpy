@@ -274,13 +274,14 @@ class ReaderThread(PyDBDaemonThread):
                 if hasattr(line, 'decode'):
                     line = line.decode('utf-8')
 
-                if DebugInfoHolder.DEBUG_RECORD_SOCKET_READS:
-                    pydev_log.critical(u'debugger: received >>%s<<\n' % (line,))
+                if DebugInfoHolder.DEBUG_TRACE_LEVEL >= 3:
+                    pydev_log.debug('debugger: received >>%s<<\n', line)
 
-                args = line.split(u'\t', 2)
+                args = line.split('\t', 2)
                 try:
                     cmd_id = int(args[0])
-                    pydev_log.debug('Received command: %s %s\n' % (ID_TO_MEANING.get(str(cmd_id), '???'), line,))
+                    if DebugInfoHolder.DEBUG_TRACE_LEVEL >= 3:
+                        pydev_log.debug('Received command: %s %s\n', ID_TO_MEANING.get(str(cmd_id), '???'), line)
                     self.process_command(cmd_id, int(args[1]), args[2])
                 except:
                     if sys is not None and pydev_log_exception is not None:  # Could happen at interpreter shutdown
@@ -1351,12 +1352,12 @@ def internal_get_completions(dbg, seq, thread_id, frame_id, act_tok, line=-1, co
     try:
         remove_path = None
         try:
-            qualifier = u''
+            qualifier = ''
             if column >= 0:
                 token_and_qualifier = extract_token_and_qualifier(act_tok, line, column)
                 act_tok = token_and_qualifier[0]
                 if act_tok:
-                    act_tok += u'.'
+                    act_tok += '.'
                 qualifier = token_and_qualifier[1]
 
             frame = dbg.find_frame(thread_id, frame_id)

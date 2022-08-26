@@ -39,10 +39,6 @@ class DebugInfoHolder:
     # General information
     DEBUG_TRACE_LEVEL = 0  # 0 = critical, 1 = info, 2 = debug, 3 = verbose
 
-    # Flags to debug specific points of the code.
-    DEBUG_RECORD_SOCKET_READS = False
-    DEBUG_TRACE_BREAKPOINTS = -1
-
     PYDEVD_DEBUG_FILE = None
 
 
@@ -292,7 +288,6 @@ DEFAULT_VALUE = "__pydevd_value_async"
 ASYNC_EVAL_TIMEOUT_SEC = 60
 NEXT_VALUE_SEPARATOR = "__pydev_val__"
 BUILTINS_MODULE_NAME = 'builtins'
-SHOW_DEBUG_INFO_ENV = is_true_in_env(('PYCHARM_DEBUG', 'PYDEV_DEBUG', 'PYDEVD_DEBUG'))
 
 # Pandas customization.
 PANDAS_MAX_ROWS = as_int_in_env('PYDEVD_PANDAS_MAX_ROWS', 60)
@@ -335,11 +330,11 @@ EXCEPTION_TYPE_UNHANDLED = 'UNHANDLED'
 EXCEPTION_TYPE_USER_UNHANDLED = 'USER_UNHANDLED'
 EXCEPTION_TYPE_HANDLED = 'HANDLED'
 
+SHOW_DEBUG_INFO_ENV = is_true_in_env(('PYCHARM_DEBUG', 'PYDEV_DEBUG', 'PYDEVD_DEBUG'))
+
 if SHOW_DEBUG_INFO_ENV:
     # show debug info before the debugger start
-    DebugInfoHolder.DEBUG_RECORD_SOCKET_READS = True
     DebugInfoHolder.DEBUG_TRACE_LEVEL = 3
-    DebugInfoHolder.DEBUG_TRACE_BREAKPOINTS = 1
 
 DebugInfoHolder.PYDEVD_DEBUG_FILE = os.getenv('PYDEVD_DEBUG_FILE')
 

@@ -1,4 +1,5 @@
-from _pydevd_bundle.pydevd_constants import DebugInfoHolder, SHOW_COMPILE_CYTHON_COMMAND_LINE, NULL, LOG_TIME
+from _pydevd_bundle.pydevd_constants import DebugInfoHolder, SHOW_COMPILE_CYTHON_COMMAND_LINE, NULL, LOG_TIME, \
+    ForkSafeLock
 from contextlib import contextmanager
 import traceback
 import os
@@ -6,18 +7,19 @@ import sys
 
 
 class _LoggingGlobals(object):
-
     _warn_once_map = {}
     _debug_stream_filename = None
-    _debug_stream = sys.stderr
+    _debug_stream = NULL
     _debug_stream_initialized = False
+    _initialize_lock = ForkSafeLock()
 
 
 def initialize_debug_stream(reinitialize=False):
     '''
     :param bool reinitialize:
         Reinitialize is used to update the debug stream after a fork (thus, if it wasn't
-        initialized, we don't need to do anything).
+        initialized, we don't need to do anything, just wait for the first regular log call
+        to initialize).
     '''
     if reinitialize:
         if not _LoggingGlobals._debug_stream_initialized:
@@ -26,32 +28,69 @@ def initialize_debug_stream(reinitialize=False):
         if _LoggingGlobals._debug_stream_initialized:
             return
 
-    _LoggingGlobals._debug_stream_initialized = True
+    with _LoggingGlobals._initialize_lock:
+        # Initialization is done lazilly, so, it's possible that multiple threads try to initialize
+        # logging.
 
-    # Note: we cannot initialize with sys.stderr because when forking we may end up logging things in 'os' calls.
-    _LoggingGlobals._debug_stream = NULL
-    _LoggingGlobals._debug_stream_filename = None
+        # Check initial conditions again after obtaining the lock.
+        if reinitialize:
+            if not _LoggingGlobals._debug_stream_initialized:
+                return
+        else:
+            if _LoggingGlobals._debug_stream_initialized:
+                return
 
-    if not DebugInfoHolder.PYDEVD_DEBUG_FILE:
-        _LoggingGlobals._debug_stream = sys.stderr
-    else:
-        # Add pid to the filename.
-        try:
-            dirname = os.path.dirname(DebugInfoHolder.PYDEVD_DEBUG_FILE)
-            basename = os.path.basename(DebugInfoHolder.PYDEVD_DEBUG_FILE)
-            try:
-                os.makedirs(dirname)
-            except:
-                pass  # Ignore error if it already exists.
+        _LoggingGlobals._debug_stream_initialized = True
 
-            name, ext = os.path.splitext(basename)
-            debug_file = os.path.join(dirname, name + '.' + str(os.getpid()) + ext)
-            _LoggingGlobals._debug_stream = open(debug_file, 'w')
-            _LoggingGlobals._debug_stream_filename = debug_file
-        except:
+        # Note: we cannot initialize with sys.stderr because when forking we may end up logging things in 'os' calls.
+        _LoggingGlobals._debug_stream = NULL
+        _LoggingGlobals._debug_stream_filename = None
+
+        if not DebugInfoHolder.PYDEVD_DEBUG_FILE:
             _LoggingGlobals._debug_stream = sys.stderr
-            # Don't fail when trying to setup logging, just show the exception.
-            traceback.print_exc()
+        else:
+            # Add pid to the filename.
+            try:
+                target_file = DebugInfoHolder.PYDEVD_DEBUG_FILE
+                debug_file = _compute_filename_with_pid(target_file)
+                _LoggingGlobals._debug_stream = open(debug_file, 'w')
+                _LoggingGlobals._debug_stream_filename = debug_file
+            except Exception:
+                _LoggingGlobals._debug_stream = sys.stderr
+                # Don't fail when trying to setup logging, just show the exception.
+                traceback.print_exc()
+
+
+def _compute_filename_with_pid(target_file, pid=None):
+    # Note: used in tests.
+    dirname = os.path.dirname(target_file)
+    basename = os.path.basename(target_file)
+    try:
+        os.makedirs(dirname)
+    except Exception:
+        pass  # Ignore error if it already exists.
+
+    name, ext = os.path.splitext(basename)
+    if pid is None:
+        pid = os.getpid()
+    return os.path.join(dirname, '%s.%s%s' % (name, pid, ext))
+
+
+def log_to(log_file:str, log_level:int=3) -> None:
+    with _LoggingGlobals._initialize_lock:
+        # Can be set directly.
+        DebugInfoHolder.DEBUG_TRACE_LEVEL = log_level
+
+        if DebugInfoHolder.PYDEVD_DEBUG_FILE != log_file:
+            # Note that we don't need to reset it unless it actually changed
+            # (would be the case where it's set as an env var in a new process
+            # and a subprocess initializes logging to the same value).
+            _LoggingGlobals._debug_stream = NULL
+            _LoggingGlobals._debug_stream_filename = None
+
+            DebugInfoHolder.PYDEVD_DEBUG_FILE = log_file
+
+            _LoggingGlobals._debug_stream_initialized = False
 
 
 def list_log_files(pydevd_debug_file):
@@ -71,27 +110,32 @@ def log_context(trace_level, stream):
     '''
     To be used to temporarily change the logging settings.
     '''
-    original_trace_level = DebugInfoHolder.DEBUG_TRACE_LEVEL
-    original_debug_stream = _LoggingGlobals._debug_stream
-    original_pydevd_debug_file = DebugInfoHolder.PYDEVD_DEBUG_FILE
-    original_debug_stream_filename = _LoggingGlobals._debug_stream_filename
-    original_initialized = _LoggingGlobals._debug_stream_initialized
+    with _LoggingGlobals._initialize_lock:
+        original_trace_level = DebugInfoHolder.DEBUG_TRACE_LEVEL
+        original_debug_stream = _LoggingGlobals._debug_stream
+        original_pydevd_debug_file = DebugInfoHolder.PYDEVD_DEBUG_FILE
+        original_debug_stream_filename = _LoggingGlobals._debug_stream_filename
+        original_initialized = _LoggingGlobals._debug_stream_initialized
 
-    DebugInfoHolder.DEBUG_TRACE_LEVEL = trace_level
-    _LoggingGlobals._debug_stream = stream
-    _LoggingGlobals._debug_stream_initialized = True
+        DebugInfoHolder.DEBUG_TRACE_LEVEL = trace_level
+        _LoggingGlobals._debug_stream = stream
+        _LoggingGlobals._debug_stream_initialized = True
     try:
         yield
     finally:
-        DebugInfoHolder.DEBUG_TRACE_LEVEL = original_trace_level
-        _LoggingGlobals._debug_stream = original_debug_stream
-        DebugInfoHolder.PYDEVD_DEBUG_FILE = original_pydevd_debug_file
-        _LoggingGlobals._debug_stream_filename = original_debug_stream_filename
-        _LoggingGlobals._debug_stream_initialized = original_initialized
+        with _LoggingGlobals._initialize_lock:
+            DebugInfoHolder.DEBUG_TRACE_LEVEL = original_trace_level
+            _LoggingGlobals._debug_stream = original_debug_stream
+            DebugInfoHolder.PYDEVD_DEBUG_FILE = original_pydevd_debug_file
+            _LoggingGlobals._debug_stream_filename = original_debug_stream_filename
+            _LoggingGlobals._debug_stream_initialized = original_initialized
 
 
 import time
 _last_log_time = time.time()
+
+# Set to True to show pid in each logged message (usually the file has it, but sometimes it's handy).
+_LOG_PID = False
 
 
 def _pydevd_log(level, msg, *args):
@@ -120,6 +164,10 @@ def _pydevd_log(level, msg, *args):
                 msg = '%.2fs - %s\n' % (time_diff, msg,)
             else:
                 msg = '%s\n' % (msg,)
+
+            if _LOG_PID:
+                msg = '<%s> - %s\n' % (os.getpid(), msg,)
+
             try:
                 try:
                     initialize_debug_stream()  # Do it as late as possible
