@@ -58,6 +58,7 @@ def ensure_logging():
     ensure_logging.ensured = True
     log.to_file(prefix="debugpy.server")
     log.describe_environment("Initial environment:")
+    pydevd.log_to(log.log_dir + "/debugpy.pydevd.log")
 
 
 ensure_logging.ensured = False
