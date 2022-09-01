@@ -10,7 +10,7 @@ from tests.debug import runners, targets
 
 
 @contextlib.contextmanager
-def check_logs(tmpdir, run, pydevd_log):
+def check_logs(tmpdir, run):
     # For attach_pid, there's ptvsd.server process that performs the injection,
     # and then there's the debug server that is injected into the debuggee.
     server_count = 2 if type(run).__name__ == "attach_pid" else 1
@@ -18,7 +18,7 @@ def check_logs(tmpdir, run, pydevd_log):
     expected_logs = {
         "debugpy.adapter-*.log": 1,
         "debugpy.launcher-*.log": 1 if run.request == "launch" else 0,
-        "debugpy.pydevd.*.log": server_count if pydevd_log else 0,
+        "debugpy.pydevd.*.log": server_count,
         "debugpy.server-*.log": server_count,
     }
 
@@ -43,7 +43,7 @@ def test_log_dir(pyfile, tmpdir, run, target):
     # Depending on the method, the runner will use either `debugpy --log-dir ...`
     # or `debugpy.log_to() ...`.
     run = run.with_options(log_dir=tmpdir.strpath)
-    with check_logs(tmpdir, run, pydevd_log=False):
+    with check_logs(tmpdir, run):
         with debug.Session() as session:
             session.log_dir = None
 
@@ -62,7 +62,7 @@ def test_log_dir_env(pyfile, tmpdir, run, target):
         debuggee.setup()
         assert backchannel.receive() == "proceed"
 
-    with check_logs(tmpdir, run, pydevd_log=True):
+    with check_logs(tmpdir, run):
         with debug.Session() as session:
             session.log_dir = None
             session.spawn_adapter.env["DEBUGPY_LOG_DIR"] = tmpdir.strpath
