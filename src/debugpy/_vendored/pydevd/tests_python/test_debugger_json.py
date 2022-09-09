@@ -15,7 +15,7 @@ from _pydevd_bundle._debug_adapter.pydevd_schema import (ThreadEvent, ModuleEven
     ExceptionOptions, Response, StoppedEvent, ContinuedEvent, ProcessEvent, InitializeRequest,
     InitializeRequestArguments, TerminateArguments, TerminateRequest, TerminatedEvent,
     FunctionBreakpoint, SetFunctionBreakpointsRequest, SetFunctionBreakpointsArguments,
-    BreakpointEvent)
+    BreakpointEvent, InitializedEvent)
 from _pydevd_bundle.pydevd_comm_constants import file_system_encoding
 from _pydevd_bundle.pydevd_constants import (int_types, IS_64BIT_PROCESS,
     PY_VERSION_STR, PY_IMPL_VERSION_STR, PY_IMPL_NAME, IS_PY36_OR_GREATER,
@@ -3920,6 +3920,30 @@ cherrypy.quickstart(HelloWorld())
         writer.finished_ok = True
 
 
+def test_wait_for_attach_debugpy_mode(case_setup_remote_attach_to):
+    host_port = get_socket_name(close=True)
+
+    with case_setup_remote_attach_to.test_file('_debugger_case_wait_for_attach_debugpy_mode.py', host_port[1]) as writer:
+        time.sleep(1)  # Give some time for it to pass the first breakpoint and wait in 'wait_for_attach'.
+        writer.start_socket_client(*host_port)
+
+        # We don't send initial messages because everything should be pre-configured to
+        # the DAP mode already (i.e.: making sure it works).
+        json_facade = JsonFacade(writer, send_json_startup_messages=False)
+        break2_line = writer.get_line_index_with_content('Break 2')
+
+        json_facade.write_attach()
+        # Make sure we also received the initialized in the attach.
+        assert len(json_facade.mark_messages(InitializedEvent)) == 1
+
+        json_facade.write_set_breakpoints([break2_line])
+
+        json_facade.write_make_initial_run()
+        json_facade.wait_for_thread_stopped(line=break2_line)
+        json_facade.write_continue()
+        writer.finished_ok = True
+
+
 def test_wait_for_attach(case_setup_remote_attach_to):
     host_port = get_socket_name(close=True)
 
@@ -5411,6 +5435,7 @@ def test_debug_options(case_setup, val):
             stopOnEntry=val,
             maxExceptionStackFrames=4 if val else 5,
             guiEventLoop=gui_event_loop,
+            clientOS='UNIX' if val else 'WINDOWS'
         )
         json_facade.write_launch(**args)
 
@@ -5434,6 +5459,7 @@ def test_debug_options(case_setup, val):
             'stopOnEntry': 'stop_on_entry',
             'maxExceptionStackFrames': 'max_exception_stack_frames',
             'guiEventLoop': 'gui_event_loop',
+            'clientOS': 'client_os',
         }
 
         assert json.loads(output.body.output) == dict((translation[key], val) for key, val in args.items())

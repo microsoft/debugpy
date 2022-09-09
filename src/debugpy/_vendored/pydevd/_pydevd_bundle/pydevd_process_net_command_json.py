@@ -17,7 +17,7 @@ from _pydevd_bundle._debug_adapter.pydevd_schema import (
     VariablesResponseBody, SetBreakpointsResponseBody, Response,
     Capabilities, PydevdAuthorizeRequest, Request,
     StepInTargetsResponseBody, SetFunctionBreakpointsResponseBody, BreakpointEvent,
-    BreakpointEventBody)
+    BreakpointEventBody, InitializedEvent)
 from _pydevd_bundle.pydevd_api import PyDevdAPI
 from _pydevd_bundle.pydevd_breakpoints import get_exception_class, FunctionBreakpoint
 from _pydevd_bundle.pydevd_comm_constants import (
@@ -380,6 +380,9 @@ class PyDevJsonCommandProcessor(object):
 
         self.api.set_use_libraries_filter(py_db, self._options.just_my_code)
 
+        if self._options.client_os:
+            self.api.set_ide_os(self._options.client_os)
+
         path_mappings = []
         for pathMapping in args.get('pathMappings', []):
             localRoot = pathMapping.get('localRoot', '')
@@ -496,6 +499,9 @@ class PyDevJsonCommandProcessor(object):
         self.api.set_enable_thread_notifications(py_db, True)
         self._set_debug_options(py_db, request.arguments.kwargs, start_reason=start_reason)
         response = pydevd_base_schema.build_response(request)
+
+        initialized_event = InitializedEvent()
+        py_db.writer.add_command(NetCommand(CMD_RETURN, 0, initialized_event, is_json=True))
         return NetCommand(CMD_RETURN, 0, response, is_json=True)
 
     def on_launch_request(self, py_db, request):

@@ -68,6 +68,8 @@ ACCEPTED_ARG_HANDLERS = [
     ArgHandlerWithParam('client'),
     ArgHandlerWithParam('access-token'),
     ArgHandlerWithParam('client-access-token'),
+    ArgHandlerWithParam('debug-mode'),
+    ArgHandlerWithParam('preimport'),
 
     # Logging
     ArgHandlerWithParam('log-file'),

@@ -266,24 +266,6 @@ class Client(components.Component):
                 self._propagate_deferred_events()
                 return
 
-            if "clientOS" in request:
-                client_os = request("clientOS", json.enum("windows", "unix")).upper()
-            elif {"WindowsClient", "Windows"} & debug_options:
-                client_os = "WINDOWS"
-            elif {"UnixClient", "UNIX"} & debug_options:
-                client_os = "UNIX"
-            else:
-                client_os = "WINDOWS" if sys.platform == "win32" else "UNIX"
-            self.server.channel.request(
-                "setDebuggerProperty",
-                {
-                    "skipSuspendOnBreakpointException": ("BaseException",),
-                    "skipPrintBreakpointException": ("NameError",),
-                    "multiThreadsSingleNotification": True,
-                    "ideOS": client_os,
-                },
-            )
-
             # Let the client know that it can begin configuring the adapter.
             self.channel.send_event("initialized")
 

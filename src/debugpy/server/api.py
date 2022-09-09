@@ -146,9 +146,22 @@ def _starts_debugging(func):
 
 
 @_starts_debugging
-def listen(address, settrace_kwargs):
+def listen(address, settrace_kwargs, in_process_debug_adapter=False):
     # Errors below are logged with level="info", because the caller might be catching
     # and handling exceptions, and we don't want to spam their stderr unnecessarily.
+
+    if in_process_debug_adapter:
+        host, port = address
+        log.info("Listening: pydevd without debugpy adapter: {0}:{1}", host, port)
+        settrace_kwargs['patch_multiprocessing'] = False
+        _settrace(
+            host=host,
+            port=port,
+            wait_for_ready_to_run=False,
+            block_until_connected=False,
+            **settrace_kwargs
+        )
+        return
 
     import subprocess
 
