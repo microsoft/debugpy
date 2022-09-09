@@ -1367,7 +1367,10 @@ class AbstractWriterThread(threading.Thread):
                 else:
                     return last
             if prev != last:
-                print('Ignored message: %r' % (last,))
+                sys.stderr.write('Ignored message: %r\n' % (last,))
+                # Uncomment to know where in the stack it was ignored.
+                # import traceback
+                # traceback.print_stack(limit=7)
 
             prev = last
 

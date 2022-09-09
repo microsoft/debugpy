@@ -84,45 +84,6 @@ class Connection(object):
                 self.ppid = None
             self.channel.name = stream.name = str(self)
 
-            debugpy_dir = os.path.dirname(os.path.dirname(debugpy.__file__))
-            # Note: we must check if 'debugpy' is not already in sys.modules because the
-            # evaluation of an import at the wrong time could deadlock Python due to
-            # its import lock.
-            #
-            # So, in general this evaluation shouldn't do anything. It's only
-            # important when pydevd attaches automatically to a subprocess. In this
-            # case, we have to make sure that debugpy is properly put back in the game
-            # for users to be able to use it.v
-            #
-            # In this case (when the import is needed), this evaluation *must* be done
-            # before the configurationDone request is sent -- if this is not respected
-            # it's possible that pydevd already started secondary threads to handle
-            # commands, in which case it's very likely that this command would be
-            # evaluated at the wrong thread and the import could potentially deadlock
-            # the program.
-            #
-            # Note 2: the sys module is guaranteed to be in the frame globals and
-            # doesn't need to be imported.
-            inject_debugpy = """
-if 'debugpy' not in sys.modules:
-    sys.path.insert(0, {debugpy_dir!r})
-    try:
-        import debugpy
-    finally:
-        del sys.path[0]
-"""
-            inject_debugpy = inject_debugpy.format(debugpy_dir=debugpy_dir)
-
-            try:
-                self.channel.request("evaluate", {"expression": inject_debugpy})
-            except messaging.MessageHandlingError:
-                # Failure to inject is not a fatal error - such a subprocess can
-                # still be debugged, it just won't support "import debugpy" in user
-                # code - so don't terminate the session.
-                log.swallow_exception(
-                    "Failed to inject debugpy into {0}:", self, level="warning"
-                )
-
             with _lock:
                 # The server can disconnect concurrently before we get here, e.g. if
                 # it was force-killed. If the disconnect() handler has already run,

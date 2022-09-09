@@ -41,7 +41,7 @@ from _pydev_bundle.pydev_override import overrides
 from _pydev_bundle._pydev_saved_modules import threading, time, thread
 from _pydevd_bundle import pydevd_extension_utils, pydevd_frame_utils
 from _pydevd_bundle.pydevd_filtering import FilesFiltering, glob_matches_path
-from _pydevd_bundle import pydevd_io, pydevd_vm_type
+from _pydevd_bundle import pydevd_io, pydevd_vm_type, pydevd_defaults
 from _pydevd_bundle import pydevd_utils
 from _pydevd_bundle import pydevd_runpy
 from _pydev_bundle.pydev_console_utils import DebugConsoleStdIn
@@ -715,6 +715,7 @@ class PyDB(object):
             # Set as the global instance only after it's initialized.
             set_global_debugger(self)
 
+        pydevd_defaults.on_pydb_init(self)
         # Stop the tracing as the last thing before the actual shutdown for a clean exit.
         atexit.register(stoptrace)
 
@@ -3278,6 +3279,14 @@ def main():
     except ValueError:
         pydev_log.exception()
         usage(1)
+
+    preimport = setup.get('preimport')
+    if preimport:
+        pydevd_defaults.PydevdCustomization.PREIMPORT = preimport
+
+    debug_mode = setup.get('debug-mode')
+    if debug_mode:
+        pydevd_defaults.PydevdCustomization.DEBUG_MODE = debug_mode
 
     log_trace_level = setup.get('log-level')
 

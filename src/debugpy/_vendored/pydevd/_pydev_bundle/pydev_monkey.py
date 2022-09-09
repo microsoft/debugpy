@@ -7,7 +7,7 @@ from _pydevd_bundle.pydevd_constants import get_global_debugger, IS_WINDOWS, IS_
     sorted_dict_repr, set_global_debugger, DebugInfoHolder
 from _pydev_bundle import pydev_log
 from contextlib import contextmanager
-from _pydevd_bundle import pydevd_constants
+from _pydevd_bundle import pydevd_constants, pydevd_defaults
 from _pydevd_bundle.pydevd_defaults import PydevdCustomization
 import ast
 
@@ -68,6 +68,14 @@ def _get_setup_updated_with_protocol_and_ppid(setup, is_exec=False):
 
     else:
         pydev_log.debug('Unexpected protocol: %s', protocol)
+
+    mode = pydevd_defaults.PydevdCustomization.DEBUG_MODE
+    if mode:
+        setup['debug-mode'] = mode
+
+    preimport = pydevd_defaults.PydevdCustomization.PREIMPORT
+    if preimport:
+        setup['preimport'] = preimport
 
     if DebugInfoHolder.PYDEVD_DEBUG_FILE:
         setup['log-file'] = DebugInfoHolder.PYDEVD_DEBUG_FILE

@@ -91,7 +91,9 @@ def configure(__properties: dict[str, typing.Any] | None = None, **kwargs) -> No
 
 
 @_api()
-def listen(__endpoint: Endpoint | int) -> Endpoint:
+def listen(
+    __endpoint: Endpoint | int, *, in_process_debug_adapter: bool = False
+) -> Endpoint:
     """Starts a debug adapter debugging this process, that listens for
     incoming socket connections from clients on the specified address.
 
@@ -99,6 +101,13 @@ def listen(__endpoint: Endpoint | int) -> Endpoint:
     standard `socket` module for the `AF_INET` address family, or a port
     number. If only the port is specified, host is "127.0.0.1".
 
+    `in_process_debug_adapter`: by default a separate python process is
+    spawned and used to communicate with the client as the debug adapter.
+    By setting the value of `in_process_debug_adapter` to True a new 
+    python process is not spawned. Note: the con of setting 
+    `in_process_debug_adapter` to True is that subprocesses won't be 
+    automatically debugged.
+        
     Returns the interface and the port on which the debug adapter is
     actually listening, in the same format as `__endpoint`. This may be
     different from address if port was 0 in the latter, in which case

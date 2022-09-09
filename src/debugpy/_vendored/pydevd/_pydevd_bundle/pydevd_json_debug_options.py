@@ -14,6 +14,7 @@ class DebugOptions(object):
         'stop_on_entry',
         'max_exception_stack_frames',
         'gui_event_loop',
+        'client_os',
     ]
 
     def __init__(self):
@@ -26,6 +27,7 @@ class DebugOptions(object):
         self.stop_on_entry = False
         self.max_exception_stack_frames = 0
         self.gui_event_loop = 'matplotlib'
+        self.client_os = None
 
     def to_json(self):
         dct = {}
@@ -54,6 +56,9 @@ class DebugOptions(object):
 
         if 'STOP_ON_ENTRY' in debug_options:
             self.stop_on_entry = debug_options.get('STOP_ON_ENTRY')
+
+        if 'CLIENT_OS_TYPE' in debug_options:
+            self.client_os = debug_options.get('CLIENT_OS_TYPE')
 
         # Note: _max_exception_stack_frames cannot be set by debug options.
 
@@ -90,6 +95,9 @@ class DebugOptions(object):
 
         if 'guiEventLoop' in args:
             self.gui_event_loop = str(args['guiEventLoop'])
+
+        if 'clientOS' in args:
+            self.client_os = str(args['clientOS']).upper()
 
 
 def int_parser(s, default_value=0):
