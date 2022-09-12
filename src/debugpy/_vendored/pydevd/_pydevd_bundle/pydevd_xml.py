@@ -91,6 +91,12 @@ def _create_default_type_map():
     except:
         pass
 
+    try:
+        from ctypes import Array
+        default_type_map.append((Array, pydevd_resolver.tupleResolver))
+    except:
+        pass
+
     if frame_type is not None:
         default_type_map.append((frame_type, pydevd_resolver.frameResolver))
 
