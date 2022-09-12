@@ -321,3 +321,42 @@ def test_tuple_resolver_mixed():
     check_len_entry(len_entry, (GENERATED_LEN_ATTR_NAME, 2))
     assert contents_debug_adapter_protocol == [
         ('some_value', 10, '.some_value'), ('0', 1, '[0]'), ('1', 2, '[1]'), ]
+
+
+def test_tuple_resolver_ctypes():
+    import ctypes
+    from _pydevd_bundle.pydevd_xml import get_type
+
+    array_type = ctypes.c_int32 * 3
+    array_value = array_type(1, 2, 3)
+    _, _, resolver = get_type(array_value)
+
+    contents_dap = resolver.get_contents_debug_adapter_protocol(array_value)
+    # We only care about the array elements and len() here, so remove all preceding entries.
+    while True:
+        _, _, path = contents_dap[0]
+        if path.startswith("["):
+            break
+        contents_dap.pop(0)
+
+    len_entry = contents_dap.pop(-1)
+    assert contents_dap == [
+        ('0', 1, '[0]'),
+        ('1', 2, '[1]'),
+        ('2', 3, '[2]'),
+    ]
+    check_len_entry(len_entry, (GENERATED_LEN_ATTR_NAME, 3))
+
+    dict_dap = resolver.get_dictionary(array_value)
+    # We only care about the array elements and len() here, so remove all other entries.
+    dict_dap = {
+        k: v
+        for k, v in dict_dap.items()
+        if k.isdigit() or k == GENERATED_LEN_ATTR_NAME
+    }
+    assert dict_dap == {
+        '0': 1,
+        '1': 2,
+        '2': 3,
+        GENERATED_LEN_ATTR_NAME: 3
+    }
