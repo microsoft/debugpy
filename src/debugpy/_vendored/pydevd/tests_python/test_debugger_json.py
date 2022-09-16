@@ -719,7 +719,6 @@ def test_case_handled_exception_no_break_on_generator(case_setup):
         writer.finished_ok = True
 
 
-@pytest.mark.skipif(not IS_PY36_OR_GREATER, reason='Requires Python 3.')
 def test_case_throw_exc_reason(case_setup):
 
     def check_test_suceeded_msg(self, stdout, stderr):
@@ -765,6 +764,53 @@ def test_case_throw_exc_reason(case_setup):
         assert lines_and_names == [
             ('16', 'foobar'), ('6', 'method'), ('2', 'method2'), ('18', 'foobar'), ('10', 'handle'), ('20', 'foobar'), ('23', '<module>')
         ]
+
+        json_facade.write_continue()
+
+        writer.finished_ok = True
+
+
+def test_case_throw_exc_reason_shown(case_setup):
+
+    def check_test_suceeded_msg(self, stdout, stderr):
+        return 'TEST SUCEEDED' in ''.join(stderr)
+
+    def additional_output_checks(writer, stdout, stderr):
+        assert "raise Exception('TEST SUCEEDED') from e" in stderr
+        assert "{}['foo']" in stderr
+        assert "KeyError: 'foo'" in stderr
+
+    with case_setup.test_file(
+            '_debugger_case_raise_with_cause_msg.py',
+            EXPECTED_RETURNCODE=1,
+            check_test_suceeded_msg=check_test_suceeded_msg,
+            additional_output_checks=additional_output_checks
+        ) as writer:
+        json_facade = JsonFacade(writer)
+
+        json_facade.write_launch(justMyCode=False)
+        json_facade.write_set_exception_breakpoints(['uncaught'])
+        json_facade.write_make_initial_run()
+
+        json_hit = json_facade.wait_for_thread_stopped(
+            reason='exception', line=writer.get_line_index_with_content("raise Exception('TEST SUCEEDED') from e"))
+
+        exc_info_request = json_facade.write_request(
+            pydevd_schema.ExceptionInfoRequest(pydevd_schema.ExceptionInfoArguments(json_hit.thread_id)))
+        exc_info_response = json_facade.wait_for_response(exc_info_request)
+
+        stack_frames = json_hit.stack_trace_response.body.stackFrames
+        # Note that the additional context doesn't really appear in the stack
+        # frames, only in the details.
+        assert [x['name'] for x in stack_frames] == ['method', '<module>']
+
+        body = exc_info_response.body
+        assert body.exceptionId == 'Exception'
+        assert body.description == 'TEST SUCEEDED'
+        assert normcase(body.details.kwargs['source']) == normcase(writer.TEST_FILE)
+
+        # Check that we have the exception cause in the stack trace.
+        assert "KeyError: 'foo'" in body.details.stackTrace
 
         json_facade.write_continue()
 
