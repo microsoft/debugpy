@@ -164,33 +164,46 @@ class NetCommandFactory(object):
         except:
             return self.make_error_message(0, get_exception_traceback_str())
 
-    def _iter_visible_frames_info(self, py_db, frames_list):
+    def _iter_visible_frames_info(self, py_db, frames_list, flatten_chained=False):
         assert frames_list.__class__ == FramesList
-        for frame in frames_list:
-            show_as_current_frame = frame is frames_list.current_frame
-            if frame.f_code is None:
-                pydev_log.info('Frame without f_code: %s', frame)
-                continue  # IronPython sometimes does not have it!
+        is_chained = False
+        while True:
+            for frame in frames_list:
+                show_as_current_frame = frame is frames_list.current_frame
+                if frame.f_code is None:
+                    pydev_log.info('Frame without f_code: %s', frame)
+                    continue  # IronPython sometimes does not have it!
 
-            method_name = frame.f_code.co_name  # method name (if in method) or ? if global
-            if method_name is None:
-                pydev_log.info('Frame without co_name: %s', frame)
-                continue  # IronPython sometimes does not have it!
+                method_name = frame.f_code.co_name  # method name (if in method) or ? if global
+                if method_name is None:
+                    pydev_log.info('Frame without co_name: %s', frame)
+                    continue  # IronPython sometimes does not have it!
 
-            abs_path_real_path_and_base = get_abs_path_real_path_and_base_from_frame(frame)
-            if py_db.get_file_type(frame, abs_path_real_path_and_base) == py_db.PYDEV_FILE:
-                # Skip pydevd files.
-                frame = frame.f_back
-                continue
+                if is_chained:
+                    method_name = '[Chained Exc: %s] %s' % (frames_list.exc_desc, method_name)
 
-            frame_id = id(frame)
-            lineno = frames_list.frame_id_to_lineno.get(frame_id, frame.f_lineno)
+                abs_path_real_path_and_base = get_abs_path_real_path_and_base_from_frame(frame)
+                if py_db.get_file_type(frame, abs_path_real_path_and_base) == py_db.PYDEV_FILE:
+                    # Skip pydevd files.
+                    frame = frame.f_back
+                    continue
 
-            filename_in_utf8, lineno, changed = py_db.source_mapping.map_to_client(abs_path_real_path_and_base[0], lineno)
-            new_filename_in_utf8, applied_mapping = pydevd_file_utils.map_file_to_client(filename_in_utf8)
-            applied_mapping = applied_mapping or changed
+                frame_id = id(frame)
+                lineno = frames_list.frame_id_to_lineno.get(frame_id, frame.f_lineno)
 
-            yield frame_id, frame, method_name, abs_path_real_path_and_base[0], new_filename_in_utf8, lineno, applied_mapping, show_as_current_frame
+                filename_in_utf8, lineno, changed = py_db.source_mapping.map_to_client(abs_path_real_path_and_base[0], lineno)
+                new_filename_in_utf8, applied_mapping = pydevd_file_utils.map_file_to_client(filename_in_utf8)
+                applied_mapping = applied_mapping or changed
+
+                yield frame_id, frame, method_name, abs_path_real_path_and_base[0], new_filename_in_utf8, lineno, applied_mapping, show_as_current_frame
+
+            if not flatten_chained:
+                break
+
+            frames_list = frames_list.chained_frames_list
+            if frames_list is None or len(frames_list) == 0:
+                break
+            is_chained = True
 
     def make_thread_stack_str(self, py_db, frames_list):
         assert frames_list.__class__ == FramesList
@@ -200,7 +213,7 @@ class NetCommandFactory(object):
 
         try:
             for frame_id, frame, method_name, _original_filename, filename_in_utf8, lineno, _applied_mapping, _show_as_current_frame in self._iter_visible_frames_info(
-                    py_db, frames_list
+                    py_db, frames_list, flatten_chained=True
                 ):
 
                 # print("file is ", filename_in_utf8)

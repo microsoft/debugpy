@@ -1657,13 +1657,13 @@ def test_case_throw_exc_reason_xml(case_setup):
             name_and_lines.append((frame['name'], frame['line']))
 
         assert name_and_lines == [
-            ('method2', '2'),
-            ('method', '6'),
-            ('foobar', '16'),
-            ('handle', '10'),
-            ('foobar', '18'),
             ('foobar', '20'),
             ('<module>', '23'),
+            ('[Chained Exc: another while handling] foobar', '18'),
+            ('[Chained Exc: another while handling] handle', '10'),
+            ('[Chained Exc: TEST SUCEEDED] foobar', '16'),
+            ('[Chained Exc: TEST SUCEEDED] method', '6'),
+            ('[Chained Exc: TEST SUCEEDED] method2', '2'),
         ]
 
         hit = writer.wait_for_breakpoint_hit(REASON_UNCAUGHT_EXCEPTION)
