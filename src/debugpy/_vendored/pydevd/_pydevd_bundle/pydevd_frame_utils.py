@@ -97,6 +97,8 @@ class FramesList(object):
         # This is to know whether an exception was extracted from a __cause__ or __context__.
         self.exc_context_msg = ''
 
+        self.chained_frames_list = None
+
     def append(self, frame):
         self._frames.append(frame)
 
@@ -128,7 +130,13 @@ class FramesList(object):
             lst.append('\n    ')
             lst.append(repr(frame))
             lst.append(',')
+
+        if self.chained_frames_list is not None:
+            lst.append('\n--- Chained ---\n')
+            lst.append(str(self.chained_frames_list))
+
         lst.append('\n)')
+
         return ''.join(lst)
 
     __str__ = __repr__
@@ -142,7 +150,8 @@ class _DummyFrameWrapper(object):
         self.f_back = f_back
         self.f_trace = None
         original_code = frame.f_code
-        self.f_code = FCode(original_code.co_name , original_code.co_filename)
+        name = original_code.co_name
+        self.f_code = FCode(name, original_code.co_filename)
 
     @property
     def f_locals(self):
@@ -151,6 +160,11 @@ class _DummyFrameWrapper(object):
     @property
     def f_globals(self):
         return self._base_frame.f_globals
+
+    def __str__(self):
+        return "<_DummyFrameWrapper, file '%s', line %s, %s" % (self.f_code.co_filename, self.f_lineno, self.f_code.co_name)
+
+    __repr__ = __str__
 
 
 _cause_message = (
@@ -231,36 +245,6 @@ def create_frames_list_from_traceback(trace_obj, frame, exc_type, exc_desc, exce
         lst.append((tb.tb_frame, tb.tb_lineno))
         tb = tb.tb_next
 
-    curr = exc_desc
-    memo = set()
-    while True:
-        initial = curr
-        try:
-            curr = getattr(initial, '__cause__', None)
-        except Exception:
-            curr = None
-
-        if curr is None:
-            try:
-                curr = getattr(initial, '__context__', None)
-            except Exception:
-                curr = None
-
-        if curr is None or id(curr) in memo:
-            break
-
-        # The traceback module does this, so, let's play safe here too...
-        memo.add(id(curr))
-
-        tb = getattr(curr, '__traceback__', None)
-
-        while tb is not None:
-            # Note: we don't use the actual tb.tb_frame because if the cause of the exception
-            # uses the same frame object, the id(frame) would be the same and the frame_id_to_lineno
-            # would be wrong as the same frame needs to appear with 2 different lines.
-            lst.append((_DummyFrameWrapper(tb.tb_frame, tb.tb_lineno, None), tb.tb_lineno))
-            tb = tb.tb_next
-
     frames_list = None
 
     for tb_frame, tb_lineno in reversed(lst):
@@ -289,6 +273,18 @@ def create_frames_list_from_traceback(trace_obj, frame, exc_type, exc_desc, exce
     elif exception_type == EXCEPTION_TYPE_UNHANDLED:
         if len(frames_list) > 0:
             frames_list.current_frame = frames_list.last_frame()
+
+    curr = frames_list
+    memo = set()
+    memo.add(id(exc_desc))
+
+    while True:
+        chained = create_frames_list_from_exception_cause(None, None, None, curr.exc_desc, memo)
+        if chained is None:
+            break
+        else:
+            curr.chained_frames_list = chained
+            curr = chained
 
     return frames_list
 

@@ -1420,7 +1420,6 @@ def build_exception_info_response(dbg, thread_id, request_seq, set_additional_th
         try:
             try:
                 frames_list = dbg.suspended_frames_manager.get_frames_list(thread_id)
-                memo = set()
                 while frames_list is not None and len(frames_list):
                     frames = []
 
@@ -1483,8 +1482,7 @@ def build_exception_info_response(dbg, thread_id, request_seq, set_additional_th
                     stack_str += frames_list.exc_context_msg
                     stack_str_lst.append(stack_str)
 
-                    frames_list = create_frames_list_from_exception_cause(
-                        frames_list.trace_obj, None, frames_list.exc_type, frames_list.exc_desc, memo)
+                    frames_list = frames_list.chained_frames_list
                     if frames_list is None or not frames_list:
                         break
 

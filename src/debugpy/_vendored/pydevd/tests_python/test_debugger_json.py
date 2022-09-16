@@ -751,7 +751,15 @@ def test_case_throw_exc_reason(case_setup):
         stack_frames = json_hit.stack_trace_response.body.stackFrames
         # Note that the additional context doesn't really appear in the stack
         # frames, only in the details.
-        assert [x['name'] for x in stack_frames] == ['foobar', '<module>']
+        assert [x['name'] for x in stack_frames] == [
+            'foobar',
+            '<module>',
+            '[Chained Exc: another while handling] foobar',
+            '[Chained Exc: another while handling] handle',
+            '[Chained Exc: TEST SUCEEDED] foobar',
+            '[Chained Exc: TEST SUCEEDED] method',
+            '[Chained Exc: TEST SUCEEDED] method2',
+        ]
 
         body = exc_info_response.body
         assert body.exceptionId.endswith('RuntimeError')
@@ -760,10 +768,16 @@ def test_case_throw_exc_reason(case_setup):
 
         # Check that we have all the lines (including the cause/context) in the stack trace.
         import re
-        lines_and_names = re.findall(r',\sline\s(\d+),\sin\s([\w|<|>]+)', body.details.stackTrace)
+        lines_and_names = re.findall(r',\sline\s(\d+),\sin\s(\[Chained Exception\]\s)?([\w|<|>]+)', body.details.stackTrace)
         assert lines_and_names == [
-            ('16', 'foobar'), ('6', 'method'), ('2', 'method2'), ('18', 'foobar'), ('10', 'handle'), ('20', 'foobar'), ('23', '<module>')
-        ]
+            ('16', '', 'foobar'),
+            ('6', '', 'method'),
+            ('2', '', 'method2'),
+            ('18', '', 'foobar'),
+            ('10', '', 'handle'),
+            ('20', '', 'foobar'),
+            ('23', '', '<module>'),
+        ], 'Did not find the expected names in:\n%s' % (body.details.stackTrace,)
 
         json_facade.write_continue()
 
@@ -802,7 +816,12 @@ def test_case_throw_exc_reason_shown(case_setup):
         stack_frames = json_hit.stack_trace_response.body.stackFrames
         # Note that the additional context doesn't really appear in the stack
         # frames, only in the details.
-        assert [x['name'] for x in stack_frames] == ['method', '<module>']
+        assert [x['name'] for x in stack_frames] == [
+            'method',
+            '<module>',
+            "[Chained Exc: 'foo'] method",
+            "[Chained Exc: 'foo'] method2",
+        ]
 
         body = exc_info_response.body
         assert body.exceptionId == 'Exception'
@@ -3323,7 +3342,7 @@ def test_exception_details(case_setup, max_frames):
         else:
             json_facade.write_launch(maxExceptionStackFrames=max_frames)
             min_expected_lines = 10
-            max_expected_lines = 21
+            max_expected_lines = 22
 
         json_facade.write_set_exception_breakpoints(['raised'])
 

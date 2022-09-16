@@ -230,7 +230,7 @@ class NetCommandFactoryJson(NetCommandFactory):
                     frames_list = pydevd_frame_utils.create_frames_list_from_frame(topmost_frame)
 
             for frame_id, frame, method_name, original_filename, filename_in_utf8, lineno, applied_mapping, show_as_current_frame in self._iter_visible_frames_info(
-                    py_db, frames_list
+                    py_db, frames_list, flatten_chained=True
                 ):
 
                 try:

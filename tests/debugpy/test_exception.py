@@ -354,7 +354,7 @@ def test_exception_stack(pyfile, target, run, max_frames):
         max_frames, (min_expected_lines, max_expected_lines) = {
             "all": (0, (100, 221)),
             "default": (None, (100, 221)),
-            10: (10, (10, 21)),
+            10: (10, (10, 22)),
         }[max_frames]
         if max_frames is not None:
             session.config["maxExceptionStackFrames"] = max_frames
