@@ -1467,6 +1467,19 @@ def build_exception_info_response(dbg, thread_id, request_seq, set_additional_th
                         source_path = frames[0][0]
 
                     stack_str = ''.join(traceback.format_list(frames[-max_frames:]))
+
+                    try:
+                        stype = frames_list.exc_type.__qualname__
+                        smod = frames_list.exc_type.__module__
+                        if smod not in ("__main__", "builtins"):
+                            if not isinstance(smod, str):
+                                smod = "<unknown>"
+                            stype = smod + '.' + stype
+                    except Exception:
+                        stype = '<unable to get exception type>'
+                        pydev_log.exception('Error getting exception type.')
+
+                    stack_str += '%s: %s\n' % (stype, frames_list.exc_desc)
                     stack_str += frames_list.exc_context_msg
                     stack_str_lst.append(stack_str)
 
