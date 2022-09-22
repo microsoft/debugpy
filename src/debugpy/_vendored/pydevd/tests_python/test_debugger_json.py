@@ -1879,6 +1879,32 @@ def test_warning_on_repl(case_setup):
         writer.finished_ok = True
 
 
+def test_evaluate_none(case_setup, pyfile):
+
+    @pyfile
+    def eval_none():
+        print('TEST SUCEEDED')  # break here
+
+    with case_setup.test_file(eval_none) as writer:
+        json_facade = JsonFacade(writer)
+
+        json_facade.write_launch(justMyCode=False)
+
+        json_facade.write_set_breakpoints(writer.get_line_index_with_content('break here'))
+        json_facade.write_make_initial_run()
+
+        json_hit = json_facade.wait_for_thread_stopped()
+        json_hit = json_facade.get_stack_as_json_hit(json_hit.thread_id)
+
+        evaluate_response = json_facade.evaluate('None', json_hit.frame_id, context='repl')
+        assert evaluate_response.body.result is not None
+        assert evaluate_response.body.result == ''
+
+        json_facade.write_continue()
+
+        writer.finished_ok = True
+
+
 def test_evaluate_numpy(case_setup, pyfile):
     try:
         import numpy

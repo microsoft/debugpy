@@ -1219,7 +1219,7 @@ def internal_evaluate_expression_json(py_db, request, thread_id):
         if context == 'repl' and eval_result is None:
             # We don't want "None" to appear when typing in the repl.
             body = pydevd_schema.EvaluateResponseBody(
-                result=None,
+                result='',
                 variablesReference=0,
             )
 
