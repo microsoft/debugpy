@@ -1,6 +1,10 @@
 from _pydevd_bundle.pydevd_extension_api import TypeResolveProvider
-from _pydevd_bundle.pydevd_resolver import defaultResolver, MAX_ITEMS_TO_HANDLE, TOO_LARGE_ATTR, TOO_LARGE_MSG
+from _pydevd_bundle.pydevd_resolver import defaultResolver
 from .pydevd_helpers import find_mod_attr
+from _pydevd_bundle import pydevd_constants
+
+TOO_LARGE_MSG = 'Maximum number of items (%s) reached. To show more items customize the value of the PYDEVD_CONTAINER_NUMPY_MAX_ITEMS environment variable.'
+TOO_LARGE_ATTR = 'Unable to handle:'
 
 
 class NdArrayItemsContainer(object):
@@ -47,8 +51,8 @@ class NDArrayTypeResolveProvider(object):
             for item in obj:
                 setattr(container, format_str % i, item)
                 i += 1
-                if i > MAX_ITEMS_TO_HANDLE:
-                    setattr(container, TOO_LARGE_ATTR, TOO_LARGE_MSG)
+                if i >= pydevd_constants.PYDEVD_CONTAINER_NUMPY_MAX_ITEMS:
+                    setattr(container, TOO_LARGE_ATTR, TOO_LARGE_MSG % (pydevd_constants.PYDEVD_CONTAINER_NUMPY_MAX_ITEMS,))
                     break
             return container
         return None
@@ -73,7 +77,7 @@ class NDArrayTypeResolveProvider(object):
         ret['dtype'] = obj.dtype
         ret['size'] = obj.size
         try:
-            ret['[0:%s] ' % (len(obj))] = list(obj[0:MAX_ITEMS_TO_HANDLE])
+            ret['[0:%s] ' % (len(obj))] = list(obj[0:pydevd_constants.PYDEVD_CONTAINER_NUMPY_MAX_ITEMS])
         except:
             # This may not work depending on the array shape.
             pass

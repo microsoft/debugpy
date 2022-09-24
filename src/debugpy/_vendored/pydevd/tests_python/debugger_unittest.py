@@ -1330,7 +1330,7 @@ class AbstractWriterThread(threading.Thread):
             traceback.print_exc()
             raise AssertionError('Unable to parse:\n%s\njson:\n%s' % (last, json_msg))
 
-    def wait_for_message(self, accept_message, unquote_msg=True, expect_xml=True, timeout=None):
+    def wait_for_message(self, accept_message, unquote_msg=True, expect_xml=True, timeout=None, double_unquote=True):
         if isinstance(accept_message, (str, int)):
             msg_starts_with = '%s\t' % (accept_message,)
 
@@ -1343,7 +1343,12 @@ class AbstractWriterThread(threading.Thread):
         while True:
             last = self.get_next_message('wait_for_message', timeout=timeout)
             if unquote_msg:
-                last = unquote_plus(unquote_plus(last))
+                last = unquote_plus(last)
+                if double_unquote:
+                    # This is useful if the checking will be done without needing to unpack the
+                    # actual xml (in which case we'll be unquoting things inside of attrs --
+                    # this could actually make the xml invalid though).
+                    last = unquote_plus(last)
             if accept_message(last):
                 if expect_xml:
                     # Extract xml and return untangled.
@@ -1361,6 +1366,39 @@ class AbstractWriterThread(threading.Thread):
                     return ret
                 else:
                     return last
+            if prev != last:
+                print('Ignored message: %r' % (last,))
+
+            prev = last
+
+    def wait_for_untangled_message(self, accept_message, timeout=None, double_unquote=False):
+        import untangle
+        from io import StringIO
+        prev = None
+        while True:
+            last = self.get_next_message('wait_for_message', timeout=timeout)
+            last = unquote_plus(last)
+            if double_unquote:
+                last = unquote_plus(last)
+            # Extract xml with untangled.
+            xml = ''
+            try:
+                xml = last[last.index('<xml>'):]
+            except:
+                traceback.print_exc()
+                raise AssertionError('Unable to find xml in: %s' % (last,))
+
+            try:
+                if isinstance(xml, bytes):
+                    xml = xml.decode('utf-8')
+                xml = untangle.parse(StringIO(xml))
+            except:
+                traceback.print_exc()
+                raise AssertionError('Unable to parse:\n%s\nxml:\n%s' % (last, xml))
+            untangled = xml.xml
+            cmd_id = last.split('\t', 1)[0]
+            if accept_message(int(cmd_id), untangled):
+                return untangled
             if prev != last:
                 print('Ignored message: %r' % (last,))
 

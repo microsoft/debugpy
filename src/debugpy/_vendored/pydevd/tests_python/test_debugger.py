@@ -18,16 +18,17 @@ from tests_python.debugger_unittest import (CMD_SET_PROPERTY_TRACE, REASON_CAUGH
     CMD_THREAD_SUSPEND, CMD_STEP_OVER, REASON_STEP_OVER, CMD_THREAD_SUSPEND_SINGLE_NOTIFICATION,
     CMD_THREAD_RESUME_SINGLE_NOTIFICATION, REASON_STEP_RETURN, REASON_STEP_RETURN_MY_CODE,
     REASON_STEP_OVER_MY_CODE, REASON_STEP_INTO, CMD_THREAD_KILL, IS_PYPY, REASON_STOP_ON_START,
-    CMD_SMART_STEP_INTO)
+    CMD_SMART_STEP_INTO, CMD_GET_VARIABLE)
 from _pydevd_bundle.pydevd_constants import IS_WINDOWS, IS_PY38_OR_GREATER, \
     IS_MAC
-from _pydevd_bundle.pydevd_comm_constants import CMD_RELOAD_CODE, CMD_INPUT_REQUESTED
+from _pydevd_bundle.pydevd_comm_constants import CMD_RELOAD_CODE, CMD_INPUT_REQUESTED, \
+    CMD_RUN_CUSTOM_OPERATION
 import json
 import pydevd_file_utils
 import subprocess
 import threading
 from _pydev_bundle import pydev_log
-from urllib.parse import unquote
+from urllib.parse import unquote, unquote_plus
 
 from tests_python.debug_constants import *  # noqa
 
@@ -1728,6 +1729,98 @@ def test_case_type_ext(case_setup):
         ])
         writer.write_get_variable(hit.thread_id, hit.frame_id, 'my_rect')
         assert writer.wait_for_var(r'<var name="area" type="int" qualifier="{0}" value="int%253A 50" />'.format(builtin_qualifier))
+        writer.write_run_thread(hit.thread_id)
+        writer.finished_ok = True
+
+
+def test_case_variable_access(case_setup, pyfile, data_regression):
+
+    @pyfile
+    def case_custom():
+        obj = [
+            tuple(range(9)),
+            [
+                tuple(range(5)),
+            ]
+        ]
+
+        print('TEST SUCEEDED')
+
+    with case_setup.test_file(case_custom) as writer:
+        line = writer.get_line_index_with_content('TEST SUCEEDED')
+        writer.write_add_breakpoint(line)
+        writer.write_make_initial_run()
+
+        hit = writer.wait_for_breakpoint_hit('111')
+        writer.write_get_frame(hit.thread_id, hit.frame_id)
+
+        frame_vars = writer.wait_for_untangled_message(
+            accept_message=lambda cmd_id, untangled: cmd_id == CMD_GET_FRAME)
+
+        obj_var = [v for v in frame_vars.var if v['name'] == 'obj'][0]
+        assert obj_var['type'] == 'list'
+        assert unquote_plus(obj_var['value']) == "<class 'list'>: [(0, 1, 2, 3, 4, 5, 6, 7, 8), [(0, 1, 2, 3, 4)]]"
+        assert obj_var['isContainer'] == "True"
+
+        def _skip_key_in_dict(key):
+            try:
+                int(key)
+            except ValueError:
+                if 'more' in key or '[' in key:
+                    return False
+                return True
+            return False
+
+        def collect_vars(locator, level=0):
+            writer.write("%s\t%s\t%s\t%s" % (CMD_GET_VARIABLE, writer.next_seq(), hit.thread_id, locator))
+            obj_vars = writer.wait_for_untangled_message(
+                accept_message=lambda cmd_id, _untangled: cmd_id == CMD_GET_VARIABLE)
+
+            for v in obj_vars.var:
+                if _skip_key_in_dict(v['name']):
+                    continue
+                new_locator = locator + '\t' + v['name']
+                yield level, v, new_locator
+                if v['isContainer'] == 'True':
+                    yield from collect_vars(new_locator, level + 1)
+
+        found = []
+        for level, val, _locator in collect_vars('%s\tFRAME\tobj' % hit.frame_id):
+            found.append((('    ' * level) + val['name'] + ': ' + unquote_plus(val['value'])))
+
+        data_regression.check(found)
+
+        # Check referrers
+        full_loc = '%s\t%s\t%s' % (hit.thread_id, hit.frame_id, 'FRAME\tobj\t1\t0')
+        writer.write_custom_operation(full_loc, 'EXEC', "from _pydevd_bundle.pydevd_referrers import get_referrer_info", "get_referrer_info")
+        msg = writer.wait_for_untangled_message(
+            double_unquote=True,
+            accept_message=lambda cmd_id, _untangled: cmd_id == CMD_RUN_CUSTOM_OPERATION)
+
+        msg_vars = msg.var
+        try:
+            msg_vars['found_as']
+            msg_vars = [msg_vars]
+        except:
+            pass  # it's a container.
+
+        for v in msg_vars:
+            if v['found_as'] == 'list[0]':
+                # In pypy we may have more than one reference, find out the one
+                referrer_id = v['id']
+                assert int(referrer_id)
+                assert unquote_plus(v['value']) == "<class 'list'>: [(0, 1, 2, 3, 4)]"
+                break
+        else:
+            raise AssertionError("Unable to find ref with list[0]. Found: %s" % (msg_vars,))
+
+        found = []
+        by_id_locator = '%s\t%s' % (referrer_id, 'BY_ID')
+        for level, val, _locator in collect_vars(by_id_locator):
+            found.append((('    ' * level) + val['name'] + ': ' + unquote_plus(val['value'])))
+
+        data_regression.check(found, basename='test_case_variable_access_by_id')
+
         writer.write_run_thread(hit.thread_id)
         writer.finished_ok = True
 

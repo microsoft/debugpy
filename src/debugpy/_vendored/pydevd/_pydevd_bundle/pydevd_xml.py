@@ -7,7 +7,7 @@ from _pydevd_bundle.pydevd_constants import BUILTINS_MODULE_NAME, MAXIMUM_VARIAB
 from _pydev_bundle.pydev_imports import quote
 from _pydevd_bundle.pydevd_extension_api import TypeResolveProvider, StrPresentationProvider
 from _pydevd_bundle.pydevd_utils import isinstance_checked, hasattr_checked, DAPGrouper
-from _pydevd_bundle.pydevd_resolver import get_var_scope
+from _pydevd_bundle.pydevd_resolver import get_var_scope, MoreItems, MoreItemsRange
 
 try:
     import types
@@ -60,6 +60,8 @@ def _create_default_type_map():
         pass  # not available on all python versions
 
     default_type_map.append((DAPGrouper, pydevd_resolver.dapGrouperResolver))
+    default_type_map.append((MoreItems, pydevd_resolver.forwardInternalResolverToObject))
+    default_type_map.append((MoreItemsRange, pydevd_resolver.forwardInternalResolverToObject))
 
     try:
         default_type_map.append((set, pydevd_resolver.setResolver))

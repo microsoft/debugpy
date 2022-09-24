@@ -47,7 +47,7 @@ def dump_frames(thread_id):
 
 
 @silence_warnings_decorator
-def getVariable(dbg, thread_id, frame_id, scope, attrs):
+def getVariable(dbg, thread_id, frame_id, scope, locator):
     """
     returns the value of a variable
 
@@ -55,7 +55,7 @@ def getVariable(dbg, thread_id, frame_id, scope, attrs):
 
     BY_ID means we'll traverse the list of all objects alive to get the object.
 
-    :attrs: after reaching the proper scope, we have to get the attributes until we find
+    :locator: after reaching the proper scope, we have to get the attributes until we find
             the proper location (i.e.: obj\tattr1\tattr2)
 
     :note: when BY_ID is used, the frame_id is considered the id of the object to find and
@@ -74,15 +74,15 @@ def getVariable(dbg, thread_id, frame_id, scope, attrs):
             frame_id = int(frame_id)
             for var in objects:
                 if id(var) == frame_id:
-                    if attrs is not None:
-                        attrList = attrs.split('\t')
-                        for k in attrList:
+                    if locator is not None:
+                        locator_parts = locator.split('\t')
+                        for k in locator_parts:
                             _type, _type_name, resolver = get_type(var)
                             var = resolver.resolve(var, k)
 
                     return var
 
-        # If it didn't return previously, we coudn't find it by id (i.e.: alrceady garbage collected).
+        # If it didn't return previously, we coudn't find it by id (i.e.: already garbage collected).
         sys.stderr.write('Unable to find object with id: %s\n' % (frame_id,))
         return None
 
@@ -90,33 +90,33 @@ def getVariable(dbg, thread_id, frame_id, scope, attrs):
     if frame is None:
         return {}
 
-    if attrs is not None:
-        attrList = attrs.split('\t')
+    if locator is not None:
+        locator_parts = locator.split('\t')
     else:
-        attrList = []
+        locator_parts = []
 
-    for attr in attrList:
+    for attr in locator_parts:
         attr.replace("@_@TAB_CHAR@_@", '\t')
 
     if scope == 'EXPRESSION':
-        for count in range(len(attrList)):
+        for count in range(len(locator_parts)):
             if count == 0:
                 # An Expression can be in any scope (globals/locals), therefore it needs to evaluated as an expression
-                var = evaluate_expression(dbg, frame, attrList[count], False)
+                var = evaluate_expression(dbg, frame, locator_parts[count], False)
             else:
                 _type, _type_name, resolver = get_type(var)
-                var = resolver.resolve(var, attrList[count])
+                var = resolver.resolve(var, locator_parts[count])
     else:
         if scope == "GLOBAL":
             var = frame.f_globals
-            del attrList[0]  # globals are special, and they get a single dummy unused attribute
+            del locator_parts[0]  # globals are special, and they get a single dummy unused attribute
         else:
             # in a frame access both locals and globals as Python does
             var = {}
             var.update(frame.f_globals)
             var.update(frame.f_locals)
 
-        for k in attrList:
+        for k in locator_parts:
             _type, _type_name, resolver = get_type(var)
             var = resolver.resolve(var, k)
 

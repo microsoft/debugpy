@@ -1,4 +1,7 @@
 from _pydevd_bundle.pydevd_constants import IS_PY36_OR_GREATER, GENERATED_LEN_ATTR_NAME
+from _pydevd_bundle import pydevd_constants, pydevd_frame_utils
+import pytest
+import sys
 
 
 def check_len_entry(len_entry, first_2_params):
@@ -360,3 +363,137 @@ def test_tuple_resolver_ctypes():
         '2': 3,
         GENERATED_LEN_ATTR_NAME: 3
     }
+
+
+def get_tuple_recursive():
+    obj = [
+        tuple(range(9)),
+        [
+            tuple(range(5)),
+        ]
+    ]
+
+    return sys._getframe()
+
+
+def get_dict_recursive():
+    obj = {
+        1:1,
+        2:{
+            3:3,
+            4:4,
+            5:5,
+            6:6,
+            7:{
+                8:8,
+                9:9,
+                10:10}
+        }
+    }
+
+    return sys._getframe()
+
+
+class _DummyPyDB(object):
+
+    def __init__(self):
+        from _pydevd_bundle.pydevd_api import PyDevdAPI
+        self.variable_presentation = PyDevdAPI.VariablePresentation()
+
+
+class _DAPCheckChildVars:
+
+    def __init__(self, data_regression, monkeypatch):
+        self.data_regression = data_regression
+        self.monkeypatch = monkeypatch
+
+    def check(self, frame, initial_expanded):
+        self.monkeypatch.setattr(pydevd_constants, 'PYDEVD_CONTAINER_INITIAL_EXPANDED_ITEMS', initial_expanded + 2)
+        self.monkeypatch.setattr(pydevd_constants, 'PYDEVD_CONTAINER_BUCKET_SIZE', initial_expanded)
+
+        from _pydevd_bundle.pydevd_suspended_frames import SuspendedFramesManager
+        suspended_frames_manager = SuspendedFramesManager()
+        py_db = _DummyPyDB()
+
+        # Now, let's enable the list packing with less items.
+        with suspended_frames_manager.track_frames(py_db) as tracker:
+            # : :type tracker: _FramesTracker
+            thread_id = 'thread1'
+            tracker.track(thread_id, pydevd_frame_utils.create_frames_list_from_frame(frame))
+
+            assert suspended_frames_manager.get_thread_id_for_variable_reference(id(frame)) == thread_id
+
+            found = []
+            frame_var = suspended_frames_manager.get_variable(id(frame))
+            for level, variable in self.collect_all_dap(frame_var.get_child_variable_named('obj')):
+                found.append((('    ' * level) + variable.name + ': ' + str(variable.value)))
+
+            self.data_regression.check(found)
+
+    def collect_all_dap(self, variable, level=0):
+        children_variables = variable.get_children_variables()
+        for var in children_variables:
+            if var.name in ('special variables', 'function variables'):
+                continue
+            yield level, var
+            yield from self.collect_all_dap(var, level + 1)
+
+
+@pytest.fixture
+def dap_check_child_vars(data_regression, monkeypatch):
+    yield _DAPCheckChildVars(data_regression, monkeypatch)
+
+
+@pytest.mark.parametrize('initial_expanded', [300, 2])
+def test_get_child_variables_multiple_levels_dap(initial_expanded, dap_check_child_vars):
+    frame = get_tuple_recursive()
+    dap_check_child_vars.check(frame, initial_expanded)
+
+
+@pytest.mark.parametrize('initial_expanded', [300, 2])
+def test_get_child_variables_dict_multiple_levels_dap(initial_expanded, dap_check_child_vars, monkeypatch):
+    monkeypatch.setattr(pydevd_constants, 'PYDEVD_CONTAINER_RANDOM_ACCESS_MAX_ITEMS', initial_expanded)
+    frame = get_dict_recursive()
+    dap_check_child_vars.check(frame, initial_expanded)
+
+
+@pytest.mark.parametrize('initial_expanded', [300, 2])
+def test_get_child_variables_multiple_levels_resolver(data_regression, initial_expanded, monkeypatch):
+    monkeypatch.setattr(pydevd_constants, 'PYDEVD_CONTAINER_INITIAL_EXPANDED_ITEMS', initial_expanded + 2)
+    monkeypatch.setattr(pydevd_constants, 'PYDEVD_CONTAINER_BUCKET_SIZE', initial_expanded)
+
+    obj = [
+        tuple(range(9)),
+        [
+            tuple(range(5)),
+        ]
+    ]
+    found = []
+    for level, key, val in collect_resolver_dictionary(obj):
+        found.append((('    ' * level) + key + ': ' + str(val)))
+
+    data_regression.check(found)
+
+
+def _skip_key_in_dict(key):
+    try:
+        int(key)
+    except ValueError:
+        if 'more' in key or '[' in key:
+            return False
+        return True
+    return False
+
+
+def collect_resolver_dictionary(obj, level=0):
+    from _pydevd_bundle.pydevd_xml import get_type
+    resolver = get_type(obj)[-1]
+    if resolver is None:
+        return
+
+    dct = resolver.get_dictionary(obj)
+    for key, val in dct.items():
+        if _skip_key_in_dict(key):
+            continue
+        yield level, key, val
+        yield from collect_resolver_dictionary(val, level + 1)

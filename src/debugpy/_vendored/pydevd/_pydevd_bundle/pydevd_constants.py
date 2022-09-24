@@ -266,6 +266,25 @@ else:
 # If not specified, uses default heuristic to determine if it should be loaded.
 PYDEVD_USE_FRAME_EVAL = os.getenv('PYDEVD_USE_FRAME_EVAL', '').lower()
 
+# Values used to determine how much container items will be shown.
+# PYDEVD_CONTAINER_INITIAL_EXPANDED_ITEMS:
+#     - Defines how many items will appear initially expanded after which a 'more...' will appear.
+#
+# PYDEVD_CONTAINER_BUCKET_SIZE
+#    - Defines the size of each bucket inside the 'more...' item
+#        i.e.: a bucket with size == 2 would show items such as:
+#            - [2:4]
+#            - [4:6]
+#            ...
+#
+# PYDEVD_CONTAINER_RANDOM_ACCESS_MAX_ITEMS
+#    - Defines the maximum number of items for dicts and sets.
+#
+PYDEVD_CONTAINER_INITIAL_EXPANDED_ITEMS = as_int_in_env('PYDEVD_CONTAINER_INITIAL_EXPANDED_ITEMS', 100)
+PYDEVD_CONTAINER_BUCKET_SIZE = as_int_in_env('PYDEVD_CONTAINER_BUCKET_SIZE', 1000)
+PYDEVD_CONTAINER_RANDOM_ACCESS_MAX_ITEMS = as_int_in_env('PYDEVD_CONTAINER_RANDOM_ACCESS_MAX_ITEMS', 500)
+PYDEVD_CONTAINER_NUMPY_MAX_ITEMS = as_int_in_env('PYDEVD_CONTAINER_NUMPY_MAX_ITEMS', 500)
+
 PYDEVD_IPYTHON_COMPATIBLE_DEBUGGING = is_true_in_env('PYDEVD_IPYTHON_COMPATIBLE_DEBUGGING')
 
 # If specified in PYDEVD_IPYTHON_CONTEXT it must be a string with the basename
