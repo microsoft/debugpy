@@ -1,7 +1,9 @@
 import sys
 from _pydevd_bundle.pydevd_constants import int_types, GENERATED_LEN_ATTR_NAME
-from _pydevd_bundle.pydevd_resolver import MAX_ITEMS_TO_HANDLE, TOO_LARGE_ATTR
+from _pydevd_bundle.pydevd_resolver import TOO_LARGE_ATTR
+from _pydevd_bundle import pydevd_resolver, pydevd_constants
 from _pydevd_bundle import pydevd_frame_utils
+import pytest
 
 
 def get_frame():
@@ -82,25 +84,17 @@ def test_suspended_frames_manager():
         })
 
 
-_NUMBER_OF_ITEMS_TO_CREATE = MAX_ITEMS_TO_HANDLE + 300
-
-
 def get_dict_large_frame():
     obj = {}
-    for idx in range(_NUMBER_OF_ITEMS_TO_CREATE):
+    for idx in range(pydevd_constants.PYDEVD_CONTAINER_RANDOM_ACCESS_MAX_ITEMS + +300):
         obj[idx] = (1)
     return sys._getframe()
 
 
 def get_set_large_frame():
     obj = set()
-    for idx in range(_NUMBER_OF_ITEMS_TO_CREATE):
+    for idx in range(pydevd_constants.PYDEVD_CONTAINER_RANDOM_ACCESS_MAX_ITEMS + +300):
         obj.add(idx)
-    return sys._getframe()
-
-
-def get_tuple_large_frame():
-    obj = tuple(range(_NUMBER_OF_ITEMS_TO_CREATE))
     return sys._getframe()
 
 
@@ -111,7 +105,6 @@ def test_get_child_variables():
     for frame in (
         get_dict_large_frame(),
         get_set_large_frame(),
-        get_tuple_large_frame(),
         ):
         with suspended_frames_manager.track_frames(py_db) as tracker:
             # : :type tracker: _FramesTracker
@@ -123,7 +116,6 @@ def test_get_child_variables():
             variable = suspended_frames_manager.get_variable(id(frame))
 
             children_variables = variable.get_child_variable_named('obj').get_children_variables()
-            assert len(children_variables) < _NUMBER_OF_ITEMS_TO_CREATE
 
             found_too_large = False
             found_len = False

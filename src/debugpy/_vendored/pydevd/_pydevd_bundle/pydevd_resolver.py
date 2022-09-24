@@ -8,12 +8,9 @@ from functools import partial
 from _pydevd_bundle.pydevd_constants import IS_PY36_OR_GREATER, \
     MethodWrapperType, RETURN_VALUES_DICT, DebugInfoHolder, IS_PYPY, GENERATED_LEN_ATTR_NAME
 from _pydevd_bundle.pydevd_safe_repr import SafeRepr
+from _pydevd_bundle import pydevd_constants
 
-# Note: 300 is already a lot to see in the outline (after that the user should really use the shell to get things)
-# and this also means we'll pass less information to the client side (which makes debugging faster).
-MAX_ITEMS_TO_HANDLE = 300
-
-TOO_LARGE_MSG = 'Too large to show contents. Max items to show: ' + str(MAX_ITEMS_TO_HANDLE)
+TOO_LARGE_MSG = 'Maximum number of items (%s) reached. To show more items customize the value of the PYDEVD_CONTAINER_RANDOM_ACCESS_MAX_ITEMS environment variable.'
 TOO_LARGE_ATTR = 'Unable to handle:'
 
 
@@ -311,8 +308,8 @@ class DictResolver:
             else:
                 eval_key_str = None
             ret.append((key_as_str, val, eval_key_str))
-            if i > MAX_ITEMS_TO_HANDLE:
-                ret.append((TOO_LARGE_ATTR, TOO_LARGE_MSG, None))
+            if i >= pydevd_constants.PYDEVD_CONTAINER_RANDOM_ACCESS_MAX_ITEMS:
+                ret.append((TOO_LARGE_ATTR, TOO_LARGE_MSG % (pydevd_constants.PYDEVD_CONTAINER_RANDOM_ACCESS_MAX_ITEMS,), None))
                 break
 
         # in case the class extends built-in type and has some additional fields
@@ -336,8 +333,8 @@ class DictResolver:
             # we need to add the id because otherwise we cannot find the real object to get its contents later on.
             key = '%s (%s)' % (self.key_to_str(key), id(key))
             ret[key] = val
-            if i > MAX_ITEMS_TO_HANDLE:
-                ret[TOO_LARGE_ATTR] = TOO_LARGE_MSG
+            if i >= pydevd_constants.PYDEVD_CONTAINER_RANDOM_ACCESS_MAX_ITEMS:
+                ret[TOO_LARGE_ATTR] = TOO_LARGE_MSG % (pydevd_constants.PYDEVD_CONTAINER_RANDOM_ACCESS_MAX_ITEMS,)
                 break
 
         # in case if the class extends built-in type and has some additional fields
@@ -351,21 +348,127 @@ def _apply_evaluate_name(parent_name, evaluate_name):
     return evaluate_name % (parent_name,)
 
 
-#=======================================================================================================================
-# TupleResolver
-#=======================================================================================================================
+class MoreItemsRange:
+
+    def __init__(self, value, from_i, to_i):
+        self.value = value
+        self.from_i = from_i
+        self.to_i = to_i
+
+    def get_contents_debug_adapter_protocol(self, _self, fmt=None):
+        l = len(self.value)
+        ret = []
+
+        format_str = '%0' + str(int(len(str(l - 1)))) + 'd'
+        if fmt is not None and fmt.get('hex', False):
+            format_str = '0x%0' + str(int(len(hex(l).lstrip('0x')))) + 'x'
+
+        for i, item in enumerate(self.value[self.from_i:self.to_i]):
+            i += self.from_i
+            ret.append((format_str % i, item, '[%s]' % i))
+        return ret
+
+    def get_dictionary(self, _self, fmt=None):
+        dct = {}
+        for key, obj, _ in self.get_contents_debug_adapter_protocol(self, fmt):
+            dct[key] = obj
+        return dct
+
+    def resolve(self, attribute):
+        '''
+        :param var: that's the original object we're dealing with.
+        :param attribute: that's the key to resolve
+            -- either the dict key in get_dictionary or the name in the dap protocol.
+        '''
+        return self.value[int(attribute)]
+
+    def __eq__(self, o):
+        return isinstance(o, MoreItemsRange) and self.value is o.value and \
+                self.from_i == o.from_i and self.to_i == o.to_i
+
+    def __str__(self):
+        return '[%s:%s]' % (self.from_i, self.to_i)
+
+    __repr__ = __str__
+
+
+class MoreItems:
+
+    def __init__(self, value, handled_items):
+        self.value = value
+        self.handled_items = handled_items
+
+    def get_contents_debug_adapter_protocol(self, _self, fmt=None):
+        total_items = len(self.value)
+        remaining = total_items - self.handled_items
+        bucket_size = pydevd_constants.PYDEVD_CONTAINER_BUCKET_SIZE
+
+        from_i = self.handled_items
+        to_i = from_i + min(bucket_size, remaining)
+
+        ret = []
+        while remaining > 0:
+            remaining -= bucket_size
+            more_items_range = MoreItemsRange(self.value, from_i, to_i)
+            ret.append((str(more_items_range), more_items_range, None))
+
+            from_i = to_i
+            to_i = from_i + min(bucket_size, remaining)
+
+        return ret
+
+    def get_dictionary(self, _self, fmt=None):
+        dct = {}
+        for key, obj, _ in self.get_contents_debug_adapter_protocol(self, fmt):
+            dct[key] = obj
+        return dct
+
+    def resolve(self, attribute):
+        from_i, to_i = attribute[1:-1].split(':')
+        from_i = int(from_i)
+        to_i = int(to_i)
+        return MoreItemsRange(self.value, from_i, to_i)
+
+    def __eq__(self, o):
+        return isinstance(o, MoreItems) and self.value is o.value
+
+    def __str__(self):
+        return '...'
+
+    __repr__ = __str__
+
+
+class ForwardInternalResolverToObject:
+    '''
+    To be used when we provide some internal object that'll actually do the resolution.
+    '''
+
+    def get_contents_debug_adapter_protocol(self, obj, fmt=None):
+        return obj.get_contents_debug_adapter_protocol(fmt)
+
+    def get_dictionary(self, var, fmt={}):
+        return var.get_dictionary(var, fmt)
+
+    def resolve(self, var, attribute):
+        return var.resolve(attribute)
+
+
 class TupleResolver:  # to enumerate tuples and lists
 
     def resolve(self, var, attribute):
         '''
-            @param var: that's the original attribute
-            @param attribute: that's the key passed in the dict (as a string)
+        :param var: that's the original object we're dealing with.
+        :param attribute: that's the key to resolve
+            -- either the dict key in get_dictionary or the name in the dap protocol.
         '''
         if attribute in (GENERATED_LEN_ATTR_NAME, TOO_LARGE_ATTR):
             return None
         try:
             return var[int(attribute)]
         except:
+            if attribute == 'more':
+                return MoreItems(var, pydevd_constants.PYDEVD_CONTAINER_INITIAL_EXPANDED_ITEMS)
+
             return getattr(var, attribute)
 
     def get_contents_debug_adapter_protocol(self, lst, fmt=None):
@@ -378,18 +481,26 @@ class TupleResolver:  # to enumerate tuples and lists
 
         :return list(tuple(name:str, value:object, evaluateName:str))
         '''
-        l = len(lst)
+        lst_len = len(lst)
         ret = []
 
-        format_str = '%0' + str(int(len(str(l - 1)))) + 'd'
+        format_str = '%0' + str(int(len(str(lst_len - 1)))) + 'd'
         if fmt is not None and fmt.get('hex', False):
-            format_str = '0x%0' + str(int(len(hex(l).lstrip('0x')))) + 'x'
+            format_str = '0x%0' + str(int(len(hex(lst_len).lstrip('0x')))) + 'x'
 
+        initial_expanded = pydevd_constants.PYDEVD_CONTAINER_INITIAL_EXPANDED_ITEMS
         for i, item in enumerate(lst):
             ret.append((format_str % i, item, '[%s]' % i))
 
-            if i > MAX_ITEMS_TO_HANDLE:
-                ret.append((TOO_LARGE_ATTR, TOO_LARGE_MSG, None))
+            if i >= initial_expanded - 1:
+                if (lst_len - initial_expanded) < pydevd_constants.PYDEVD_CONTAINER_BUCKET_SIZE:
+                    # Special case: if we have just 1 more bucket just put it inline.
+                    item = MoreItemsRange(lst, initial_expanded, lst_len)
+
+                else:
+                    # Multiple buckets
+                    item = MoreItems(lst, initial_expanded)
+                ret.append(('more', item, None))
                 break
 
         # Needed in case the class extends the built-in type and has some additional fields.
@@ -408,11 +519,13 @@ class TupleResolver:  # to enumerate tuples and lists
         if fmt is not None and fmt.get('hex', False):
             format_str = '0x%0' + str(int(len(hex(l).lstrip('0x')))) + 'x'
 
+        initial_expanded = pydevd_constants.PYDEVD_CONTAINER_INITIAL_EXPANDED_ITEMS
         for i, item in enumerate(var):
             d[format_str % i] = item
 
-            if i > MAX_ITEMS_TO_HANDLE:
-                d[TOO_LARGE_ATTR] = TOO_LARGE_MSG
+            if i >= initial_expanded - 1:
+                item = MoreItems(var, initial_expanded)
+                d['more'] = item
                 break
 
         # in case if the class extends built-in type and has some additional fields
@@ -436,8 +549,8 @@ class SetResolver:
         for i, item in enumerate(obj):
             ret.append((str(id(item)), item, None))
 
-            if i > MAX_ITEMS_TO_HANDLE:
-                ret.append((TOO_LARGE_ATTR, TOO_LARGE_MSG, None))
+            if i >= pydevd_constants.PYDEVD_CONTAINER_RANDOM_ACCESS_MAX_ITEMS:
+                ret.append((TOO_LARGE_ATTR, TOO_LARGE_MSG % (pydevd_constants.PYDEVD_CONTAINER_RANDOM_ACCESS_MAX_ITEMS,), None))
                 break
 
         # Needed in case the class extends the built-in type and has some additional fields.
@@ -467,8 +580,8 @@ class SetResolver:
         for i, item in enumerate(var):
             d[str(id(item))] = item
 
-            if i > MAX_ITEMS_TO_HANDLE:
-                d[TOO_LARGE_ATTR] = TOO_LARGE_MSG
+            if i >= pydevd_constants.PYDEVD_CONTAINER_RANDOM_ACCESS_MAX_ITEMS:
+                d[TOO_LARGE_ATTR] = TOO_LARGE_MSG % (pydevd_constants.PYDEVD_CONTAINER_RANDOM_ACCESS_MAX_ITEMS,)
                 break
 
         # in case if the class extends built-in type and has some additional fields
@@ -670,6 +783,7 @@ dequeResolver = DequeResolver()
 orderedDictResolver = OrderedDictResolver()
 frameResolver = FrameResolver()
 dapGrouperResolver = DAPGrouperResolver()
+forwardInternalResolverToObject = ForwardInternalResolverToObject()
 
 
 class InspectStub:
