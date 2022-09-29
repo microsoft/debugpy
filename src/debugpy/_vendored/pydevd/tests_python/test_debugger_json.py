@@ -4106,6 +4106,7 @@ def test_gevent_show_paused_greenlets(case_setup, show):
 
 
 @pytest.mark.skipif(not TEST_GEVENT, reason='Gevent not installed.')
+@pytest.mark.skipif(sys.platform == 'win32', reason='tput requires Linux.')
 def test_gevent_subprocess_not_python(case_setup):
 
     def get_environ(writer):
