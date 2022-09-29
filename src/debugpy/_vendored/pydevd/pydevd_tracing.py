@@ -49,7 +49,13 @@ def _internal_set_trace(tracing_func):
         frame = get_frame()
         if frame is not None and frame.f_back is not None:
             filename = frame.f_back.f_code.co_filename.lower()
-            if not filename.endswith('threading.py') and not filename.endswith('pydevd_tracing.py'):
+            if not filename.endswith(
+                    (
+                        'threading.py',
+                        'pydevd_tracing.py',
+                        'threadpool.py',  # This is from gevent.
+                    )
+                ):
 
                 message = \
                 '\nPYDEV DEBUGGER WARNING:' + \
