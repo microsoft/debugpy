@@ -471,11 +471,17 @@ class Timer(object):
         except:
             pass
         if attrs_tab_separated:
-            return 'pydevd warning: Computing repr of %s.%s (%s) was slow (took %.2fs)\n' % (
-                attrs_tab_separated.replace('\t', '.'), attr_name, attr_type, diff)
+            return (
+                'pydevd warning: Computing repr of %s.%s (%s) was slow (took %.2fs).\n'
+                'Customize report timeout by setting the `PYDEVD_WARN_SLOW_RESOLVE_TIMEOUT` environment variable to a higher timeout (default is: %ss)\n'
+                ) % (
+                attrs_tab_separated.replace('\t', '.'), attr_name, attr_type, diff, PYDEVD_WARN_SLOW_RESOLVE_TIMEOUT)
         else:
-            return 'pydevd warning: Computing repr of %s (%s) was slow (took %.2fs)\n' % (
-                attr_name, attr_type, diff)
+            return (
+                'pydevd warning: Computing repr of %s (%s) was slow (took %.2fs)\n'
+                'Customize report timeout by setting the `PYDEVD_WARN_SLOW_RESOLVE_TIMEOUT` environment variable to a higher timeout (default is: %ss)\n'
+                ) % (
+                attr_name, attr_type, diff, PYDEVD_WARN_SLOW_RESOLVE_TIMEOUT)
 
     def report_if_getting_attr_slow(self, cls, attr_name):
         self._report_slow(self._compute_get_attr_slow, cls, attr_name)
@@ -485,7 +491,10 @@ class Timer(object):
             cls = cls.__name__
         except:
             pass
-        return 'pydevd warning: Getting attribute %s.%s was slow (took %.2fs)\n' % (cls, attr_name, diff)
+        return (
+            'pydevd warning: Getting attribute %s.%s was slow (took %.2fs)\n'
+            'Customize report timeout by setting the `PYDEVD_WARN_SLOW_RESOLVE_TIMEOUT` environment variable to a higher timeout (default is: %ss)\n'
+            ) % (cls, attr_name, diff, PYDEVD_WARN_SLOW_RESOLVE_TIMEOUT)
 
 
 def import_attr_from_module(import_with_attr_access):

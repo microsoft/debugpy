@@ -952,11 +952,24 @@ def test_case_django_a(case_setup_django):
         return env
 
     with case_setup_django.test_file(EXPECTED_RETURNCODE='any', get_environ=get_environ) as writer:
-        writer.write_add_breakpoint_django(5, None, 'index.html')
         writer.write_make_initial_run()
 
+        # Wait for the first request that works...
+        for i in range(4):
+            try:
+                t = writer.create_request_thread('my_app')
+                t.start()
+                contents = t.wait_for_contents()
+                contents = contents.replace(' ', '').replace('\r', '').replace('\n', '')
+                assert contents == '<ul><li>v1:v1</li><li>v2:v2</li></ul>'
+                break
+            except:
+                if i == 3:
+                    raise
+                continue
+
+        writer.write_add_breakpoint_django(5, None, 'index.html')
         t = writer.create_request_thread('my_app')
-        time.sleep(5)  # Give django some time to get to startup before requesting the page
         t.start()
 
         hit = writer.wait_for_breakpoint_hit(REASON_STOP_ON_BREAKPOINT, line=5)
