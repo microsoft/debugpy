@@ -5425,7 +5425,7 @@ def test_debug_options(case_setup, val):
             except ImportError:
                 pass
             else:
-                gui_event_loop = 'qt5'
+                gui_event_loop = 'pyside2'
         args = dict(
             justMyCode=val,
             redirectOutput=True,  # Always redirect the output regardless of other values.
