@@ -33,27 +33,6 @@ def get_buildplatform():
     return None
 
 
-def cython_build():
-    print("Compiling extension modules (set SKIP_CYTHON_BUILD=1 to omit)")
-    subprocess.call(
-        [
-            sys.executable,
-            os.path.join(PYDEVD_ROOT, "setup_pydevd_cython.py"),
-            "build_ext",
-            "-i",
-        ]
-    )
-
-
-def iter_vendored_files():
-    # Add pydevd files as data files for this package. They are not
-    # treated as a package of their own, because we don't actually
-    # want to provide pydevd - just use our own copy internally.
-    for project in debugpy._vendored.list_all():
-        for filename in debugpy._vendored.iter_packaging_files(project):
-            yield filename
-
-
 # bdist_wheel determines whether the package is pure or not based on ext_modules.
 # However, all pydevd native modules are prebuilt and packaged as data, so they
 # should not be in the list.
@@ -89,16 +68,48 @@ def override_build(cmds):
 
 
 def override_build_py(cmds):
-    # Filter platform-specific binaries in data files for binary builds.
+    # Add vendored packages as data files for this package, and filter platform-specific binaries
+    # in data files for binary builds.
     def finalize_options(self):
         original(self)
+
+        # Ensure that pydevd extensions are present for inclusion into data_files.
+        self.announce(
+            "Compiling pydevd Cython extension modules (set SKIP_CYTHON_BUILD=1 to omit)."
+        )
+        try:
+            subprocess.check_call(
+                [
+                    sys.executable,
+                    os.path.join(PYDEVD_ROOT, "setup_pydevd_cython.py"),
+                    "build_ext",
+                    "--inplace",
+                ]
+            )
+        except subprocess.SubprocessError:
+            # pydevd Cython extensions are optional performance enhancements, and debugpy is
+            # usable without them. Thus, we want to ignore build errors here by default, so
+            # that a user can do `pip install debugpy` on a platform for which we don't supply
+            # prebuild wheels even if they don't have the C build tools installed. On the other
+            # hand, for our own official builds and for local development, we want to know if
+            # the extensions fail to build.
+            if int(os.getenv("REQUIRE_CYTHON_BUILD", "0")):
+                raise
+            self.warn(
+                "Failed to compile pydevd Cython extension modules (set SKIP_CYTHON_BUILD=1 to omit); proceeding without them."
+            )
+
+        # Register pydevd and other vendored packages as package data for debugpy.
+        vendored_files = self.package_data["debugpy._vendored"]
+        for project in debugpy._vendored.list_all():
+            for filename in debugpy._vendored.iter_packaging_files(project):
+                vendored_files.append(filename)
 
         # Don't filter anything for universal wheels.
         if not self.distribution.ext_modules:
             return
 
         plat = self.get_finalized_command("build").plat_name
-        data_files = self.data_files
 
         def is_applicable(filename):
             def tail_is(*suffixes):
@@ -114,16 +125,12 @@ def override_build_py(cmds):
                 return plat == "linux-x86_64"
             return True
 
-        self.data_files = [
-            (package, src_dir, build_dir, list(filter(is_applicable, filenames)))
-            for package, src_dir, build_dir, filenames in data_files
-        ]
+        vendored_files[:] = list(filter(is_applicable, vendored_files))
 
     try:
         build_py = cmds["build_py"]
     except KeyError:
         from setuptools.command.build_py import build_py
-
     original = build_py.finalize_options
     build_py.finalize_options = finalize_options
 
@@ -133,9 +140,6 @@ with open("DESCRIPTION.md", "r") as fh:
 
 
 if __name__ == "__main__":
-    if not os.getenv("SKIP_CYTHON_BUILD"):
-        cython_build()
-
     extras = {}
     platforms = get_buildplatform()
     if platforms is not None:
@@ -183,7 +187,10 @@ if __name__ == "__main__":
         ],
         package_data={
             "debugpy": ["ThirdPartyNotices.txt"],
-            "debugpy._vendored": list(iter_vendored_files()),
+            "debugpy._vendored": [
+                # pydevd extensions must be built before this list can be computed properly,
+                # so it is populated in the overridden build_py.finalize_options().
+            ],  
         },
         ext_modules=ExtModules(),
         has_ext_modules=lambda: True,
