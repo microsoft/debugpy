@@ -312,9 +312,10 @@ def describe_environment(header):
 
         for p in sorted(paths):
             report("{0}{1}", prefix, p)
-            rp = os.path.realpath(p)
-            if p != rp:
-                report("({0})", rp)
+            if p is not None:
+                rp = os.path.realpath(p)
+                if p != rp:
+                    report("({0})", rp)
             report("\n")
 
             prefix = " " * len(prefix)
