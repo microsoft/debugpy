@@ -5,6 +5,7 @@
 import socket
 import sys
 import threading
+from xml.dom.minidom import Attr
 
 from debugpy.common import log
 from debugpy.common.util import hide_thread_from_debugger
@@ -40,8 +41,11 @@ def _new_sock():
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP)
     if sys.platform == "win32":
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
-    elif sys.platform != "emscripten" and sys.platform != "wasi":
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    else:
+        try:
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        except(AttributeError, OSError):
+            pass # Not available everywhere
 
     # Set TCP keepalive on an open socket.
     # It activates after 1 second (TCP_KEEPIDLE,) of idleness,
