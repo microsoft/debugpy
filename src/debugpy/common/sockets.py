@@ -43,8 +43,8 @@ def _new_sock():
     else:
         try:
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        except(AttributeError, OSError):
-            pass # Not available everywhere
+        except (AttributeError, OSError):
+            pass  # Not available everywhere
 
     # Set TCP keepalive on an open socket.
     # It activates after 1 second (TCP_KEEPIDLE,) of idleness,
