@@ -5,7 +5,6 @@
 import socket
 import sys
 import threading
-from xml.dom.minidom import Attr
 
 from debugpy.common import log
 from debugpy.common.util import hide_thread_from_debugger
