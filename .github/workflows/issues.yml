@@ -1,0 +1,31 @@
+name: issue-automation
+permissions:
+  issues: write
+
+on:
+  issues:
+    types: [opened, labeled, unlabeled]
+
+jobs:
+  triage-labels:
+    runs-on: ubuntu-latest
+    steps:
+      - name: If no labels, add triage
+        id: no-labels
+        uses: andymckay/labeler@master
+        if: ${{ join(github.event.issue.labels.*.name, ',') == '' }}
+        with:
+          add-labels: 'triage-needed'
+
+      - name: If labeled, remove triage
+        uses: andymckay/labeler@master
+        if: ${{ steps.no-labels.outcome == 'skipped' && join(github.event.issue.labels.*.name, ',') != 'triage-needed' }}
+        with:
+          remove-labels: 'triage-needed'
+
+      - name: If triage-needed, add to scrum board
+        uses: actions/add-to-project@v0.3.0
+        if: ${{ steps.no-labels.outcome == 'success' }}
+        with:
+          github-token: ${{ secrets.PROJECT_BOARD_ACTIONS_TOKEN }}
+          project-url: https://github.com/orgs/microsoft/projects/145/views/17
