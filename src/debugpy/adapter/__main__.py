@@ -30,7 +30,10 @@ def main(args):
             # On POSIX, we need to leave the process group and its session, and then
             # daemonize properly by double-forking (first fork already happened when
             # this process was spawned).
-            os.setsid()
+            # NOTE: if process is already the session leader, then
+            # setsid would fail with `operation not permitted`
+            if os.getsid(os.getpid()) != os.getpid():
+                os.setsid()
             if os.fork() != 0:
                 sys.exit(0)
 
