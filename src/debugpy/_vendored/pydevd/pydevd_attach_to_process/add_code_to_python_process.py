@@ -278,6 +278,7 @@ def run_python_code_windows(pid, python_code, connect_debugger_tracing=False, sh
 
     with _acquire_mutex('_pydevd_pid_attach_mutex_%s' % (pid,), 10):
         print('--- Connecting to %s bits target (current process is: %s) ---' % (bits, 64 if is_python_64bit() else 32))
+        sys.stdout.flush()
 
         with _win_write_to_shared_named_memory(python_code, pid):
 
@@ -290,6 +291,7 @@ def run_python_code_windows(pid, python_code, connect_debugger_tracing=False, sh
                 raise RuntimeError('Could not find expected .dll file in attach to process.')
 
             print('\n--- Injecting attach dll: %s into pid: %s ---' % (os.path.basename(target_dll), pid))
+            sys.stdout.flush()
             args = [target_executable, str(pid), target_dll]
             subprocess.check_call(args)
 
@@ -301,12 +303,15 @@ def run_python_code_windows(pid, python_code, connect_debugger_tracing=False, sh
 
             with _create_win_event('_pydevd_pid_event_%s' % (pid,)) as event:
                 print('\n--- Injecting run code dll: %s into pid: %s ---' % (os.path.basename(target_dll_run_on_dllmain), pid))
+                sys.stdout.flush()
                 args = [target_executable, str(pid), target_dll_run_on_dllmain]
                 subprocess.check_call(args)
 
-                if not event.wait_for_event_set(10):
+                if not event.wait_for_event_set(15):
                     print('Timeout error: the attach may not have completed.')
+                    sys.stdout.flush()
             print('--- Finished dll injection ---\n')
+            sys.stdout.flush()
 
     return 0
 
@@ -433,11 +438,14 @@ def run_python_code_linux(pid, python_code, connect_debugger_tracing=False, show
     # reason why this is no longer done by default -- see: https://github.com/microsoft/debugpy/issues/882).
     gdb_load_shared_libraries = os.environ.get('PYDEVD_GDB_SCAN_SHARED_LIBRARIES', '').strip()
     if gdb_load_shared_libraries:
+        print('PYDEVD_GDB_SCAN_SHARED_LIBRARIES set: %s.' % (gdb_load_shared_libraries,))
         cmd.extend(["--init-eval-command='set auto-solib-add off'"])  # Don't scan all libraries.
 
         for lib in gdb_load_shared_libraries.split(','):
             lib = lib.strip()
             cmd.extend(["--eval-command='sharedlibrary %s'" % (lib,)])  # Scan the specified library
+    else:
+        print('PYDEVD_GDB_SCAN_SHARED_LIBRARIES not set (scanning all libraries for needed symbols).')
 
     cmd.extend(["--eval-command='set scheduler-locking off'"])  # If on we'll deadlock.
 
@@ -460,18 +468,7 @@ def run_python_code_linux(pid, python_code, connect_debugger_tracing=False, show
     env.pop('PYTHONIOENCODING', None)
     env.pop('PYTHONPATH', None)
     print('Running: %s' % (' '.join(cmd)))
-    p = subprocess.Popen(
-        ' '.join(cmd),
-        shell=True,
-        env=env,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    print('Running gdb in target process.')
-    out, err = p.communicate()
-    print('stdout: %s' % (out,))
-    print('stderr: %s' % (err,))
-    return out, err
+    subprocess.check_call(' '.join(cmd), shell=True, env=env)
 
 
 def find_helper_script(filedir, script_name):
@@ -523,23 +520,12 @@ def run_python_code_mac(pid, python_code, connect_debugger_tracing=False, show_d
     # print ' '.join(cmd)
 
     env = os.environ.copy()
-    # Remove the PYTHONPATH (if gdb has a builtin Python it could fail if we
+    # Remove the PYTHONPATH (if lldb has a builtin Python it could fail if we
     # have the PYTHONPATH for a different python version or some forced encoding).
     env.pop('PYTHONIOENCODING', None)
     env.pop('PYTHONPATH', None)
     print('Running: %s' % (' '.join(cmd)))
-    p = subprocess.Popen(
-        ' '.join(cmd),
-        shell=True,
-        env=env,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        )
-    print('Running lldb in target process.')
-    out, err = p.communicate()
-    print('stdout: %s' % (out,))
-    print('stderr: %s' % (err,))
-    return out, err
+    subprocess.check_call(' '.join(cmd), shell=True, env=env)
 
 
 if IS_WINDOWS:

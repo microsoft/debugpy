@@ -194,7 +194,6 @@ class Client(components.Component):
     # See https://github.com/microsoft/vscode/issues/4902#issuecomment-368583522
     # for the sequence of request and events necessary to orchestrate the start.
     def _start_message_handler(f):
-
         @components.Component.message_handler
         def handle(self, request):
             assert request.is_request("launch", "attach")
@@ -465,7 +464,9 @@ class Client(components.Component):
 
         if listen != ():
             if servers.is_serving():
-                raise request.isnt_valid('Multiple concurrent "listen" sessions are not supported')
+                raise request.isnt_valid(
+                    'Multiple concurrent "listen" sessions are not supported'
+                )
             host = listen("host", "127.0.0.1")
             port = listen("port", int)
             adapter.access_token = None
@@ -507,7 +508,25 @@ class Client(components.Component):
                 except Exception:
                     raise request.isnt_valid('"processId" must be parseable as int')
             debugpy_args = request("debugpyArgs", json.array(str))
-            servers.inject(pid, debugpy_args)
+
+            def on_output(category, output):
+                self.channel.send_event(
+                    "output",
+                    {
+                        "category": category,
+                        "output": output,
+                    },
+                )
+
+            try:
+                servers.inject(pid, debugpy_args, on_output)
+            except Exception as e:
+                log.swallow_exception()
+                self.session.finalize(
+                    "Error when trying to attach to PID:\n%s" % (str(e),)
+                )
+                return
+
             timeout = common.PROCESS_SPAWN_TIMEOUT
             pred = lambda conn: conn.pid == pid
         else:
