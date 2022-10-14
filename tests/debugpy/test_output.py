@@ -32,7 +32,15 @@ def test_with_no_output(pyfile, target, run):
         session.wait_for_stop("breakpoint")
         session.request_continue()
 
-    assert not session.output("stdout")
+    output = session.output("stdout")
+    lines = []
+    for line in output.splitlines(keepends=True):
+        if not line.startswith("Attaching to PID:"):
+            lines.append(line)
+    
+    output = "".join(lines)
+    
+    assert not output
     assert not session.output("stderr")
     if session.debuggee is not None:
         assert not session.captured_stdout()
@@ -120,10 +128,17 @@ def test_redirect_output(pyfile, target, run, redirect):
         session.wait_for_stop()
         session.request_continue()
 
+    output = session.output("stdout")
+    lines = []
+    for line in output.splitlines(keepends=True):
+        if not line.startswith("Attaching to PID:"):
+            lines.append(line)
+    
+    output = "".join(lines)
     if redirect == "enabled":
-        assert session.output("stdout") == "111\n222\n333\n444\n"
+        assert output == "111\n222\n333\n444\n"
     else:
-        assert not session.output("stdout")
+        assert not output
 
 
 def test_non_ascii_output(pyfile, target, run):
