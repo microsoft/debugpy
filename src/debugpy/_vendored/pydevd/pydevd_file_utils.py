@@ -43,7 +43,7 @@ r'''
 
 from _pydev_bundle import pydev_log
 from _pydevd_bundle.pydevd_constants import DebugInfoHolder, IS_WINDOWS, IS_JYTHON, \
-    DISABLE_FILE_VALIDATION, is_true_in_env
+    DISABLE_FILE_VALIDATION, is_true_in_env, IS_MAC
 from _pydev_bundle._pydev_filesystem_encoding import getfilesystemencoding
 from _pydevd_bundle.pydevd_comm_constants import file_system_encoding, filesystem_encoding_is_utf8
 from _pydev_bundle.pydev_log import error_once
@@ -124,6 +124,67 @@ convert_to_long_pathname = lambda filename:filename
 convert_to_short_pathname = lambda filename:filename
 get_path_with_real_case = lambda filename:filename
 
+# Note that we have a cache for previous list dirs... the only case where this may be an
+# issue is if the user actually changes the case of an existing file on while
+# the debugger is executing (as this seems very unlikely and the cache can save a
+# reasonable time -- especially on mapped drives -- it seems nice to have it).
+_listdir_cache = {}
+
+# May be changed during tests.
+os_listdir = os.listdir
+
+
+def _resolve_listing(resolved, iter_parts_lowercase, cache=_listdir_cache):
+    while True:  # Note: while True to make iterative and not recursive
+        try:
+            resolve_lowercase = next(iter_parts_lowercase)  # must be lowercase already
+        except StopIteration:
+            return resolved
+
+        resolved_lower = resolved.lower()
+
+        resolved_joined = cache.get((resolved_lower, resolve_lowercase))
+        if resolved_joined is None:
+            dir_contents = cache.get(resolved_lower)
+            if dir_contents is None:
+                dir_contents = cache[resolved_lower] = os_listdir(resolved)
+
+            for filename in dir_contents:
+                if filename.lower() == resolve_lowercase:
+                    resolved_joined = os.path.join(resolved, filename)
+                    cache[(resolved_lower, resolve_lowercase)] = resolved_joined
+                    break
+            else:
+                raise FileNotFoundError('Unable to find: %s in %s. Dir Contents: %s' % (
+                    resolve_lowercase, resolved, dir_contents))
+
+        resolved = resolved_joined
+
+
+def _resolve_listing_parts(resolved, parts_in_lowercase, filename):
+    try:
+        if parts_in_lowercase == ['']:
+            return resolved
+        return _resolve_listing(resolved, iter(parts_in_lowercase))
+    except FileNotFoundError:
+        _listdir_cache.clear()
+        # Retry once after clearing the cache we have.
+        try:
+            return _resolve_listing(resolved, iter(parts_in_lowercase))
+        except FileNotFoundError:
+            if os_path_exists(filename):
+                # This is really strange, ask the user to report as error.
+                pydev_log.critical(
+                    'pydev debugger: critical: unable to get real case for file. Details:\n'
+                    'filename: %s\ndrive: %s\nparts: %s\n'
+                    '(please create a ticket in the tracker to address this).',
+                    filename, resolved, parts_in_lowercase
+                )
+                pydev_log.exception()
+            # Don't fail, just return the original file passed.
+            return filename
+
+
 if sys.platform == 'win32':
     try:
         import ctypes
@@ -155,38 +216,6 @@ if sys.platform == 'win32':
 
             return filename
 
-        # Note that we have a cache for previous list dirs... the only case where this may be an
-        # issue is if the user actually changes the case of an existing file on windows while
-        # the debugger is executing (as this seems very unlikely and the cache can save a
-        # reasonable time -- especially on mapped drives -- it seems nice to have it).
-        _listdir_cache = {}
-
-        def _resolve_listing(resolved, iter_parts, cache=_listdir_cache):
-            while True:  # Note: while True to make iterative and not recursive
-                try:
-                    resolve_lowercase = next(iter_parts)  # must be lowercase already
-                except StopIteration:
-                    return resolved
-
-                resolved_lower = resolved.lower()
-
-                resolved_joined = cache.get((resolved_lower, resolve_lowercase))
-                if resolved_joined is None:
-                    dir_contents = cache.get(resolved_lower)
-                    if dir_contents is None:
-                        dir_contents = cache[resolved_lower] = os.listdir(resolved)
-
-                    for filename in dir_contents:
-                        if filename.lower() == resolve_lowercase:
-                            resolved_joined = os.path.join(resolved, filename)
-                            cache[(resolved_lower, resolve_lowercase)] = resolved_joined
-                            break
-                    else:
-                        raise FileNotFoundError('Unable to find: %s in %s' % (
-                            resolve_lowercase, resolved))
-
-                resolved = resolved_joined
-
         def _get_path_with_real_case(filename):
             # Note: this previously made:
             # convert_to_long_pathname(convert_to_short_pathname(filename))
@@ -206,28 +235,7 @@ if sys.platform == 'win32':
                 parts = parts[1:]
                 drive += os.path.sep
             parts = parts.lower().split(os.path.sep)
-
-            try:
-                if parts == ['']:
-                    return drive
-                return _resolve_listing(drive, iter(parts))
-            except FileNotFoundError:
-                _listdir_cache.clear()
-                # Retry once after clearing the cache we have.
-                try:
-                    return _resolve_listing(drive, iter(parts))
-                except FileNotFoundError:
-                    if os_path_exists(filename):
-                        # This is really strange, ask the user to report as error.
-                        pydev_log.critical(
-                            'pydev debugger: critical: unable to get real case for file. Details:\n'
-                            'filename: %s\ndrive: %s\nparts: %s\n'
-                            '(please create a ticket in the tracker to address this).',
-                            filename, drive, parts
-                        )
-                        pydev_log.exception()
-                    # Don't fail, just return the original file passed.
-                    return filename
+            return _resolve_listing_parts(drive, parts, filename)
 
         # Check that it actually works
         _get_path_with_real_case(__file__)
@@ -243,10 +251,28 @@ if sys.platform == 'win32':
 elif IS_JYTHON and IS_WINDOWS:
 
     def get_path_with_real_case(filename):
+        if filename.startswith('<'):
+            return filename
+
         from java.io import File  # noqa
         f = File(filename)
         ret = f.getCanonicalPath()
         return ret
+
+elif IS_MAC:
+
+    def get_path_with_real_case(filename):
+        if filename.startswith('<') or not os_path_exists(filename):
+            return filename  # Not much we can do.
+
+        parts = filename.lower().split('/')
+
+        found = ''
+        while parts and parts[0] == '':
+            found += '/'
+            parts = parts[1:]
+
+        return _resolve_listing_parts(found, parts, filename)
 
 if IS_JYTHON:
 
@@ -285,6 +311,13 @@ elif _filename_normalization == 'none':
 
 elif IS_WINDOWS:
     _default_normcase = _normcase_windows
+
+elif IS_MAC:
+
+    def _normcase_lower(filename):
+        return filename.lower()
+
+    _default_normcase = _normcase_lower
 
 else:
     _default_normcase = _normcase_linux

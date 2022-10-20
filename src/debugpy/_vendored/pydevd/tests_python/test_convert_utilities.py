@@ -1,6 +1,6 @@
 # coding: utf-8
 import os.path
-from _pydevd_bundle.pydevd_constants import IS_WINDOWS
+from _pydevd_bundle.pydevd_constants import IS_WINDOWS, IS_MAC
 import io
 from _pydev_bundle.pydev_log import log_context
 import pytest
@@ -12,6 +12,62 @@ def _reset_ide_os():
     yield
     from pydevd_file_utils import set_ide_os
     set_ide_os('WINDOWS' if sys.platform == 'win32' else 'UNIX')
+
+
+@pytest.mark.skipif(sys.platform != 'win32', reason='Windows-only test.')
+def test_get_path_with_real_case_windows_unc_path(monkeypatch):
+    import pydevd_file_utils
+    from pydevd_file_utils import get_path_with_real_case
+
+    def temp_listdir(d):
+        # When we have a UNC drive in windows the "drive" is something as:
+        # \\MACHINE_NAME\MOUNT_POINT\
+        if d == '\\\\A\\B\\':
+            return ['Cc']
+        raise AssertionError('Unexpected: %s' % (d,))
+
+    monkeypatch.setattr(pydevd_file_utils, 'os_path_exists', lambda *args: True)
+    monkeypatch.setattr(pydevd_file_utils, 'os_listdir', temp_listdir)
+    assert get_path_with_real_case(r'\\a\b\cc') == r'\\A\B\Cc'
+
+
+@pytest.mark.skipif(sys.platform != 'win32', reason='Windows-only test.')
+def test_get_path_with_real_case_windows_slashes_drive(tmpdir):
+    from pydevd_file_utils import get_path_with_real_case
+    test_dir = str(tmpdir.mkdir("Test_Convert_Utilities")).lower()
+    real_case = get_path_with_real_case(test_dir)
+    assert real_case.endswith("Test_Convert_Utilities")
+
+    prefix = '\\\\?\\'
+    path = prefix + test_dir
+    real_case = get_path_with_real_case(path)
+    assert real_case.endswith("Test_Convert_Utilities")
+    assert path.startswith(prefix)
+
+
+@pytest.mark.skipif(not IS_MAC, reason='Mac-only test.')
+def test_get_path_with_real_case_mac_os(tmpdir):
+    from pydevd_file_utils import get_path_with_real_case
+    test_dir = str(tmpdir.mkdir("Test_Convert_Utilities")).lower()
+    real_case = get_path_with_real_case(test_dir)
+    assert real_case.endswith("Test_Convert_Utilities")
+
+
+@pytest.mark.skipif(not IS_MAC, reason='Mac-only test.')
+def test_double_slash_mac(monkeypatch):
+    import pydevd_file_utils
+    from pydevd_file_utils import get_path_with_real_case
+
+    def temp_listdir(d):
+        if d == '//':
+            return ['A']
+        if d == '//A':
+            return ['Bb']
+        raise AssertionError('Unexpected: %s' % (d,))
+
+    monkeypatch.setattr(pydevd_file_utils, 'os_path_exists', lambda *args: True)
+    monkeypatch.setattr(pydevd_file_utils, 'os_listdir', temp_listdir)
+    assert get_path_with_real_case(r'//a/bb') == r'//A/Bb'
 
 
 def test_convert_utilities(tmpdir):
@@ -60,8 +116,12 @@ def test_convert_utilities(tmpdir):
         assert with_real_case.endswith('Test_Convert_Utilities')
         assert '~' not in with_real_case
 
+    elif IS_MAC:
+        assert pydevd_file_utils.normcase(test_dir) == test_dir.lower()
+        assert pydevd_file_utils.get_path_with_real_case(test_dir) == test_dir
+
     else:
-        # On other platforms, nothing should change
+        # On Linux, nothing should change
         assert pydevd_file_utils.normcase(test_dir) == test_dir
         assert pydevd_file_utils.get_path_with_real_case(test_dir) == test_dir
 
@@ -351,7 +411,7 @@ def test_zip_paths(tmpdir):
         # Check that we can deal with the zip path.
         assert pydevd_file_utils.exists(zipfile_path)
         abspath, realpath, basename = pydevd_file_utils.get_abs_path_real_path_and_base_from_file(zipfile_path)
-        if IS_WINDOWS:
+        if IS_WINDOWS or IS_MAC:
             assert abspath == zipfile_path
             assert basename == zip_basename.lower()
         else:
@@ -431,7 +491,7 @@ def test_source_mapping():
     assert source_mapping.map_to_client(filename, 12) == (filename, 12, False)
 
 
-@pytest.mark.skipif(IS_WINDOWS, reason='Linux-only test')
+@pytest.mark.skipif(IS_WINDOWS, reason='Linux/Mac-only test')
 def test_mapping_conflict_to_client():
     import pydevd_file_utils
 
@@ -481,7 +541,7 @@ _MAPPING_CONFLICT = [
 ]
 
 
-@pytest.mark.skipif(IS_WINDOWS, reason='Linux-only test')
+@pytest.mark.skipif(IS_WINDOWS, reason='Linux/Mac-only test')
 def test_mapping_conflict_to_server():
     import pydevd_file_utils
 
