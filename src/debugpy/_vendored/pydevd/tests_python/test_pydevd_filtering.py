@@ -1,4 +1,4 @@
-from _pydevd_bundle.pydevd_constants import IS_WINDOWS
+from _pydevd_bundle.pydevd_constants import IS_WINDOWS, IS_MAC
 
 
 def test_in_project_roots_prefix_01(tmpdir):
@@ -43,8 +43,16 @@ def test_in_project_roots(tmpdir):
 
     import os.path
     import sys
-    assert files_filtering._get_library_roots() == [
-        os.path.normcase(x) + ('\\' if IS_WINDOWS else '/') for x in files_filtering._get_default_library_roots()]
+
+    if IS_WINDOWS:
+        assert files_filtering._get_library_roots() == [
+            os.path.normcase(x) + '\\' for x in files_filtering._get_default_library_roots()]
+    elif IS_MAC:
+        assert files_filtering._get_library_roots() == [
+            x.lower() + '/' for x in files_filtering._get_default_library_roots()]
+    else:
+        assert files_filtering._get_library_roots() == [
+            os.path.normcase(x) + '/' for x in files_filtering._get_default_library_roots()]
 
     site_packages = tmpdir.mkdir('site-packages')
     project_dir = tmpdir.mkdir('project')
