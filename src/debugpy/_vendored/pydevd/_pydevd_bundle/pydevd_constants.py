@@ -94,6 +94,7 @@ from _pydevd_bundle import pydevd_vm_type
 IS_WINDOWS = sys.platform == 'win32'
 IS_LINUX = sys.platform in ('linux', 'linux2')
 IS_MAC = sys.platform == 'darwin'
+IS_WASM = sys.platform == 'emscripten' or sys.platform == 'wasi'
 
 IS_64BIT_PROCESS = sys.maxsize > (2 ** 32)
 

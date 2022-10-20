@@ -70,7 +70,7 @@ from _pydev_bundle.pydev_imports import _queue
 from _pydev_bundle._pydev_saved_modules import time
 from _pydev_bundle._pydev_saved_modules import threading
 from _pydev_bundle._pydev_saved_modules import socket as socket_module
-from _pydevd_bundle.pydevd_constants import (DebugInfoHolder, IS_WINDOWS, IS_JYTHON,
+from _pydevd_bundle.pydevd_constants import (DebugInfoHolder, IS_WINDOWS, IS_JYTHON, IS_WASM,
     IS_PY36_OR_GREATER, STATE_RUN, ASYNC_EVAL_TIMEOUT_SEC,
     get_global_debugger, GetGlobalDebugger, set_global_debugger,  # Keep for backward compatibility @UnusedImport
     silence_warnings_decorator, filter_all_warnings)
@@ -113,19 +113,19 @@ from io import StringIO
 from _pydevd_bundle.pydevd_comm_constants import *  # @UnusedWildImport
 
 # Socket import aliases:
-AF_INET, SOCK_STREAM, SHUT_WR, SOL_SOCKET, SO_REUSEADDR, IPPROTO_TCP, socket = (
+AF_INET, SOCK_STREAM, SHUT_WR, SOL_SOCKET, IPPROTO_TCP, socket = (
     socket_module.AF_INET,
     socket_module.SOCK_STREAM,
     socket_module.SHUT_WR,
     socket_module.SOL_SOCKET,
-    socket_module.SO_REUSEADDR,
     socket_module.IPPROTO_TCP,
     socket_module.socket,
 )
 
 if IS_WINDOWS and not IS_JYTHON:
     SO_EXCLUSIVEADDRUSE = socket_module.SO_EXCLUSIVEADDRUSE
-
+if not IS_WASM:
+    SO_REUSEADDR = socket_module.SO_REUSEADDR
 
 class ReaderThread(PyDBDaemonThread):
     ''' reader thread reads and dispatches commands in an infinite loop '''
@@ -431,7 +431,7 @@ def create_server_socket(host, port):
         server = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)
         if IS_WINDOWS and not IS_JYTHON:
             server.setsockopt(SOL_SOCKET, SO_EXCLUSIVEADDRUSE, 1)
-        else:
+        elif not IS_WASM:
             server.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
 
         server.bind((host, port))
