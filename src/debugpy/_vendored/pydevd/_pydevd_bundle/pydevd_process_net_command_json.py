@@ -17,7 +17,7 @@ from _pydevd_bundle._debug_adapter.pydevd_schema import (
     VariablesResponseBody, SetBreakpointsResponseBody, Response,
     Capabilities, PydevdAuthorizeRequest, Request,
     StepInTargetsResponseBody, SetFunctionBreakpointsResponseBody, BreakpointEvent,
-    BreakpointEventBody, InitializedEvent)
+    BreakpointEventBody, InitializedEvent, BreakpointLocation)
 from _pydevd_bundle.pydevd_api import PyDevdAPI
 from _pydevd_bundle.pydevd_breakpoints import get_exception_class, FunctionBreakpoint
 from _pydevd_bundle.pydevd_comm_constants import (
@@ -777,7 +777,6 @@ class PyDevJsonCommandProcessor(object):
         breakpoints_set = []
 
         for source_breakpoint in arguments.breakpoints:
-            print(source_breakpoint.to_dict())
             source_breakpoint = SourceBreakpoint(**source_breakpoint)
             line = source_breakpoint.line
             condition = source_breakpoint.condition
@@ -1322,8 +1321,21 @@ class PyDevJsonCommandProcessor(object):
 
     def on_breakpointlocations_request(self, py_db, request):
         breakpointLocations = []
-        # Add whole line
-        breakpointLocations.append(BreakpointLocation(request.arguments.line, None))
+        
+        try:
+            # Add whole line
+            breakpointLocations.append(BreakpointLocation(request.arguments.line, None))
+        except Exception as e:
+            pydev_log.exception('Error resolving breakpoints: %s', str(e))
+            response = pydevd_base_schema.build_response(
+                    request,
+                    kwargs={
+                        'body': {},
+                        'success': False,
+                        'message': str(e)
+                    })
+            return NetCommand(CMD_RETURN, 0, response, is_json=True)
+
         response = pydevd_base_schema.build_response(
             request, kwargs={"body": {"breakpoints": breakpointLocations}}
         )
