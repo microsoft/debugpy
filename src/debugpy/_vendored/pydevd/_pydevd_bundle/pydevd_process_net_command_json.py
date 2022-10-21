@@ -224,6 +224,7 @@ class PyDevJsonCommandProcessor(object):
             supportsTerminateRequest=True,
             supportsClipboardContext=True,
             supportsFunctionBreakpoints=True,
+            supportsBreakpointLocationsRequest=True,
 
             exceptionBreakpointFilters=[
                 {'filter': 'raised', 'label': 'Raised Exceptions', 'default': False},
@@ -776,6 +777,7 @@ class PyDevJsonCommandProcessor(object):
         breakpoints_set = []
 
         for source_breakpoint in arguments.breakpoints:
+            print(source_breakpoint.to_dict())
             source_breakpoint = SourceBreakpoint(**source_breakpoint)
             line = source_breakpoint.line
             condition = source_breakpoint.condition
@@ -1318,3 +1320,11 @@ class PyDevJsonCommandProcessor(object):
         response = pydevd_base_schema.build_response(request)
         return NetCommand(CMD_RETURN, 0, response, is_json=True)
 
+    def on_breakpointlocations_request(self, py_db, request):
+        breakpointLocations = []
+        # Add whole line
+        breakpointLocations.append(BreakpointLocation(request.arguments.line, None))
+        response = pydevd_base_schema.build_response(
+            request, kwargs={"body": {"breakpoints": breakpointLocations}}
+        )
+        return NetCommand(CMD_RETURN, 0, response, is_json=True)

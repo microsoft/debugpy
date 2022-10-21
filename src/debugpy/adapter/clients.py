@@ -187,6 +187,7 @@ class Client(components.Component):
             "supportsClipboardContext": True,
             "exceptionBreakpointFilters": exception_breakpoint_filters,
             "supportsStepInTargetsRequest": True,
+            "supportsBreakpointLocationsRequest": True,
         }
 
     # Common code for "launch" and "attach" request handlers.
