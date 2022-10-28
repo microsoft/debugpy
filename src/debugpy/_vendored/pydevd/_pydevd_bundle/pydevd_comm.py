@@ -73,7 +73,7 @@ from _pydev_bundle._pydev_saved_modules import socket as socket_module
 from _pydevd_bundle.pydevd_constants import (DebugInfoHolder, IS_WINDOWS, IS_JYTHON, IS_WASM,
     IS_PY36_OR_GREATER, STATE_RUN, ASYNC_EVAL_TIMEOUT_SEC,
     get_global_debugger, GetGlobalDebugger, set_global_debugger,  # Keep for backward compatibility @UnusedImport
-    silence_warnings_decorator, filter_all_warnings)
+    silence_warnings_decorator, filter_all_warnings, IS_PY311_OR_GREATER)
 from _pydev_bundle.pydev_override import overrides
 import weakref
 from _pydev_bundle._pydev_completer import extract_token_and_qualifier
@@ -126,6 +126,7 @@ if IS_WINDOWS and not IS_JYTHON:
     SO_EXCLUSIVEADDRUSE = socket_module.SO_EXCLUSIVEADDRUSE
 if not IS_WASM:
     SO_REUSEADDR = socket_module.SO_REUSEADDR
+
 
 class ReaderThread(PyDBDaemonThread):
     ''' reader thread reads and dispatches commands in an infinite loop '''
@@ -1447,7 +1448,7 @@ def build_exception_info_response(dbg, thread_id, request_seq, set_additional_th
                             except:
                                 pass
 
-                    for frame_id, frame, method_name, original_filename, filename_in_utf8, lineno, _applied_mapping, show_as_current_frame in \
+                    for frame_id, frame, method_name, original_filename, filename_in_utf8, lineno, _applied_mapping, show_as_current_frame, line_col_info in \
                         iter_visible_frames_info(dbg, frames_list):
 
                         line_text = linecache.getline(original_filename, lineno)
@@ -1460,12 +1461,26 @@ def build_exception_info_response(dbg, thread_id, request_seq, set_additional_th
                         if show_as_current_frame:
                             current_paused_frame_name = method_name
                             method_name += ' (Current frame)'
-                        frames.append((filename_in_utf8, lineno, method_name, line_text))
+                        frames.append((filename_in_utf8, lineno, method_name, line_text, line_col_info))
 
                     if not source_path and frames:
                         source_path = frames[0][0]
 
-                    stack_str = ''.join(traceback.format_list(frames[-max_frames:]))
+                    if IS_PY311_OR_GREATER:
+                        stack_summary = traceback.StackSummary()
+                        for filename_in_utf8, lineno, method_name, line_text, line_col_info in frames[-max_frames:]:
+                            frame_summary = traceback.FrameSummary(filename_in_utf8, lineno, method_name, line=line_text)
+                            if line_col_info is not None:
+                                frame_summary.end_lineno = line_col_info.end_lineno
+                                frame_summary.colno = line_col_info.colno
+                                frame_summary.end_colno = line_col_info.end_colno
+                            stack_summary.append(frame_summary)
+
+                        stack_str = ''.join(stack_summary.format())
+
+                    else:
+                        # Note: remove col info (just used in 3.11).
+                        stack_str = ''.join(traceback.format_list((x[:-1] for x in frames[-max_frames:])))
 
                     try:
                         stype = frames_list.exc_type.__qualname__

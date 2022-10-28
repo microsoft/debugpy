@@ -19,7 +19,8 @@ from _pydevd_bundle._debug_adapter.pydevd_schema import (ThreadEvent, ModuleEven
 from _pydevd_bundle.pydevd_comm_constants import file_system_encoding
 from _pydevd_bundle.pydevd_constants import (int_types, IS_64BIT_PROCESS,
     PY_VERSION_STR, PY_IMPL_VERSION_STR, PY_IMPL_NAME, IS_PY36_OR_GREATER,
-    IS_PYPY, GENERATED_LEN_ATTR_NAME, IS_WINDOWS, IS_LINUX, IS_MAC, IS_PY38_OR_GREATER)
+    IS_PYPY, GENERATED_LEN_ATTR_NAME, IS_WINDOWS, IS_LINUX, IS_MAC, IS_PY38_OR_GREATER,
+    IS_PY311_OR_GREATER)
 from tests_python import debugger_unittest
 from tests_python.debug_constants import TEST_CHERRYPY, TEST_DJANGO, TEST_FLASK, \
     IS_CPYTHON, TEST_GEVENT, TEST_CYTHON, TODO_PY311
@@ -826,6 +827,8 @@ def test_case_throw_exc_reason_shown(case_setup):
         body = exc_info_response.body
         assert body.exceptionId == 'Exception'
         assert body.description == 'TEST SUCEEDED'
+        if IS_PY311_OR_GREATER:
+            assert '^^^^' in body.details.stackTrace
         assert normcase(body.details.kwargs['source']) == normcase(writer.TEST_FILE)
 
         # Check that we have the exception cause in the stack trace.
