@@ -190,12 +190,13 @@ class NetCommandFactory(object):
 
                 frame_id = id(frame)
                 lineno = frames_list.frame_id_to_lineno.get(frame_id, frame.f_lineno)
+                line_col_info = frames_list.frame_id_to_line_col_info.get(frame_id)
 
                 filename_in_utf8, lineno, changed = py_db.source_mapping.map_to_client(abs_path_real_path_and_base[0], lineno)
                 new_filename_in_utf8, applied_mapping = pydevd_file_utils.map_file_to_client(filename_in_utf8)
                 applied_mapping = applied_mapping or changed
 
-                yield frame_id, frame, method_name, abs_path_real_path_and_base[0], new_filename_in_utf8, lineno, applied_mapping, show_as_current_frame
+                yield frame_id, frame, method_name, abs_path_real_path_and_base[0], new_filename_in_utf8, lineno, applied_mapping, show_as_current_frame, line_col_info
 
             if not flatten_chained:
                 break
@@ -212,7 +213,7 @@ class NetCommandFactory(object):
         append = cmd_text_list.append
 
         try:
-            for frame_id, frame, method_name, _original_filename, filename_in_utf8, lineno, _applied_mapping, _show_as_current_frame in self._iter_visible_frames_info(
+            for frame_id, frame, method_name, _original_filename, filename_in_utf8, lineno, _applied_mapping, _show_as_current_frame, line_col_info in self._iter_visible_frames_info(
                     py_db, frames_list, flatten_chained=True
                 ):
 
