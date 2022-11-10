@@ -2,7 +2,6 @@ from _pydevd_bundle.pydevd_constants import EXCEPTION_TYPE_USER_UNHANDLED, EXCEP
     IS_PY311_OR_GREATER
 from _pydev_bundle import pydev_log
 import itertools
-from collections import namedtuple
 from typing import Any, Dict
 
 
@@ -79,7 +78,111 @@ def cached_call(obj, func, *args):
     return getattr(obj, cached_name)
 
 
-_LineColInfo = namedtuple('_LineColInfo', 'lineno, end_lineno, colno, end_colno')
+class _LineColInfo:
+
+    def __init__(self, lineno, end_lineno, colno, end_colno):
+        self.lineno = lineno
+        self.end_lineno = end_lineno
+        self.colno = colno
+        self.end_colno = end_colno
+
+    def map_columns_to_line(self, original_line: str):
+        '''
+        The columns internally are actually based on bytes.
+
+        Also, the position isn't always the ideal one as the start may not be
+        what we want (if the user has many subscripts in the line the start
+        will always be the same and only the end would change).
+        For more details see:
+        https://github.com/microsoft/debugpy/issues/1099#issuecomment-1303403995
+
+        So, this function maps the start/end columns to the position to be shown in the editor.
+        '''
+        colno = _utf8_byte_offset_to_character_offset(original_line, self.colno)
+        end_colno = _utf8_byte_offset_to_character_offset(original_line, self.end_colno)
+
+        if self.lineno == self.end_lineno:
+            try:
+                ret = _extract_caret_anchors_in_bytes_from_line_segment(
+                    original_line[colno:end_colno]
+                )
+                if ret is not None:
+                    return (
+                        _utf8_byte_offset_to_character_offset(original_line, ret[0] + self.colno),
+                        _utf8_byte_offset_to_character_offset(original_line, ret[1] + self.colno)
+                    )
+            except Exception:
+                pass  # Suppress exception
+
+        return colno, end_colno
+
+
+_utf8_with_2_bytes = 0x80
+_utf8_with_3_bytes = 0x800
+_utf8_with_4_bytes = 0x10000
+
+
+def _utf8_byte_offset_to_character_offset(s: str, offset: int):
+    byte_offset = 0
+    char_offset = 0
+
+    for char_offset, character in enumerate(s):
+        byte_offset += 1
+
+        codepoint = ord(character)
+
+        if codepoint >= _utf8_with_4_bytes:
+            byte_offset += 3
+
+        elif codepoint >= _utf8_with_3_bytes:
+            byte_offset += 2
+
+        elif codepoint >= _utf8_with_2_bytes:
+            byte_offset += 1
+
+        if byte_offset > offset:
+            break
+    else:
+        char_offset += 1
+
+    return char_offset
+
+
+# Based on traceback._extract_caret_anchors_in_bytes_from_line_segment (Python 3.11.0)
+def _extract_caret_anchors_in_bytes_from_line_segment(segment: str):
+    import ast
+
+    try:
+        segment = segment.encode('utf-8')
+    except UnicodeEncodeError:
+        return None
+    try:
+        tree = ast.parse(segment)
+    except SyntaxError:
+        return None
+
+    if len(tree.body) != 1:
+        return None
+
+    statement = tree.body[0]
+    if isinstance(statement, ast.Expr):
+        expr = statement.value
+        if isinstance(expr, ast.BinOp):
+            operator_str = segment[expr.left.end_col_offset:expr.right.col_offset]
+            operator_offset = len(operator_str) - len(operator_str.lstrip())
+
+            left_anchor = expr.left.end_col_offset + operator_offset
+            right_anchor = left_anchor + 1
+            if (
+                operator_offset + 1 < len(operator_str)
+                and not operator_str[operator_offset + 1] == ord(b' ')
+            ):
+                right_anchor += 1
+            return left_anchor, right_anchor
+        if isinstance(expr, ast.Subscript):
+            return expr.value.end_col_offset, expr.slice.end_col_offset + 1
+
+    return None
 
 
 class FramesList(object):
