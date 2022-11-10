@@ -87,7 +87,6 @@ from _pydevd_bundle.pydevd_daemon_thread import PyDBDaemonThread
 from _pydevd_bundle.pydevd_thread_lifecycle import pydevd_find_thread_by_id, resume_threads
 from _pydevd_bundle.pydevd_dont_trace_files import PYDEV_FILE
 import dis
-from _pydevd_bundle.pydevd_frame_utils import create_frames_list_from_exception_cause
 import pydevd_file_utils
 import itertools
 from urllib.parse import quote_plus, unquote_plus

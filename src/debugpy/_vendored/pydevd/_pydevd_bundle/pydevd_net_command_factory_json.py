@@ -19,7 +19,7 @@ from _pydevd_bundle.pydevd_comm_constants import CMD_THREAD_CREATE, CMD_RETURN, 
     CMD_THREAD_RESUME_SINGLE_NOTIFICATION, CMD_THREAD_KILL, CMD_STOP_ON_START, CMD_INPUT_REQUESTED, \
     CMD_EXIT, CMD_STEP_INTO_COROUTINE, CMD_STEP_RETURN_MY_CODE, CMD_SMART_STEP_INTO, \
     CMD_SET_FUNCTION_BREAK
-from _pydevd_bundle.pydevd_constants import get_thread_id, ForkSafeLock
+from _pydevd_bundle.pydevd_constants import get_thread_id, ForkSafeLock, DebugInfoHolder
 from _pydevd_bundle.pydevd_net_command import NetCommand, NULL_NET_COMMAND
 from _pydevd_bundle.pydevd_net_command_factory_xml import NetCommandFactory
 from _pydevd_bundle.pydevd_utils import get_non_pydevd_threads
@@ -30,6 +30,7 @@ from _pydevd_bundle import pydevd_frame_utils, pydevd_constants, pydevd_utils
 import linecache
 from _pydevd_bundle.pydevd_thread_lifecycle import pydevd_find_thread_by_id
 from io import StringIO
+from _pydev_bundle import pydev_log
 
 
 class ModulesManager(object):
@@ -265,8 +266,23 @@ class NetCommandFactoryJson(NetCommandFactory):
                             source_reference = pydevd_file_utils.create_source_reference_for_linecache(
                                 original_filename)
 
+                column = 1
+                endcol = None
+                if line_col_info is not None:
+                    try:
+                        line_text = linecache.getline(original_filename, lineno)
+                    except:
+                        if DebugInfoHolder.DEBUG_TRACE_LEVEL >= 2:
+                            pydev_log.exception('Unable to get line from linecache for file: %s', original_filename)
+                    else:
+                        if line_text:
+                            colno, endcolno = line_col_info.map_columns_to_line(line_text)
+                            column = colno + 1
+                            if line_col_info.lineno == line_col_info.end_lineno:
+                                endcol = endcolno + 1
+
                 frames.append(pydevd_schema.StackFrame(
-                    frame_id, formatted_name, lineno, column=1, source={
+                    frame_id, formatted_name, lineno, column=column, endColumn=endcol, source={
                         'path': filename_in_utf8,
                         'sourceReference': source_reference,
                     },
