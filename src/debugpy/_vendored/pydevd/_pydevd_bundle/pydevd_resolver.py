@@ -804,7 +804,8 @@ except:
 def get_var_scope(attr_name, attr_value, evaluate_name, handle_return_values):
     if attr_name.startswith("'"):
         if attr_name.endswith("'"):
-            attr_name = attr_name[1:-1]
+            # i.e.: strings denote that it is a regular value in some container.
+            return ''
         else:
             i = attr_name.find("__' (")
             if i >= 0:

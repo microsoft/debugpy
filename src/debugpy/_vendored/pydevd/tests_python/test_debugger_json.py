@@ -1734,6 +1734,45 @@ def test_dict_ordered(case_setup):
         writer.finished_ok = True
 
 
+def test_dict_contents(case_setup, pyfile):
+
+    @pyfile
+    def check():
+        dct = {'a': 1, '_b_': 2, '__c__': 3}
+        print('TEST SUCEEDED')  # break here
+
+    with case_setup.test_file(check) as writer:
+        json_facade = JsonFacade(writer)
+
+        json_facade.write_launch(justMyCode=False)
+        json_facade.write_set_breakpoints(writer.get_line_index_with_content('break here'))
+        json_facade.write_make_initial_run()
+
+        json_hit = json_facade.wait_for_thread_stopped()
+        json_hit = json_facade.get_stack_as_json_hit(json_hit.thread_id)
+
+        variables_response = json_facade.get_variables_response(json_hit.frame_id)
+
+        variables_references = variables_response.body.variables
+        for dct in variables_references:
+            if dct['name'] == 'dct':
+                break
+        else:
+            raise AssertionError('Expected to find "dct".')
+        ref = dct['variablesReference']
+
+        assert isinstance(ref, int_types)
+        # : :type variables_response: VariablesResponse
+
+        variables_response = json_facade.get_variables_response(ref)
+        variable_names = set(v['name'] for v in variables_response.body.variables)
+        for n in ("'a'", "'_b_'", "'__c__'", 'len()'):
+            assert n in variable_names
+
+        json_facade.write_continue()
+        writer.finished_ok = True
+
+
 @pytest.mark.skipif(IS_JYTHON, reason='Putting unicode on frame vars does not work on Jython.')
 def test_stack_and_variables_dict(case_setup):
     with case_setup.test_file('_debugger_case_local_variables.py') as writer:
