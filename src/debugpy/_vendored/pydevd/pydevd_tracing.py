@@ -48,12 +48,16 @@ def _internal_set_trace(tracing_func):
     if TracingFunctionHolder._warn:
         frame = get_frame()
         if frame is not None and frame.f_back is not None:
-            filename = frame.f_back.f_code.co_filename.lower()
-            if not filename.endswith(
+            filename = os.path.splitext(frame.f_back.f_code.co_filename.lower())[0]
+            if filename.endswith('threadpool') and 'gevent' in filename:
+                if tracing_func is None:
+                    pydev_log.debug('Disabled internal sys.settrace from gevent threadpool.')
+                    return
+
+            elif not filename.endswith(
                     (
-                        'threading.py',
-                        'pydevd_tracing.py',
-                        'threadpool.py',  # This is from gevent.
+                        'threading',
+                        'pydevd_tracing',
                     )
                 ):
 

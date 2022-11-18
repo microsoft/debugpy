@@ -76,7 +76,7 @@ def enable_gevent_integration():
 
             if not hasattr(greenlet, 'settrace'):
                 # In older versions it was optional.
-                # We still try to use if available though (because without it
+                # We still try to use if available though.
                 pydev_log.debug('greenlet.settrace not available. GEVENT_SHOW_PAUSED_GREENLETS will have no effect.')
                 return
         try:
