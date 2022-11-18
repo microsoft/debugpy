@@ -190,6 +190,8 @@ class FilesFiltering(object):
             if os.path.exists(path) and os.path.basename(path) in ('site-packages', 'pip-global'):
                 roots.append(path)
 
+        # On WASM some of the roots may not exist, filter those out.
+        roots = [path for path in roots if path is not None]
         roots.extend([os.path.realpath(path) for path in roots])
 
         return sorted(set(roots))
