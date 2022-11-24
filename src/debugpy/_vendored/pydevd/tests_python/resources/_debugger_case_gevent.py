@@ -4,6 +4,9 @@ import sys
 
 if 'remote' in sys.argv:
     import pydevd
+    if '--use-dap-mode' in sys.argv:
+        pydevd.config('http_json', 'debugpy-dap')
+
     port = int(sys.argv[1])
     print('before pydevd.settrace')
     pydevd.settrace(host=('' if 'as-server' in sys.argv else '127.0.0.1'), port=port, suspend=False)

@@ -28,7 +28,7 @@ def console_setup(tmpdir):
     class ConsoleRunner(DebuggerRunnerSimple):
 
         @overrides(DebuggerRunnerSimple.add_command_line_args)
-        def add_command_line_args(self, args):
+        def add_command_line_args(self, args, dap=False):
             port, client_port = get_socket_names(2, close=True)
             args.extend((
                 writer.get_pydevconsole_file(),

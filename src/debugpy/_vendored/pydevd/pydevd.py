@@ -3265,6 +3265,13 @@ def _log_initial_info():
     pydev_log.debug("Using gevent mode: %s / imported gevent module support: %s", SUPPORT_GEVENT, bool(pydevd_gevent_integration))
 
 
+def config(protocol='', debug_mode='', preimport=''):
+    pydev_log.debug('Config: protocol: %s, debug_mode: %s, preimport: %s', protocol, debug_mode, preimport)
+    PydevdCustomization.DEFAULT_PROTOCOL = protocol
+    PydevdCustomization.DEBUG_MODE = debug_mode
+    PydevdCustomization.PREIMPORT = preimport
+
+
 #=======================================================================================================================
 # main
 #=======================================================================================================================
@@ -3272,6 +3279,7 @@ def main():
 
     # parse the command line. --file is our last argument that is required
     _log_initial_info()
+    original_argv = sys.argv[:]
     try:
         from _pydevd_bundle.pydevd_command_line_handling import process_command_line
         setup = process_command_line(sys.argv)
@@ -3305,6 +3313,7 @@ def main():
     elif log_trace_level is not None:
         # The log file was not specified
         DebugInfoHolder.DEBUG_TRACE_LEVEL = log_trace_level
+    pydev_log.debug('Original sys.argv: %s', original_argv)
 
     if setup['print-in-debugger-startup']:
         try:
