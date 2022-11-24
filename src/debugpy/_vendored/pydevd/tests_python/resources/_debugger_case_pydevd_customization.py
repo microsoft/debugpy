@@ -8,11 +8,10 @@ def main():
     env['PYTHONPATH'] = os.path.dirname(__file__) + os.pathsep + \
         os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 
-    from _pydevd_bundle.pydevd_constants import HTTP_JSON_PROTOCOL
-    from _pydevd_bundle.pydevd_defaults import PydevdCustomization
-    PydevdCustomization.DEFAULT_PROTOCOL = HTTP_JSON_PROTOCOL
-
     import pydevd
+    if '--use-dap-mode' in sys.argv:
+        pydevd.config('http_json', 'debugpy-dap')
+
     from _pydev_bundle import pydev_log
     pydev_log.debug('Argv received: %s', sys.argv)
     port = int(sys.argv[1])

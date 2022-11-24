@@ -15,6 +15,9 @@ except AssertionError:
 else:
     raise AssertionError('Expected _wait_for_attach to raise exception.')
 
+if '--use-dap-mode' in sys.argv:
+    pydevd.config('http_json', 'debugpy-dap')
+
 assert sys.gettrace() is None
 print('enable attach to port: %s' % (port,))
 pydevd._enable_attach(('127.0.0.1', port))

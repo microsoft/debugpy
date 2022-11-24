@@ -38,11 +38,17 @@ class PydevdCustomization(object):
 
 def on_pydb_init(py_db):
     if PydevdCustomization.DEBUG_MODE == 'debugpy-dap':
+        pydev_log.debug('Apply debug mode: debugpy-dap')
         py_db.skip_suspend_on_breakpoint_exception = (BaseException,)
         py_db.skip_print_breakpoint_exception = (NameError,)
         py_db.multi_threads_single_notification = True
+    elif not PydevdCustomization.DEBUG_MODE:
+        pydev_log.debug('Apply debug mode: default')
+    else:
+        pydev_log.debug('WARNING: unknown debug mode: %s', PydevdCustomization.DEBUG_MODE)
 
     if PydevdCustomization.PREIMPORT:
+        pydev_log.debug('Preimport: %s', PydevdCustomization.PREIMPORT)
         try:
             sys_path_entry, module_name = PydevdCustomization.PREIMPORT.rsplit(';', maxsplit=1)
         except Exception:

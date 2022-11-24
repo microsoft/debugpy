@@ -390,7 +390,7 @@ class DebuggerRunner(object):
         '''
         raise NotImplementedError
 
-    def add_command_line_args(self, args):
+    def add_command_line_args(self, args, dap=False):
         writer = self.writer
         port = int(writer.port)
 
@@ -411,6 +411,10 @@ class DebuggerRunner(object):
             str(port),
         ]
 
+        if dap:
+            ret += ['--debug-mode', 'debugpy-dap']
+            ret += ['--json-dap-http']
+
         if writer.IS_MODULE:
             ret += ['--module']
 
@@ -419,7 +423,7 @@ class DebuggerRunner(object):
         return args + ret
 
     @contextmanager
-    def check_case(self, writer_class, wait_for_port=True, wait_for_initialization=True):
+    def check_case(self, writer_class, wait_for_port=True, wait_for_initialization=True, dap=False):
         try:
             if callable(writer_class):
                 writer = writer_class()
@@ -433,7 +437,7 @@ class DebuggerRunner(object):
 
                 args = self.get_command_line()
 
-                args = self.add_command_line_args(args)
+                args = self.add_command_line_args(args, dap=dap)
 
                 if SHOW_OTHER_DEBUG_INFO:
                     print('executing: %s' % (' '.join(args),))

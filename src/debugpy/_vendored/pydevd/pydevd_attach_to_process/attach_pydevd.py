@@ -8,6 +8,7 @@ def process_command_line(argv):
     setup['pid'] = 0
     setup['host'] = '127.0.0.1'
     setup['protocol'] = ''
+    setup['debug-mode'] = ''
 
     i = 0
     while i < len(argv):
@@ -31,6 +32,11 @@ def process_command_line(argv):
             setup['protocol'] = argv[i]
             del argv[i]
 
+        elif argv[i] == '--debug-mode':
+            del argv[i]
+            setup['debug-mode'] = argv[i]
+            del argv[i]
+
     if not setup['pid']:
         sys.stderr.write('Expected --pid to be passed.\n')
         sys.exit(1)
@@ -51,7 +57,7 @@ def main(setup):
 sys.path.append("%(pythonpath)s");
 sys.path.append("%(pythonpath2)s");
 import attach_script;
-attach_script.attach(port=%(port)s, host="%(host)s", protocol="%(protocol)s");
+attach_script.attach(port=%(port)s, host="%(host)s", protocol="%(protocol)s", debug_mode="%(debug-mode)s");
 '''.replace('\r\n', '').replace('\r', '').replace('\n', '')
     else:
         setup['pythonpath'] = pydevd_dirname
@@ -61,7 +67,7 @@ attach_script.attach(port=%(port)s, host="%(host)s", protocol="%(protocol)s");
 sys.path.append(\\\"%(pythonpath)s\\\");
 sys.path.append(\\\"%(pythonpath2)s\\\");
 import attach_script;
-attach_script.attach(port=%(port)s, host=\\\"%(host)s\\\", protocol=\\\"%(protocol)s\\\");
+attach_script.attach(port=%(port)s, host=\\\"%(host)s\\\", protocol=\\\"%(protocol)s\\\", debug_mode=\\\"%(debug-mode)s\\\");
 '''.replace('\r\n', '').replace('\r', '').replace('\n', '')
 
     python_code = python_code % setup

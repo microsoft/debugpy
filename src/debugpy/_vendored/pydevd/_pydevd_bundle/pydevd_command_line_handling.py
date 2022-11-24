@@ -73,7 +73,7 @@ ACCEPTED_ARG_HANDLERS = [
 
     # Logging
     ArgHandlerWithParam('log-file'),
-    ArgHandlerWithParam('log-level', int, 0),
+    ArgHandlerWithParam('log-level', int, None),
 
     ArgHandlerBool('server'),
     ArgHandlerBool('multiproc'),  # Used by PyCharm (reuses connection: ssh tunneling)

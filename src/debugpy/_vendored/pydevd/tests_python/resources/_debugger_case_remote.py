@@ -7,9 +7,10 @@ if __name__ == '__main__':
     if root_dirname not in sys.path:
         sys.path.append(root_dirname)
 
-    del sys.argv
-
     import pydevd
+    if '--use-dap-mode' in sys.argv:
+        pydevd.config('http_json', 'debugpy-dap')
+
     print('before pydevd.settrace')
     pydevd.settrace(port=port)
     print('after pydevd.settrace')

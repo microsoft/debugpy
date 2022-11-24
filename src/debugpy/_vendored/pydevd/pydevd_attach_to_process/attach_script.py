@@ -129,7 +129,7 @@ def fix_main_thread_id(on_warn=lambda msg:None, on_exception=lambda msg:None, on
         on_exception('Error patching main thread id.')
 
 
-def attach(port, host, protocol=''):
+def attach(port, host, protocol='', debug_mode=''):
     try:
         import sys
         fix_main_thread = 'threading' not in sys.modules
@@ -157,6 +157,10 @@ def attach(port, host, protocol=''):
         if protocol:
             from _pydevd_bundle import pydevd_defaults
             pydevd_defaults.PydevdCustomization.DEFAULT_PROTOCOL = protocol
+
+        if debug_mode:
+            from _pydevd_bundle import pydevd_defaults
+            pydevd_defaults.PydevdCustomization.DEBUG_MODE = debug_mode
 
         import pydevd
 

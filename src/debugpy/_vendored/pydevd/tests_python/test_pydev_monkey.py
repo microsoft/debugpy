@@ -28,7 +28,7 @@ def test_monkey():
     debug_command = (
         'import sys; '
         'sys.path.insert(0, r\'%s\'); '
-        "import pydevd; pydevd.PydevdCustomization.DEFAULT_PROTOCOL='quoted-line'; "
+        "import pydevd; pydevd.config('quoted-line', ''); "
         "pydevd.settrace(host='127.0.0.1', port=0, suspend=False, "
         'trace_only_current_thread=False, patch_multiprocessing=True, access_token=None, client_access_token=None, __setup_holder__=%s); '
         ''
@@ -108,7 +108,7 @@ def test_monkey_patch_args_indc():
     SetupHolder.setup = {'client': '127.0.0.1', 'port': '0', 'ppid': os.getpid(), 'protocol-quoted-line': True, 'skip-notify-stdin': True}
     check = ['C:\\bin\\python.exe', '-u', '-c', 'connect("127.0.0.1")']
     debug_command = (
-        "import sys; sys.path.insert(0, r\'%s\'); import pydevd; pydevd.PydevdCustomization.DEFAULT_PROTOCOL='quoted-line'; "
+        "import sys; sys.path.insert(0, r\'%s\'); import pydevd; pydevd.config('quoted-line', ''); "
         'pydevd.settrace(host=\'127.0.0.1\', port=0, suspend=False, trace_only_current_thread=False, patch_multiprocessing=True, access_token=None, client_access_token=None, __setup_holder__=%s); '
         ''
         'connect("127.0.0.1")') % (pydev_src_dir, sorted_dict_repr(SetupHolder.setup))
@@ -145,7 +145,7 @@ def test_monkey_patch_args_indc_future_import():
     SetupHolder.setup = {'client': '127.0.0.1', 'port': '0', 'ppid': os.getpid(), 'protocol-quoted-line': True, 'skip-notify-stdin': True}
     check = ['C:\\bin\\python.exe', '-u', '-c', 'from __future__ import print_function;connect("127.0.0.1")']
     debug_command = (
-        "from __future__ import print_function;import sys; sys.path.insert(0, r\'%s\'); import pydevd; pydevd.PydevdCustomization.DEFAULT_PROTOCOL='quoted-line'; "
+        "from __future__ import print_function;import sys; sys.path.insert(0, r\'%s\'); import pydevd; pydevd.config('quoted-line', ''); "
         'pydevd.settrace(host=\'127.0.0.1\', port=0, suspend=False, trace_only_current_thread=False, patch_multiprocessing=True, access_token=None, client_access_token=None, __setup_holder__=%s); '
         ''
         'connect("127.0.0.1")') % (pydev_src_dir, sorted_dict_repr(SetupHolder.setup))
@@ -165,7 +165,7 @@ def test_monkey_patch_args_indc_future_import2():
     SetupHolder.setup = {'client': '127.0.0.1', 'port': '0', 'ppid': os.getpid(), 'protocol-quoted-line': True, 'skip-notify-stdin': True}
     check = ['C:\\bin\\python.exe', '-u', '-c', 'from __future__ import print_function\nconnect("127.0.0.1")']
     debug_command = (
-        "from __future__ import print_function;import sys; sys.path.insert(0, r\'%s\'); import pydevd; pydevd.PydevdCustomization.DEFAULT_PROTOCOL='quoted-line'; "
+        "from __future__ import print_function;import sys; sys.path.insert(0, r\'%s\'); import pydevd; pydevd.config('quoted-line', ''); "
         'pydevd.settrace(host=\'127.0.0.1\', port=0, suspend=False, trace_only_current_thread=False, patch_multiprocessing=True, access_token=None, client_access_token=None, __setup_holder__=%s); '
         ''
         '\nconnect("127.0.0.1")') % (pydev_src_dir, sorted_dict_repr(SetupHolder.setup))
@@ -185,7 +185,7 @@ def test_monkey_patch_args_indc2():
     SetupHolder.setup = {'client': '127.0.0.1', 'port': '0', 'ppid': os.getpid(), 'protocol-quoted-line': True, 'skip-notify-stdin': True}
     check = ['C:\\bin\\python.exe', '-u', '-qcconnect("127.0.0.1")']
     debug_command = (
-        "import sys; sys.path.insert(0, r\'%s\'); import pydevd; pydevd.PydevdCustomization.DEFAULT_PROTOCOL='quoted-line'; "
+        "import sys; sys.path.insert(0, r\'%s\'); import pydevd; pydevd.config('quoted-line', ''); "
         'pydevd.settrace(host=\'127.0.0.1\', port=0, suspend=False, trace_only_current_thread=False, patch_multiprocessing=True, access_token=None, client_access_token=None, __setup_holder__=%s); '
         ''
         'connect("127.0.0.1")') % (pydev_src_dir, sorted_dict_repr(SetupHolder.setup))
@@ -205,7 +205,7 @@ def test_monkey_patch_args_x_flag():
     SetupHolder.setup = {'client': '127.0.0.1', 'port': '0', 'ppid': os.getpid(), 'protocol-quoted-line': True, 'skip-notify-stdin': True}
     check = ['C:\\bin\\python.exe', '-X', 'faulthandler', '-c', 'connect("127.0.0.1")']
     debug_command = (
-        "import sys; sys.path.insert(0, r\'%s\'); import pydevd; pydevd.PydevdCustomization.DEFAULT_PROTOCOL='quoted-line'; "
+        "import sys; sys.path.insert(0, r\'%s\'); import pydevd; pydevd.config('quoted-line', ''); "
         'pydevd.settrace(host=\'127.0.0.1\', port=0, suspend=False, trace_only_current_thread=False, patch_multiprocessing=True, access_token=None, client_access_token=None, __setup_holder__=%s); '
         ''
         'connect("127.0.0.1")') % (pydev_src_dir, sorted_dict_repr(SetupHolder.setup))
@@ -226,7 +226,7 @@ def test_monkey_patch_args_flag_in_single_arg_1():
     SetupHolder.setup = {'client': '127.0.0.1', 'port': '0', 'ppid': os.getpid(), 'protocol-quoted-line': True, 'skip-notify-stdin': True}
     check = ['C:\\bin\\python.exe', '-qX', 'faulthandler', '-c', 'connect("127.0.0.1")']
     debug_command = (
-        "import sys; sys.path.insert(0, r\'%s\'); import pydevd; pydevd.PydevdCustomization.DEFAULT_PROTOCOL='quoted-line'; "
+        "import sys; sys.path.insert(0, r\'%s\'); import pydevd; pydevd.config('quoted-line', ''); "
         'pydevd.settrace(host=\'127.0.0.1\', port=0, suspend=False, trace_only_current_thread=False, patch_multiprocessing=True, access_token=None, client_access_token=None, __setup_holder__=%s); '
         ''
         'connect("127.0.0.1")') % (pydev_src_dir, sorted_dict_repr(SetupHolder.setup))
@@ -247,7 +247,7 @@ def test_monkey_patch_args_flag_in_single_arg_2():
     SetupHolder.setup = {'client': '127.0.0.1', 'port': '0', 'ppid': os.getpid(), 'protocol-quoted-line': True, 'skip-notify-stdin': True}
     check = ['C:\\bin\\python.exe', '-qX', 'faulthandler', '-c', 'connect("127.0.0.1")']
     debug_command = (
-        "import sys; sys.path.insert(0, r\'%s\'); import pydevd; pydevd.PydevdCustomization.DEFAULT_PROTOCOL='quoted-line'; "
+        "import sys; sys.path.insert(0, r\'%s\'); import pydevd; pydevd.config('quoted-line', ''); "
         'pydevd.settrace(host=\'127.0.0.1\', port=0, suspend=False, trace_only_current_thread=False, patch_multiprocessing=True, access_token=None, client_access_token=None, __setup_holder__=%s); '
         ''
         'connect("127.0.0.1")') % (pydev_src_dir, sorted_dict_repr(SetupHolder.setup))
@@ -268,7 +268,7 @@ def test_monkey_patch_args_flag_in_single_arg_3():
     SetupHolder.setup = {'client': '127.0.0.1', 'port': '0', 'ppid': os.getpid(), 'protocol-quoted-line': True, 'skip-notify-stdin': True}
     check = ['C:\\bin\\python.exe', '-qc', 'connect("127.0.0.1")']
     debug_command = (
-        "import sys; sys.path.insert(0, r\'%s\'); import pydevd; pydevd.PydevdCustomization.DEFAULT_PROTOCOL='quoted-line'; "
+        "import sys; sys.path.insert(0, r\'%s\'); import pydevd; pydevd.config('quoted-line', ''); "
         'pydevd.settrace(host=\'127.0.0.1\', port=0, suspend=False, trace_only_current_thread=False, patch_multiprocessing=True, access_token=None, client_access_token=None, __setup_holder__=%s); '
         ''
         'connect("127.0.0.1")') % (pydev_src_dir, sorted_dict_repr(SetupHolder.setup))
@@ -287,7 +287,7 @@ def test_monkey_patch_args_x_flag_inline():
     SetupHolder.setup = {'client': '127.0.0.1', 'port': '0', 'ppid': os.getpid(), 'protocol-quoted-line': True, 'skip-notify-stdin': True}
     check = ['C:\\bin\\python.exe', '-Xfaulthandler', '-c', 'connect("127.0.0.1")', 'arg1']
     debug_command = (
-        "import sys; sys.path.insert(0, r\'%s\'); import pydevd; pydevd.PydevdCustomization.DEFAULT_PROTOCOL='quoted-line'; "
+        "import sys; sys.path.insert(0, r\'%s\'); import pydevd; pydevd.config('quoted-line', ''); "
         'pydevd.settrace(host=\'127.0.0.1\', port=0, suspend=False, trace_only_current_thread=False, patch_multiprocessing=True, access_token=None, client_access_token=None, __setup_holder__=%s); '
         ''
         'connect("127.0.0.1")') % (pydev_src_dir, sorted_dict_repr(SetupHolder.setup))
@@ -308,7 +308,7 @@ def test_monkey_patch_args_c_flag_inline():
     SetupHolder.setup = {'client': '127.0.0.1', 'port': '0', 'ppid': os.getpid(), 'protocol-quoted-line': True, 'skip-notify-stdin': True}
     check = ['C:\\bin\\python.exe', '-X', 'faulthandler', '-cconnect("127.0.0.1")', 'arg1']
     debug_command = (
-        "import sys; sys.path.insert(0, r\'%s\'); import pydevd; pydevd.PydevdCustomization.DEFAULT_PROTOCOL='quoted-line'; "
+        "import sys; sys.path.insert(0, r\'%s\'); import pydevd; pydevd.config('quoted-line', ''); "
         'pydevd.settrace(host=\'127.0.0.1\', port=0, suspend=False, trace_only_current_thread=False, patch_multiprocessing=True, access_token=None, client_access_token=None, __setup_holder__=%s); '
         ''
         'connect("127.0.0.1")') % (pydev_src_dir, sorted_dict_repr(SetupHolder.setup))
