@@ -6466,6 +6466,46 @@ def test_ipython_stepping_step_in(case_setup_dap):
         writer.finished_ok = True
 
 
+@pytest.mark.skipif(not _TOP_LEVEL_AWAIT_AVAILABLE, reason="Top-level await required.")
+def test_ipython_stepping_step_in_justmycode(case_setup_dap):
+
+    def get_environ(self):
+        env = os.environ.copy()
+
+        # Test setup
+        env["SCOPED_STEPPING_TARGET"] = '_debugger_case_scoped_stepping_print.py'
+
+        # Actually setup the debugging
+        env["PYDEVD_IPYTHON_COMPATIBLE_DEBUGGING"] = "1"
+        env["PYDEVD_IPYTHON_CONTEXT"] = '_debugger_case_scoped_stepping.py, run_code, run_ast_nodes'
+        return env
+
+    with case_setup_dap.test_file('_debugger_case_scoped_stepping.py', get_environ=get_environ) as writer:
+        json_facade = JsonFacade(writer)
+        json_facade.write_launch(justMyCode=True)
+
+        target_file = debugger_unittest._get_debugger_test_file('_debugger_case_scoped_stepping_print.py')
+        break_line = writer.get_line_index_with_content('break here', filename=target_file)
+        json_facade.write_set_breakpoints(break_line, filename=target_file)
+        json_facade.write_make_initial_run()
+        json_hit = json_facade.wait_for_thread_stopped(line=break_line, file='_debugger_case_scoped_stepping_print.py')
+
+        json_facade.write_step_in(json_hit.thread_id)
+        stop_at = writer.get_line_index_with_content('pause 1', filename=target_file)
+        json_hit = json_facade.wait_for_thread_stopped('step', line=stop_at, file='_debugger_case_scoped_stepping_print.py')
+
+        json_facade.write_step_in(json_hit.thread_id)
+        stop_at = writer.get_line_index_with_content('pause 2', filename=target_file)
+        json_hit = json_facade.wait_for_thread_stopped('step', line=stop_at, file='_debugger_case_scoped_stepping_print.py')
+
+        json_facade.write_step_in(json_hit.thread_id)
+        stop_at = writer.get_line_index_with_content('pause 3', filename=target_file)
+        json_hit = json_facade.wait_for_thread_stopped('step', line=stop_at, file='_debugger_case_scoped_stepping_print.py')
+
+        json_facade.write_continue()
+        writer.finished_ok = True
+
+
 def test_logging_api(case_setup_multiprocessing_dap, tmpdir):
     import threading
     from tests_python.debugger_unittest import AbstractWriterThread

@@ -1180,6 +1180,11 @@ cdef class PyDBFrame:
                             else:
                                 stop = True
                         else:
+                            if force_check_project_scope or main_debugger.is_files_filter_enabled:
+                                # Make sure we check the filtering inside ipython calls too...
+                                if not not main_debugger.apply_files_filter(frame, frame.f_code.co_filename, force_check_project_scope):
+                                    return None if is_call else NO_FTRACE
+
                             # We can only stop inside the ipython call.
                             filename = frame.f_code.co_filename
                             if filename.endswith('.pyc'):
