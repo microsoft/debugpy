@@ -1225,7 +1225,7 @@ def internal_evaluate_expression_json(py_db, request, thread_id):
 
         else:
             variable = frame_tracker.obtain_as_variable(expression, eval_result, frame=frame)
-            var_data = variable.get_var_data(fmt=fmt, **safe_repr_custom_attrs)
+            var_data = variable.get_var_data(fmt=fmt, context=context, **safe_repr_custom_attrs)
 
             body = pydevd_schema.EvaluateResponseBody(
                 result=var_data['value'],

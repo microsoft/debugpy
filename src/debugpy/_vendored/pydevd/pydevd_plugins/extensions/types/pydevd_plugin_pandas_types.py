@@ -99,6 +99,19 @@ class PandasDataFrameTypeResolveProvider(object):
         }
         return _get_dictionary(obj, replacements)
 
+    def get_str_in_context(self, df, context:str):
+        '''
+        :param context:
+            This is the context in which the variable is being requested. Valid values:
+                "watch",
+                "repl",
+                "hover",
+                "clipboard"
+        '''
+        if context in ('repl', 'clipboard'):
+            return repr(df)
+        return self.get_str(df)
+
     def get_str(self, df):
         with customize_pandas_options():
             return repr(df)
@@ -126,6 +139,19 @@ class PandasSeriesTypeResolveProvider(object):
             'style': '<pandas.io.formats.style.Styler -- debugger: skipped eval>',
         }
         return _get_dictionary(obj, replacements)
+
+    def get_str_in_context(self, df, context:str):
+        '''
+        :param context:
+            This is the context in which the variable is being requested. Valid values:
+                "watch",
+                "repl",
+                "hover",
+                "clipboard"
+        '''
+        if context in ('repl', 'clipboard'):
+            return repr(df)
+        return self.get_str(df)
 
     def get_str(self, series):
         with customize_pandas_options():
