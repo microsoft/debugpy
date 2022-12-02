@@ -8,6 +8,7 @@ import pytest
 from _pydevd_bundle.pydevd_daemon_thread import run_as_pydevd_daemon_thread
 from tests_python.debugger_unittest import CMD_THREAD_SUSPEND, CMD_STEP_OVER, CMD_SET_BREAK
 from _pydev_bundle.pydev_override import overrides
+import threading
 
 STATE_RUN = 1
 STATE_SUSPEND = 2
@@ -19,6 +20,7 @@ class _ThreadInfo(object):
 
     def __init__(self):
         self.state = STATE_RUN
+        self.thread = threading.Thread()
         self.thread_id = self.next_thread_id()
 
 
@@ -47,7 +49,7 @@ class _CustomSingleNotificationBehavior(AbstractSingleNotificationBehavior):
         self.notification_queue.put('suspend')
 
     def do_wait_suspend(self, thread_info, stop_reason):
-        with self.notify_thread_suspended(thread_info.thread_id, stop_reason=stop_reason):
+        with self.notify_thread_suspended(thread_info.thread_id, thread_info.thread, stop_reason=stop_reason):
             while thread_info.state == STATE_SUSPEND:
                 time.sleep(.1)
 
@@ -93,7 +95,9 @@ def join_thread(t):
 class _DummyPyDB(object):
 
     def __init__(self):
+        from _pydevd_bundle.pydevd_timeout import TimeoutTracker
         self.created_pydb_daemon_threads = {}
+        self.timeout_tracker = TimeoutTracker(self)
 
 
 def test_single_notification_1(single_notification_behavior, notification_queue):
@@ -230,7 +234,7 @@ def test_single_notification_3(single_notification_behavior, notification_queue,
 
     join_thread(t2)
     assert notification_queue.qsize() == 0
-    assert not single_notification_behavior._suspended_thread_ids
+    assert not single_notification_behavior._suspended_thread_id_to_thread
 
     # Now, no threads are running and pause is pressed
     # (maybe we could do a thread dump in this case as this

@@ -575,6 +575,16 @@ class PyDevJsonCommandProcessor(object):
         target_id = arguments.targetId
         if target_id is not None:
             thread = pydevd_find_thread_by_id(thread_id)
+            if thread is None:
+                response = Response(
+                    request_seq=request.seq,
+                    success=False,
+                    command=request.command,
+                    message='Unable to find thread from thread_id: %s' % (thread_id,),
+                    body={},
+                )
+                return NetCommand(CMD_RETURN, 0, response, is_json=True)
+
             info = set_additional_thread_info(thread)
             target_id_to_smart_step_into_variant = info.target_id_to_smart_step_into_variant
             if not target_id_to_smart_step_into_variant:
@@ -978,7 +988,18 @@ class PyDevJsonCommandProcessor(object):
         exception_into_arguments = request.arguments
         thread_id = exception_into_arguments.threadId
         max_frames = self._options.max_exception_stack_frames
-        self.api.request_exception_info_json(py_db, request, thread_id, max_frames)
+        thread = pydevd_find_thread_by_id(thread_id)
+        if thread is not None:
+            self.api.request_exception_info_json(py_db, request, thread_id, thread, max_frames)
+        else:
+            response = Response(
+                request_seq=request.seq,
+                success=False,
+                command=request.command,
+                message='Unable to find thread from thread_id: %s' % (thread_id,),
+                body={},
+            )
+            return NetCommand(CMD_RETURN, 0, response, is_json=True)
 
     def on_scopes_request(self, py_db, request):
         '''
