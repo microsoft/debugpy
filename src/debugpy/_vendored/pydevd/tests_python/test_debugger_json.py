@@ -6211,6 +6211,11 @@ def test_pandas(case_setup_dap, pyfile):
         assert name_to_var['df'].value.count('\n') <= 63
         assert '...' in name_to_var['df'].value
 
+        evaluate_response = json_facade.evaluate('df', json_hit.frame_id, context='repl')
+        evaluate_response_body = evaluate_response.body.to_dict()
+        assert '...' not in evaluate_response_body['result']
+        assert evaluate_response_body['result'].count('\n') > 4999
+
         # Check the custom repr(Series)
         assert name_to_var['series'].value.count('\n') <= 60
         assert '...' in name_to_var['series'].value

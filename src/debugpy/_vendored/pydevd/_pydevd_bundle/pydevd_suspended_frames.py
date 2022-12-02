@@ -12,6 +12,7 @@ from _pydevd_bundle import pydevd_vars
 from _pydev_bundle.pydev_imports import Exec
 from _pydevd_bundle.pydevd_frame_utils import FramesList
 from _pydevd_bundle.pydevd_utils import ScopeRequest, DAPGrouper, Timer
+from typing import Optional
 
 
 class _AbstractVariable(object):
@@ -35,10 +36,17 @@ class _AbstractVariable(object):
     def get_variable_reference(self):
         return id(self.value)
 
-    def get_var_data(self, fmt=None, **safe_repr_custom_attrs):
+    def get_var_data(self, fmt: Optional[dict]=None, context: Optional[str]=None, **safe_repr_custom_attrs):
         '''
         :param dict fmt:
             Format expected by the DAP (keys: 'hex': bool, 'rawString': bool)
+
+        :param context:
+            This is the context in which the variable is being requested. Valid values:
+                "watch",
+                "repl",
+                "hover",
+                "clipboard"
         '''
         timer = Timer()
         safe_repr = SafeRepr()
@@ -49,7 +57,7 @@ class _AbstractVariable(object):
             setattr(safe_repr, key, val)
 
         type_name, _type_qualifier, _is_exception_on_eval, resolver, value = get_variable_details(
-            self.value, to_string=safe_repr)
+            self.value, to_string=safe_repr, context=context)
 
         is_raw_string = type_name in ('str', 'bytes', 'bytearray')
 

@@ -8,6 +8,7 @@ from _pydev_bundle.pydev_imports import quote
 from _pydevd_bundle.pydevd_extension_api import TypeResolveProvider, StrPresentationProvider
 from _pydevd_bundle.pydevd_utils import isinstance_checked, hasattr_checked, DAPGrouper
 from _pydevd_bundle.pydevd_resolver import get_var_scope, MoreItems, MoreItemsRange
+from typing import Optional
 
 try:
     import types
@@ -205,14 +206,22 @@ class TypeResolveHandler(object):
 
             return self._base_get_type(o, type_object, type_name)
 
-    def str_from_providers(self, o, type_object, type_name):
+    def _get_str_from_provider(self, provider, o, context: Optional[str]=None):
+        if context is not None:
+            get_str_in_context = getattr(provider, 'get_str_in_context', None)
+            if get_str_in_context is not None:
+                return get_str_in_context(o, context)
+
+        return provider.get_str(o)
+
+    def str_from_providers(self, o, type_object, type_name, context: Optional[str]=None):
         provider = self._type_to_str_provider_cache.get(type_object)
 
         if provider is self.NO_PROVIDER:
             return None
 
         if provider is not None:
-            return provider.get_str(o)
+            return self._get_str_from_provider(provider, o, context)
 
         if not self._initialized:
             self._initialize()
@@ -221,7 +230,7 @@ class TypeResolveHandler(object):
             if provider.can_provide(type_object, type_name):
                 self._type_to_str_provider_cache[type_object] = provider
                 try:
-                    return provider.get_str(o)
+                    return self._get_str_from_provider(provider, o, context)
                 except:
                     pydev_log.exception("Error when getting str with custom provider: %s." % (provider,))
 
@@ -297,7 +306,15 @@ def frame_vars_to_xml(frame_f_locals, hidden_ns=None):
     return ''.join(return_values_xml)
 
 
-def get_variable_details(val, evaluate_full_value=True, to_string=None):
+def get_variable_details(val, evaluate_full_value=True, to_string=None, context: Optional[str]=None):
+    '''
+    :param context:
+        This is the context in which the variable is being requested. Valid values:
+            "watch",
+            "repl",
+            "hover",
+            "clipboard"
+    '''
     try:
         # This should be faster than isinstance (but we have to protect against not having a '__class__' attribute).
         is_exception_on_eval = val.__class__ == ExceptionOnEvaluate
@@ -315,7 +332,7 @@ def get_variable_details(val, evaluate_full_value=True, to_string=None):
         value = DEFAULT_VALUE
     else:
         try:
-            str_from_provider = _str_from_providers(v, _type, type_name)
+            str_from_provider = _str_from_providers(v, _type, type_name, context)
             if str_from_provider is not None:
                 value = str_from_provider
 
