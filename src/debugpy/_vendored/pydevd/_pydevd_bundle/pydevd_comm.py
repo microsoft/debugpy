@@ -669,7 +669,7 @@ class InternalGetThreadStack(InternalThreadCommand):
 
 def internal_step_in_thread(py_db, thread_id, cmd_id, set_additional_thread_info):
     thread_to_step = pydevd_find_thread_by_id(thread_id)
-    if thread_to_step:
+    if thread_to_step is not None:
         info = set_additional_thread_info(thread_to_step)
         info.pydev_original_step_cmd = cmd_id
         info.pydev_step_cmd = cmd_id
@@ -682,7 +682,7 @@ def internal_step_in_thread(py_db, thread_id, cmd_id, set_additional_thread_info
 
 def internal_smart_step_into(py_db, thread_id, offset, child_offset, set_additional_thread_info):
     thread_to_step = pydevd_find_thread_by_id(thread_id)
-    if thread_to_step:
+    if thread_to_step is not None:
         info = set_additional_thread_info(thread_to_step)
         info.pydev_original_step_cmd = CMD_SMART_STEP_INTO
         info.pydev_step_cmd = CMD_SMART_STEP_INTO
@@ -714,7 +714,7 @@ class InternalSetNextStatementThread(InternalThreadCommand):
 
     def do_it(self, dbg):
         t = pydevd_find_thread_by_id(self.thread_id)
-        if t:
+        if t is not None:
             info = t.additional_info
             info.pydev_original_step_cmd = self.cmd_id
             info.pydev_step_cmd = self.cmd_id
@@ -1401,11 +1401,10 @@ def internal_get_description(dbg, seq, thread_id, frame_id, expression):
         dbg.writer.add_command(cmd)
 
 
-def build_exception_info_response(dbg, thread_id, request_seq, set_additional_thread_info, iter_visible_frames_info, max_frames):
+def build_exception_info_response(dbg, thread_id, thread, request_seq, set_additional_thread_info, iter_visible_frames_info, max_frames):
     '''
     :return ExceptionInfoResponse
     '''
-    thread = pydevd_find_thread_by_id(thread_id)
     additional_info = set_additional_thread_info(thread)
     topmost_frame = additional_info.get_topmost_frame(thread)
 
@@ -1540,11 +1539,11 @@ def build_exception_info_response(dbg, thread_id, request_seq, set_additional_th
     return response
 
 
-def internal_get_exception_details_json(dbg, request, thread_id, max_frames, set_additional_thread_info=None, iter_visible_frames_info=None):
+def internal_get_exception_details_json(dbg, request, thread_id, thread, max_frames, set_additional_thread_info=None, iter_visible_frames_info=None):
     ''' Fetch exception details
     '''
     try:
-        response = build_exception_info_response(dbg, thread_id, request.seq, set_additional_thread_info, iter_visible_frames_info, max_frames)
+        response = build_exception_info_response(dbg, thread_id, thread, request.seq, set_additional_thread_info, iter_visible_frames_info, max_frames)
     except:
         exc = get_exception_traceback_str()
         response = pydevd_base_schema.build_response(request, kwargs={

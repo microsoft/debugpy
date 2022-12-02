@@ -298,7 +298,7 @@ class AbstractSingleNotificationBehavior(object):
 
     # On do_wait_suspend, use notify_thread_suspended:
     def do_wait_suspend(...):
-        with single_notification_behavior.notify_thread_suspended(thread_id):
+        with single_notification_behavior.notify_thread_suspended(thread_id, thread, reason):
             ...
     '''
 
@@ -308,7 +308,7 @@ class AbstractSingleNotificationBehavior(object):
         '_lock',
         '_next_request_time',
         '_suspend_time_request',
-        '_suspended_thread_ids',
+        '_suspended_thread_id_to_thread',
         '_pause_requested',
         '_py_db',
     ]
@@ -322,10 +322,10 @@ class AbstractSingleNotificationBehavior(object):
         self._last_resume_notification_time = -1
         self._suspend_time_request = self._next_request_time()
         self._lock = thread.allocate_lock()
-        self._suspended_thread_ids = set()
+        self._suspended_thread_id_to_thread = {}
         self._pause_requested = False
 
-    def send_suspend_notification(self, thread_id, stop_reason):
+    def send_suspend_notification(self, thread_id, thread, stop_reason):
         raise AssertionError('abstract: subclasses must override.')
 
     def send_resume_notification(self, thread_id):
@@ -351,21 +351,22 @@ class AbstractSingleNotificationBehavior(object):
 
     def _notify_after_timeout(self, global_suspend_time):
         with self._lock:
-            if self._suspended_thread_ids:
+            if self._suspended_thread_id_to_thread:
                 if global_suspend_time > self._last_suspend_notification_time:
                     self._last_suspend_notification_time = global_suspend_time
                     # Notify about any thread which is currently suspended.
                     pydev_log.info('Sending suspend notification after timeout.')
-                    self.send_suspend_notification(next(iter(self._suspended_thread_ids)), CMD_THREAD_SUSPEND)
+                    thread_id, thread = next(iter(self._suspended_thread_id_to_thread.items()))
+                    self.send_suspend_notification(thread_id, thread, CMD_THREAD_SUSPEND)
 
-    def on_thread_suspend(self, thread_id, stop_reason):
+    def on_thread_suspend(self, thread_id, thread, stop_reason):
         with self._lock:
             pause_requested = self._pause_requested
             if pause_requested:
                 # When a suspend notification is sent, reset the pause flag.
                 self._pause_requested = False
 
-            self._suspended_thread_ids.add(thread_id)
+            self._suspended_thread_id_to_thread[thread_id] = thread
 
             # CMD_THREAD_SUSPEND should always be a side-effect of a break, so, only
             # issue for a CMD_THREAD_SUSPEND if a pause is pending.
@@ -373,7 +374,7 @@ class AbstractSingleNotificationBehavior(object):
                 if self._suspend_time_request > self._last_suspend_notification_time:
                     pydev_log.info('Sending suspend notification.')
                     self._last_suspend_notification_time = self._suspend_time_request
-                    self.send_suspend_notification(thread_id, stop_reason)
+                    self.send_suspend_notification(thread_id, thread, stop_reason)
                 else:
                     pydev_log.info(
                         'Suspend not sent (it was already sent). Last suspend % <= Last resume %s',
@@ -385,10 +386,10 @@ class AbstractSingleNotificationBehavior(object):
                     'Suspend not sent because stop reason is thread suspend and pause was not requested.',
                 )
 
-    def on_thread_resume(self, thread_id):
+    def on_thread_resume(self, thread_id, thread):
         # on resume (step, continue all):
         with self._lock:
-            self._suspended_thread_ids.remove(thread_id)
+            self._suspended_thread_id_to_thread.pop(thread_id)
             if self._last_resume_notification_time < self._last_suspend_notification_time:
                 pydev_log.info('Sending resume notification.')
                 self._last_resume_notification_time = self._last_suspend_notification_time
@@ -401,12 +402,12 @@ class AbstractSingleNotificationBehavior(object):
                 )
 
     @contextmanager
-    def notify_thread_suspended(self, thread_id, stop_reason):
-        self.on_thread_suspend(thread_id, stop_reason)
+    def notify_thread_suspended(self, thread_id, thread, stop_reason):
+        self.on_thread_suspend(thread_id, thread, stop_reason)
         try:
             yield  # At this point the thread must be actually suspended.
         finally:
-            self.on_thread_resume(thread_id)
+            self.on_thread_resume(thread_id, thread)
 
 
 class ThreadsSuspendedSingleNotification(AbstractSingleNotificationBehavior):
@@ -439,16 +440,18 @@ class ThreadsSuspendedSingleNotification(AbstractSingleNotificationBehavior):
                 callback()
 
     @overrides(AbstractSingleNotificationBehavior.send_suspend_notification)
-    def send_suspend_notification(self, thread_id, stop_reason):
+    def send_suspend_notification(self, thread_id, thread, stop_reason):
         py_db = self._py_db()
         if py_db is not None:
-            py_db.writer.add_command(py_db.cmd_factory.make_thread_suspend_single_notification(py_db, thread_id, stop_reason))
+            py_db.writer.add_command(
+                py_db.cmd_factory.make_thread_suspend_single_notification(
+                    py_db, thread_id, thread, stop_reason))
 
     @overrides(AbstractSingleNotificationBehavior.notify_thread_suspended)
     @contextmanager
-    def notify_thread_suspended(self, thread_id, stop_reason):
+    def notify_thread_suspended(self, thread_id, thread, stop_reason):
         if self.multi_threads_single_notification:
-            with AbstractSingleNotificationBehavior.notify_thread_suspended(self, thread_id, stop_reason):
+            with AbstractSingleNotificationBehavior.notify_thread_suspended(self, thread_id, thread, stop_reason):
                 yield
         else:
             yield
@@ -2063,7 +2066,7 @@ class PyDB(object):
 
                     from_this_thread.append(frame_custom_thread_id)
 
-            with self._threads_suspended_single_notification.notify_thread_suspended(thread_id, stop_reason):
+            with self._threads_suspended_single_notification.notify_thread_suspended(thread_id, thread, stop_reason):
                 keep_suspended = self._do_wait_suspend(thread, frame, event, arg, suspend_type, from_this_thread, frames_tracker)
 
         frames_list = None

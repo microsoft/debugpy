@@ -28,7 +28,6 @@ from _pydevd_bundle.pydevd_comm import build_exception_info_response
 from _pydevd_bundle.pydevd_additional_thread_info import set_additional_thread_info
 from _pydevd_bundle import pydevd_frame_utils, pydevd_constants, pydevd_utils
 import linecache
-from _pydevd_bundle.pydevd_thread_lifecycle import pydevd_find_thread_by_id
 from io import StringIO
 from _pydev_bundle import pydev_log
 
@@ -346,10 +345,9 @@ class NetCommandFactoryJson(NetCommandFactory):
     ])
 
     @overrides(NetCommandFactory.make_thread_suspend_single_notification)
-    def make_thread_suspend_single_notification(self, py_db, thread_id, stop_reason):
+    def make_thread_suspend_single_notification(self, py_db, thread_id, thread, stop_reason):
         exc_desc = None
         exc_name = None
-        thread = pydevd_find_thread_by_id(thread_id)
         info = set_additional_thread_info(thread)
 
         preserve_focus_hint = False
@@ -375,7 +373,7 @@ class NetCommandFactoryJson(NetCommandFactory):
 
         if stop_reason == 'exception':
             exception_info_response = build_exception_info_response(
-                py_db, thread_id, -1, set_additional_thread_info, self._iter_visible_frames_info, max_frames=-1)
+                py_db, thread_id, thread, -1, set_additional_thread_info, self._iter_visible_frames_info, max_frames=-1)
             exception_info_response
 
             exc_name = exception_info_response.body.exceptionId
