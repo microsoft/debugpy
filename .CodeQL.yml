@@ -1,0 +1,3 @@
+path_classifiers:
+  library:
+    - "src/debugpy/vendored/_pydevd"
