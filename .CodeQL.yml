@@ -1,3 +1,9 @@
 path_classifiers:
   library:
     - "src/debugpy/vendored/_pydevd"
+extraction:
+  python:
+    index:
+      exclude:
+        - "src/debugpy/vendored/_pydevd"
+        
