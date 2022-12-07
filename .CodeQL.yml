@@ -1,4 +1,4 @@
 path_classifiers:
   library:
-    - "src/debugpy/vendored/_pydevd/**"
+    - "src/debugpy/_vendored/pydevd"
         
