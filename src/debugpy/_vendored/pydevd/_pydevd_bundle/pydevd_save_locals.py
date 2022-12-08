@@ -70,6 +70,8 @@ def make_save_locals_impl():
 
 save_locals_impl = make_save_locals_impl()
 
+_SENTINEL = []  # Any mutable will do.
+
 
 def update_globals_and_locals(updated_globals, initial_globals, frame):
     # We don't have the locals and passed all in globals, so, we have to
@@ -83,14 +85,29 @@ def update_globals_and_locals(updated_globals, initial_globals, frame):
     # one that enabled creating and using variables during the same evaluation.
     assert updated_globals is not None
     f_locals = None
+
+    removed = set(initial_globals).difference(updated_globals)
+
     for key, val in updated_globals.items():
-        if initial_globals.get(key) is not val:
+        if val is not initial_globals.get(key, _SENTINEL):
             if f_locals is None:
                 # Note: we call f_locals only once because each time
                 # we call it the values may be reset.
                 f_locals = frame.f_locals
 
             f_locals[key] = val
+
+    if removed:
+        if f_locals is None:
+            # Note: we call f_locals only once because each time
+            # we call it the values may be reset.
+            f_locals = frame.f_locals
+
+        for key in removed:
+            try:
+                del f_locals[key]
+            except KeyError:
+                pass
 
     if f_locals is not None:
         save_locals(frame)

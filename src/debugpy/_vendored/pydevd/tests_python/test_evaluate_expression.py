@@ -122,6 +122,47 @@ def test_evaluate_expression_4(disable_critical_log):
     assert 'email' not in sys._getframe().f_globals
 
 
+def test_evaluate_expression_access_globals(disable_critical_log):
+    from _pydevd_bundle.pydevd_vars import evaluate_expression
+
+    def check(frame):
+        eval_txt = '''globals()['global_variable'] = 22'''
+        evaluate_expression(None, frame, eval_txt, is_exec=True)
+        assert 'global_variable' not in frame.f_locals
+        assert 'global_variable' in frame.f_globals
+
+    check(next(iter(obtain_frame())))
+    assert 'global_variable' in sys._getframe().f_globals
+    assert 'global_variable' not in sys._getframe().f_locals
+
+
+def test_evaluate_expression_create_none(disable_critical_log):
+    from _pydevd_bundle.pydevd_vars import evaluate_expression
+
+    def check(frame):
+        eval_txt = 'x = None'
+        evaluate_expression(None, frame, eval_txt, is_exec=True)
+        assert 'x' in frame.f_locals
+        assert 'x' not in frame.f_globals
+
+    check(next(iter(obtain_frame())))
+
+
+def test_evaluate_expression_delete_var(disable_critical_log):
+    from _pydevd_bundle.pydevd_vars import evaluate_expression
+
+    def check(frame):
+        eval_txt = 'x = 22'
+        evaluate_expression(None, frame, eval_txt, is_exec=True)
+        assert 'x' in frame.f_locals
+
+        eval_txt = 'del x'
+        evaluate_expression(None, frame, eval_txt, is_exec=True)
+        assert 'x' not in frame.f_locals
+
+    check(next(iter(obtain_frame())))
+
+
 def test_evaluate_expression_5(disable_critical_log):
     from _pydevd_bundle.pydevd_vars import evaluate_expression
 

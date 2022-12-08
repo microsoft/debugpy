@@ -523,6 +523,10 @@ def evaluate_expression(py_db, frame, expression, is_exec):
     updated_globals = {}
     updated_globals.update(frame.f_globals)
     updated_globals.update(frame.f_locals)
+    if 'globals' not in updated_globals:
+        # If the user explicitly uses 'globals()' then we provide the
+        # frame globals (unless he has shadowed it already).
+        updated_globals['globals'] = lambda: frame.f_globals
 
     initial_globals = updated_globals.copy()
 
