@@ -183,6 +183,18 @@ def _resolve_listing_parts(resolved, parts_in_lowercase, filename):
                 pydev_log.exception()
             # Don't fail, just return the original file passed.
             return filename
+    except OSError:
+        # Something as: PermissionError (listdir may fail).
+        # See: https://github.com/microsoft/debugpy/issues/1154
+        # Don't fail nor log unless the trace level is at least info. Just return the original file passed.
+        if DebugInfoHolder.DEBUG_TRACE_LEVEL >= 1:
+            pydev_log.info(
+                'pydev debugger: OSError: Unable to get real case for file. Details:\n'
+                'filename: %s\ndrive: %s\nparts: %s\n',
+                filename, resolved, parts_in_lowercase
+            )
+            pydev_log.exception()
+        return filename
 
 
 if sys.platform == 'win32':
