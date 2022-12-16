@@ -205,18 +205,6 @@ def test_log_point(pyfile, target, run, condition):
                 },
             )
 
-        if condition:
-            session.wait_for_stop(
-                "breakpoint", expected_frames=[some.dap.frame(code_to_debug, line="bp")]
-            )
-
-            var_i = session.get_variable("i")
-            assert var_i == some.dict.containing(
-                {"name": "i", "evaluateName": "i", "type": "int", "value": "5"}
-            )
-
-            session.request_continue()
-
         session.wait_for_stop(
             "breakpoint",
             expected_frames=[some.dap.frame(code_to_debug, line="wait_for_output")],
@@ -228,9 +216,12 @@ def test_log_point(pyfile, target, run, condition):
     if "internalConsole" not in str(run):
         assert not session.captured_stdout()
 
-    expected_stdout = "".join(
-        (r"{0}\r?\n".format(re.escape(str(i))) for i in range(0, 10))
-    )
+    if condition:
+        expected_stdout = "5\r?\n"
+    else:
+        expected_stdout = "".join(
+            (r"{0}\r?\n".format(re.escape(str(i))) for i in range(0, 10))
+        )
     expected_stderr = "".join(
         (r"{0}\r?\n".format(re.escape(str(i * 10))) for i in range(0, 10))
     )

@@ -521,38 +521,53 @@ class JsonFacade(object):
         return response
 
 
-def test_case_json_logpoints(case_setup_dap):
+@pytest.mark.parametrize('scenario', ['basic', 'condition', 'hitCondition'])
+def test_case_json_logpoints(case_setup_dap, scenario):
     with case_setup_dap.test_file('_debugger_case_change_breaks.py') as writer:
         json_facade = JsonFacade(writer)
 
         json_facade.write_launch()
         break_2 = writer.get_line_index_with_content('break 2')
         break_3 = writer.get_line_index_with_content('break 3')
-        json_facade.write_set_breakpoints(
-            [break_2, break_3],
-            line_to_info={
-                break_2: {'log_message': 'var {repr("_a")} is {_a}'}
-        })
+        if scenario == 'basic':
+            json_facade.write_set_breakpoints(
+                [break_2, break_3],
+                line_to_info={
+                    break_2: {'log_message': 'var {repr("_a")} is {_a}'}
+            })
+        elif scenario == 'condition':
+            json_facade.write_set_breakpoints(
+                [break_2, break_3],
+                line_to_info={
+                    break_2: {'log_message': 'var {repr("_a")} is {_a}', 'condition': 'True'}
+            })
+        elif scenario == 'hitCondition':
+            json_facade.write_set_breakpoints(
+                [break_2, break_3],
+                line_to_info={
+                    break_2: {'log_message': 'var {repr("_a")} is {_a}', 'hit_condition': '1'}
+            })
         json_facade.write_make_initial_run()
 
         # Should only print, not stop on logpoints.
-        messages = []
-        while True:
-            output_event = json_facade.wait_for_json_message(OutputEvent)
+
+        # Just one hit at the end (break 3).
+        json_facade.wait_for_thread_stopped(line=break_3)
+        json_facade.write_continue()
+
+        def accept_message(output_event):
             msg = output_event.body.output
             ctx = output_event.body.category
 
             if ctx == 'stdout':
                 msg = msg.strip()
-                if msg == "var '_a' is 2":
-                    messages.append(msg)
+                return msg == "var '_a' is 2"
 
-                if len(messages) == 2:
-                    break
-
-        # Just one hit at the end (break 3).
-        json_facade.wait_for_thread_stopped(line=break_3)
-        json_facade.write_continue()
+        messages = json_facade.mark_messages(OutputEvent, accept_message)
+        if scenario == 'hitCondition':
+            assert len(messages) == 1
+        else:
+            assert len(messages) == 2
 
         writer.finished_ok = True
 
