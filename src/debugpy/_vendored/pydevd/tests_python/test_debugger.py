@@ -4342,13 +4342,13 @@ def test_frame_eval_mode_corner_case_03(case_setup):
             hit = writer.wait_for_breakpoint_hit(line=line + 1, reason=REASON_STEP_OVER)
 
             writer.write_step_over(hit.thread_id)  # i.e.: check that the jump target is still ok.
-            hit = writer.wait_for_breakpoint_hit(line=line, reason=REASON_STEP_OVER)
+            hit = writer.wait_for_breakpoint_hit(line=line, reason=REASON_STOP_ON_BREAKPOINT)
 
             writer.write_step_over(hit.thread_id)
             hit = writer.wait_for_breakpoint_hit(line=line + 1, reason=REASON_STEP_OVER)
 
             writer.write_step_over(hit.thread_id)
-            hit = writer.wait_for_breakpoint_hit(line=line, reason=REASON_STEP_OVER)
+            hit = writer.wait_for_breakpoint_hit(line=line, reason=REASON_STOP_ON_BREAKPOINT)
 
             writer.write_run_thread(hit.thread_id)
 

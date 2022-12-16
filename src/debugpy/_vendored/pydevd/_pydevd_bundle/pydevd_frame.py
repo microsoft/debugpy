@@ -557,6 +557,7 @@ class PyDBFrame:
     #     cdef bint has_exception_breakpoints;
     #     cdef bint can_skip;
     #     cdef bint stop;
+    #     cdef bint stop_on_plugin_breakpoint;
     #     cdef PyDBAdditionalThreadInfo info;
     #     cdef int step_cmd;
     #     cdef int line;
@@ -567,7 +568,6 @@ class PyDBFrame:
     #     cdef dict breakpoints_for_file;
     #     cdef dict stop_info;
     #     cdef str curr_func_name;
-    #     cdef bint exist_result;
     #     cdef dict frame_skips_cache;
     #     cdef object frame_cache_key;
     #     cdef tuple line_cache_key;
@@ -889,13 +889,12 @@ class PyDBFrame:
             # if DEBUG: print('NOT skipped: %s %s %s %s' % (frame.f_lineno, frame.f_code.co_name, event, frame.__class__.__name__))
 
             try:
-                flag = False
+                stop_on_plugin_breakpoint = False
                 # return is not taken into account for breakpoint hit because we'd have a double-hit in this case
                 # (one for the line and the other for the return).
 
                 stop_info = {}
                 breakpoint = None
-                exist_result = False
                 stop = False
                 stop_reason = CMD_SET_BREAK
                 bp_type = None
@@ -910,33 +909,25 @@ class PyDBFrame:
                     breakpoint = breakpoints_for_file[line]
                     new_frame = frame
                     stop = True
-                    if step_cmd in (CMD_STEP_OVER, CMD_STEP_OVER_MY_CODE) and (self._is_same_frame(stop_frame, frame) and is_line):
-                        stop = False  # we don't stop on breakpoint if we have to stop by step-over (it will be processed later)
+
                 elif plugin_manager is not None and main_debugger.has_plugin_line_breaks:
                     result = plugin_manager.get_breakpoint(main_debugger, self, frame, event, self._args)
                     if result:
-                        exist_result = True
-                        flag, breakpoint, new_frame, bp_type = result
+                        stop_on_plugin_breakpoint, breakpoint, new_frame, bp_type = result
 
                 if breakpoint:
                     # ok, hit breakpoint, now, we have to discover if it is a conditional breakpoint
                     # lets do the conditional stuff here
                     if breakpoint.expression is not None:
                         main_debugger.handle_breakpoint_expression(breakpoint, info, new_frame)
-                        if breakpoint.is_logpoint and info.pydev_message is not None and len(info.pydev_message) > 0:
-                            cmd = main_debugger.cmd_factory.make_io_message(info.pydev_message + os.linesep, '1')
-                            main_debugger.writer.add_command(cmd)
 
-                    if stop or exist_result:
+                    if stop or stop_on_plugin_breakpoint:
                         eval_result = False
                         if breakpoint.has_condition:
                             eval_result = main_debugger.handle_breakpoint_condition(info, breakpoint, new_frame)
-
-                        if breakpoint.has_condition:
                             if not eval_result:
                                 stop = False
-                        elif breakpoint.is_logpoint:
-                            stop = False
+                                stop_on_plugin_breakpoint = False
 
                     if is_call and (frame.f_code.co_name in ('<lambda>', '<module>') or (line == 1 and frame.f_code.co_name.startswith('<cell'))):
                         # If we find a call for a module, it means that the module is being imported/executed for the
@@ -951,6 +942,15 @@ class PyDBFrame:
                         # module, so it's the same case as <module>.
 
                         return self.trace_dispatch
+
+                    # Handle logpoint (on a logpoint we should never stop).
+                    if (stop or stop_on_plugin_breakpoint) and breakpoint.is_logpoint:
+                        stop = False
+                        stop_on_plugin_breakpoint = False
+
+                        if info.pydev_message is not None and len(info.pydev_message) > 0:
+                            cmd = main_debugger.cmd_factory.make_io_message(info.pydev_message + os.linesep, '1')
+                            main_debugger.writer.add_command(cmd)
 
                 if main_debugger.show_return_values:
                     if is_return and (
@@ -978,7 +978,7 @@ class PyDBFrame:
                         suspend_other_threads=breakpoint and breakpoint.suspend_policy == "ALL",
                     )
 
-                elif flag and plugin_manager is not None:
+                elif stop_on_plugin_breakpoint and plugin_manager is not None:
                     result = plugin_manager.suspend(main_debugger, thread, frame, bp_type)
                     if result:
                         frame = result
