@@ -103,42 +103,39 @@ def build():
         # set DISTUTILS_USE_SDK=1
         # set VS100COMNTOOLS=C:\Program Files (x86)\Microsoft Visual Studio 9.0\Common7\Tools
 
-        env = os.environ.copy()
-        if sys.version_info[:2] in ((2, 6), (2, 7), (3, 5), (3, 6), (3, 7), (3, 8), (3, 9), (3, 10), (3, 11)):
-            import setuptools  # We have to import it first for the compiler to be found
-            from distutils import msvc9compiler
+        if 'GITHUB_ACTION' not in os.environ:
+            env = os.environ.copy()
+            if sys.version_info[:2] in ((3, 6), (3, 7), (3, 8), (3, 9), (3, 10), (3, 11)):
+                FORCE_PYDEVD_VC_VARS = os.environ.get('FORCE_PYDEVD_VC_VARS')
+                if FORCE_PYDEVD_VC_VARS:
+                    env.update(get_environment_from_batch_command([FORCE_PYDEVD_VC_VARS], initial=os.environ.copy()))
+                else:
+                    import setuptools  # We have to import it first for the compiler to be found
+                    from distutils import msvc9compiler
 
-            if sys.version_info[:2] in ((2, 6), (2, 7)):
-                vcvarsall = msvc9compiler.find_vcvarsall(9.0)
-            elif sys.version_info[:2] in ((3, 5), (3, 6), (3, 7), (3, 8), (3, 9), (3, 10), (3, 11)):
-                vcvarsall = msvc9compiler.find_vcvarsall(14.0)
-            if vcvarsall is None or not os.path.exists(vcvarsall):
-                raise RuntimeError('Error finding vcvarsall.')
+                    vcvarsall = msvc9compiler.find_vcvarsall(14.0)
+                    if vcvarsall is None or not os.path.exists(vcvarsall):
+                        msvc_version = msvc9compiler.get_build_version()
+                        print('msvc_version', msvc_version)
+                        vcvarsall = msvc9compiler.find_vcvarsall(msvc_version)
 
-            if is_python_64bit():
-                env.update(get_environment_from_batch_command(
-                    [vcvarsall, 'amd64'],
-                    initial=os.environ.copy()))
+                    if vcvarsall is None or not os.path.exists(vcvarsall):
+                        raise RuntimeError('Error finding vcvarsall.')
+
+                    if is_python_64bit():
+                        env.update(get_environment_from_batch_command(
+                            [vcvarsall, 'amd64'],
+                            initial=os.environ.copy()))
+                    else:
+                        env.update(get_environment_from_batch_command(
+                            [vcvarsall, 'x86'],
+                            initial=os.environ.copy()))
+
             else:
-                env.update(get_environment_from_batch_command(
-                    [vcvarsall, 'x86'],
-                    initial=os.environ.copy()))
+                raise AssertionError('Unable to setup environment for Python: %s' % (sys.version,))
 
-        elif sys.version_info[:2] in ((3, 3), (3, 4)):
-            if is_python_64bit():
-                env.update(get_environment_from_batch_command(
-                    [r"C:\Program Files\Microsoft SDKs\Windows\v7.1\Bin\SetEnv.cmd", '/x64'],
-                    initial=os.environ.copy()))
-            else:
-                env.update(get_environment_from_batch_command(
-                    [r"C:\Program Files\Microsoft SDKs\Windows\v7.1\Bin\SetEnv.cmd", '/x86'],
-                    initial=os.environ.copy()))
-
-        else:
-            raise AssertionError('Unable to setup environment for Python: %s' % (sys.version,))
-
-        env['MSSdk'] = '1'
-        env['DISTUTILS_USE_SDK'] = '1'
+            env['MSSdk'] = '1'
+            env['DISTUTILS_USE_SDK'] = '1'
 
     additional_args = []
     for arg in sys.argv:

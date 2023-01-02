@@ -23,18 +23,3 @@ For `Python 2` please keep using `pydevd 2.8.0`.
 Recent versions contain speedup modules using Cython, which are generated with a few changes in the regular files
 to `cythonize` the files. To update and compile the cython sources (and generate some other auto-generated files),
 `build_tools/build.py` should be run -- note that the resulting .pyx and .c files should be commited.
-
-To generate a distribution with the precompiled binaries for the IDE, `build_binaries_windows.py` should be run (
-note that the environments must be pre-created as specified in that file).
-
-To generate a distribution to upload to PyPi, `python setup.py sdist bdist_wheel` should be run for each python version
-which should have a wheel and afterwards `twine upload -s dist/pydevd-*` should be run to actually upload the contents
-to PyPi.
-
-GitHub Actions (CI):
-
-.. |github_actions| https://github.com/fabioz/PyDev.Debugger/workflows/PyDev.Debugger Tests/badge.svg
-  :target: https://github.com/fabioz/PyDev.Debugger/workflows/PyDev.Debugger Tests/badge.svg
-
-|github_actions|
-
