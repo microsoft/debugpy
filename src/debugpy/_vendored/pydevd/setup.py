@@ -53,13 +53,18 @@ for root, dirs, files in os.walk("pydevd_attach_to_process"):
 import pydevd
 version = pydevd.__version__
 
+with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'README.md'), 'r', encoding='utf-8') as stream:
+    long_description = stream.read()
+
 args = dict(
     name='pydevd',
     version=version,
     description='PyDev.Debugger (used in PyDev, PyCharm and VSCode Python)',
+    long_description_content_type='text/markdown',
+    long_description=long_description,
     author='Fabio Zadrozny and others',
     url='https://github.com/fabioz/PyDev.Debugger/',
-    license='EPL (Eclipse Public License)',
+    license='EPL, Apache 2.0',
     packages=[
         '_pydev_bundle',
         '_pydev_bundle.fsnotify',
@@ -101,6 +106,7 @@ args = dict(
         'Intended Audience :: Developers',
 
         'License :: OSI Approved :: Eclipse Public License 1.0 (EPL-1.0)',
+        'License :: OSI Approved :: Apache Software License',
 
         'Operating System :: MacOS :: MacOS X',
         'Operating System :: Microsoft :: Windows',
