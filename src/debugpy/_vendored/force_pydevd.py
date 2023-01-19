@@ -22,6 +22,10 @@ if "DEBUGPY_LOG_DIR" in os.environ:
     os.environ[str("PYDEVD_DEBUG")] = str("True")
     os.environ[str("PYDEVD_DEBUG_FILE")] = os.environ["DEBUGPY_LOG_DIR"] + str("/debugpy.pydevd.log")
 
+# Disable pydevd frame-eval optimizations only if unset, to allow opt-in.
+if "PYDEVD_USE_FRAME_EVAL" not in os.environ:
+    os.environ[str("PYDEVD_USE_FRAME_EVAL")] = str("NO")
+
 # Constants must be set before importing any other pydevd module
 # # due to heavy use of "from" in them.
 with vendored('pydevd'):
