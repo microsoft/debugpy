@@ -30,6 +30,7 @@ class Client(components.Component):
             "supportsRunInTerminalRequest": False,
             "supportsMemoryReferences": False,
             "supportsArgsCanBeInterpretedByShell": False,
+            "supportsStartDebuggingRequest": False,
         }
 
     class Expectations(components.Capabilities):
@@ -688,11 +689,10 @@ class Client(components.Component):
             self.known_subprocesses.add(conn)
             self.session.notify_changed()
 
-        for key in "processId", "listen", "preLaunchTask", "postDebugTask":
+        for key in "processId", "listen", "preLaunchTask", "postDebugTask", "request":
             body.pop(key, None)
 
         body["name"] = "Subprocess {0}".format(conn.pid)
-        body["request"] = "attach"
         body["subProcessId"] = conn.pid
 
         for key in "args", "processName", "pythonArgs":
@@ -709,7 +709,14 @@ class Client(components.Component):
                 _, port = listener.getsockname()
             body["connect"]["port"] = port
 
-        self.channel.send_event("debugpyAttach", body)
+        if self.capabilities["supportsStartDebuggingRequest"]:
+            self.channel.request("startDebugging", {
+                "request": "attach",
+                "configuration": body,
+            })
+        else:
+            body["request"] = "attach"
+            self.channel.send_event("debugpyAttach", body)
 
 
 def serve(host, port):
