@@ -84,6 +84,18 @@ class Session(object):
 
         self.client_id = "vscode"
 
+        self.capabilities = {
+            "pathFormat": "path",
+            "clientID": self.client_id,
+            "adapterID": "test",
+            "linesStartAt1": True,
+            "columnsStartAt1": True,
+            "supportsVariableType": True,
+            "supportsRunInTerminalRequest": True,
+            "supportsArgsCanBeInterpretedByShell": True,
+            "supportsStartDebuggingRequest": False,
+        }
+
         self.debuggee = None
         """psutil.Popen instance for the debuggee process."""
 
@@ -502,6 +514,10 @@ class Session(object):
             except Exception as exc:
                 log.swallow_exception('"runInTerminal" failed:')
                 raise request.cant_handle(str(exc))
+        elif request.command == "startDebugging":
+            pid = request("configuration", dict)("subProcessId", int)
+            watchdog.register_spawn(pid, f"{self.debuggee_id}-subprocess-{pid}")
+            return {}
         else:
             raise request.isnt_valid("not supported")
 
@@ -551,19 +567,7 @@ class Session(object):
             )
         )
 
-        self.request(
-            "initialize",
-            {
-                "pathFormat": "path",
-                "clientID": self.client_id,
-                "adapterID": "test",
-                "linesStartAt1": True,
-                "columnsStartAt1": True,
-                "supportsVariableType": True,
-                "supportsRunInTerminalRequest": True,
-                "supportsArgsCanBeInterpretedByShell": True,
-            },
-        )
+        self.request("initialize", self.capabilities)
 
     def all_events(self, event, body=some.object):
         return [
@@ -783,7 +787,15 @@ class Session(object):
         return StopInfo(stopped, frames, tid, fid)
 
     def wait_for_next_subprocess(self):
-        return Session(self.wait_for_next_event("debugpyAttach"))
+        message = self.timeline.wait_for_next(timeline.Event("debugpyAttach") | timeline.Request("startDebugging"))
+        if isinstance(message, timeline.EventOccurrence):
+            config = message.body
+            assert "request" in config
+        elif isinstance(message, timeline.RequestOccurrence):
+            config = dict(message.body("configuration", dict))
+            assert "request" not in config
+            config["request"] = "attach"
+        return Session(config)
 
     def wait_for_disconnect(self):
         self.timeline.wait_until_realized(timeline.Mark("disconnect"), freeze=True)

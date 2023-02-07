@@ -9,7 +9,7 @@ import sys
 
 import debugpy
 import tests
-from tests import debug, log
+from tests import debug, log, timeline
 from tests.debug import runners
 from tests.patterns import some
 
@@ -151,7 +151,8 @@ def test_multiprocessing(pyfile, target, run, start_method):
 
 
 @pytest.mark.parametrize("subProcess", [True, False, None])
-def test_subprocess(pyfile, target, run, subProcess):
+@pytest.mark.parametrize("method", ["startDebugging", "debugpyAttach", ""])
+def test_subprocess(pyfile, target, run, subProcess, method):
     @pyfile
     def child():
         import os
@@ -188,6 +189,8 @@ def test_subprocess(pyfile, target, run, subProcess):
     with debug.Session() as parent_session:
         backchannel = parent_session.open_backchannel()
 
+        if method:
+            parent_session.capabilities["supportsStartDebuggingRequest"] = (method == "startDebugging")
         parent_session.config["preLaunchTask"] = "doSomething"
         parent_session.config["postDebugTask"] = "doSomethingElse"
         if subProcess is not None:
@@ -200,9 +203,19 @@ def test_subprocess(pyfile, target, run, subProcess):
             return
 
         expected_child_config = expected_subprocess_config(parent_session)
-        child_config = parent_session.wait_for_next_event("debugpyAttach")
+        
+        if method == "startDebugging":
+            subprocess_request = parent_session.timeline.wait_for_next(timeline.Request("startDebugging"))
+            child_config = subprocess_request.arguments("configuration", dict)
+            del expected_child_config["request"]
+        else:
+            child_config = parent_session.wait_for_next_event("debugpyAttach")
+
+        child_config = dict(child_config)
         child_config.pop("isOutputRedirected", None)
         assert child_config == expected_child_config
+        child_config["request"] = "attach"
+
         parent_session.proceed()
 
         with debug.Session(child_config) as child_session:
