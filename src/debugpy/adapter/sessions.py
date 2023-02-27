@@ -226,8 +226,11 @@ class Session(util.Observable):
             if self.client.is_connected:
                 # Tell the client that debugging is over, but don't close the channel until it
                 # tells us to, via the "disconnect" request.
+                body = {}
+                if self.client.restart_requested:
+                    body["restart"] = True
                 try:
-                    self.client.channel.send_event("terminated")
+                    self.client.channel.send_event("terminated", body)
                 except Exception:
                     pass
 
