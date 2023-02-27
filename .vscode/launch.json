@@ -52,6 +52,7 @@
                 "host": "127.0.0.1"
             },
             "logToFile": true,
+            //"restart": true,
             "debugAdapterPath": "${workspaceFolder}/src/debugpy/adapter"
         },
         {

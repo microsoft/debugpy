@@ -44,6 +44,7 @@ class Client(components.Component):
     def __init__(self, sock):
         if sock == "stdio":
             log.info("Connecting to client over stdio...", self)
+            self.using_stdio = True
             stream = messaging.JsonIOStream.from_stdio()
             # Make sure that nothing else tries to interfere with the stdio streams
             # that are going to be used for DAP communication from now on.
@@ -52,6 +53,7 @@ class Client(components.Component):
             sys.stdout = stdout = open(os.devnull, "w")
             atexit.register(stdout.close)
         else:
+            self.using_stdio = False
             stream = messaging.JsonIOStream.from_socket(sock)
 
         with sessions.Session() as session:
@@ -67,6 +69,11 @@ class Client(components.Component):
 
             self.start_request = None
             """The "launch" or "attach" request as received from the client.
+            """
+
+            self.restart_requested = False
+            """Whether the client requested the debug adapter to be automatically
+            restarted via "restart":true in the start request.
             """
 
             self._initialize_request = None
@@ -471,6 +478,7 @@ class Client(components.Component):
             host = listen("host", "127.0.0.1")
             port = listen("port", int)
             adapter.access_token = None
+            self.restart_requested = request("restart", False)
             host, port = servers.serve(host, port)
         else:
             if not servers.is_serving():
@@ -651,6 +659,10 @@ class Client(components.Component):
 
     @message_handler
     def terminate_request(self, request):
+        # If user specifically requests to terminate, it means that they don't want
+        # debug session auto-restart kicking in.
+        self.restart_requested = False
+
         if self._forward_terminate_request:
             # According to the spec, terminate should try to do a gracefull shutdown.
             # We do this in the server by interrupting the main thread with a Ctrl+C.
@@ -665,11 +677,29 @@ class Client(components.Component):
 
     @message_handler
     def disconnect_request(self, request):
+        # If user specifically requests to disconnect, it means that they don't want
+        # debug session auto-restart kicking in.
+        self.restart_requested = False
+
         terminate_debuggee = request("terminateDebuggee", bool, optional=True)
         if terminate_debuggee == ():
             terminate_debuggee = None
         self.session.finalize('client requested "disconnect"', terminate_debuggee)
-        return {}
+        request.respond({})
+
+        if self.using_stdio:
+            # There's no way for the client to reconnect to this adapter once it disconnects
+            # from this session, so close any remaining server connections.
+            servers.stop_serving()
+            log.info("{0} disconnected from stdio; closing remaining server connections.", self)
+            for conn in servers.connections():
+                try:
+                    conn.channel.close()
+                except Exception:
+                    log.swallow_exception()
+
+    def disconnect(self):
+        super().disconnect()
 
     def notify_of_subprocess(self, conn):
         log.info("{1} is a subprocess of {0}.", self, conn)
@@ -689,7 +719,7 @@ class Client(components.Component):
             self.known_subprocesses.add(conn)
             self.session.notify_changed()
 
-        for key in "processId", "listen", "preLaunchTask", "postDebugTask", "request":
+        for key in "processId", "listen", "preLaunchTask", "postDebugTask", "request", "restart":
             body.pop(key, None)
 
         body["name"] = "Subprocess {0}".format(conn.pid)

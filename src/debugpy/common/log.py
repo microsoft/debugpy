@@ -321,6 +321,7 @@ def describe_environment(header):
             prefix = " " * len(prefix)
 
     report("System paths:\n")
+    report_paths("sys.executable")
     report_paths("sys.prefix")
     report_paths("sys.base_prefix")
     report_paths("sys.real_prefix")
