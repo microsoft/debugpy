@@ -15,10 +15,10 @@ exclude = '''
 
 [tool.pyright]
 pythonVersion = "3.7"
-include = ["src"]
+include = ["src/**", "tests/**" ]
 extraPaths = ["src/debugpy/_vendored/pydevd"]
 ignore = ["src/debugpy/_vendored/pydevd", "src/debugpy/_version.py"]
 executionEnvironments = [
-  { root = "src" }
+  { root = "src" }, { root = "." }
 ]
 
