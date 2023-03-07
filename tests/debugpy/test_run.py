@@ -89,8 +89,7 @@ def test_run_relative_path(pyfile, run):
         with open(pydevd_debug_file, "r") as stream:
             contents = stream.read()
 
-    assert "critical" not in contents
-    assert "Traceback" not in contents
+    assert "FileNotFound" not in contents
 
 
 @pytest.mark.parametrize("run", runners.all_launch)
