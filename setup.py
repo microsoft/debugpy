@@ -176,14 +176,12 @@ if __name__ == "__main__":
             "License :: OSI Approved :: MIT License",
         ],
         package_dir={"": "src"},
-        packages=[
-            "debugpy",
-            "debugpy.adapter",
-            "debugpy.common",
-            "debugpy.launcher",
-            "debugpy.server",
-            "debugpy._vendored",
-        ],
+        packages=setuptools.find_namespace_packages(
+            include=[
+                "debugpy",
+                "debugpy.*",
+            ]
+        ),
         package_data={
             "debugpy": ["ThirdPartyNotices.txt"],
             "debugpy._vendored": [
