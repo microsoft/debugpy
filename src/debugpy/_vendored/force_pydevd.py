@@ -28,8 +28,10 @@ if "PYDEVD_USE_FRAME_EVAL" not in os.environ:
 
 # Constants must be set before importing any other pydevd module
 # # due to heavy use of "from" in them.
-with vendored('pydevd'):
-    pydevd_constants = import_module('_pydevd_bundle.pydevd_constants')
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore", category=DeprecationWarning)
+    with vendored('pydevd'):
+        pydevd_constants = import_module('_pydevd_bundle.pydevd_constants')
 # We limit representation size in our representation provider when needed.
 pydevd_constants.MAXIMUM_VARIABLE_REPRESENTATION_SIZE = 2 ** 32
 
@@ -37,15 +39,17 @@ pydevd_constants.MAXIMUM_VARIABLE_REPRESENTATION_SIZE = 2 ** 32
 # loaded.  Any pydevd modules that aren't loaded at this point, will
 # be loaded using their parent package's __path__ (i.e. one of the
 # following).
-preimport('pydevd', [
-    '_pydev_bundle',
-    '_pydev_runfiles',
-    '_pydevd_bundle',
-    '_pydevd_frame_eval',
-    'pydev_ipython',
-    'pydevd_plugins',
-    'pydevd',
-])
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore", category=DeprecationWarning)
+    preimport('pydevd', [
+        '_pydev_bundle',
+        '_pydev_runfiles',
+        '_pydevd_bundle',
+        '_pydevd_frame_eval',
+        'pydev_ipython',
+        'pydevd_plugins',
+        'pydevd',
+    ])
 
 # When pydevd is imported it sets the breakpoint behavior, but it needs to be
 # overridden because by default pydevd will connect to the remote debugger using
