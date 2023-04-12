@@ -132,7 +132,8 @@ int InternalSetSysTraceFunc(
     DEFINE_PROC(pyEval_CallObjectWithKeywords, PyEval_CallObjectWithKeywords*, "PyEval_CallObjectWithKeywords", 532);
 
     if(pyObject_FastCallDict == nullptr) {
-        DEFINE_PROC_NO_CHECK(pyObject_FastCallDict, _PyObject_FastCallDict*, "PyObject_VectorcallDict", 533);
+        DEFINE_PROC_NO_CHECK(pyObject_VectorcallDict, _PyObject_FastCallDict*, "PyObject_VectorcallDict", 533);
+        pyObject_FastCallDict = pyObject_VectorcallDict;
     }
                                                                                                          
     if(pyObject_FastCallDict == nullptr) {
