@@ -5,14 +5,35 @@ permissions:
 on:
   issue_comment:
     types: [created]
+    
+env:
+  TRIAGERS: '["int19h","karthiknadig","ericsnowcurrently","fabioz", "gramster", "StellaHuang95", "AdamYoblick"]'
 
 jobs:
   run-check:
     runs-on: ubuntu-latest
+    if: contains(github.event.issue.labels.*.name, 'waiting for response') && !contains(github.event.issue.labels.*.name, 'user responded')
     steps:
       - name: Add/Remove labels when user responds
-        uses: andymckay/labeler@master
-        if: ${{ github.event.comment.user.login == github.event.issue.user.login && contains(github.event.issue.labels.*.name, 'waiting for response') && !contains(github.event.issue.labels.*.name, 'user responded') }}
+        uses: actions/github-script@v6
         with:
-          add-labels: 'user responded'
-          remove-labels: 'waiting for response'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const payload = context.payload;
+            const commentAuthor = payload.comment.user.login;
+            const isTeamMember = ${{ env.TRIAGERS }}.includes(commentAuthor);
+            if (!isTeamMember) {
+              const issue_number = payload.issue.number;              
+              await github.rest.issues.removeLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue_number,
+                name: 'waiting for response'
+              });
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue_number,
+                labels: ['user responded']
+              });
+            }
