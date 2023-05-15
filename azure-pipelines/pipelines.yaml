@@ -45,6 +45,8 @@ jobs:
                   python.version: "3.9"
               py310:
                   python.version: "3.10"
+              py311:
+                  python.version: "3.11"
 
       steps:
           - script: |
@@ -72,6 +74,8 @@ jobs:
                   python.version: "3.9"
               py310:
                   python.version: "3.10"
+              py311:
+                  python.version: "3.11"
 
       steps:
           - script: |
@@ -99,11 +103,13 @@ jobs:
                   python.version: "3.8"
               py39:
                   python.version: "3.9"
-              py310:
-                  python.version: "3.10"
               py39_32:
                   python.version: "3.9"
                   architecture: "x86"
+              py310:
+                  python.version: "3.10"
+              py311:
+                  python.version: "3.11"
 
       steps:
           - template: "templates/use_python.yml"
