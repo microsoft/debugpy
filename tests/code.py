@@ -44,3 +44,30 @@ def get_marked_line_numbers(path):
 
     _marked_line_numbers_cache[path] = lines
     return lines
+
+def get_index_of_first_non_whitespace_char(path, lineNum):
+    """Given a path to a Python source file and a line number, 
+    get the index of the first non whitespace char on that line.
+
+    If the line is empty or contains only whitespace, return 0
+    """
+
+    if isinstance(path, py.path.local):
+        path = path.strpath
+
+    # Read as bytes to avoid decoding errors.
+    with open(path, "rb") as f:
+        # enumerate the lines in the file, using 1-indexing
+        for i, line in enumerate(f, 1):
+
+            # keep going until we hit the specified line
+            if i < lineNum:
+                continue
+
+            # we hit the specified line, decode it and parse the whitespace
+            decodedLine = line.decode("ascii")
+            index = len(decodedLine) - len(decodedLine.lstrip())
+            return index
+    
+    # if we get here, the line num was out of bounds
+    raise "File does not contain lineNum = " + lineNum

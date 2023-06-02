@@ -5,6 +5,8 @@
 """Patterns that are specific to the Debug Adapter Protocol.
 """
 
+import sys
+import numbers
 import py.path
 
 from tests import code
@@ -50,6 +52,17 @@ def frame(source, line, **kwargs):
         ), "source must be some.dap.source() to use line markers in some.dap.frame()"
         line = code.get_marked_line_numbers(path.path)[line]
 
-    d = {"id": some.dap.id, "source": source, "line": line, "column": 1}
+        # hardcode column to 1 because older versions of python don't get the
+        # column number correct for exceptions
+        column = 1
+        
+        # If we're using python 3.11 or higher, and a line is a number, calculate the column 
+        # by counting leading whitespace characters in the specified line.
+        pythonVersion = sys.version_info
+        if (pythonVersion[0] >= 3 and pythonVersion[1] >= 11 and isinstance(line, numbers.Number)):
+            index = code.get_index_of_first_non_whitespace_char(path.path, line)
+            column = index + 1
+
+    d = {"id": some.dap.id, "source": source, "line": line, "column": column}
     d.update(kwargs)
     return some.dict.containing(d)
