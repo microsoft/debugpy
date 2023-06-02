@@ -37,6 +37,10 @@ def frame(source, line, **kwargs):
     number via get_marked_line_numbers(source["path"]) if possible.
     """
 
+    # hardcode column to 1 because older versions of python don't get the
+    # column number correct for exceptions
+    column = 1
+
     if isinstance(source, py.path.local):
         source = some.dap.source(source)
 
@@ -51,11 +55,7 @@ def frame(source, line, **kwargs):
             path, _impl.Path
         ), "source must be some.dap.source() to use line markers in some.dap.frame()"
         line = code.get_marked_line_numbers(path.path)[line]
-
-        # hardcode column to 1 because older versions of python don't get the
-        # column number correct for exceptions
-        column = 1
-        
+       
         # If we're using python 3.11 or higher, and a line is a number, calculate the column 
         # by counting leading whitespace characters in the specified line.
         pythonVersion = sys.version_info

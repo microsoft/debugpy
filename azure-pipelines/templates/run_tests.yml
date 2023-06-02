@@ -15,7 +15,7 @@ steps:
     - task: "PublishBuildArtifacts@1"
       condition: "failed()"
       inputs:
-          artifactName: "Test logs"
+          artifactName: "Test logs" # TODO: Make artifact name unique for each OS/python version/config or else there are collisions
           pathToPublish: "$(Build.ArtifactStagingDirectory)/logs"
       displayName: "Publish test logs"
 
