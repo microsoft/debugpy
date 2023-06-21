@@ -173,7 +173,6 @@ if __name__ == "__main__":
             "Operating System :: Microsoft :: Windows",
             "Operating System :: MacOS",
             "Operating System :: POSIX",
-            "License :: OSI Approved :: Eclipse Public License 2.0 (EPL-2.0)",
             "License :: OSI Approved :: MIT License",
         ],
         package_dir={"": "src"},
