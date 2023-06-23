@@ -1,4 +1,4 @@
-# debugpy - a debugger for Python
+# debugpy - a debugger for Python      
 
 An implementation of the [Debug Adapter Protocol](https://microsoft.github.io/debug-adapter-protocol/) for Python 3.
 
