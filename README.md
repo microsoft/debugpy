@@ -16,6 +16,9 @@ An implementation of the [Debug Adapter Protocol](https://microsoft.github.io/de
 | Mac | ![Azure DevOps coverage](https://img.shields.io/azure-devops/coverage/debugpy/debugpy/4) |
 
 ## `debugpy` CLI Usage
+
+For full details, see the [Command Line Reference](https://github.com/microsoft/debugpy/wiki/Command-Line-Reference).
+
 ### Debugging a script file
 To run a script file with debugging enabled, but without waiting for the client to attach (i.e. code starts executing immediately):
 ```console
@@ -60,6 +63,9 @@ The following command will ignore subprocesses started by the debugged process.
 
 
 ## `debugpy` Import usage
+
+For full details, see the [API reference](https://github.com/microsoft/debugpy/wiki/API-Reference).
+
 ### Enabling debugging
 At the beginning of your script, import debugpy, and call `debugpy.listen()` to start the debug adapter, passing a `(host, port)` tuple as the first argument.
 ```python
