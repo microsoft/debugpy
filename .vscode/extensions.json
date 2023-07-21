@@ -5,5 +5,4 @@
         "ms-python.flake8",
         "ms-python.black-formatter"
     ]
-
 }
