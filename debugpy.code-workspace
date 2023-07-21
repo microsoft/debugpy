@@ -5,11 +5,7 @@
         }
     ],
     "settings": {
-        "python.linting.enabled": true,
-        "python.linting.pylintEnabled": false,
-        "python.linting.flake8Enabled": true,
         "python.envFile": "${workspaceFolder}/.env",
-        "python.formatting.provider": "black",
         "files.exclude": {
             "**/*.pyc": true,
             "**/*.pyo": true,
@@ -22,6 +18,7 @@
         "python.analysis.extraPaths": [
             "src/debugpy/_vendored",
             "src/debugpy/_vendored/pydevd"
-        ]
+        ],
+        "editor.defaultFormatter": "ms-python.black-formatter"
     }
 }
