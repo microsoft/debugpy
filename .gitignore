@@ -106,6 +106,7 @@ ENV/
 .vs/
 .vscode/*
 !.vscode/launch.json
+!.vscode/extensions.json
 
 # PyDev
 .project
