@@ -7,7 +7,7 @@ An implementation of the [Debug Adapter Protocol](https://microsoft.github.io/de
 [![PyPI](https://img.shields.io/pypi/v/debugpy.svg)](https://pypi.org/project/debugpy/)
 [![PyPI](https://img.shields.io/pypi/pyversions/debugpy.svg)](https://pypi.org/project/debugpy/)
 
-#### Coverage
+## Coverage
 
 | OS | Coverage |
 |---|---|
