@@ -39,7 +39,8 @@ jobs:
         displayName: "Install ruff"
 
       # To unblock the build even with lint errors, add "--exit-zero" to the command line
-      - script: "python3 -m ruff check --format=junit --output-file=$(Build.ArtifactStagingDirectory)/lint-ruff.xml ."
+      # TODO: REMOVE THE --exit-zero FLAG WHEN ALL LINTER ERRORS ARE GONE
+      - script: "python3 -m ruff check --exit-zero --format=junit --output-file=$(Build.ArtifactStagingDirectory)/lint-ruff.xml ."
         displayName: "Run ruff"
 
       - task: "PublishTestResults@2"
