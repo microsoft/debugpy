@@ -15,117 +15,118 @@ pr:
     include:
       - main
       - release/*
-  drafts: false
+  drafts: "false"
 
 variables:
   architecture: "x64"
 
 jobs:
 
-    - job: "Lint"
-        displayName: "Lint"
-        pool: { vmImage: "ubuntu-latest" }
+  - job: "Lint"
+    displayName: "Lint"
+    pool: { vmImage: "ubuntu-latest" }
 
-        variables:
-            python.version: "3.8"
+    variables:
+      python.version: "3.8"
 
-        steps:
+    steps:
 
-            - template: "templates/use_python.yml"
+      - template: "templates/use_python.yml"
 
-            # Install and run ruff
-            # See https://github.com/astral-sh/ruff and https://beta.ruff.rs/docs/
-            - script: python3 -m pip install -U ruff
-                displayName: "Install ruff"
+      # Install and run ruff
+      # See https://github.com/astral-sh/ruff and https://beta.ruff.rs/docs/
+      - script: "python3 -m pip install -U ruff"
+        displayName: "Install ruff"
 
-            # To unblock the build even with lint errors, add "--exit-zero" to the command line
-            - script: python3 -m ruff check --format=junit --output-file=$(Build.ArtifactStagingDirectory)/lint-ruff.xml .
-                displayName: "Run ruff"
+      # To unblock the build even with lint errors, add "--exit-zero" to the command line
+      - script: "python3 -m ruff check --format=junit --output-file=$(Build.ArtifactStagingDirectory)/lint-ruff.xml ."
+        displayName: "Run ruff"
 
-            - task: "PublishTestResults@2"
-                displayName: "Publish linting results"
-                inputs:
-                    testRunTitle: "$(Agent.JobName)"
-                    testResultsFiles: "lint-*.xml"
-                    searchFolder: "$(Build.ArtifactStagingDirectory)"
-                condition: "always()"
+      - task: "PublishTestResults@2"
+        displayName: "Publish linting results"
+        inputs:
+          testRunTitle: "$(Agent.JobName)"
+          testResultsFiles: "lint-*.xml"
+          searchFolder: "$(Build.ArtifactStagingDirectory)"
+        condition: "always()"
 
-    - job: "Test_Linux"
-        timeoutInMinutes: 30
-        displayName: "Tests - Linux"
-        pool: { vmImage: "ubuntu-latest" }
+  - job: "Test_Linux"
+    timeoutInMinutes: "30"
+    displayName: "Tests - Linux"
+    pool: { vmImage: "ubuntu-latest" }
 
-        strategy:
-            matrix:
-                py37:
-                    python.version: "3.7"
-                py38:
-                    python.version: "3.8"
-                py39:
-                    python.version: "3.9"
-                py310:
-                    python.version: "3.10"
+    strategy:
+      matrix:
+        py37:
+          python.version: "3.7"
+        py38:
+          python.version: "3.8"
+        py39:
+          python.version: "3.9"
+        py310:
+          python.version: "3.10"
 
-        steps:
-            - script: |
-                sudo apt-get update
-                sudo apt-get --yes install gdb
-                sudo sysctl kernel.yama.ptrace_scope=0
-            displayName: "Setup gdb"
+    steps:
 
-            - template: "templates/use_python.yml"
+      - script: |
+          sudo apt-get update
+          sudo apt-get --yes install gdb
+          sudo sysctl kernel.yama.ptrace_scope=0
+        displayName: "Setup gdb"
 
-            - template: "templates/run_tests.yml"
+      - template: "templates/use_python.yml"
 
-    - job: "Test_MacOS"
-        timeoutInMinutes: 30
-        displayName: "Tests - macOS"
-        pool: { vmImage: "macOS-11" }
+      - template: "templates/run_tests.yml"
 
-        strategy:
-            matrix:
-                py37:
-                    python.version: "3.7"
-                py38:
-                    python.version: "3.8"
-                py39:
-                    python.version: "3.9"
-                py310:
-                    python.version: "3.10"
+  - job: "Test_MacOS"
+    timeoutInMinutes: "30"
+    displayName: "Tests - macOS"
+    pool: { vmImage: "macOS-11" }
 
-        steps:
-            - script: |
-                ulimit -Sn 8192
-            displayName: "Increase file descriptor limit"
+    strategy:
+      matrix:
+        py37:
+          python.version: "3.7"
+        py38:
+          python.version: "3.8"
+        py39:
+          python.version: "3.9"
+        py310:
+          python.version: "3.10"
 
-            - template: "templates/use_python.yml"
+    steps:
 
-            - script: |
-                python -m ensurepip --user
-            displayName: "Bootstrap pip"
+      - script: "ulimit -Sn 8192"
+        displayName: "Increase file descriptor limit"
 
-            - template: "templates/run_tests.yml"
+      - template: "templates/use_python.yml"
 
-    - job: "Test_Windows"
-        timeoutInMinutes: 40
-        displayName: "Tests - Windows"
-        pool: { vmImage: "windows-latest" }
+      - script: "python -m ensurepip --user"
+        displayName: "Bootstrap pip"
 
-        strategy:
-            matrix:
-                py37:
-                    python.version: "3.7"
-                py38:
-                    python.version: "3.8"
-                py39:
-                    python.version: "3.9"
-                py310:
-                    python.version: "3.10"
-                py39_32:
-                    python.version: "3.9"
-                    architecture: "x86"
+      - template: "templates/run_tests.yml"
 
-        steps:
-            - template: "templates/use_python.yml"
+  - job: "Test_Windows"
+    timeoutInMinutes: "40"
+    displayName: "Tests - Windows"
+    pool: { vmImage: "windows-latest" }
 
-            - template: "templates/run_tests.yml"
+    strategy:
+      matrix:
+        py37:
+          python.version: "3.7"
+        py38:
+          python.version: "3.8"
+        py39:
+          python.version: "3.9"
+        py310:
+          python.version: "3.10"
+        py39_32:
+          python.version: "3.9"
+          architecture: "x86"
+
+    steps:
+
+      - template: "templates/use_python.yml"
+      
+      - template: "templates/run_tests.yml"

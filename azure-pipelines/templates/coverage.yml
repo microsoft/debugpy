@@ -1,37 +1,35 @@
 steps:
-    - template: "use_python.yml"
+  - template: "use_python.yml"
 
-    - script: |
-          python -m pip install -U pip setuptools tox
-      displayName: "Setup Python packages"
+  - script: "python -m pip install -U pip setuptools tox"
+    displayName: "Setup Python packages"
 
-    - task: SonarCloudPrepare@1
-      displayName: "Prepare analysis on SonarCloud"
-      inputs:
-          SonarCloud: "SonarCloud-debugpy"
-          organization: microsoft
-          scannerMode: CLI
-          extraProperties: |
-              sonar.python.coverage.reportPaths=$(Build.SourcesDirectory)/coverage/coverage.xml
-              sonar.projectKey=microsoft_debugpy
+  - task: SonarCloudPrepare@1
+    displayName: "Prepare analysis on SonarCloud"
+    inputs:
+      SonarCloud: "SonarCloud-debugpy"
+      organization: microsoft
+      scannerMode: CLI
+      extraProperties: |
+        sonar.python.coverage.reportPaths=$(Build.SourcesDirectory)/coverage/coverage.xml
+        sonar.projectKey=microsoft_debugpy
 
-    - script: |
-          python -m tox --develop -e py38-cov -- --cov-report=html --cov-report=xml -vv
-      displayName: "Coverage Run"
+  - script: "python -m tox --develop -e py38-cov -- --cov-report=html --cov-report=xml -vv"
+    displayName: "Coverage Run"
 
-    - task: SonarCloudAnalyze@1
-      displayName: "Run Code Analysis"
+  - task: SonarCloudAnalyze@1
+    displayName: "Run Code Analysis"
 
-    - task: SonarCloudPublish@1
-      displayName: "Publish Quality Gate Result"
-      inputs:
-          pollingTimeoutSec: "300"
+  - task: SonarCloudPublish@1
+    displayName: "Publish Quality Gate Result"
+    inputs:
+      pollingTimeoutSec: "300"
 
-    - task: PublishCodeCoverageResults@1
-      displayName: "Publish Coverage Report"
-      inputs:
-          codeCoverageTool: Cobertura
-          summaryFileLocation: "$(Build.SourcesDirectory)/coverage/coverage.xml"
-          reportDirectory: "$(Build.SourcesDirectory)/coverage/html"
-          failIfCoverageEmpty: true
-      condition: always()
+  - task: PublishCodeCoverageResults@1
+    displayName: "Publish Coverage Report"
+    inputs:
+      codeCoverageTool: Cobertura
+      summaryFileLocation: "$(Build.SourcesDirectory)/coverage/coverage.xml"
+      reportDirectory: "$(Build.SourcesDirectory)/coverage/html"
+      failIfCoverageEmpty: true
+    condition: always()

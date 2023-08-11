@@ -14,24 +14,24 @@ pr:
     include:
       - main
       - release/*
-  drafts: false
+  drafts: "false"
 
 variables:
-    architecture: "x64"
-    python.version: "3.8"
+  architecture: "x64"
+  python.version: "3.8"
 
 jobs:
-    - job: "Coverage"
-      timeoutInMinutes: 45
-      pool:
-          name: Azure Pipelines
-          demands: java
-          vmImage: "ubuntu-latest"
-      steps:
-          - script: |
-                sudo apt-get update
-                sudo apt-get --yes install gdb
-                sudo sysctl kernel.yama.ptrace_scope=0
-            displayName: "Install gdb"
+  - job: "Coverage"
+    timeoutInMinutes: "45"
+    pool:
+      name: Azure Pipelines
+      demands: java
+      vmImage: "ubuntu-latest"
+    steps:
+      - script: |
+          sudo apt-get update
+          sudo apt-get --yes install gdb
+          sudo sysctl kernel.yama.ptrace_scope=0
+        displayName: "Install gdb"
 
-          - template: "templates/coverage.yml"
+      - template: "templates/coverage.yml"

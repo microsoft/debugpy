@@ -14,18 +14,18 @@ pr:
     include:
       - main
       - release/*
-  drafts: false
+  drafts: "false"
 
 variables:
-    architecture: "x64"
-    python.version: "3.8"
+  architecture: "x64"
+  python.version: "3.8"
 
 jobs:
-    - job: "Coverage"
-      timeoutInMinutes: 45
-      pool:
-          name: Azure Pipelines
-          demands: java
-          vmImage: "windows-latest"
-      steps:
-          - template: "templates/coverage.yml"
+  - job: "Coverage"
+    timeoutInMinutes: "45"
+    pool:
+      name: Azure Pipelines
+      demands: java
+      vmImage: "windows-latest"
+    steps:
+      - template: "templates/coverage.yml"
