@@ -1,111 +1,131 @@
+# This pipeline is used to run PR validation and CI builds against the debugpy public repo.
+# Seperate internal pipelines are used for generating wheels, signing, and releasing to pypi.org
+
+# Trigger ci builds for commits into master and any release branches
+trigger:
+  branches:
+    include:
+      - main
+      - release/*
+
+# Trigger pr builds for commits into master and any release branches
+# Ignore draft PR's
+pr:
+  branches:
+    include:
+      - main
+      - release/*
+  drafts: false
+
 variables:
-    architecture: "x64"
+  architecture: "x64"
 
 jobs:
+
     - job: "Lint"
-      timeoutInMinutes: 15
-      displayName: "Lint"
-      pool: { vmImage: "ubuntu-latest" }
+        displayName: "Lint"
+        pool: { vmImage: "ubuntu-latest" }
 
-      variables:
-          python.version: "3.8"
+        variables:
+            python.version: "3.8"
 
-      steps:
-          - template: "templates/use_python.yml"
+        steps:
 
-          - script: |
-                python3 -m pip install -U flake8
-                python3 -m pip install -U git+https://github.com/karthiknadig/flake8reports
-            displayName: "Setup flake8"
+            - template: "templates/use_python.yml"
 
-          - script: |
-                python3 -m flake8 --format=junit --output-file=$(Build.ArtifactStagingDirectory)/lint-flake8.xml
-            displayName: "Run flake8"
+            # Install and run ruff
+            # See https://github.com/astral-sh/ruff and https://beta.ruff.rs/docs/
+            - script: python3 -m pip install -U ruff
+                displayName: "Install ruff"
 
-          - task: "PublishTestResults@2"
-            condition: "always()"
-            inputs:
-                testRunTitle: "$(Agent.JobName)"
-                testResultsFiles: "lint-*.xml"
-                searchFolder: "$(Build.ArtifactStagingDirectory)"
-            displayName: "Publish linting results"
+            # To unblock the build even with lint errors, add "--exit-zero" to the command line
+            - script: python3 -m ruff check --format=junit --output-file=$(Build.ArtifactStagingDirectory)/lint-ruff.xml .
+                displayName: "Run ruff"
+
+            - task: "PublishTestResults@2"
+                displayName: "Publish linting results"
+                inputs:
+                    testRunTitle: "$(Agent.JobName)"
+                    testResultsFiles: "lint-*.xml"
+                    searchFolder: "$(Build.ArtifactStagingDirectory)"
+                condition: "always()"
 
     - job: "Test_Linux"
-      timeoutInMinutes: 30
-      displayName: "Tests - Linux"
-      pool: { vmImage: "ubuntu-latest" }
+        timeoutInMinutes: 30
+        displayName: "Tests - Linux"
+        pool: { vmImage: "ubuntu-latest" }
 
-      strategy:
-          matrix:
-              py37:
-                  python.version: "3.7"
-              py38:
-                  python.version: "3.8"
-              py39:
-                  python.version: "3.9"
-              py310:
-                  python.version: "3.10"
+        strategy:
+            matrix:
+                py37:
+                    python.version: "3.7"
+                py38:
+                    python.version: "3.8"
+                py39:
+                    python.version: "3.9"
+                py310:
+                    python.version: "3.10"
 
-      steps:
-          - script: |
+        steps:
+            - script: |
                 sudo apt-get update
                 sudo apt-get --yes install gdb
                 sudo sysctl kernel.yama.ptrace_scope=0
             displayName: "Setup gdb"
 
-          - template: "templates/use_python.yml"
+            - template: "templates/use_python.yml"
 
-          - template: "templates/run_tests.yml"
+            - template: "templates/run_tests.yml"
 
     - job: "Test_MacOS"
-      timeoutInMinutes: 30
-      displayName: "Tests - macOS"
-      pool: { vmImage: "macOS-11" }
+        timeoutInMinutes: 30
+        displayName: "Tests - macOS"
+        pool: { vmImage: "macOS-11" }
 
-      strategy:
-          matrix:
-              py37:
-                  python.version: "3.7"
-              py38:
-                  python.version: "3.8"
-              py39:
-                  python.version: "3.9"
-              py310:
-                  python.version: "3.10"
+        strategy:
+            matrix:
+                py37:
+                    python.version: "3.7"
+                py38:
+                    python.version: "3.8"
+                py39:
+                    python.version: "3.9"
+                py310:
+                    python.version: "3.10"
 
-      steps:
-          - script: |
+        steps:
+            - script: |
                 ulimit -Sn 8192
             displayName: "Increase file descriptor limit"
 
-          - template: "templates/use_python.yml"
+            - template: "templates/use_python.yml"
 
-          - script: |
+            - script: |
                 python -m ensurepip --user
             displayName: "Bootstrap pip"
 
-          - template: "templates/run_tests.yml"
+            - template: "templates/run_tests.yml"
 
     - job: "Test_Windows"
-      timeoutInMinutes: 40
-      displayName: "Tests - Windows"
-      pool: { vmImage: "windows-latest" }
+        timeoutInMinutes: 40
+        displayName: "Tests - Windows"
+        pool: { vmImage: "windows-latest" }
 
-      strategy:
-          matrix:
-              py37:
-                  python.version: "3.7"
-              py38:
-                  python.version: "3.8"
-              py39:
-                  python.version: "3.9"
-              py310:
-                  python.version: "3.10"
-              py39_32:
-                  python.version: "3.9"
-                  architecture: "x86"
+        strategy:
+            matrix:
+                py37:
+                    python.version: "3.7"
+                py38:
+                    python.version: "3.8"
+                py39:
+                    python.version: "3.9"
+                py310:
+                    python.version: "3.10"
+                py39_32:
+                    python.version: "3.9"
+                    architecture: "x86"
 
-      steps:
-          - template: "templates/use_python.yml"
+        steps:
+            - template: "templates/use_python.yml"
 
-          - template: "templates/run_tests.yml"
+            - template: "templates/run_tests.yml"
