@@ -1,3 +1,21 @@
+# This pipeline is used to run unit test code coverage against debugpy public repo.
+
+# Trigger ci builds for commits into master and any release branches
+trigger:
+  branches:
+    include:
+      - main
+      - release/*
+
+# Trigger pr builds for commits into master and any release branches
+# Ignore draft PR's
+pr:
+  branches:
+    include:
+      - main
+      - release/*
+  drafts: false
+
 variables:
     architecture: "x64"
     python.version: "3.8"
