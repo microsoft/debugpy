@@ -26,7 +26,7 @@ def source(path, **kwargs):
     return some.dict.containing(d)
 
 
-def frame(source, line, **kwargs):
+def frame(source, line, column=some.int, **kwargs):
     """Matches DAP Frame objects.
 
     If source is py.path.local, it's automatically wrapped with some.dap.source().
@@ -50,6 +50,6 @@ def frame(source, line, **kwargs):
         ), "source must be some.dap.source() to use line markers in some.dap.frame()"
         line = code.get_marked_line_numbers(path.path)[line]
 
-    d = {"id": some.dap.id, "source": source, "line": line, "column": 1}
+    d = {"id": some.dap.id, "source": source, "line": line, "column": column}
     d.update(kwargs)
     return some.dict.containing(d)
