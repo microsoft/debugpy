@@ -1,17 +1,34 @@
+# This pipeline is used to run unit test code coverage against debugpy public repo.
+
+# Trigger ci builds for commits into master and any release branches
+trigger:
+  branches:
+    include:
+      - main
+      - release/*
+
+# Trigger pr builds for commits into master and any release branches
+# Ignore draft PR's
+pr:
+  branches:
+    include:
+      - main
+      - release/*
+  drafts: "false"
+
 variables:
-    architecture: "x64"
-    python.version: "3.8"
+  architecture: "x64"
+  python.version: "3.8"
 
 jobs:
-    - job: "Coverage"
-      timeoutInMinutes: 45
-      pool:
-          name: Azure Pipelines
-          demands: java
-          vmImage: "macOS-latest"
-      steps:
-          - script: |
-                ulimit -Sn 8192
-            displayName: "Increase file descriptor limit"
+  - job: "Coverage"
+    timeoutInMinutes: "45"
+    pool:
+      name: Azure Pipelines
+      demands: java
+      vmImage: "macOS-latest"
+    steps:
+      - script: "ulimit -Sn 8192"
+        displayName: "Increase file descriptor limit"
 
-          - template: "templates/coverage.yml"
+      - template: "templates/coverage.yml"

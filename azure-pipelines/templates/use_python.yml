@@ -1,6 +1,6 @@
 steps:
-    - task: UsePythonVersion@0
-      inputs:
-          versionSpec: "$(python.version)"
-          architecture: "$(architecture)"
-      displayName: "Use Python $(python.version) $(architecture)"
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: "$(python.version)"
+      architecture: "$(architecture)"
+    displayName: "Use Python $(python.version) $(architecture)"
