@@ -8,6 +8,7 @@ import signal
 import os
 import ctypes
 from importlib import import_module
+from importlib.util import module_from_spec, spec_from_file_location
 from urllib.parse import quote  # @UnresolvedImport
 import time
 import inspect
@@ -23,20 +24,12 @@ def save_main_module(file, module_name):
     # This will prevent the pydevd script from contaminating the namespace for the script to be debugged
     # pretend pydevd is not the main module, and
     # convince the file to be debugged that it was loaded as main
-    sys.modules[module_name] = sys.modules['__main__']
-    sys.modules[module_name].__name__ = module_name
-
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", category=DeprecationWarning)
-        warnings.simplefilter("ignore", category=PendingDeprecationWarning)
-        from imp import new_module
-
-    m = new_module('__main__')
+    m = sys.modules[module_name] = sys.modules['__main__']
+    m.__name__ = module_name
+    loader = m.__loader__ if hasattr(m, '__loader__') else None
+    spec = spec_from_file_location('__main__', file, loader=loader)
+    m = module_from_spec(spec)
     sys.modules['__main__'] = m
-    if hasattr(sys.modules[module_name], '__loader__'):
-        m.__loader__ = getattr(sys.modules[module_name], '__loader__')
-    m.__file__ = file
-
     return m
 
 
