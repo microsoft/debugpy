@@ -350,15 +350,19 @@ class Session(object):
             env.pop("COV_CORE_SOURCE", None)
 
         return env
+    
+    def _make_python_cmdline(self, exe, *args):
+        cmd = [exe]
+        if sys.version_info[:2] >= (3, 11):
+            cmd += ["-X", "frozen_modules=off"]
+        cmd += [str(s.strpath if isinstance(s, py.path.local) else s) for s in args]
+        return cmd
 
     def spawn_debuggee(self, args, cwd=None, exe=sys.executable, setup=None):
         assert self.debuggee is None
         assert not len(self.captured_output - {"stdout", "stderr"})
 
-        args = [exe] + [
-            str(s.strpath if isinstance(s, py.path.local) else s) for s in args
-        ]
-
+        args = self._make_python_cmdline(exe, *args)
         cwd = cwd.strpath if isinstance(cwd, py.path.local) else cwd
 
         env = self._make_env(self.spawn_debuggee.env, codecov=False)
@@ -406,7 +410,7 @@ class Session(object):
         assert self.adapter is None
         assert self.channel is None
 
-        args = [sys.executable, os.path.dirname(debugpy.adapter.__file__)] + list(args)
+        args = self._make_python_cmdline(sys.executable, os.path.dirname(debugpy.adapter.__file__), *args)
         env = self._make_env(self.spawn_adapter.env)
 
         log.info(
