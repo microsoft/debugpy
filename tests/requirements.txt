@@ -17,6 +17,3 @@ django
 requests
 gevent
 flask
-
-# https://github.com/microsoft/debugpy/issues/1126
-greenlet==1.1.3
