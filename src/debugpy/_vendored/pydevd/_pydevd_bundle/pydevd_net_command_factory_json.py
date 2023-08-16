@@ -254,7 +254,7 @@ class NetCommandFactoryJson(NetCommandFactory):
                 source_reference = pydevd_file_utils.get_client_filename_source_reference(filename_in_utf8)
 
                 if not source_reference and not applied_mapping and not os.path.exists(original_filename):
-                    if getattr(frame.f_code, 'co_lnotab', None):
+                    if getattr(frame.f_code, 'co_lines', None) or getattr(frame.f_code, 'co_lnotab', None):
                         # Create a source-reference to be used where we provide the source by decompiling the code.
                         # Note: When the time comes to retrieve the source reference in this case, we'll
                         # check the linecache first (see: get_decompiled_source_from_frame_id).

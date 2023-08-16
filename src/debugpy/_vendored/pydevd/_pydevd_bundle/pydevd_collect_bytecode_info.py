@@ -153,7 +153,7 @@ def iter_instructions(co):
 
 
 def collect_return_info(co, use_func_first_line=False):
-    if not hasattr(co, 'co_lnotab'):
+    if not hasattr(co, 'co_lines') and not hasattr(co, 'co_lnotab'):
         return []
 
     if use_func_first_line:
@@ -256,7 +256,7 @@ if sys.version_info[:2] <= (3, 9):
 
     def collect_try_except_info(co, use_func_first_line=False):
         # We no longer have 'END_FINALLY', so, we need to do things differently in Python 3.9
-        if not hasattr(co, 'co_lnotab'):
+        if not hasattr(co, 'co_lines') and not hasattr(co, 'co_lnotab'):
             return []
 
         if use_func_first_line:
@@ -376,7 +376,7 @@ elif sys.version_info[:2] == (3, 10):
 
     def collect_try_except_info(co, use_func_first_line=False):
         # We no longer have 'END_FINALLY', so, we need to do things differently in Python 3.9
-        if not hasattr(co, 'co_lnotab'):
+        if not hasattr(co, 'co_lines') and not hasattr(co, 'co_lnotab'):
             return []
 
         if use_func_first_line:
