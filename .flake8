@@ -11,3 +11,4 @@ exclude =
     dist,
     versioneer.py,
     src/debugpy/_vendored/pydevd
+
