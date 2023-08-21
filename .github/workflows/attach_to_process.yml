@@ -62,7 +62,7 @@ jobs:
         run: |
           rm $PYDEVD_ATTACH_TO_PROCESS/*.so
           cd $PYDEVD_ATTACH_TO_PROCESS/linux_and_mac
-          ./compile_linux.sh
+          bash ./compile_linux.sh
 
       - name: Upload Linux binaries
         uses: actions/upload-artifact@v2
@@ -91,7 +91,7 @@ jobs:
         run: |
           rm $PYDEVD_ATTACH_TO_PROCESS/*.dylib
           cd $PYDEVD_ATTACH_TO_PROCESS/linux_and_mac
-          ./compile_mac.sh
+          bash ./compile_mac.sh
 
       - name: Upload macOS binaries
         uses: actions/upload-artifact@v2
