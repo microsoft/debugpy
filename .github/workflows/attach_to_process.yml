@@ -29,7 +29,7 @@ jobs:
         shell: powershell
         run: |
           rm $env:PYDEVD_ATTACH_TO_PROCESS\* -include *.exe,*.dll,*.pdb
-          cd $pydevd_attach_to_process\windows
+          cd $env:pydevd_attach_to_process\windows
           .\compile_windows.bat
 
       - name: Upload Windows binaries
