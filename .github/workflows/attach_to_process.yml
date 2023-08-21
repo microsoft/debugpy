@@ -1,7 +1,9 @@
 # Used to build binaries under src/debugpy/_vendored/pydevd/pydevd_attach_to_process
-name: "Build injected binaries for Attach to Process"
+name: attach_to_process
 
-on: workflow_dispatch
+on:
+  workflow_dispatch:
+  push:
 
 env:
   PYDEVD_ATTACH_TO_PROCESS: "src/debugpy/_vendored/pydevd/pydevd_attach_to_process"
