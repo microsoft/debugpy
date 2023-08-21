@@ -19,6 +19,9 @@
             "src/debugpy/_vendored",
             "src/debugpy/_vendored/pydevd"
         ],
-        "editor.defaultFormatter": "ms-python.black-formatter"
+        "editor.defaultFormatter": "ms-python.black-formatter",
+        "[yaml]": {
+            "editor.defaultFormatter": "esbenp.prettier-vscode"
+        }
     }
 }
