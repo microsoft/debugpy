@@ -1,0 +1,98 @@
+# Used to build binaries under src/debugpy/_vendored/pydevd/pydevd_attach_to_process
+name: "Build injected binaries for Attach to Process"
+
+on: workflow_dispatch
+
+env:
+  PYDEVD_ATTACH_TO_PROCESS: "src/debugpy/_vendored/pydevd/pydevd_attach_to_process"
+
+jobs:
+  windows-binaries:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: true
+      matrix:
+        name: ["windows-py39"]
+
+        include:
+          - name: "windows-py39"
+            python-version: "3.9"
+            os: windows-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Compile Windows binaries
+        shell: powershell
+        run: |
+          rm $env:PYDEVD_ATTACH_TO_PROCESS\* -include *.exe,*.dll,*.pdb
+          cd $pydevd_attach_to_process\windows
+          .\compile_windows.bat
+
+      - name: Upload Windows binaries
+      - uses: actions/upload-artifact@v2
+        with:
+          name: pydevd_attach_to_process-windows
+          path: |
+            $PYDEVD_ATTACH_TO_PROCESS/*.exe
+            $PYDEVD_ATTACH_TO_PROCESS/*.dll
+            $PYDEVD_ATTACH_TO_PROCESS/*.pdb
+
+  linux-binaries:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: true
+      matrix:
+        name: ["linux-py39"]
+
+        include:
+          - name: "linux-py39"
+            python-version: "3.9"
+            os: ubuntu-20.04
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Compile Linux binaries
+        shell: bash
+        run: |
+          rm $PYDEVD_ATTACH_TO_PROCESS/*.so
+          cd $PYDEVD_ATTACH_TO_PROCESS/linux_and_mac
+          ./compile_linux.sh
+
+      - name: Upload Linux binaries
+      - uses: actions/upload-artifact@v2
+        with:
+          name: pydevd_attach_to_process-linux
+          path: $PYDEVD_ATTACH_TO_PROCESS/*.so
+
+  mac-binaries:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: true
+      matrix:
+        name: ["macos-py39"]
+
+        include:
+          - name: "macos-py39"
+            python-version: "3.9"
+            os: macos-10.15
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Compile macOS binaries
+        shell: bash
+        run: |
+          rm $PYDEVD_ATTACH_TO_PROCESS/*.dylib
+          cd $PYDEVD_ATTACH_TO_PROCESS/linux_and_mac
+          ./compile_mac.sh
+
+      - name: Upload macOS binaries
+      - uses: actions/upload-artifact@v2
+        with:
+          name: pydevd_attach_to_process-macos
+          path: $PYDEVD_ATTACH_TO_PROCESS/*.dylib
