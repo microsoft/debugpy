@@ -33,13 +33,13 @@ jobs:
           .\compile_windows.bat
 
       - name: Upload Windows binaries
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: pydevd_attach_to_process-windows
           path: |
-            $PYDEVD_ATTACH_TO_PROCESS/*.exe
-            $PYDEVD_ATTACH_TO_PROCESS/*.dll
-            $PYDEVD_ATTACH_TO_PROCESS/*.pdb
+            ${{PYDEVD_ATTACH_TO_PROCESS}}\*.exe
+            ${{PYDEVD_ATTACH_TO_PROCESS}}\*.dll
+            ${{PYDEVD_ATTACH_TO_PROCESS}}\*.pdb
 
   linux-binaries:
     runs-on: ${{ matrix.os }}
@@ -65,10 +65,10 @@ jobs:
           bash ./compile_linux.sh
 
       - name: Upload Linux binaries
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: pydevd_attach_to_process-linux
-          path: $PYDEVD_ATTACH_TO_PROCESS/*.so
+          path: ${{PYDEVD_ATTACH_TO_PROCESS}}/*.so
 
   mac-binaries:
     runs-on: ${{ matrix.os }}
@@ -94,7 +94,7 @@ jobs:
           bash ./compile_mac.sh
 
       - name: Upload macOS binaries
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: pydevd_attach_to_process-macos
-          path: $PYDEVD_ATTACH_TO_PROCESS/*.dylib
+          path: ${{PYDEVD_ATTACH_TO_PROCESS}}/*.dylib
