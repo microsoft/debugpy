@@ -1,9 +1,11 @@
-g++ -m64 -shared -o attach_linux_amd64.so -fPIC -nostartfiles attach.cpp
-mv attach_linux_amd64.so ../attach_linux_amd64.so
-echo Compiled amd64
+set -e
 
-echo Note: may need "sudo apt-get install libx32gcc-4.8-dev" and "sudo apt-get install libc6-dev-i386" and "sudo apt-get install g++-multilib" to compile 32 bits
+ARCH="$(uname -m)"
+case $ARCH in
+    i*86) SUFFIX=x86;;
+    x86_64*) SUFFIX=amd64;;
+    *) echo >&2 "unsupported: $ARCH"; exit 1;;
+esac
 
-g++ -m32 -shared -o attach_linux_x86.so -fPIC -nostartfiles attach.cpp
-mv attach_linux_x86.so ../attach_linux_x86.so
-echo Compiled x86
+SRC="$(dirname "$0")/.."
+g++ -std=c++11 -shared -fPIC -nostartfiles $SRC/linux_and_mac/attach.cpp -o $SRC/attach_linux_$SUFFIX.so
