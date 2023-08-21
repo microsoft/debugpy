@@ -81,7 +81,7 @@ jobs:
         include:
           - name: "macos-py39"
             python-version: "3.9"
-            os: macos-10.15
+            os: macos-latest
 
     steps:
       - uses: actions/checkout@v3
