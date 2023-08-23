@@ -52,11 +52,11 @@ jobs:
 
   linux-binaries:
     runs-on: ubuntu-latest
+    container:
+      image: ${{ matrix.container-image }}
 
     strategy:
       fail-fast: true
-      container:
-        image: ${{ matrix.container-image }}
       matrix:
         arch: [x86, amd64]
         include:
