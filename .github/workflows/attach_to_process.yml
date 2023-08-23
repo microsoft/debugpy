@@ -53,27 +53,25 @@ jobs:
   linux-binaries:
     runs-on: ubuntu-latest
 
-    strategy:
-      fail-fast: true
-      matrix:
-        arch: [x86, amd64]
-        include:
-          - arch: x86
-            container-image: quay.io/pypa/manylinux2014_i686
-          - arch: amd64
-            container-image: quay.io/pypa/manylinux2014_x86_64
-
     steps:
       - uses: actions/checkout@v3
 
       - name: Clean up old binaries
         run: rm ${{ env.PYDEVD_ATTACH_TO_PROCESS }}/*.so
 
-      - name: Compile binaries
-        uses: docker://${{ matrix.matrix.container-image }}
+      - name: Compile 32-bit binaries
+        uses: docker://quay.io/pypa/manylinux2014_i686
         env:
           INPUT_FILE: ${{ env.PYDEVD_ATTACH_TO_PROCESS }}/linux_and_mac/attach.cpp
-          OUTPUT_FILE: ${{ env.PYDEVD_ATTACH_TO_PROCESS }}/attach_linux_${{ matrix.arch }}.so
+          OUTPUT_FILE: ${{ env.PYDEVD_ATTACH_TO_PROCESS }}/attach_linux_x86.so
+        with:
+          args: g++ -std=c++11 -shared -fPIC -nostartfiles $GITHUB_WORKSPACE/$INPUT_FILE -o $GITHUB_WORKSPACE/$OUTPUT_FILE
+
+      - name: Compile 64-bit binaries
+        uses: docker://quay.io/pypa/manylinux2014_x86_64
+        env:
+          INPUT_FILE: ${{ env.PYDEVD_ATTACH_TO_PROCESS }}/linux_and_mac/attach.cpp
+          OUTPUT_FILE: ${{ env.PYDEVD_ATTACH_TO_PROCESS }}/attach_linux_amd64.so
         with:
           args: g++ -std=c++11 -shared -fPIC -nostartfiles $GITHUB_WORKSPACE/$INPUT_FILE -o $GITHUB_WORKSPACE/$OUTPUT_FILE
 
