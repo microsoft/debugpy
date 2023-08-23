@@ -63,6 +63,11 @@ jobs:
           - arch: amd64
             container-image: quay.io/pypa/manylinux2014_x86_64
 
+    env:
+      CONTAINER_IMAGE: ${{ matrix.container-image }}
+      INPUT_FILE: ${{ env.PYDEVD_ATTACH_TO_PROCESS }}/linux_and_mac/attach.cpp
+      OUTPUT_FILE: ${{ env.PYDEVD_ATTACH_TO_PROCESS }}/attach_linux_${{ matrix.arch }}.so
+
     steps:
       - uses: actions/checkout@v3
 
@@ -70,10 +75,6 @@ jobs:
         run: rm ${{ env.PYDEVD_ATTACH_TO_PROCESS }}/*.so
 
       - name: Compile binaries
-        env:
-          CONTAINER_IMAGE: ${{ matrix.container-image }}
-          INPUT_FILE: ${{ env.PYDEVD_ATTACH_TO_PROCESS }}/linux_and_mac/attach.cpp
-          OUTPUT_FILE: ${{ env.PYDEVD_ATTACH_TO_PROCESS }}/attach_linux_${{ matrix.arch }}.so
         uses: docker://${{ env.CONTAINER_IMAGE }}
         with:
           args: g++ -std=c++11 -shared -fPIC -nostartfiles $GITHUB_WORKSPACE/$INPUT_FILE -o $GITHUB_WORKSPACE/$OUTPUT_FILE
