@@ -3,7 +3,10 @@ name: attach_to_process
 
 on:
   workflow_dispatch:
-  push:
+  pull_request:
+    branches: [main]
+    paths:
+      - src/debugpy/_vendored/pydevd/pydevd_attach_to_process/**
 
 env:
   PYDEVD_ATTACH_TO_PROCESS: src/debugpy/_vendored/pydevd/pydevd_attach_to_process
