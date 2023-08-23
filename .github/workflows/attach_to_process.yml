@@ -61,19 +61,19 @@ jobs:
 
       - name: Compile 32-bit binaries
         uses: docker://quay.io/pypa/manylinux2014_i686
-        env:
-          INPUT_FILE: ${{ env.PYDEVD_ATTACH_TO_PROCESS }}/linux_and_mac/attach.cpp
-          OUTPUT_FILE: ${{ env.PYDEVD_ATTACH_TO_PROCESS }}/attach_linux_x86.so
         with:
-          args: g++ -std=c++11 -shared -fPIC -nostartfiles $GITHUB_WORKSPACE/$INPUT_FILE -o $GITHUB_WORKSPACE/$OUTPUT_FILE
+          args: >
+            g++ -std=c++11 -shared -fPIC -nostartfiles
+            ${{ env.PYDEVD_ATTACH_TO_PROCESS }}/linux_and_mac/attach.cpp
+            -o ${{ env.PYDEVD_ATTACH_TO_PROCESS }}/attach_linux_x86.so
 
       - name: Compile 64-bit binaries
         uses: docker://quay.io/pypa/manylinux2014_x86_64
-        env:
-          INPUT_FILE: ${{ env.PYDEVD_ATTACH_TO_PROCESS }}/linux_and_mac/attach.cpp
-          OUTPUT_FILE: ${{ env.PYDEVD_ATTACH_TO_PROCESS }}/attach_linux_amd64.so
         with:
-          args: g++ -std=c++11 -shared -fPIC -nostartfiles $GITHUB_WORKSPACE/$INPUT_FILE -o $GITHUB_WORKSPACE/$OUTPUT_FILE
+          args: >
+            g++ -std=c++11 -shared -fPIC -nostartfiles
+            ${{ env.PYDEVD_ATTACH_TO_PROCESS }}/linux_and_mac/attach.cpp
+            -o ${{ env.PYDEVD_ATTACH_TO_PROCESS }}/attach_linux_amd64.so
 
       - name: Upload binaries
         uses: actions/upload-artifact@v3
