@@ -52,8 +52,6 @@ jobs:
 
   linux-binaries:
     runs-on: ubuntu-latest
-    container:
-      image: ${{ matrix.container-image }}
 
     strategy:
       fail-fast: true
@@ -72,8 +70,7 @@ jobs:
         shell: bash
         run: |
           rm ${{ env.PYDEVD_ATTACH_TO_PROCESS }}/*.so
-          cd ${{ env.PYDEVD_ATTACH_TO_PROCESS }}/linux_and_mac
-          g++ -std=c++11 -shared -fPIC -nostartfiles -o ${{ env.PYDEVD_ATTACH_TO_PROCESS }}/attach_linux_amd64.so ${{ env.PYDEVD_ATTACH_TO_PROCESS }}//linux_and_mac/attach.cpp
+          docker run --rm -v ${{ env.PYDEVD_ATTACH_TO_PROCESS }}:/src ${{ matrix.container-image }} g++ -std=c++11 -shared -fPIC -nostartfiles -o /src/attach_linux_${{ matrix.arch }}.so /src/linux_and_mac/attach.cpp
 
       - name: Upload Linux binaries
         uses: actions/upload-artifact@v3
