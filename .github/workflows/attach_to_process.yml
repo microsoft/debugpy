@@ -70,9 +70,8 @@ jobs:
         run: rm ${{ env.PYDEVD_ATTACH_TO_PROCESS }}/*.so
 
       - name: Compile binaries
-        uses: docker://${{ env.CONTAINER_IMAGE }}
+        uses: docker://${{ matrix.matrix.container-image }}
         env:
-          CONTAINER_IMAGE: ${{ matrix.container-image }}
           INPUT_FILE: ${{ env.PYDEVD_ATTACH_TO_PROCESS }}/linux_and_mac/attach.cpp
           OUTPUT_FILE: ${{ env.PYDEVD_ATTACH_TO_PROCESS }}/attach_linux_${{ matrix.arch }}.so
         with:
