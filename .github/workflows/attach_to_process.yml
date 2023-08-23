@@ -10,17 +10,7 @@ env:
 
 jobs:
   windows-binaries:
-    runs-on: ${{ matrix.os }}
-
-    strategy:
-      fail-fast: true
-      matrix:
-        name: ["windows-py39"]
-
-        include:
-          - name: "windows-py39"
-            python-version: "3.9"
-            os: windows-latest
+    runs-on: windows-latest
 
     steps:
       - uses: actions/checkout@v3
@@ -28,8 +18,8 @@ jobs:
       - name: Compile Windows binaries
         shell: powershell
         run: |
-          rm $env:PYDEVD_ATTACH_TO_PROCESS\* -include *.exe,*.dll,*.pdb
-          cd $env:pydevd_attach_to_process\windows
+          rm ${{ env.PYDEVD_ATTACH_TO_PROCESS }}\* -include *.exe,*.dll,*.pdb
+          cd ${{ env.PYDEVD_ATTACH_TO_PROCESS }}\windows
           .\compile_windows.bat
 
       - name: Upload Windows binaries
@@ -37,51 +27,12 @@ jobs:
         with:
           name: pydevd_attach_to_process-windows
           path: |
-            ${{env.PYDEVD_ATTACH_TO_PROCESS}}\*.exe
-            ${{env.PYDEVD_ATTACH_TO_PROCESS}}\*.dll
-            ${{env.PYDEVD_ATTACH_TO_PROCESS}}\*.pdb
-
-  linux-binaries:
-    runs-on: ${{ matrix.os }}
-
-    strategy:
-      fail-fast: true
-      matrix:
-        name: ["linux-py39"]
-
-        include:
-          - name: "linux-py39"
-            python-version: "3.9"
-            os: ubuntu-20.04
-
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Compile Linux binaries
-        shell: bash
-        run: |
-          rm $PYDEVD_ATTACH_TO_PROCESS/*.so
-          cd $PYDEVD_ATTACH_TO_PROCESS/linux_and_mac
-          bash ./compile_linux.sh
-
-      - name: Upload Linux binaries
-        uses: actions/upload-artifact@v3
-        with:
-          name: pydevd_attach_to_process-linux
-          path: ${{env.PYDEVD_ATTACH_TO_PROCESS}}/*.so
+            ${{ env.PYDEVD_ATTACH_TO_PROCESS }}\*.exe
+            ${{ env.PYDEVD_ATTACH_TO_PROCESS }}\*.dll
+            ${{ env.PYDEVD_ATTACH_TO_PROCESS }}\*.pdb
 
   mac-binaries:
-    runs-on: ${{matrix.os}}
-
-    strategy:
-      fail-fast: true
-      matrix:
-        name: ["macos-py39"]
-
-        include:
-          - name: "macos-py39"
-            python-version: "3.9"
-            os: macos-latest
+    runs-on: macos-latest
 
     steps:
       - uses: actions/checkout@v3
@@ -89,12 +40,43 @@ jobs:
       - name: Compile macOS binaries
         shell: bash
         run: |
-          rm $PYDEVD_ATTACH_TO_PROCESS/*.dylib
-          cd $PYDEVD_ATTACH_TO_PROCESS/linux_and_mac
+          rm ${{ env.PYDEVD_ATTACH_TO_PROCESS }}/*.dylib
+          cd ${{ env.PYDEVD_ATTACH_TO_PROCESS }}/linux_and_mac
           bash ./compile_mac.sh
 
       - name: Upload macOS binaries
         uses: actions/upload-artifact@v3
         with:
           name: pydevd_attach_to_process-macos
-          path: ${{env.PYDEVD_ATTACH_TO_PROCESS}}/*.dylib
+          path: ${{ env.PYDEVD_ATTACH_TO_PROCESS }}/*.dylib
+
+  linux-binaries:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: true
+      container:
+        image: ${{ matrix.container-image }}
+      matrix:
+        arch: [x86, amd64]
+        include:
+          - arch: x86
+            container-image: quay.io/pypa/manylinux2014_i686
+          - arch: amd64
+            container-image: quay.io/pypa/manylinux2014_x86_64
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Compile Linux binaries
+        shell: bash
+        run: |
+          rm ${{ env.PYDEVD_ATTACH_TO_PROCESS }}/*.so
+          cd ${{ env.PYDEVD_ATTACH_TO_PROCESS }}/linux_and_mac
+          g++ -std=c++11 -shared -fPIC -nostartfiles -o ${{ env.PYDEVD_ATTACH_TO_PROCESS }}/attach_linux_amd64.so ${{ env.PYDEVD_ATTACH_TO_PROCESS }}//linux_and_mac/attach.cpp
+
+      - name: Upload Linux binaries
+        uses: actions/upload-artifact@v3
+        with:
+          name: pydevd_attach_to_process-linux-${{ matrix.arch }}
+          path: ${{ env.PYDEVD_ATTACH_TO_PROCESS }}/*.so
