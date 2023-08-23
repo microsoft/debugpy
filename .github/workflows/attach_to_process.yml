@@ -6,7 +6,7 @@ on:
   push:
 
 env:
-  PYDEVD_ATTACH_TO_PROCESS: "src/debugpy/_vendored/pydevd/pydevd_attach_to_process"
+  PYDEVD_ATTACH_TO_PROCESS: src/debugpy/_vendored/pydevd/pydevd_attach_to_process
 
 jobs:
   windows-binaries:
@@ -15,14 +15,14 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Compile Windows binaries
+      - name: Compile binaries
         shell: powershell
         run: |
           rm ${{ env.PYDEVD_ATTACH_TO_PROCESS }}\* -include *.exe,*.dll,*.pdb
           cd ${{ env.PYDEVD_ATTACH_TO_PROCESS }}\windows
           .\compile_windows.bat
 
-      - name: Upload Windows binaries
+      - name: Upload binaries
         uses: actions/upload-artifact@v3
         with:
           name: pydevd_attach_to_process-windows
@@ -37,14 +37,14 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Compile macOS binaries
+      - name: Compile binaries
         shell: bash
         run: |
           rm ${{ env.PYDEVD_ATTACH_TO_PROCESS }}/*.dylib
           cd ${{ env.PYDEVD_ATTACH_TO_PROCESS }}/linux_and_mac
           bash ./compile_mac.sh
 
-      - name: Upload macOS binaries
+      - name: Upload binaries
         uses: actions/upload-artifact@v3
         with:
           name: pydevd_attach_to_process-macos
@@ -66,13 +66,17 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Compile Linux binaries
-        shell: bash
-        run: |
-          rm ${{ env.PYDEVD_ATTACH_TO_PROCESS }}/*.so
-          docker run --rm -v ${{ env.PYDEVD_ATTACH_TO_PROCESS }}:/src ${{ matrix.container-image }} g++ -std=c++11 -shared -fPIC -nostartfiles -o /src/attach_linux_${{ matrix.arch }}.so /src/linux_and_mac/attach.cpp
+      - name: Clean up old binaries
+        run: rm ${{ env.PYDEVD_ATTACH_TO_PROCESS }}/*.so
 
-      - name: Upload Linux binaries
+      - name: Compile binaries
+        uses: docker://${{ matrix.container-image }}
+        run: >
+          g++ -std=c++11 -shared -fPIC -nostartfiles
+          -o $GITHUB_WORKSPACE/${{ PYDEVD_ATTACH_TO_PROCESS }}/attach_linux_${{ matrix.arch }}.so
+          $GITHUB_WORKSPACE/${{ PYDEVD_ATTACH_TO_PROCESS }}/linux_and_mac/attach.cpp
+
+      - name: Upload binaries
         uses: actions/upload-artifact@v3
         with:
           name: pydevd_attach_to_process-linux-${{ matrix.arch }}
