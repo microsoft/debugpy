@@ -71,10 +71,11 @@ jobs:
 
       - name: Compile binaries
         uses: docker://${{ matrix.container-image }}
-        run: >
-          g++ -std=c++11 -shared -fPIC -nostartfiles
-          -o $GITHUB_WORKSPACE/${{ PYDEVD_ATTACH_TO_PROCESS }}/attach_linux_${{ matrix.arch }}.so
-          $GITHUB_WORKSPACE/${{ PYDEVD_ATTACH_TO_PROCESS }}/linux_and_mac/attach.cpp
+        with:
+          args: >
+            g++ -std=c++11 -shared -fPIC -nostartfiles
+            -o $GITHUB_WORKSPACE/${{ PYDEVD_ATTACH_TO_PROCESS }}/attach_linux_${{ matrix.arch }}.so
+            $GITHUB_WORKSPACE/${{ PYDEVD_ATTACH_TO_PROCESS }}/linux_and_mac/attach.cpp
 
       - name: Upload binaries
         uses: actions/upload-artifact@v3
