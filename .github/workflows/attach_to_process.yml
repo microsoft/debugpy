@@ -36,7 +36,7 @@ jobs:
             ${{ env.PYDEVD_ATTACH_TO_PROCESS }}\*.pdb
 
   mac-binaries:
-    runs-on: macos-latest
+    runs-on: macos-11
 
     steps:
       - uses: actions/checkout@v3
