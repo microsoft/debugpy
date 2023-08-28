@@ -18,11 +18,11 @@ pr:
 
 variables:
   architecture: "x64"
-  python.version: "3.8"
+  python.version: "3.11"
 
 jobs:
   - job: "Coverage"
-    timeoutInMinutes: "45"
+    timeoutInMinutes: "60"
     pool:
       name: Azure Pipelines
       demands: java
