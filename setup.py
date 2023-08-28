@@ -176,18 +176,13 @@ if __name__ == "__main__":
             "License :: OSI Approved :: MIT License",
         ],
         package_dir={"": "src"},
-        packages=setuptools.find_namespace_packages(
-            include=[
-                "debugpy",
-                "debugpy.*",
-            ]
-        ),
+        packages=setuptools.find_namespace_packages(where="src", include=["debugpy*"]),
         package_data={
             "debugpy": ["ThirdPartyNotices.txt"],
             "debugpy._vendored": [
                 # pydevd extensions must be built before this list can be computed properly,
                 # so it is populated in the overridden build_py.finalize_options().
-            ],  
+            ],
         },
         ext_modules=ExtModules(),
         has_ext_modules=lambda: True,
