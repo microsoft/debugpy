@@ -350,13 +350,9 @@ class Session(object):
             env.pop("COV_CORE_SOURCE", None)
 
         return env
-    
+
     def _make_python_cmdline(self, exe, *args):
-        cmd = [exe]
-        if sys.version_info[:2] >= (3, 11):
-            cmd += ["-X", "frozen_modules=off"]
-        cmd += [str(s.strpath if isinstance(s, py.path.local) else s) for s in args]
-        return cmd
+        return [str(s.strpath if isinstance(s, py.path.local) else s) for s in [exe, *args]]
 
     def spawn_debuggee(self, args, cwd=None, exe=sys.executable, setup=None):
         assert self.debuggee is None
