@@ -14,7 +14,7 @@ steps:
         sonar.python.coverage.reportPaths=$(Build.SourcesDirectory)/coverage/coverage.xml
         sonar.projectKey=microsoft_debugpy
 
-  - script: "python -m tox --develop -e py38-cov -- --cov-report=html --cov-report=xml -vv"
+  - script: "python -m tox --develop -e py311-cov -- --cov-report=html --cov-report=xml -vv"
     displayName: "Coverage Run"
 
   - task: SonarCloudAnalyze@1
