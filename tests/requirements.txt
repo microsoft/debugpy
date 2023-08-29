@@ -1,5 +1,3 @@
-setuptools
-
 ## Used to run the tests:
 
 pytest
