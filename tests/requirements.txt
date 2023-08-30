@@ -7,6 +7,7 @@ pytest-timeout
 
 ## Used by test helpers:
 
+importlib_metadata
 psutil
 
 ## Used in Python code that is run/debugged by the tests:

@@ -279,7 +279,7 @@ def prefixed(format_string, *args, **kwargs):
         _tls.prefix = old_prefix
 
 
-def describe_environment(header):
+def get_environment_description(header):
     import sysconfig
     import site  # noqa
 
@@ -342,9 +342,31 @@ def describe_environment(header):
     report_paths("os.__file__")
     report_paths("threading.__file__")
     report_paths("debugpy.__file__")
+    report("\n")
 
-    result = "".join(result).rstrip("\n")
-    info("{0}", result)
+    importlib_metadata = None
+    try:
+        import importlib_metadata
+    except ImportError:
+        try:
+            from importlib import metadata as importlib_metadata
+        except ImportError:
+            pass
+    if importlib_metadata is None:
+        report("Cannot enumerate installed packages - missing importlib_metadata.")
+    else:
+        report("Installed packages:\n")
+        try:
+            for pkg in importlib_metadata.distributions():
+                report("    {0}=={1}\n", pkg.name, pkg.version)
+        except Exception:
+            swallow_exception("Error while enumerating installed packages.")
+
+    return "".join(result).rstrip("\n")
+
+
+def describe_environment(header):
+    info("{0}", get_environment_description(header))
 
 
 stderr = LogFile(

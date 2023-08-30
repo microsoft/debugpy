@@ -69,6 +69,7 @@ def test_wrapper(request, long_tmpdir):
         with log.to_file(prefix="tests"):
             timestamp.reset()
             log.info("{0} started.", request.node.nodeid)
+            log.describe_environment("Environment:")
             try:
                 yield
             finally:

@@ -36,7 +36,7 @@ def pytest_configure(config):
 
 
 def pytest_report_header(config):
-    log.describe_environment(f"Test environment for tests-{os.getpid()}")
+    return log.get_environment_description(f"Test environment for tests-{os.getpid()}")
 
 
 @pytest.hookimpl(hookwrapper=True, tryfirst=True)
