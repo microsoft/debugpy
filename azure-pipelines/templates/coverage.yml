@@ -1,7 +1,7 @@
 steps:
   - template: "use_python.yml"
 
-  - script: "python -m pip install -U pip setuptools tox"
+  - script: "python -m pip install tox"
     displayName: "Setup Python packages"
 
   - task: SonarCloudPrepare@1
