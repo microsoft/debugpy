@@ -8,7 +8,7 @@ steps:
         $toxEnv = 'py' + $toxEnv.Replace('.', '')
       }
       echo 'tox environment: $toxEnv'
-      python -m tox -e $toxEnv -- -vv --junitxml=$(Build.ArtifactStagingDirectory)/tests.xml --debugpy-log-dir=$(Build.ArtifactStagingDirectory)/logs tests
+      python -m tox -e $toxEnv -- --junitxml=$(Build.ArtifactStagingDirectory)/tests.xml --debugpy-log-dir=$(Build.ArtifactStagingDirectory)/logs tests
     displayName: "Run tests using tox"
 
   - task: "PublishBuildArtifacts@1"
