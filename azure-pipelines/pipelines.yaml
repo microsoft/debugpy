@@ -23,6 +23,7 @@ variables:
 jobs:
 
   - job: "Lint"
+    timeoutInMinutes: "5"
     displayName: "Lint"
     pool: { vmImage: "ubuntu-latest" }
 
