@@ -8,6 +8,7 @@ omit =
     src/debugpy/_version.py
     src/debugpy/_vendored/*
     src/debugpy/server/*
+    src/debugpy/common/log.py
 data_file = coverage/.coverage
 
 [report]
@@ -21,6 +22,12 @@ exclude_lines =
     # Asserts and error conditions.
     raise AssertionError
     raise NotImplementedError
+    raise TypeError
+    raise ValueError
+    raise AttributeError
+    raise RuntimeError
+    raise ComponentNotAvailable
+    raise messaging.MessageHandlingError    
     \.isnt_valid\(
     \.cant_handle\(
 
