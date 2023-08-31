@@ -300,7 +300,7 @@ def get_environment_description(header):
         except AttributeError:
             report("{0}<missing>\n", prefix)
             return
-        except Exception:
+        except Exception:  # pragma: no cover
             swallow_exception(
                 "Error evaluating {0}",
                 repr(expr) if expr else util.srcnameof(get_paths),
@@ -352,14 +352,14 @@ def get_environment_description(header):
             from importlib import metadata as importlib_metadata
         except ImportError:
             pass
-    if importlib_metadata is None:
+    if importlib_metadata is None:  # pragma: no cover
         report("Cannot enumerate installed packages - missing importlib_metadata.")
     else:
         report("Installed packages:\n")
         try:
             for pkg in importlib_metadata.distributions():
                 report("    {0}=={1}\n", pkg.name, pkg.version)
-        except Exception:
+        except Exception:  # pragma: no cover
             swallow_exception("Error while enumerating installed packages.")
 
     return "".join(result).rstrip("\n")
