@@ -30,13 +30,13 @@ def create_server(host, port=0, backlog=socket.SOMAXCONN, timeout=None):
             else:
                 try:
                     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-                except (AttributeError, OSError):
+                except (AttributeError, OSError):  # pragma: no cover
                     pass  # Not available everywhere
         server.bind((host, port))
         if timeout is not None:
             server.settimeout(timeout)
         server.listen(backlog)
-    except Exception:
+    except Exception:  # pragma: no cover
         server.close()
         raise
     return server
@@ -56,19 +56,19 @@ def _new_sock():
     # and closes the connection after 5 failed ping (TCP_KEEPCNT), or 15 seconds
     try:
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-    except (AttributeError, OSError):
+    except (AttributeError, OSError):  # pragma: no cover
         pass  # May not be available everywhere.
     try:
         sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 1)
-    except (AttributeError, OSError):
+    except (AttributeError, OSError):  # pragma: no cover
         pass  # May not be available everywhere.
     try:
         sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 3)
-    except (AttributeError, OSError):
+    except (AttributeError, OSError):  # pragma: no cover
         pass  # May not be available everywhere.
     try:
         sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 5)
-    except (AttributeError, OSError):
+    except (AttributeError, OSError):  # pragma: no cover
         pass  # May not be available everywhere.
     return sock
 
@@ -82,7 +82,7 @@ def close_socket(sock):
     """Shutdown and close the socket."""
     try:
         shut_down(sock)
-    except Exception:
+    except Exception:  # pragma: no cover
         pass
     sock.close()
 
@@ -98,7 +98,7 @@ def serve(name, handler, host, port=0, backlog=socket.SOMAXCONN, timeout=None):
 
     try:
         listener = create_server(host, port, backlog, timeout)
-    except Exception:
+    except Exception:  # pragma: no cover
         log.reraise_exception(
             "Error listening for incoming {0} connections on {1}:{2}:", name, host, port
         )

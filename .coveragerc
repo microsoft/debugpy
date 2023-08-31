@@ -8,14 +8,10 @@ omit =
     src/debugpy/_version.py
     src/debugpy/_vendored/*
     src/debugpy/server/*
-    src/debugpy/common/log.py
 data_file = coverage/.coverage
 
 [report]
-exclude_lines =
-    # Have to re-enable the standard pragma.
-    pragma: no cover
-
+exclude_also =
     # __repr__ is mostly used for error messages.
     def __repr__
 

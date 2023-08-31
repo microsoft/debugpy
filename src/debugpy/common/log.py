@@ -58,7 +58,7 @@ class LogFile(object):
                 platform.machine(),
                 platform.python_implementation(),
                 platform.python_version(),
-                64 if sys.maxsize > 2 ** 32 else 32,
+                64 if sys.maxsize > 2**32 else 32,
                 debugpy.__version__,
                 _to_files=[self],
             )
@@ -78,7 +78,7 @@ class LogFile(object):
             try:
                 self.file.write(output)
                 self.file.flush()
-            except Exception:
+            except Exception:  # pragma: no cover
                 pass
 
     def close(self):
@@ -90,7 +90,7 @@ class LogFile(object):
         if self.close_file:
             try:
                 self.file.close()
-            except Exception:
+            except Exception:  # pragma: no cover
                 pass
 
     def __enter__(self):
@@ -151,7 +151,7 @@ def write_format(level, format_string, *args, **kwargs):
 
     try:
         text = format_string.format(*args, **kwargs)
-    except Exception:
+    except Exception:  # pragma: no cover
         reraise_exception()
 
     return write(level, text, kwargs.pop("_to_files", all))
@@ -253,7 +253,7 @@ def to_file(filename=None, prefix=None, levels=LEVELS):
             return NoLog()
         try:
             os.makedirs(log_dir)
-        except OSError:
+        except OSError:  # pragma: no cover
             pass
         filename = f"{log_dir}/{prefix}-{os.getpid()}.log"
 
@@ -347,7 +347,7 @@ def get_environment_description(header):
     importlib_metadata = None
     try:
         import importlib_metadata
-    except ImportError:
+    except ImportError:  # pragma: no cover
         try:
             from importlib import metadata as importlib_metadata
         except ImportError:
