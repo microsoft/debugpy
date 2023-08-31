@@ -102,7 +102,7 @@ class JsonIOStream(object):
         def cleanup():
             try:
                 sock.shutdown(socket.SHUT_RDWR)
-            except Exception:
+            except Exception:  # pragma: no cover
                 pass
             sock.close()
 
@@ -155,7 +155,7 @@ class JsonIOStream(object):
                         self._reader.close()
             finally:
                 self._cleanup()
-        except Exception:
+        except Exception:  # pragma: no cover
             log.reraise_exception("Error while closing {0} message stream", self.name)
 
     def _log_message(self, dir, data, logger=log.debug):
@@ -206,7 +206,7 @@ class JsonIOStream(object):
         while True:
             try:
                 line = read_line()
-            except Exception:
+            except Exception:  # pragma: no cover
                 # Only log it if we have already read some headers, and are looking
                 # for a blank line terminating them. If this is the very first read,
                 # there's no message data to log in any case, and the caller might
@@ -229,7 +229,7 @@ class JsonIOStream(object):
             length = int(headers[b"Content-Length"])
             if not (0 <= length <= self.MAX_BODY_SIZE):
                 raise ValueError
-        except (KeyError, ValueError):
+        except (KeyError, ValueError):  # pragma: no cover
             try:
                 raise IOError("Content-Length is missing or invalid:")
             except Exception:
@@ -253,12 +253,12 @@ class JsonIOStream(object):
         body = b"".join(raw_chunks[body_start:])
         try:
             body = body.decode("utf-8")
-        except Exception:
+        except Exception:  # pragma: no cover
             log_message_and_reraise_exception()
 
         try:
             body = decoder.decode(body)
-        except Exception:
+        except Exception:  # pragma: no cover
             log_message_and_reraise_exception()
 
         # If parsed successfully, log as JSON for readability.
@@ -285,7 +285,7 @@ class JsonIOStream(object):
 
         try:
             body = encoder.encode(value)
-        except Exception:
+        except Exception:  # pragma: no cover
             self._log_message("<--", repr(value), logger=log.reraise_exception)
         body = body.encode("utf-8")
 
@@ -297,7 +297,7 @@ class JsonIOStream(object):
                 written = writer.write(data[data_written:])
                 data_written += written
             writer.flush()
-        except Exception as exc:
+        except Exception as exc:  # pragma: no cover
             self._log_message("<--", value, logger=log.swallow_exception)
             raise JsonIOError(stream=self, cause=exc)
 
@@ -344,7 +344,7 @@ class MessageDict(collections.OrderedDict):
     def __repr__(self):
         try:
             return format(json.repr(self))
-        except Exception:
+        except Exception:  # pragma: no cover
             return super().__repr__()
 
     def __call__(self, key, validate, optional=False):
