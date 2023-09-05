@@ -7,7 +7,7 @@ steps:
   # for pkg_resources getting triggered by test_gevent.
   - script: 'python -m pip install "setuptools<68"'
     displayName: "Install setuptools"
-    condition: "'$(python.version)' == '3.7'"
+    condition: eq(variables['python.version'], '3.7')
 
   - pwsh: |
       $toxEnv = '$(python.version)'
