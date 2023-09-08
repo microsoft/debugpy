@@ -12,13 +12,23 @@ import platform
 import sys
 import threading
 import traceback
-from typing import Callable, Dict, FrozenSet, Iterable, Literal, Sequence, TextIO, Tuple, Union, cast
+from typing import (
+    Callable,
+    Dict,
+    FrozenSet,
+    Iterable,
+    Sequence,
+    TextIO,
+    Tuple,
+    Union,
+    cast,
+)
+from typing_extensions import Literal
 
 import debugpy
 from debugpy.common import json, timestamp, util
 
-LevelTypes = Literal['debug', 'info', 'warning', 'error']
-
+LevelTypes = Literal["debug", "info", "warning", "error"]
 LEVELS = ("debug", "info", "warning", "error")
 """Logging levels, lowest to highest importance.
 """
@@ -44,7 +54,13 @@ def _update_levels():
 
 
 class LogFile(object):
-    def __init__(self, filename: str, file: TextIO, levels: Sequence[LevelTypes]=LEVELS, close_file=True):
+    def __init__(
+        self,
+        filename: str,
+        file: TextIO,
+        levels: Sequence[LevelTypes] = LEVELS,
+        close_file=True,
+    ):
         info("Also logging to {0}.", json.repr(filename))
         self.filename = filename
         self.file = file
@@ -378,7 +394,9 @@ def describe_environment(header):
 stderr = LogFile(
     "<stderr>",
     sys.stderr,
-    levels=cast(Sequence[LevelTypes], os.getenv("DEBUGPY_LOG_STDERR", "warning error").split()),
+    levels=cast(
+        Sequence[LevelTypes], os.getenv("DEBUGPY_LOG_STDERR", "warning error").split()
+    ),
     close_file=False,
 )
 
