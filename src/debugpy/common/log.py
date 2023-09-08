@@ -12,10 +12,12 @@ import platform
 import sys
 import threading
 import traceback
+from typing import Callable, Dict, FrozenSet, Iterable, Literal, Sequence, TextIO, Tuple, Union, cast
 
 import debugpy
 from debugpy.common import json, timestamp, util
 
+LevelTypes = Literal['debug', 'info', 'warning', 'error']
 
 LEVELS = ("debug", "info", "warning", "error")
 """Logging levels, lowest to highest importance.
@@ -32,8 +34,8 @@ timestamp_format = "09.3f"
 
 _lock = threading.RLock()
 _tls = threading.local()
-_files = {}  # filename -> LogFile
-_levels = set()  # combined for all log files
+_files: Dict[str, "LogFile"] = {}  # filename -> LogFile
+_levels: FrozenSet[LevelTypes] = frozenset()  # combined for all log files
 
 
 def _update_levels():
@@ -42,12 +44,12 @@ def _update_levels():
 
 
 class LogFile(object):
-    def __init__(self, filename, file, levels=LEVELS, close_file=True):
+    def __init__(self, filename: str, file: TextIO, levels: Sequence[LevelTypes]=LEVELS, close_file=True):
         info("Also logging to {0}.", json.repr(filename))
         self.filename = filename
         self.file = file
         self.close_file = close_file
-        self._levels = frozenset(levels)
+        self._levels: FrozenSet[LevelTypes] = frozenset(levels)
 
         with _lock:
             _files[self.filename] = self
@@ -68,9 +70,10 @@ class LogFile(object):
         return self._levels
 
     @levels.setter
-    def levels(self, value):
+    def levels(self, value: Union[Sequence[LevelTypes], Callable[..., bool]]):
         with _lock:
-            self._levels = frozenset(LEVELS if value is all else value)
+            givenLevels = cast(Sequence[LevelTypes], LEVELS if value is all else value)
+            self._levels = frozenset(givenLevels)
             _update_levels()
 
     def write(self, level, output):
@@ -372,7 +375,7 @@ def describe_environment(header):
 stderr = LogFile(
     "<stderr>",
     sys.stderr,
-    levels=os.getenv("DEBUGPY_LOG_STDERR", "warning error").split(),
+    levels=cast(Sequence[LevelTypes], os.getenv("DEBUGPY_LOG_STDERR", "warning error").split()),
     close_file=False,
 )
 
