@@ -2,13 +2,6 @@ steps:
   - script: "python -m pip install tox"
     displayName: "Setup Python packages"
 
-  # tox will automatically install the most recent version of setuptools to build the package.
-  # However, for Python 3.7, we want an older version of setuptools to avoid DeprecationWarning
-  # for pkg_resources getting triggered by test_gevent.
-  - script: 'python -m pip install -U "setuptools<66"'
-    displayName: "Install setuptools"
-    condition: eq(variables['python.version'], '3.7')
-
   - pwsh: |
       $toxEnv = '$(python.version)'
       if (-not $toxEnv.startsWith('pypy')) {
