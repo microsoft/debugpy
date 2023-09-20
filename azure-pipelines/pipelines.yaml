@@ -38,13 +38,9 @@ jobs:
       # See https://github.com/astral-sh/ruff and https://beta.ruff.rs/docs/
       - script: "python3 -m pip install -U ruff"
         displayName: "Install ruff"
-
-      # We just switched to a new linter and there are a ton of errors. We need time to go through them, but we don't want the block the build.
-      # Therefore, we use continueOnError to generate a warning while there are linter errors. The build will still run.
-      # To force the step to return zero even with linter errors, add "--exit-zero" after the "check" in the command line
+        
       - script: "python3 -m ruff check --format=junit --output-file=$(Build.ArtifactStagingDirectory)/lint-ruff.xml ."
         displayName: "Run ruff"
-        continueOnError: "true"
 
       - task: "PublishTestResults@2"
         displayName: "Publish linting results"
