@@ -13,22 +13,23 @@ import sys
 import threading
 import traceback
 from typing import (
+    Any,
     Callable,
     Dict,
     FrozenSet,
-    Iterable,
+    Optional,
     Sequence,
     TextIO,
-    Tuple,
     Union,
     cast,
+    Literal
 )
-from typing_extensions import Literal
 
 import debugpy
 from debugpy.common import json, timestamp, util
 
 LevelTypes = Literal["debug", "info", "warning", "error"]
+
 LEVELS = ("debug", "info", "warning", "error")
 """Logging levels, lowest to highest importance.
 """
@@ -92,7 +93,7 @@ class LogFile(object):
             self._levels = frozenset(givenLevels)
             _update_levels()
 
-    def write(self, level, output):
+    def write(self, level: LevelTypes, output: str):
         if level in self.levels:
             try:
                 self.file.write(output)
@@ -136,12 +137,12 @@ class NoLog(object):
 
 # Used to inject a newline into stderr if logging there, to clean up the output
 # when it's intermixed with regular prints from other sources.
-def newline(level="info"):
+def newline(level: LevelTypes ="info"):
     with _lock:
         stderr.write(level, "\n")
 
 
-def write(level, text, _to_files=all):
+def write(level: LevelTypes, text: str, _to_files=all):
     assert level in LEVELS
 
     t = timestamp.current()
@@ -162,12 +163,13 @@ def write(level, text, _to_files=all):
     return text
 
 
-def write_format(level, format_string, *args, **kwargs):
+def write_format(level: LevelTypes, format_string: str, *args: Any, **kwargs: Any):
     # Don't spend cycles doing expensive formatting if we don't have to. Errors are
     # always formatted, so that error() can return the text even if it's not logged.
     if level != "error" and level not in _levels:
         return
 
+    text = ""
     try:
         text = format_string.format(*args, **kwargs)
     except Exception:  # pragma: no cover
@@ -181,7 +183,7 @@ info = functools.partial(write_format, "info")
 warning = functools.partial(write_format, "warning")
 
 
-def error(*args, **kwargs):
+def error(*args: Any, **kwargs: Any):
     """Logs an error.
 
     Returns the output wrapped in AssertionError. Thus, the following::
@@ -196,8 +198,8 @@ def error(*args, **kwargs):
     return AssertionError(write_format("error", *args, **kwargs))
 
 
-def _exception(format_string="", *args, **kwargs):
-    level = kwargs.pop("level", "error")
+def _exception(format_string="", *args: Any, **kwargs: Any):
+    level: LevelTypes = kwargs.pop("level", "error")
     exc_info = kwargs.pop("exc_info", sys.exc_info())
 
     if format_string:
@@ -218,7 +220,7 @@ def _exception(format_string="", *args, **kwargs):
     )
 
 
-def swallow_exception(format_string="", *args, **kwargs):
+def swallow_exception(format_string="", *args: Any, **kwargs: Any):
     """Logs an exception with full traceback.
 
     If format_string is specified, it is formatted with format(*args, **kwargs), and
@@ -234,7 +236,7 @@ def swallow_exception(format_string="", *args, **kwargs):
     _exception(format_string, *args, **kwargs)
 
 
-def reraise_exception(format_string="", *args, **kwargs):
+def reraise_exception(format_string="", *args: Any, **kwargs: Any):
     """Like swallow_exception(), but re-raises the current exception after logging it."""
 
     assert "exc_info" not in kwargs
@@ -242,7 +244,7 @@ def reraise_exception(format_string="", *args, **kwargs):
     raise
 
 
-def to_file(filename=None, prefix=None, levels=LEVELS):
+def to_file(filename: Optional[str]=None, prefix: Optional[str]=None, levels: Sequence[LevelTypes]=LEVELS):
     """Starts logging all messages at the specified levels to the designated file.
 
     Either filename or prefix must be specified, but not both.
@@ -285,7 +287,7 @@ def to_file(filename=None, prefix=None, levels=LEVELS):
 
 
 @contextlib.contextmanager
-def prefixed(format_string, *args, **kwargs):
+def prefixed(format_string: str, *args: Any, **kwargs: Any):
     """Adds a prefix to all messages logged from the current thread for the duration
     of the context manager.
     """
@@ -298,16 +300,16 @@ def prefixed(format_string, *args, **kwargs):
         _tls.prefix = old_prefix
 
 
-def get_environment_description(header):
+def get_environment_description(header: str):
     import sysconfig
     import site  # noqa
 
     result = [header, "\n\n"]
 
-    def report(s, *args, **kwargs):
+    def report(s: str, *args: Any, **kwargs: Any):
         result.append(s.format(*args, **kwargs))
 
-    def report_paths(get_paths, label=None):
+    def report_paths(get_paths: Union[str, Callable[[], Union[str, list, tuple]]], label=None):
         prefix = f"    {label or get_paths}: "
 
         expr = None
@@ -366,7 +368,7 @@ def get_environment_description(header):
 
     importlib_metadata = None
     try:
-        import importlib_metadata
+        import importlib_metadata # type: ignore
     except ImportError:  # pragma: no cover
         try:
             from importlib import metadata as importlib_metadata
@@ -379,7 +381,7 @@ def get_environment_description(header):
         try:
             for pkg in importlib_metadata.distributions():
                 report("    {0}=={1}\n", pkg.name, pkg.version)
-        except Exception:  # pragma: no cover
+        except Exception:  # pragma: no cover 
             swallow_exception(
                 "Error while enumerating installed packages.", level="info"
             )
