@@ -1473,14 +1473,17 @@ class JsonMessageChannel(object):
             except AttributeError:
                 continue
 
-        raise AttributeError(
-            "handler object {0} for channel {1} has no handler for {2} {3!r}".format(
-                util.srcnameof(handlers),
-                self,
-                type,
-                name,
+        try:
+            raise AttributeError(
+                "handler object {0} for channel {1} has no handler for {2} {3!r}".format(
+                    util.srcnameof(handlers),
+                    self,
+                    type,
+                    name,
+                )
             )
-        )
+        except Exception:
+            log.reraise_exception()
 
     def _handle_disconnect(self):
         handler = getattr(self.handlers, "disconnect", lambda: None)
