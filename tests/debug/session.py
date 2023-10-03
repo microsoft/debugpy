@@ -102,6 +102,11 @@ class Session(object):
         self.adapter = None
         """psutil.Popen instance for the adapter process."""
 
+        self.expected_adapter_sockets = {
+            "client": {"host": some.str, "port": some.int, "internal": False},
+        }
+        """The sockets which the adapter is expected to report."""
+
         self.adapter_endpoints = None
         """Name of the file that contains the adapter endpoints information.
 
@@ -127,6 +132,10 @@ class Session(object):
 
         self.scratchpad = comms.ScratchPad(self)
         """The ScratchPad object to talk to the debuggee."""
+
+        self.start_command = None
+        """Set to either "launch" or "attach" just before the corresponding request is sent.
+        """
 
         self.start_request = None
         """The "launch" or "attach" request that started executing code in this session.
@@ -183,6 +192,7 @@ class Session(object):
                 timeline.Event("module"),
                 timeline.Event("continued"),
                 timeline.Event("debugpyWaitingForServer"),
+                timeline.Event("debugpySockets"),
                 timeline.Event("thread", some.dict.containing({"reason": "started"})),
                 timeline.Event("thread", some.dict.containing({"reason": "exited"})),
                 timeline.Event("output", some.dict.containing({"category": "stdout"})),
@@ -296,6 +306,10 @@ class Session(object):
     @property
     def ignore_unobserved(self):
         return self.timeline.ignore_unobserved
+    
+    @property
+    def is_subprocess(self):
+        return "subProcessId" in self.config
 
     def open_backchannel(self):
         assert self.backchannel is None
@@ -352,7 +366,9 @@ class Session(object):
         return env
 
     def _make_python_cmdline(self, exe, *args):
-        return [str(s.strpath if isinstance(s, py.path.local) else s) for s in [exe, *args]]
+        return [
+            str(s.strpath if isinstance(s, py.path.local) else s) for s in [exe, *args]
+        ]
 
     def spawn_debuggee(self, args, cwd=None, exe=sys.executable, setup=None):
         assert self.debuggee is None
@@ -406,7 +422,9 @@ class Session(object):
         assert self.adapter is None
         assert self.channel is None
 
-        args = self._make_python_cmdline(sys.executable, os.path.dirname(debugpy.adapter.__file__), *args)
+        args = self._make_python_cmdline(
+            sys.executable, os.path.dirname(debugpy.adapter.__file__), *args
+        )
         env = self._make_env(self.spawn_adapter.env)
 
         log.info(
@@ -430,12 +448,22 @@ class Session(object):
         stream = messaging.JsonIOStream.from_process(self.adapter, name=self.adapter_id)
         self._start_channel(stream)
 
+    def expect_server_socket(self, port=some.int):
+        self.expected_adapter_sockets["server"] = {
+            "host": some.str,
+            "port": port,
+            "internal": True,
+        }
+
     def connect_to_adapter(self, address):
         assert self.channel is None
 
         self.before_connect(address)
         host, port = address
         log.info("Connecting to {0} at {1}:{2}", self.adapter_id, host, port)
+
+        self.expected_adapter_sockets["client"]["port"] = port
+
         sock = sockets.create_client()
         sock.connect(address)
 
@@ -470,8 +498,12 @@ class Session(object):
         if self.timeline.is_frozen and proceed:
             self.proceed()
 
+        if command in ("launch", "attach"):
+            self.start_command = command
+
         message = self.channel.send_request(command, arguments)
         request = self.timeline.record_request(message)
+
         if command in ("launch", "attach"):
             self.start_request = request
 
@@ -483,15 +515,51 @@ class Session(object):
 
     def _process_event(self, event):
         occ = self.timeline.record_event(event, block=False)
+
         if event.event == "exited":
             self.observe(occ)
             self.exit_code = event("exitCode", int)
             self.exit_reason = event("reason", str, optional=True)
             assert self.exit_code == self.expected_exit_code
+
+        elif event.event == "terminated":
+            # Server socket should be closed next.
+            self.expected_adapter_sockets.pop("server", None)
+
         elif event.event == "debugpyAttach":
             self.observe(occ)
             pid = event("subProcessId", int)
             watchdog.register_spawn(pid, f"{self.debuggee_id}-subprocess-{pid}")
+
+        elif event.event == "debugpySockets":
+            assert not self.is_subprocess
+            sockets = list(event("sockets", json.array(json.object())))
+            for purpose, expected_socket in self.expected_adapter_sockets.items():
+                if expected_socket is None:
+                    continue
+                socket = None
+                for socket in sockets:
+                    if socket == expected_socket:
+                        break
+                assert (
+                    socket is not None
+                ), f"Expected {purpose} socket {expected_socket} not reported by adapter"
+                sockets.remove(socket)
+            assert not sockets, f"Unexpected sockets reported by adapter: {sockets}"
+
+            if self.start_command == "launch":
+                if "launcher" in self.expected_adapter_sockets:
+                    # If adapter has just reported the launcher socket, it shouldn't be
+                    # reported thereafter.
+                    self.expected_adapter_sockets["launcher"] = None
+                elif "server" in self.expected_adapter_sockets:
+                    # If adapter just reported the server socket, the next event should
+                    # report the launcher socket.
+                    self.expected_adapter_sockets["launcher"] = {
+                        "host": some.str,
+                        "port": some.int,
+                        "internal": False,
+                    }
 
     def run_in_terminal(self, args, cwd, env):
         exe = args.pop(0)
@@ -514,10 +582,12 @@ class Session(object):
             except Exception as exc:
                 log.swallow_exception('"runInTerminal" failed:')
                 raise request.cant_handle(str(exc))
+
         elif request.command == "startDebugging":
             pid = request("configuration", dict)("subProcessId", int)
             watchdog.register_spawn(pid, f"{self.debuggee_id}-subprocess-{pid}")
             return {}
+
         else:
             raise request.isnt_valid("not supported")
 
@@ -566,6 +636,9 @@ class Session(object):
                 },
             )
         )
+
+        if not self.is_subprocess:
+            self.wait_for_next(timeline.Event("debugpySockets"))
 
         self.request("initialize", self.capabilities)
 
@@ -632,9 +705,20 @@ class Session(object):
             # If specified, launcher will use it in lieu of PYTHONPATH it inherited
             # from the adapter when spawning debuggee, so we need to adjust again.
             self.config.env.prepend_to("PYTHONPATH", DEBUGGEE_PYTHONPATH.strpath)
+
+        # Adapter is going to start listening for server and spawn the launcher at
+        # this point. Server socket gets reported first.
+        self.expect_server_socket()
+
         return self._request_start("launch")
 
     def request_attach(self):
+        # In attach(listen) scenario, adapter only starts listening for server
+        # after receiving the "attach" request.
+        listen = self.config.get("listen", None)
+        if listen is not None:
+            assert "server" not in self.expected_adapter_sockets
+            self.expect_server_socket(listen["port"])
         return self._request_start("attach")
 
     def request_continue(self):
@@ -787,7 +871,9 @@ class Session(object):
         return StopInfo(stopped, frames, tid, fid)
 
     def wait_for_next_subprocess(self):
-        message = self.timeline.wait_for_next(timeline.Event("debugpyAttach") | timeline.Request("startDebugging"))
+        message = self.timeline.wait_for_next(
+            timeline.Event("debugpyAttach") | timeline.Request("startDebugging")
+        )
         if isinstance(message, timeline.EventOccurrence):
             config = message.body
             assert "request" in config

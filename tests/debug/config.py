@@ -125,6 +125,9 @@ class DebugConfig(MutableMapping):
         assert key in self.PROPERTIES
         self._dict[key] = value
 
+    def __repr__(self):
+        return repr(dict(self))
+
     def __getstate__(self):
         return dict(self)
 
