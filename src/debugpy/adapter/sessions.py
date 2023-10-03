@@ -282,3 +282,12 @@ def wait_until_ended():
                 return
             _sessions_changed.clear()
         _sessions_changed.wait()
+
+
+def report_sockets():
+    if not _sessions:
+        return
+    session = sorted(_sessions, key=lambda session: session.id)[0]
+    client = session.client
+    if client is not None:
+        client.report_sockets()

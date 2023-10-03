@@ -13,7 +13,7 @@ import time
 import debugpy
 from debugpy import adapter
 from debugpy.common import json, log, messaging, sockets
-from debugpy.adapter import components
+from debugpy.adapter import components, sessions
 import traceback
 import io
 
@@ -394,6 +394,7 @@ class Server(components.Component):
 def serve(host="127.0.0.1", port=0):
     global listener
     listener = sockets.serve("Server", Connection, host, port)
+    sessions.report_sockets()
     return listener.getsockname()
 
 
@@ -409,6 +410,7 @@ def stop_serving():
             listener = None
     except Exception:
         log.swallow_exception(level="warning")
+    sessions.report_sockets()
 
 
 def connections():

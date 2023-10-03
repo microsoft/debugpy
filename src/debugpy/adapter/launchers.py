@@ -8,7 +8,9 @@ import sys
 
 from debugpy import adapter, common
 from debugpy.common import log, messaging, sockets
-from debugpy.adapter import components, servers
+from debugpy.adapter import components, servers, sessions
+
+listener = None
 
 
 class Launcher(components.Component):
@@ -76,6 +78,8 @@ def spawn_debuggee(
     console_title,
     sudo,
 ):
+    global listener
+
     # -E tells sudo to propagate environment variables to the target process - this
     # is necessary for launcher to get DEBUGPY_LAUNCHER_PORT and DEBUGPY_LOG_DIR.
     cmdline = ["sudo", "-E"] if sudo else []
@@ -101,6 +105,7 @@ def spawn_debuggee(
         raise start_request.cant_handle(
             "{0} couldn't create listener socket for launcher: {1}", session, exc
         )
+    sessions.report_sockets()
 
     try:
         launcher_host, launcher_port = listener.getsockname()
@@ -189,3 +194,5 @@ def spawn_debuggee(
 
     finally:
         listener.close()
+        listener = None
+        sessions.report_sockets()
