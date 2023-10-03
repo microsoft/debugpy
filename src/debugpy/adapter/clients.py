@@ -11,7 +11,7 @@ import sys
 import debugpy
 from debugpy import adapter, common, launcher
 from debugpy.common import json, log, messaging, sockets
-from debugpy.adapter import components, servers, sessions
+from debugpy.adapter import clients, components, launchers, servers, sessions
 
 
 class Client(components.Component):
@@ -110,6 +110,7 @@ class Client(components.Component):
                 "data": {"packageVersion": debugpy.__version__},
             },
         )
+        sessions.report_sockets()
 
     def propagate_after_start(self, event):
         # pydevd starts sending events as soon as we connect, but the client doesn't
@@ -701,6 +702,24 @@ class Client(components.Component):
     def disconnect(self):
         super().disconnect()
 
+    def report_sockets(self):
+        sockets = [
+            {
+                "host": host,
+                "port": port,
+                "internal": listener is not clients.listener,
+            }
+            for listener in [clients.listener, launchers.listener, servers.listener]
+            if listener is not None
+            for (host, port) in [listener.getsockname()]
+        ]
+        self.channel.send_event(
+            "debugpySockets",
+            {
+                "sockets": sockets
+            },
+        )
+
     def notify_of_subprocess(self, conn):
         log.info("{1} is a subprocess of {0}.", self, conn)
         with self.session:
@@ -752,11 +771,16 @@ class Client(components.Component):
 def serve(host, port):
     global listener
     listener = sockets.serve("Client", Client, host, port)
+    sessions.report_sockets()
     return listener.getsockname()
 
 
 def stop_serving():
-    try:
-        listener.close()
-    except Exception:
-        log.swallow_exception(level="warning")
+    global listener
+    if listener is not None:
+        try:
+            listener.close()
+        except Exception:
+            log.swallow_exception(level="warning")
+        listener = None
+    sessions.report_sockets()

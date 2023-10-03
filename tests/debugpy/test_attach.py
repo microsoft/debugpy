@@ -72,6 +72,7 @@ def test_attach_api(pyfile, wait_for_client, is_client_connected, stop_method):
         )
         session.wait_for_adapter_socket()
 
+        session.expect_server_socket()
         session.connect_to_adapter((host, port))
         with session.request_attach():
             pass
@@ -124,13 +125,14 @@ def test_reattach(pyfile, target, run):
         session1.expected_exit_code = None  # not expected to exit on disconnect
 
         with run(session1, target(code_to_debug)):
-            pass
+            expected_adapter_sockets = session1.expected_adapter_sockets.copy()
 
         session1.wait_for_stop(expected_frames=[some.dap.frame(code_to_debug, "first")])
         session1.disconnect()
 
     with debug.Session() as session2:
         session2.config.update(session1.config)
+        session2.expected_adapter_sockets = expected_adapter_sockets
         if "connect" in session2.config:
             session2.connect_to_adapter(
                 (session2.config["connect"]["host"], session2.config["connect"]["port"])

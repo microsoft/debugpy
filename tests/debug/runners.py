@@ -199,6 +199,7 @@ while "_attach_pid" not in scratchpad:
         config["processId"] = session.debuggee.pid
 
     session.spawn_adapter()
+    session.expect_server_socket()
     with session.request_attach():
         yield
 
@@ -259,6 +260,10 @@ if {wait!r}:
         del config["subProcess"]
     except KeyError:
         pass
+
+    # If adapter is connecting to the client, the server is already started,
+    # so it should be reported in the initial event.
+    session.expect_server_socket()
 
     session.spawn_debuggee(args, cwd=cwd, setup=debuggee_setup)
     session.wait_for_adapter_socket()
