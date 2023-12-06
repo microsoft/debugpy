@@ -37,6 +37,7 @@ class NetCommandFactory(object):
 
     def __init__(self):
         self._additional_thread_id_to_thread_name = {}
+        self.multi_thread = False
 
     def _thread_to_xml(self, thread):
         """ thread information as XML """
@@ -508,3 +509,6 @@ This may mean a number of things:
 
     def make_exit_command(self, py_db):
         return NULL_EXIT_COMMAND
+    
+    def set_multi_thread(self, multi_thread):
+        self.multi_thread = multi_thread

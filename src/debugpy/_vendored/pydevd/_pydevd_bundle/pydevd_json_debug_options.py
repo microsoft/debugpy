@@ -15,6 +15,7 @@ class DebugOptions(object):
         'max_exception_stack_frames',
         'gui_event_loop',
         'client_os',
+        'multi_thread'
     ]
 
     def __init__(self):
@@ -28,6 +29,7 @@ class DebugOptions(object):
         self.max_exception_stack_frames = 0
         self.gui_event_loop = 'matplotlib'
         self.client_os = None
+        self.multi_thread = False
 
     def to_json(self):
         dct = {}
@@ -59,6 +61,9 @@ class DebugOptions(object):
 
         if 'CLIENT_OS_TYPE' in debug_options:
             self.client_os = debug_options.get('CLIENT_OS_TYPE')
+
+        if 'MULTI_THREAD' in debug_options:
+            self.multi_thread = debug_options.get('MULTI_THREAD')
 
         # Note: _max_exception_stack_frames cannot be set by debug options.
 
@@ -99,6 +104,8 @@ class DebugOptions(object):
         if 'clientOS' in args:
             self.client_os = str(args['clientOS']).upper()
 
+        if 'multiThread' in args:
+            self.multi_thread = bool_parser(args['multiThread'])
 
 def int_parser(s, default_value=0):
     try:
@@ -128,6 +135,7 @@ DEBUG_OPTIONS_PARSER = {
     'STOP_ON_ENTRY': bool_parser,
     'SHOW_RETURN_VALUE': bool_parser,
     'MULTIPROCESS': bool_parser,
+    'MULTI_THREAD': bool_parser,
 }
 
 DEBUG_OPTIONS_BY_FLAG = {
@@ -145,6 +153,7 @@ DEBUG_OPTIONS_BY_FLAG = {
     'StopOnEntry': 'STOP_ON_ENTRY=True',
     'ShowReturnValue': 'SHOW_RETURN_VALUE=True',
     'Multiprocess': 'MULTIPROCESS=True',
+    'MultiThread': 'MULTI_THREAD=False',
 }
 
 

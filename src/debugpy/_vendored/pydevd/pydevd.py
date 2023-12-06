@@ -714,6 +714,8 @@ class PyDB(object):
         # DAP related
         self._dap_messages_listeners = []
 
+        self.multi_thread = False
+
         if set_as_global:
             # Set as the global instance only after it's initialized.
             set_global_debugger(self)
@@ -1842,6 +1844,10 @@ class PyDB(object):
 
         return eb
 
+    def set_multi_thread(self, multi_thread):
+        self.multi_thread = multi_thread
+        self.cmd_factory.set_multi_thread(multi_thread)
+
     def set_suspend(self, thread, stop_reason, suspend_other_threads=False, is_pause=False, original_step_cmd=-1):
         '''
         :param thread:
@@ -1882,7 +1888,7 @@ class PyDB(object):
             info.conditional_breakpoint_exception = None
             self._send_breakpoint_condition_exception(thread, conditional_breakpoint_exception_tuple)
 
-        if not suspend_other_threads and self.multi_threads_single_notification:
+        if not self.multi_thread and not suspend_other_threads and self.multi_threads_single_notification:
             # In the mode which gives a single notification when all threads are
             # stopped, stop all threads whenever a set_suspend is issued.
             suspend_other_threads = True

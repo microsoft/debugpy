@@ -111,6 +111,7 @@ class Client(components.Component):
             },
         )
         sessions.report_sockets()
+        self.multi_thread = False
 
     def propagate_after_start(self, event):
         # pydevd starts sending events as soon as we connect, but the client doesn't
@@ -228,6 +229,7 @@ class Client(components.Component):
                 self._initialize_request = None
 
                 arguments = request.arguments
+                self.multi_thread = arguments.get('multiThread', False)
                 if self.launcher:
                     redirecting = arguments.get("console") == "internalConsole"
                     if "RedirectOutput" in debug_options:
@@ -629,12 +631,14 @@ class Client(components.Component):
 
     @message_handler
     def pause_request(self, request):
-        request.arguments["threadId"] = "*"
+        if not self.multi_thread:
+            request.arguments["threadId"] = "*"
         return self.server.channel.delegate(request)
 
     @message_handler
     def continue_request(self, request):
-        request.arguments["threadId"] = "*"
+        if not self.multi_thread:
+            request.arguments["threadId"] = "*"
 
         try:
             return self.server.channel.delegate(request)
@@ -642,7 +646,7 @@ class Client(components.Component):
             # pydevd can sometimes allow the debuggee to exit before the queued
             # "continue" response gets sent. Thus, a failed "continue" response
             # indicating that the server disconnected should be treated as success.
-            return {"allThreadsContinued": True}
+            return {"allThreadsContinued": not self.multi_thread}
 
     @message_handler
     def debugpySystemInfo_request(self, request):

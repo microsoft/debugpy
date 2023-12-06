@@ -327,7 +327,7 @@ class PyDevJsonCommandProcessor(object):
 
     def _set_debug_options(self, py_db, args, start_reason):
         rules = args.get('rules')
-        stepping_resumes_all_threads = args.get('steppingResumesAllThreads', True)
+        stepping_resumes_all_threads = not args.get('multiThread', False) and args.get('steppingResumesAllThreads', True)
         self.api.set_stepping_resumes_all_threads(py_db, stepping_resumes_all_threads)
 
         terminate_child_processes = args.get('terminateChildProcesses', True)
@@ -472,6 +472,7 @@ class PyDevJsonCommandProcessor(object):
             self.api.stop_on_entry()
 
         self.api.set_gui_event_loop(py_db, self._options.gui_event_loop)
+        self.api.set_multi_thread(py_db, self._options.multi_thread)
 
     def _send_process_event(self, py_db, start_method):
         argv = getattr(sys, 'argv', [])
@@ -735,7 +736,7 @@ class PyDevJsonCommandProcessor(object):
 
         arguments = request.arguments  # : :type arguments: SetFunctionBreakpointsArguments
         function_breakpoints = []
-        suspend_policy = 'ALL'
+        suspend_policy = 'NONE' if self._options.multi_thread else 'ALL'
 
         # Not currently covered by the DAP.
         is_logpoint = False
@@ -775,7 +776,7 @@ class PyDevJsonCommandProcessor(object):
         self.api.remove_all_breakpoints(py_db, filename)
 
         btype = 'python-line'
-        suspend_policy = 'ALL'
+        suspend_policy =  'NONE' if self._options.multi_thread else 'ALL'
 
         if not filename.lower().endswith('.py'):  # Note: check based on original file, not mapping.
             if self._options.django_debug:

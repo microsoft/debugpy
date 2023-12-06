@@ -129,6 +129,9 @@ class PyDevdAPI(object):
     def set_gui_event_loop(self, py_db, gui_event_loop):
         py_db._gui_event_loop = gui_event_loop
 
+    def set_multi_thread(self, py_db, multi_thread):
+        py_db.set_multi_thread(multi_thread)
+
     def send_error_message(self, py_db, msg):
         cmd = py_db.cmd_factory.make_warning_message('pydevd: %s\n' % (msg,))
         py_db.writer.add_command(cmd)

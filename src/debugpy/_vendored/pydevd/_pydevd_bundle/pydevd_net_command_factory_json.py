@@ -384,7 +384,7 @@ class NetCommandFactoryJson(NetCommandFactory):
             description=exc_desc,
             threadId=thread_id,
             text=exc_name,
-            allThreadsStopped=True,
+            allThreadsStopped= thread_id == '*' if self.multi_thread else True,
             preserveFocusHint=preserve_focus_hint,
         )
         event = pydevd_schema.StoppedEvent(body)
@@ -392,7 +392,7 @@ class NetCommandFactoryJson(NetCommandFactory):
 
     @overrides(NetCommandFactory.make_thread_resume_single_notification)
     def make_thread_resume_single_notification(self, thread_id):
-        body = ContinuedEventBody(threadId=thread_id, allThreadsContinued=True)
+        body = ContinuedEventBody(threadId=thread_id, allThreadsContinued=thread_id == '*' if self.multi_thread else True)
         event = pydevd_schema.ContinuedEvent(body)
         return NetCommand(CMD_THREAD_RESUME_SINGLE_NOTIFICATION, 0, event, is_json=True)
 
