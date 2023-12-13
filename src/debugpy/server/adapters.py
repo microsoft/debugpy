@@ -14,7 +14,7 @@ from debugpy.server import tracing, eval
 from debugpy.server.tracing import Breakpoint, StackFrame
 
 
-class Adapter(object):
+class Adapter:
     """Represents the debug adapter connected to this debug server."""
 
     class Capabilities(components.Capabilities):

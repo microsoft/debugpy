@@ -14,12 +14,13 @@ exclude = '''
 '''
 
 [tool.pyright]
-pythonVersion = "3.8"
-include = ["src/**", "tests/**" ]
+pythonVersion = "3.12"
+include = ["src/**", "tests/**"]
 extraPaths = ["src/debugpy/_vendored/pydevd"]
 ignore = ["src/debugpy/_vendored/pydevd", "src/debugpy/_version.py"]
 executionEnvironments = [
-  { root = "src" }, { root = "." }
+  { root = "src" },
+  { root = "." },
 ]
 
 [tool.ruff]
@@ -28,10 +29,19 @@ executionEnvironments = [
 # McCabe complexity (`C901`) by default.
 select = ["E", "F"]
 ignore = [
-    "E203", "E221", "E222", "E226", "E261", "E262", "E265", "E266",
-    "E401", "E402",
-    "E501",
-    "E722", "E731" 
+  "E203",
+  "E221",
+  "E222",
+  "E226",
+  "E261",
+  "E262",
+  "E265",
+  "E266",
+  "E401",
+  "E402",
+  "E501",
+  "E722",
+  "E731",
 ]
 
 # Allow autofix for all enabled rules (when `--fix`) is provided.
@@ -40,29 +50,29 @@ unfixable = []
 
 # Exclude a variety of commonly ignored directories.
 exclude = [
-    ".bzr",
-    ".direnv",
-    ".eggs",
-    ".git",
-    ".git-rewrite",
-    ".hg",
-    ".mypy_cache",
-    ".nox",
-    ".pants.d",
-    ".pytype",
-    ".ruff_cache",
-    ".svn",
-    ".tox",
-    ".venv",
-    "__pypackages__",
-    "_build",
-    "buck-out",
-    "build",
-    "dist",
-    "node_modules",
-    "venv",
-    "versioneer.py",
-    "src/debugpy/_vendored/pydevd"
+  ".bzr",
+  ".direnv",
+  ".eggs",
+  ".git",
+  ".git-rewrite",
+  ".hg",
+  ".mypy_cache",
+  ".nox",
+  ".pants.d",
+  ".pytype",
+  ".ruff_cache",
+  ".svn",
+  ".tox",
+  ".venv",
+  "__pypackages__",
+  "_build",
+  "buck-out",
+  "build",
+  "dist",
+  "node_modules",
+  "venv",
+  "versioneer.py",
+  "src/debugpy/_vendored/pydevd",
 ]
 per-file-ignores = {}
 

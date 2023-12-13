@@ -4,14 +4,12 @@
 
 import threading
 
-from collections.abc import Iterable, Mapping
-from itertools import count
+from collections.abc import Iterable
 from types import FrameType
 from typing import ClassVar, Dict, Literal, Self
 
 from debugpy.server import tracing
-from debugpy.common import log
-from debugpy.server.safe_repr import SafeRepr
+from debugpy.server.inspect import inspect
 
 ScopeKind = Literal["global", "nonlocal", "local"]
 
@@ -99,28 +97,6 @@ class Variable(VariableContainer):
         self.name = name
         self.value = value
 
-        if isinstance(value, Mapping):
-            self._items = self._items_dict
-        else:
-            try:
-                it = iter(value)
-            except:
-                it = None
-            # Use (iter(value) is value) to distinguish iterables from iterators.
-            if it is not None and it is not value:
-                self._items = self._items_iterable
-
-    @property
-    def typename(self) -> str:
-        try:
-            return type(self.value).__name__
-        except:
-            return ""
-
-    @property
-    def repr(self) -> str:
-        return SafeRepr()(self.value)
-
     def __getstate__(self):
         state = super().__getstate__()
         state.update(
@@ -132,82 +108,23 @@ class Variable(VariableContainer):
         )
         return state
 
+    @property
+    def typename(self) -> str:
+        try:
+            return type(self.value).__name__
+        except:
+            return ""
+
+    @property
+    def repr(self) -> str:
+        return "".join(inspect(self.value).repr())
+
     def variables(self) -> Iterable["Variable"]:
-        get_name = lambda var: var.name
-        return [
-            *sorted(self._attributes(), key=get_name),
-            *sorted(self._synthetic(), key=get_name),
-            *self._items(),
-        ]
-
-    def _attributes(self) -> Iterable["Variable"]:
-        # TODO: group class/instance/function/special
-        try:
-            names = dir(self.value)
-        except:
-            names = []
-        for name in names:
-            if name.startswith("__"):
-                continue
-            try:
-                value = getattr(self.value, name)
-            except BaseException as exc:
-                value = exc
-            try:
-                if hasattr(type(value), "__call__"):
-                    continue
-            except:
-                pass
-            yield Variable(self.frame, name, value)
-
-    def _synthetic(self) -> Iterable["Variable"]:
-        try:
-            length = len(self.value)
-        except:
-            pass
-        else:
-            yield Variable(self.frame, "len()", length)
-
-    def _items(self) -> Iterable["Variable"]:
-        return ()
-
-    def _items_iterable(self) -> Iterable["Variable"]:
-        try:
-            it = iter(self.value)
-        except:
-            return
-        for i in count():
-            try:
-                item = next(it)
-            except StopIteration:
-                break
-            except:
-                log.exception("Error retrieving next item.")
-                break
-            yield Variable(self.frame, f"[{i}]", item)
-
-    def _items_dict(self) -> Iterable["Variable"]:
-        try:
-            keys = self.value.keys()
-        except:
-            return
-        it = iter(keys)
-        safe_repr = SafeRepr()
-        while True:
-            try:
-                key = next(it)
-            except StopIteration:
-                break
-            except:
-                break
-            try:
-                value = self.value[key]
-            except BaseException as exc:
-                value = exc
-            yield Variable(self.frame, f"[{safe_repr(key)}]", value)
+        for child in inspect(self.value).children():
+            yield Variable(self.frame, child.name, child.value)
 
 
-def evaluate(expr: str, frame_id: int):
+def evaluate(expr: str, frame_id: int) -> Variable:
     from debugpy.server.tracing import StackFrame
 
     frame = StackFrame.get(frame_id)
