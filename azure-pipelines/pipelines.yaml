@@ -39,7 +39,7 @@ jobs:
       - script: "python3 -m pip install -U ruff"
         displayName: "Install ruff"
         
-      - script: "python3 -m ruff check --format=junit --output-file=$(Build.ArtifactStagingDirectory)/lint-ruff.xml ."
+      - script: "python3 -m ruff check --output-format=junit --output-file=$(Build.ArtifactStagingDirectory)/lint-ruff.xml ."
         displayName: "Run ruff"
 
       - task: "PublishTestResults@2"
