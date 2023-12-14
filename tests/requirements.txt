@@ -13,6 +13,7 @@ psutil
 ## Used in Python code that is run/debugged by the tests:
 
 django
-requests
-gevent
 flask
+gevent
+numpy
+requests
