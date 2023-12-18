@@ -8,12 +8,12 @@
 
 import collections
 import itertools
+import pathlib
 import py.path
 import re
 import sys
 
 from debugpy.common import util
-import pydevd_file_utils
 
 
 class Some(object):
@@ -183,8 +183,8 @@ class Path(Some):
         else:
             return NotImplemented
 
-        left = pydevd_file_utils.get_path_with_real_case(self.path)
-        right = pydevd_file_utils.get_path_with_real_case(other)
+        left = pathlib.Path(self.path).resolve()
+        right = pathlib.Path(other).resolve()
         return left == right
 
 
