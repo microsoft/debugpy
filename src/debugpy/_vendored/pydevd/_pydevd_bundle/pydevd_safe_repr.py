@@ -20,7 +20,7 @@ class SafeRepr(object):
     # most level, and truncated to maxstring_inner characters inside
     # collections.
     maxstring_outer = 2 ** 16
-    maxstring_inner = 30
+    maxstring_inner = 128
     string_types = (str, bytes)
     bytes = bytes
     set_info = (set, '{', '}', False)
@@ -31,7 +31,7 @@ class SafeRepr(object):
 
     # Collection types are recursively iterated for each limit in
     # maxcollection.
-    maxcollection = (15, 10)
+    maxcollection = (60, 20)
 
     # Specifies type, prefix string, suffix string, and whether to include a
     # comma if there is only one element. (Using a sequence rather than a
@@ -60,7 +60,7 @@ class SafeRepr(object):
     # All other types are treated identically to strings, but using
     # different limits.
     maxother_outer = 2 ** 16
-    maxother_inner = 30
+    maxother_inner = 128
 
     convert_to_hex = False
     raw_value = False
