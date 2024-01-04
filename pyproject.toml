@@ -16,12 +16,9 @@ exclude = '''
 [tool.pyright]
 pythonVersion = "3.12"
 include = ["src/**", "tests/**"]
-extraPaths = ["src/debugpy/_vendored/pydevd"]
+extraPaths = ["src", "src/debugpy/_vendored/pydevd", "tests"]
 ignore = ["src/debugpy/_vendored/pydevd", "src/debugpy/_version.py"]
-executionEnvironments = [
-  { root = "src" },
-  { root = "." },
-]
+executionEnvironments = [{ root = "." }]
 
 [tool.ruff]
 # Enable the pycodestyle (`E`) and Pyflakes (`F`) rules by default.
