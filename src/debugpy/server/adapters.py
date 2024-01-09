@@ -9,9 +9,9 @@ from itertools import islice
 
 from debugpy.adapter import components
 from debugpy.common import json, log, messaging, sockets
-from debugpy.common.messaging import Request
-from debugpy.server import tracing, eval
-from debugpy.server.tracing import Breakpoint, StackFrame
+from debugpy.common.messaging import MessageDict, Request
+from debugpy.server import eval
+from debugpy.server.tracing import Breakpoint, StackFrame, Thread, Tracer
 
 
 class Adapter:
@@ -50,13 +50,13 @@ class Adapter:
     server_access_token = None
     """Access token that the adapter must use to authenticate with this server."""
 
-
     _is_initialized: bool = False
     _has_started: bool = False
     _client_id: str = None
     _capabilities: Capabilities = None
     _expectations: Expectations = None
     _start_request: messaging.Request = None
+    _tracer: Tracer = None
 
     def __init__(self, stream: messaging.JsonIOStream):
         self._is_initialized = False
@@ -65,6 +65,7 @@ class Adapter:
         self._capabilities = None
         self._expectations = None
         self._start_request = None
+        self._tracer = Tracer.instance
 
         self.channel = messaging.JsonMessageChannel(stream, self)
         self.channel.start()
@@ -139,6 +140,8 @@ class Adapter:
         ]
 
         return {
+            "exceptionBreakpointFilters": exception_breakpoint_filters,
+            "supportsClipboardContext": True,
             "supportsCompletionsRequest": True,
             "supportsConditionalBreakpoints": True,
             "supportsConfigurationDoneRequest": True,
@@ -148,17 +151,15 @@ class Adapter:
             "supportsExceptionInfoRequest": True,
             "supportsExceptionOptions": True,
             "supportsFunctionBreakpoints": True,
+            "supportsGotoTargetsRequest": True,
             "supportsHitConditionalBreakpoints": True,
             "supportsLogPoints": True,
             "supportsModulesRequest": True,
             "supportsSetExpression": True,
             "supportsSetVariable": True,
-            "supportsValueFormattingOptions": True,
-            "supportsTerminateRequest": True,
-            "supportsGotoTargetsRequest": True,
-            "supportsClipboardContext": True,
-            "exceptionBreakpointFilters": exception_breakpoint_filters,
             "supportsStepInTargetsRequest": True,
+            "supportsTerminateRequest": True,
+            "supportsValueFormattingOptions": True,
         }
 
     def _handle_start_request(self, request: Request):
@@ -189,7 +190,7 @@ class Adapter:
                 'or an "attach" request'
             )
 
-        tracing.start()
+        self._tracer.start()
         self._has_started = True
 
         request.respond({})
@@ -233,20 +234,28 @@ class Adapter:
             bps = list(request("breakpoints", json.array(json.object())))
         else:
             lines = request("lines", json.array(int))
-            bps = [{"line": line} for line in lines]
+            bps = [MessageDict(request, {"line": line}) for line in lines]
 
         Breakpoint.clear([path])
-        bps_set = [Breakpoint.set(path, bp["line"]) for bp in bps]
+        bps_set = [
+            Breakpoint.set(
+                path, bp["line"],
+                condition=bp("condition", str, optional=True),
+                hit_condition=bp("hitCondition", str, optional=True),
+                log_message=bp("logMessage", str, optional=True),
+            )
+            for bp in bps
+        ]
         return {"breakpoints": bps_set}
 
     def threads_request(self, request: Request):
-        return {"threads": tracing.Thread.enumerate()}
+        return {"threads": Thread.enumerate()}
 
     def stackTrace_request(self, request: Request):
         thread_id = request("threadId", int)
         start_frame = request("startFrame", 0)
 
-        thread = tracing.Thread.get(thread_id)
+        thread = Thread.get(thread_id)
         if thread is None:
             raise request.isnt_valid(f'Invalid "threadId": {thread_id}')
 
@@ -265,7 +274,7 @@ class Adapter:
             thread_ids = None
         else:
             thread_ids = [request("threadId", int)]
-        tracing.pause(thread_ids)
+        self._tracer.pause(thread_ids)
         return {}
 
     def continue_request(self, request: Request):
@@ -274,25 +283,25 @@ class Adapter:
         else:
             thread_ids = [request("threadId", int)]
         single_thread = request("singleThread", False)
-        tracing.resume(thread_ids if single_thread else None)
+        self._tracer.resume(thread_ids if single_thread else None)
         return {}
 
     def stepIn_request(self, request: Request):
         # TODO: support "singleThread" and "granularity"
         thread_id = request("threadId", int)
-        tracing.step_in(thread_id)
+        self._tracer.step_in(thread_id)
         return {}
 
     def stepOut_request(self, request: Request):
         # TODO: support "singleThread" and "granularity"
         thread_id = request("threadId", int)
-        tracing.step_out(thread_id)
+        self._tracer.step_out(thread_id)
         return {}
 
     def next_request(self, request: Request):
         # TODO: support "singleThread" and "granularity"
         thread_id = request("threadId", int)
-        tracing.step_over(thread_id)
+        self._tracer.step_over(thread_id)
         return {}
 
     def scopes_request(self, request: Request):
@@ -316,18 +325,18 @@ class Adapter:
         return {"result": var.repr, "variablesReference": var.id}
 
     def disconnect_request(self, request: Request):
-        tracing.Breakpoint.clear()
-        tracing.abandon_step()
-        tracing.resume()
+        Breakpoint.clear()
+        self._tracer.abandon_step()
+        self._tracer.resume()
         return {}
 
     def terminate_request(self, request: Request):
-        tracing.Breakpoint.clear()
-        tracing.abandon_step()
-        tracing.resume()
+        Breakpoint.clear()
+        self._tracer.abandon_step()
+        self._tracer.resume()
         return {}
 
     def disconnect(self):
-        tracing.resume()
+        self._tracer.resume()
         self.connected_event.clear()
         return {}

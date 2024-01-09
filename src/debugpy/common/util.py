@@ -160,5 +160,6 @@ def hide_thread_from_debugger(thread):
     DEBUGPY_TRACE_DEBUGPY is used to debug debugpy with debugpy
     """
     if hide_debugpy_internals():
+        thread.is_debugpy_thread = True
         thread.pydev_do_not_trace = True
         thread.is_pydev_daemon_thread = True
