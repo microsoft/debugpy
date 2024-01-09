@@ -2,29 +2,28 @@
 # Licensed under the MIT License. See LICENSE in the project root
 # for license information.
 
+import debugpy
 import threading
-
 from collections.abc import Iterable
+from debugpy.server.inspect import inspect
 from types import FrameType
 from typing import ClassVar, Dict, Literal, Self
 
-from debugpy.server import tracing
-from debugpy.server.inspect import inspect
-
-ScopeKind = Literal["global", "nonlocal", "local"]
+type ScopeKind = Literal["global", "nonlocal", "local"]
+type StackFrame = "debugpy.server.tracing.StackFrame"
 
 
 _lock = threading.RLock()
 
 
 class VariableContainer:
-    frame: "tracing.StackFrame"
+    frame: StackFrame
     id: int
 
     _last_id: ClassVar[int] = 0
     _all: ClassVar[Dict[int, "VariableContainer"]] = {}
 
-    def __init__(self, frame: "tracing.StackFrame"):
+    def __init__(self, frame: StackFrame):
         self.frame = frame
         with _lock:
             VariableContainer._last_id += 1
@@ -46,7 +45,7 @@ class VariableContainer:
         raise NotImplementedError
 
     @classmethod
-    def invalidate(self, *frames: Iterable["tracing.StackFrame"]) -> None:
+    def invalidate(self, *frames: Iterable[StackFrame]) -> None:
         with _lock:
             ids = [
                 id
@@ -61,7 +60,7 @@ class Scope(VariableContainer):
     frame: FrameType
     kind: ScopeKind
 
-    def __init__(self, frame: "tracing.StackFrame", kind: ScopeKind):
+    def __init__(self, frame: StackFrame, kind: ScopeKind):
         super().__init__(frame)
         self.kind = kind
 
@@ -92,7 +91,7 @@ class Variable(VariableContainer):
     value: object
     # TODO: evaluateName, memoryReference, presentationHint
 
-    def __init__(self, frame: "tracing.StackFrame", name: str, value: object):
+    def __init__(self, frame: StackFrame, name: str, value: object):
         super().__init__(frame)
         self.name = name
         self.value = value
