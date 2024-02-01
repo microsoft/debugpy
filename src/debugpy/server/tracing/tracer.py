@@ -238,7 +238,7 @@ class Tracer:
 
     def _trace_line(self, code: CodeType, line_number: int):
         thread = self.Thread.from_python_thread()
-        if not thread.is_traced:
+        if thread is None or not thread.is_traced:
             return self.monitoring.DISABLE
 
         self.log.debug(f"sys.monitoring event: LINE({line_number}, {code})")
@@ -347,19 +347,19 @@ class Tracer:
 
     def _trace_py_start(self, code: CodeType, ip: int):
         thread = self.Thread.from_python_thread()
-        if not thread.is_traced:
+        if thread is None or not thread.is_traced:
             return self.monitoring.DISABLE
         self.log.debug(f"sys.monitoring event: PY_START({code}, {ip})")
 
     def _trace_py_resume(self, code: CodeType, ip: int):
         thread = self.Thread.from_python_thread()
-        if not thread.is_traced:
+        if thread is None or not thread.is_traced:
             return self.monitoring.DISABLE
         self.log.debug(f"sys.monitoring event: PY_RESUME({code}, {ip})")
 
     def _trace_py_return(self, code: CodeType, ip: int, retval: object):
         thread = self.Thread.from_python_thread()
-        if not thread.is_traced:
+        if thread is None or not thread.is_traced:
             return self.monitoring.DISABLE
         self.log.debug(f"sys.monitoring event: PY_RETURN({code}, {ip})")
         # TODO: capture returned value to report it when client requests locals.
@@ -367,7 +367,7 @@ class Tracer:
 
     def _trace_py_yield(self, code: CodeType, ip: int, retval: object):
         thread = self.Thread.from_python_thread()
-        if not thread.is_traced:
+        if thread is None or not thread.is_traced:
             return self.monitoring.DISABLE
         self.log.debug(f"sys.monitoring event: PY_YIELD({code}, {ip})")
         # TODO: capture yielded value to report it when client requests locals.
@@ -375,7 +375,7 @@ class Tracer:
 
     def _trace_py_throw(self, code: CodeType, ip: int, exc: BaseException):
         thread = self.Thread.from_python_thread()
-        if not thread.is_traced:
+        if thread is None or not thread.is_traced:
             return
         self.log.debug(
             f"sys.monitoring event: PY_THROW({code}, {ip}, {type(exc).__qualname__})"
@@ -383,7 +383,7 @@ class Tracer:
 
     def _trace_py_unwind(self, code: CodeType, ip: int, exc: BaseException):
         thread = self.Thread.from_python_thread()
-        if not thread.is_traced:
+        if thread is None or not thread.is_traced:
             return
         self.log.debug(
             f"sys.monitoring event: PY_UNWIND({code}, {ip}, {type(exc).__qualname__})"
@@ -391,7 +391,7 @@ class Tracer:
 
     def _trace_raise(self, code: CodeType, ip: int, exc: BaseException):
         thread = self.Thread.from_python_thread()
-        if not thread.is_traced:
+        if thread is None or not thread.is_traced:
             return
         self.log.debug(
             f"sys.monitoring event: RAISE({code}, {ip}, {type(exc).__qualname__})"
@@ -399,7 +399,7 @@ class Tracer:
 
     def _trace_reraise(self, code: CodeType, ip: int, exc: BaseException):
         thread = self.Thread.from_python_thread()
-        if not thread.is_traced:
+        if thread is None or not thread.is_traced:
             return
         self.log.debug(
             f"sys.monitoring event: RERAISE({code}, {ip}, {type(exc).__qualname__})"
@@ -407,7 +407,7 @@ class Tracer:
 
     def _trace_exception_handled(self, code: CodeType, ip: int, exc: BaseException):
         thread = self.Thread.from_python_thread()
-        if not thread.is_traced:
+        if thread is None or not thread.is_traced:
             return
         self.log.debug(
             f"sys.monitoring event: EXCEPTION_HANDLED({code}, {ip}, {type(exc).__qualname__})"
