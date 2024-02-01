@@ -38,6 +38,12 @@ class Thread:
     DAP "thread" event with "reason":"started".
     """
 
+    is_traced: bool
+    """
+    Whether this thread is traced. Threads are normally traced, but API clients
+    can exclude a specific thread from tracing.
+    """
+
     _last_id = 0
     _all: ClassVar[Dict[int, "Thread"]] = {}
 
@@ -48,6 +54,7 @@ class Thread:
         """
         self.python_thread = python_thread
         self.is_known_to_adapter = False
+        self.is_traced = True
 
         with _cvar:
             # Thread IDs are serialized as JSON numbers in DAP, which are handled as 64-bit
@@ -72,14 +79,6 @@ class Thread:
         }
 
     @property
-    def is_debugpy_thread(self):
-        return getattr(self.python_thread, "is_debugpy_thread", False)
-
-    @property
-    def is_traced(self):
-        return not self.is_debugpy_thread
-
-    @property
     def name(self):
         return self.python_thread.name
 
@@ -88,10 +87,13 @@ class Thread:
         """
         Returns the DAP Thread object corresponding to the given Python thread, or for
         the current Python thread if None, creating it and reporting it to adapter if
-        necessary.
+        necessary. If the current thread is internal debugpy thread, returns None.
         """
+
         if python_thread is None:
             python_thread = threading.current_thread()
+        if getattr(python_thread, "is_debugpy_thread", False):
+            return None
         with _cvar:
             for thread in self._all.values():
                 if thread.python_thread is python_thread:
@@ -118,7 +120,7 @@ class Thread:
             thread
             for python_thread in threading.enumerate()
             for thread in [Thread.from_python_thread(python_thread)]
-            if thread.is_traced
+            if thread is not None and thread.is_traced
         ]
 
     def make_known_to_adapter(self):
