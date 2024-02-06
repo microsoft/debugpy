@@ -1,5 +1,5 @@
 # This pipeline is used to run PR validation and CI builds against the debugpy public repo.
-# Seperate internal pipelines are used for generating wheels, signing, and releasing to pypi.org
+# Separate internal pipelines are used for generating wheels, signing, and releasing to pypi.org
 
 # Trigger ci builds for commits into master and any release branches
 trigger:
