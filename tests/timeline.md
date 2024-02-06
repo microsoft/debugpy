@@ -187,7 +187,7 @@ assert (
 ) in debug_session.timeline
 ```
 
-### Conjuction (`&`)
+### Conjunction (`&`)
 
 When two expectations are conjuncted: `(A & B)` - the resulting expectation is realized at the occurrence at which `A` and `B` are both realized, regardless of their relative order. Thus:
 ```py
