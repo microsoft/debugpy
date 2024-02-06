@@ -40,7 +40,7 @@ class Session(util.Observable):
         """The client component. Always present."""
 
         self.launcher = components.missing(self, launchers.Launcher)
-        """The launcher componet. Always present in "launch" sessions, and never
+        """The launcher component. Always present in "launch" sessions, and never
         present in "attach" sessions.
         """
 
