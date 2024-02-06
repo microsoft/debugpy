@@ -995,7 +995,7 @@ class MessageHandlingError(Exception):
         """Creates a new instance of this class, and immediately logs the exception.
 
         Message handling errors are logged immediately unless silent=True, so that the
-        precise context in which they occured can be determined from the surrounding
+        precise context in which they occurred can be determined from the surrounding
         log entries.
         """
 
