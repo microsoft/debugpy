@@ -974,7 +974,7 @@ class MessageHandlingError(Exception):
     escape the message loop unhandled, and terminate the process.
 
     If any message handler raises this exception, but applies_to(message) is False, it
-    is treated as if it was a generic exception, as desribed above. Thus, if a request
+    is treated as if it was a generic exception, as described above. Thus, if a request
     handler issues another request of its own, and that one fails, the failure is not
     silently propagated. However, a request that is delegated via Request.delegate()
     will also propagate failures back automatically. For manual propagation, catch the
