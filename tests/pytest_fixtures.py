@@ -187,7 +187,7 @@ def pyfile(request, long_tmpdir):
     that it uses locally. When linter complains, use #noqa.
 
     Returns a py.path.local instance that has the additional attribute "lines".
-    After the source is writen to disk, tests.code.get_marked_line_numbers() is
+    After the source is written to disk, tests.code.get_marked_line_numbers() is
     invoked on the resulting file to compute the value of that attribute.
     """
 
