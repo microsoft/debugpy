@@ -244,7 +244,7 @@ if handled_request is pause1:
     ...
 ```
 
-### Exclusive disjuction (`^`)
+### Exclusive disjunction (`^`)
 
 When two expectations are exclusively disjuncted: `(A ^ B)` - the resulting expectation is realized at the first occurrence at which either `A` or `B` is realized, but not both. Thus, the expectation:
 ```py
