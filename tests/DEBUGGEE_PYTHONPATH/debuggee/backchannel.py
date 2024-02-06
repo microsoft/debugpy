@@ -3,7 +3,7 @@
 # for license information.
 
 """Imported from test code that runs under debugpy, and allows that code
-to communcate back to the test. Works in conjunction with debug_session
+to communicate back to the test. Works in conjunction with debug_session
 fixture and its backchannel method."""
 
 __all__ = ["port", "receive", "send"]

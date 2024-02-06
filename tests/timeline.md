@@ -43,7 +43,7 @@ A *timeline* is a sequence of [occurrences](#Occurrence), in order in which they
 
 A timeline can be grown by recording new occurrences in it. This is done automatically by the test infrastructure for requests, responses and events occurring in a debug session. Marks are recorded with the `timeline.mark(id)` method, which returns the recorded mark occurrence. It is not possible to "rewrite the history" - once recorded, occurrences can never be forgotten, and do not change.
 
-Timelines are completely thread-safe for both recording and inspection. However, because a timeline during an active debug session can grow asyncronously as new events and responses are received, it cannot be inspected directly, other than asking for the last occurrence via `timeline.last()` - which is a function rather than a property, indicating that it may return a different value on every subsequent call.
+Timelines are completely thread-safe for both recording and inspection. However, because a timeline during an active debug session can grow asynchronously as new events and responses are received, it cannot be inspected directly, other than asking for the last occurrence via `timeline.last()` - which is a function rather than a property, indicating that it may return a different value on every subsequent call.
 
 It is, however, possible to take a snapshot of a timeline via `timeline.history()`; the returned value is a list of all occurrences that were in the timeline at the point of the call, in order from first to last. This is just a shortcut for `reversed(list(timeline.last()))`.
 
@@ -112,7 +112,7 @@ and a further shortcut to issue a request, wait for response, and retrieve the r
 ```py
 initialize_response_body = debug_session.request('initialize', {'adapterID': 'test'})
 ```
-On success, `request()` returns the body of the sucessful response directly, rather than the `Response` object. On failure, it raises the appropriate exception.
+On success, `request()` returns the body of the successful response directly, rather than the `Response` object. On failure, it raises the appropriate exception.
 
 ## Expectation algebra
 
@@ -187,7 +187,7 @@ assert (
 ) in debug_session.timeline
 ```
 
-### Conjuction (`&`)
+### Conjunction (`&`)
 
 When two expectations are conjuncted: `(A & B)` - the resulting expectation is realized at the occurrence at which `A` and `B` are both realized, regardless of their relative order. Thus:
 ```py
@@ -244,7 +244,7 @@ if handled_request is pause1:
     ...
 ```
 
-### Exclusive disjuction (`^`)
+### Exclusive disjunction (`^`)
 
 When two expectations are exclusively disjuncted: `(A ^ B)` - the resulting expectation is realized at the first occurrence at which either `A` or `B` is realized, but not both. Thus, the expectation:
 ```py

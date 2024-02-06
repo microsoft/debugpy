@@ -134,7 +134,7 @@ class Capabilities(dict):
     """
 
     PROPERTIES = {}
-    """JSON property names and default values for the the capabilities represented
+    """JSON property names and default values for the capabilities represented
     by instances of this class. Keys are names, and values are either default values
     or validators.
 

@@ -113,7 +113,7 @@ def listen(
     different from address if port was 0 in the latter, in which case
     the adapter will pick some unused ephemeral port to listen on.
 
-    This function does't wait for a client to connect to the debug
+    This function doesn't wait for a client to connect to the debug
     adapter that it starts. Use `wait_for_client` to block execution
     until the client connects.
     """
@@ -131,7 +131,7 @@ def connect(__endpoint: Endpoint | int, *, access_token: str | None = None) -> E
     `access_token` must be the same value that was passed to the adapter
     via the `--server-access-token` command-line switch.
 
-    This function does't wait for a client to connect to the debug
+    This function doesn't wait for a client to connect to the debug
     adapter that it connects to. Use `wait_for_client` to block
     execution until the client connects.
     """

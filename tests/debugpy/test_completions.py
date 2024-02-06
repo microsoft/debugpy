@@ -39,13 +39,13 @@ def test_completions_scope(pyfile, line, target, run):
             def __init__(self, someVar):
                 self.some_var = someVar
 
-            def do_someting(self):
+            def do_something(self):
                 someVariable = self.some_var
                 return someVariable  # @in_do_something
 
         def someFunction(someVar):
             someVariable = someVar
-            return SomeClass(someVariable).do_someting()  # @in_some_function
+            return SomeClass(someVariable).do_something()  # @in_some_function
 
         someFunction("value")
         print("done")  # @done
