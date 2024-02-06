@@ -112,7 +112,7 @@ and a further shortcut to issue a request, wait for response, and retrieve the r
 ```py
 initialize_response_body = debug_session.request('initialize', {'adapterID': 'test'})
 ```
-On success, `request()` returns the body of the sucessful response directly, rather than the `Response` object. On failure, it raises the appropriate exception.
+On success, `request()` returns the body of the successful response directly, rather than the `Response` object. On failure, it raises the appropriate exception.
 
 ## Expectation algebra
 
