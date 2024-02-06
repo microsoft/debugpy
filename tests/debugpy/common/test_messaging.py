@@ -666,7 +666,7 @@ class TestTypeConversion(object):
         for val_trial, type_trial in correct_trials:
             assert isinstance(
                 json.of_type(type_trial)(val_trial), type_trial
-            ), "Wrong type coversion"
+            ), "Wrong type conversion"
 
         # test conversion that are not expected to work
         try:
