@@ -10,8 +10,17 @@ from itertools import islice
 from debugpy.adapter import components
 from debugpy.common import json, log, messaging, sockets
 from debugpy.common.messaging import MessageDict, Request
-from debugpy.server import eval
-from debugpy.server.tracing import Breakpoint, StackFrame, Thread, Tracer
+from debugpy.server import eval, new_dap_id
+from debugpy.server.tracing import (
+    Breakpoint,
+    Condition,
+    HitCondition,
+    LogMessage,
+    Source,
+    StackFrame,
+    Thread,
+    Tracer,
+)
 
 
 class Adapter:
@@ -125,18 +134,20 @@ class Adapter:
                 "default": False,
                 "description": "Break whenever any exception is raised.",
             },
-            {
-                "filter": "uncaught",
-                "label": "Uncaught Exceptions",
-                "default": True,
-                "description": "Break when the process is exiting due to unhandled exception.",
-            },
-            {
-                "filter": "userUnhandled",
-                "label": "User Uncaught Exceptions",
-                "default": False,
-                "description": "Break when exception escapes into library code.",
-            },
+            # TODO: https://github.com/microsoft/debugpy/issues/1453
+            # {
+            #     "filter": "uncaught",
+            #     "label": "Uncaught Exceptions",
+            #     "default": True,
+            #     "description": "Break when the process is exiting due to unhandled exception.",
+            # },
+            # TODO: https://github.com/microsoft/debugpy/issues/1454
+            # {
+            #     "filter": "userUnhandled",
+            #     "label": "User Uncaught Exceptions",
+            #     "default": False,
+            #     "description": "Break when exception escapes into library code.",
+            # },
         ]
 
         return {
@@ -219,8 +230,7 @@ class Adapter:
     def setBreakpoints_request(self, request: Request):
         # TODO: implement source.reference for setting breakpoints in sources for
         # which source code was decompiled or retrieved via inspect.getsource.
-        source = request("source", json.object())
-        path = source("path", str)
+        source = Source(request("source", json.object())("path", str))
 
         # TODO: implement column support.
         # Use dis.get_instruction() to iterate over instructions and corresponding
@@ -236,15 +246,66 @@ class Adapter:
             lines = request("lines", json.array(int))
             bps = [MessageDict(request, {"line": line}) for line in lines]
 
-        Breakpoint.clear([path])
+        Breakpoint.clear([source])
+
+        # Do the first pass validating conditions and log messages for syntax errors; if
+        # any breakpoint fails validation, we want to respond with an error right away
+        # so that user gets immediate feedback, but this also means that we shouldn't
+        # actually set any breakpoints until we've validated all of them.
+        bps_info = []
+        for bp in bps:
+            id = new_dap_id()
+            line = bp("line", int)
+
+            # A missing condition or log message can be represented as the corresponding
+            # property missing, or as the property being present but set to empty string.
+
+            condition = bp("condition", str, optional=True)
+            if condition:
+                try:
+                    condition = Condition(id, condition)
+                except SyntaxError as exc:
+                    raise request.isnt_valid(
+                        f"Syntax error in condition ({condition}): {exc}"
+                    )
+            else:
+                condition = None
+
+            hit_condition = bp("hitCondition", str, optional=True)
+            if hit_condition:
+                try:
+                    hit_condition = HitCondition(id, hit_condition)
+                except SyntaxError as exc:
+                    raise request.isnt_valid(
+                        f"Syntax error in hit condition ({hit_condition}): {exc}"
+                    )
+            else:
+                hit_condition = None
+
+            log_message = bp("logMessage", str, optional=True)
+            if log_message:
+                try:
+                    log_message = LogMessage(id, log_message)
+                except SyntaxError as exc:
+                    raise request.isnt_valid(
+                        f"Syntax error in log message f{log_message!r}: {exc}"
+                    )
+            else:
+                log_message = None
+
+            bps_info.append((id, source, line, condition, hit_condition, log_message))
+
+        # Now that we know all breakpoints are syntactically valid, we can set them.
         bps_set = [
-            Breakpoint.set(
-                path, bp["line"],
-                condition=bp("condition", str, optional=True),
-                hit_condition=bp("hitCondition", str, optional=True),
-                log_message=bp("logMessage", str, optional=True),
+            Breakpoint(
+                id,
+                source,
+                line,
+                condition=condition,
+                hit_condition=hit_condition,
+                log_message=log_message,
             )
-            for bp in bps
+            for id, source, line, condition, hit_condition, log_message in bps_info
         ]
         return {"breakpoints": bps_set}
 
@@ -269,39 +330,44 @@ class Adapter:
         finally:
             del frames
 
+    # For "pause" and "continue" requests, DAP requires a thread ID to be specified,
+    # but does not require the adapter to only pause/unpause the specified thread.
+    # Visual Studio debug adapter host does not support the ability to pause/unpause
+    # only the specified thread, and requires the adapter to always pause/unpause all
+    # threads. For "continue" requests, there is a capability flag that the client can
+    # use to indicate support for per-thread continuation, but there's no such flag
+    # for per-thread pausing. Furethermore, the semantics of unpausing a specific
+    # thread after all threads have been paused is unclear in the event the unpaused
+    # thread then spawns additional threads. Therefore, we always ignore the "threadId"
+    # property and just pause/unpause everything.
+
     def pause_request(self, request: Request):
-        if request.arguments.get("threadId", None) == "*":
-            thread_ids = None
-        else:
-            thread_ids = [request("threadId", int)]
-        self._tracer.pause(thread_ids)
+        try:
+            self._tracer.pause()
+        except ValueError:
+            raise request.cant_handle("No threads to pause")
         return {}
 
     def continue_request(self, request: Request):
-        if request.arguments.get("threadId", None) == "*":
-            thread_ids = None
-        else:
-            thread_ids = [request("threadId", int)]
-        single_thread = request("singleThread", False)
-        self._tracer.resume(thread_ids if single_thread else None)
+        self._tracer.resume()
         return {}
 
     def stepIn_request(self, request: Request):
         # TODO: support "singleThread" and "granularity"
-        thread_id = request("threadId", int)
-        self._tracer.step_in(thread_id)
+        thread = Thread.get(request("threadId", int))
+        self._tracer.step_in(thread)
         return {}
 
     def stepOut_request(self, request: Request):
         # TODO: support "singleThread" and "granularity"
-        thread_id = request("threadId", int)
-        self._tracer.step_out(thread_id)
+        thread = Thread.get(request("threadId", int))
+        self._tracer.step_out(thread)
         return {}
 
     def next_request(self, request: Request):
         # TODO: support "singleThread" and "granularity"
-        thread_id = request("threadId", int)
-        self._tracer.step_over(thread_id)
+        thread = Thread.get(request("threadId", int))
+        self._tracer.step_over(thread)
         return {}
 
     def scopes_request(self, request: Request):

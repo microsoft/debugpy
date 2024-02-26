@@ -35,6 +35,7 @@ class Log:
             self.debug = self.info = self.warning = self.error = self.exception = nop
 
     def debug(self, *args, **kwargs):
+        # TODO: improve logging performance enough to enable this.
         # self.log.debug("{0}", *args, **kwargs)
         # print(*args)
         pass
@@ -60,19 +61,29 @@ class Tracer:
     import inspect
     import threading
     from debugpy import server
-    from debugpy.server.tracing import Breakpoint, Step, Thread, StackFrame, _cvar
-    from pathlib import Path
+    from debugpy.server.tracing import (
+        Breakpoint,
+        Source,
+        Step,
+        Thread,
+        StackFrame,
+        _cvar,
+    )
     from sys import monitoring
 
     instance: "Tracer"
 
     log: Log
 
-    _pause_ids = set()
-    """IDs of threads that are currently pausing or paused."""
+    _stopped_by: Thread | None = None
+    """
+    If not None, indicates the thread on which the event that caused the debuggee
+    to enter suspended state has occurred. When any other thread observes a non-None
+    value of this attribute, it must immediately suspend and wait until it is cleared.
+    """
 
-    _steps = {}
-    """Ongoing steps, keyed by thread ID."""
+    _steps: dict[Thread, Step] = {}
+    """Ongoing steps, keyed by thread."""
 
     def __init__(self):
         self.log = Log()
@@ -121,118 +132,130 @@ class Tracer:
 
         self.log.info("sys.monitoring tracing callbacks registered.")
 
-    def pause(self, thread_ids: Iterable[int] = None):
+    def pause(self):
         """
-        Pause the specified threads, or all threads if thread_ids is None.
+        Pause all threads.
         """
-        if thread_ids is None:
-            # Pausing is async, so additional threads may be spawned even as we are
-            # trying to pause the ones we currently know about; iterate until all
-            # known threads are paused, and no new threads appear.
-            while True:
-                thread_ids = {thread.id for thread in self.Thread.enumerate()}
-                if self._pause_ids.keys() == thread_ids:
-                    return
-                self.pause(thread_ids)
-        else:
-            self.log.info(f"Pausing threads: {thread_ids}")
-            with self._cvar:
-                self._pause_ids.update(thread_ids)
-                self._cvar.notify_all()
-            self.monitoring.restart_events()
-
-    def resume(self, thread_ids: Iterable[int] = None):
-        """
-        Resume the specified threads, or all threads if thread_ids is None.
-        """
+        self.log.info("Pausing all threads.")
         with self._cvar:
-            if thread_ids is None:
-                self.log.info("Resuming all threads.")
-                self._pause_ids.clear()
-            else:
-                self.log.info(f"Resuming threads: {thread_ids}")
-                self._pause_ids.difference_update(thread_ids)
-            self._cvar.notify_all()
-        self.monitoring.restart_events()
+            # Although "pause" is a user-induced scenariop that is not specifically
+            # associated with any thread, we still need to pick some thread that
+            # will nominally own it to report the event on. If there is a designated
+            # main thread in the process, use that, otherwise pick one at random.
+            python_thread = self.threading.main_thread()
+            if python_thread is None:
+                python_thread = next(iter(self.threading.enumerate()), None)
+                if python_thread is None:
+                    raise ValueError("No threads to pause.")
+            thread = self.Thread.from_python_thread(python_thread)
+            self.begin_stop(thread, "pause")
 
-    def abandon_step(self, thread_ids: Iterable[int] = None):
+    def resume(self):
+        """
+        Resume all threads.
+        """
+        self.log.info("Resuming all threads.")
+        self.end_stop()
+
+    def abandon_step(self, threads: Iterable[int] = None):
         """
         Abandon any ongoing steps that are in progress on the specified threads
-        (all threads if thread_ids is None).
+        (all threads if argument is None).
         """
         with self._cvar:
-            if thread_ids is None:
-                thread_ids = [thread.id for thread in self.Thread.enumerate()]
-            for thread_id in thread_ids:
-                step = self._steps.pop(thread_id, None)
-                if step is not None:
-                    self.log.info(f"Abandoned step-{step.step} on {thread_id}.")
+            if threads is None:
+                step = self._steps.clear()
+                while self._steps:
+                    thread, step = self._steps.popitem()
+                    self.log.info(f"Abandoned {step} on {thread}.")
+            else:
+                for thread in threads:
+                    step = self._steps.pop(thread, None)
+                    if step is not None:
+                        self.log.info(f"Abandoned {step} on {thread}.")
             self._cvar.notify_all()
         self.monitoring.restart_events()
 
-    def step_in(self, thread_id: int):
+    def step_in(self, thread: Thread):
         """
         Step into the next statement executed by the specified thread.
         """
-        self.log.info(f"Step in on thread {thread_id}.")
+        self.log.info(f"Step in on {thread}.")
         with self._cvar:
-            self._steps[thread_id] = self.Step("in")
-            self._pause_ids.clear()
-            self._cvar.notify_all()
+            self._steps[thread] = self.Step("in")
+            self.end_stop()
         self.monitoring.restart_events()
 
-    def step_out(self, thread_id: int):
+    def step_out(self, thread: Thread):
         """
         Step out of the current function executed by the specified thread.
         """
-        self.log.info(f"Step out on thread {thread_id}.")
+        self.log.info(f"Step out on {thread}.")
         with self._cvar:
-            self._steps[thread_id] = self.Step("out")
-            self._pause_ids.clear()
-            self._cvar.notify_all()
+            self._steps[thread] = self.Step("out")
+            self.end_stop()
         self.monitoring.restart_events()
 
-    def step_over(self, thread_id: int):
-        self.log.info(f"Step over on thread {thread_id}.")
+    def step_over(self, thread: Thread):
+        self.log.info(f"Step over on {thread}.")
         """
         Step over the next statement executed by the specified thread.
         """
         with self._cvar:
-            self._steps[thread_id] = self.Step("over")
-            self._pause_ids.clear()
-            self._cvar.notify_all()
+            self._steps[thread] = self.Step("over")
+            self.end_stop()
         self.monitoring.restart_events()
 
-    def _stop(
-        self,
-        frame_obj: FrameType,
-        reason: str,
-        hit_breakpoints: Iterable[Breakpoint] = (),
+    def begin_stop(
+        self, thread: Thread, reason: str, hit_breakpoints: Iterable[Breakpoint] = ()
     ):
-        thread = self.Thread.from_python_thread()
-        self.log.info(f"Pausing thread {thread.id}: {reason}.")
+        """
+        Report the stop to the adapter and tell all threads to suspend themselves.
+        """
 
         with self._cvar:
-            if thread.id not in self._pause_ids:
+            self._stopped_by = thread
+            self._cvar.notify_all()
+            self.monitoring.restart_events()
+        self.adapter.channel.send_event(
+            "stopped",
+            {
+                "reason": reason,
+                "threadId": thread.id,
+                "allThreadsStopped": True,
+                "hitBreakpointIds": [bp.id for bp in hit_breakpoints],
+            },
+        )
+
+    def end_stop(self):
+        """
+        Tell all threads to resume themselves.
+        """
+        with self._cvar:
+            self._stopped_by = None
+            self._cvar.notify_all()
+
+    def suspend_this_thread(self, frame_obj: FrameType):
+        """
+        Suspends execution of this thread until the current stop ends.
+        """
+
+        thread = self.Thread.from_python_thread()
+        with self._cvar:
+            if self._stopped_by is None:
                 return
 
-            self.adapter.channel.send_event(
-                "stopped",
-                {
-                    "reason": reason,
-                    "threadId": thread.id,
-                    "allThreadsStopped": False,  # TODO
-                    "hitBreakpointIds": [bp.id for bp in hit_breakpoints],
-                },
-            )
-
-            self.log.info(f"Thread {thread.id} paused.")
-            while thread.id in self._pause_ids:
+            self.log.info(f"{thread} suspended.")
+            thread.python_frame = frame_obj
+            while self._stopped_by is not None:
                 self._cvar.wait()
-            self.log.info(f"Thread {thread.id} unpaused.")
+            thread.python_frame = None
+            self.log.info(f"{thread} resumed.")
 
-            step = self._steps.get(thread.id, None)
+            step = self._steps.get(thread, None)
             if step is not None and step.origin is None:
+                # This step has just begun - update the Step object with information
+                # about current frame that will be used to track step completion.
                 step.origin = frame_obj
                 step.origin_line = frame_obj.f_lineno
 
@@ -242,108 +265,79 @@ class Tracer:
             return self.monitoring.DISABLE
 
         self.log.debug(f"sys.monitoring event: LINE({line_number}, {code})")
-        frame_obj = self.inspect.currentframe().f_back
 
-        stop_reason = None
-        with self._cvar:
-            if thread.id in self._pause_ids:
-                stop_reason = "pause"
-
-            step = self._steps.get(thread.id, None)
-            is_stepping = step is not None and step.origin is not None
-            if not is_stepping:
-                self.log.debug(f"No step in progress on thread {thread.id}.")
-            else:
-                self.log.debug(
-                    f"Tracing step-{step.step} originating from {step.origin} on thread {thread.id}."
-                )
-
-                # TODO: use CALL/RETURN/PY_RETURN to track these more efficiently.
-                step_finished = False
-                if step.step == "in":
-                    if frame_obj is not step.origin or line_number != step.origin_line:
-                        step_finished = True
-                elif step.step == "out":
-                    step_finished = True
-                    while frame_obj is not None:
-                        if frame_obj is step.origin:
-                            step_finished = False
-                            break
-                        frame_obj = frame_obj.f_back
-                elif step.step == "over":
-                    step_finished = True
-                    while frame_obj is not None:
-                        if (
-                            frame_obj is step.origin
-                            and frame_obj.f_lineno == step.origin_line
-                        ):
-                            step_finished = False
-                            break
-                        frame_obj = frame_obj.f_back
+        # These two local variables hold direct or indirect references to frame
+        # objects on the stack of the current thread, and thus must be cleaned up
+        # on exit to avoid expensive GC cycles.
+        python_frame = self.inspect.currentframe().f_back
+        frame = None
+        try:
+            with self._cvar:
+                step = self._steps.get(thread, None)
+                is_stepping = step is not None and step.origin is not None
+                if not is_stepping:
+                    self.log.debug(f"No step in progress on {thread}.")
                 else:
-                    raise ValueError(f"Unknown step type: {step.step}")
+                    self.log.debug(
+                        f"Tracing {step} originating from {step.origin} on {thread}."
+                    )
+                    if step.is_complete(python_frame):
+                        self.log.info(f"{step} finished on thread {thread}.")
+                        del self._steps[thread]
+                        self.begin_stop(thread, "step")
 
-                if step_finished:
-                    self.log.info(f"Step-{step.step} finished on thread {thread.id}.")
-                    del self._steps[thread.id]
-                    self._pause_ids.add(thread.id)
-                    self._cvar.notify_all()
-                    stop_reason = "step"
+                if self._stopped_by is not None:
+                    # Even if this thread is pausing, any debugpy internal code on it should
+                    # keep running until it returns to user code; otherwise, it may deadlock
+                    # if it was holding e.g. a messaging lock.
+                    if not python_frame.f_globals.get("__name__", "").startswith(
+                        "debugpy"
+                    ):
+                        self.suspend_this_thread(python_frame)
+                        return
 
-        if stop_reason is not None:
-            # Even if this thread is pausing, any debugpy internal code on it should
-            # keep running until it returns to user code; otherwise, it may deadlock
-            # if it was holding e.g. a messaging lock.
-            print(frame_obj.f_globals.get("__name__"))
-            if not frame_obj.f_globals.get("__name__", "").startswith("debugpy"):
-                return self._stop(frame_obj, stop_reason)
+                self.log.debug(f"Resolving path {code.co_filename!r}...")
+                source = self.Source(code.co_filename)
+                self.log.debug(f"Path {code.co_filename!r} resolved to {source}.")
 
-        self.log.debug(f"Resolving path {code.co_filename!r}...")
-        path = self.Path(code.co_filename)
-        try:
-            path = path.resolve()
-        except (OSError, RuntimeError):
-            pass
-        self.log.debug(f"Path {code.co_filename!r} resolved to {path}.")
-
-        bps = self.Breakpoint.at(path, line_number)
-        if not bps and not is_stepping:
-            self.log.debug(f"No breakpoints at {path}:{line_number}.")
-            return self.monitoring.DISABLE
-        self.log.debug(f"Considering breakpoints: {[bp.__getstate__() for bp in bps]}.")
-
-        frame = self.StackFrame(thread, self.inspect.currentframe().f_back)
-        try:
-            stop_bps = []
-            for bp in bps:
-                match bp.is_triggered(frame):
-                    case str() as message:
-                        # Triggered, has logMessage - print it but don't stop.
-                        self.adapter.channel.send_event(
-                            "output",
-                            {
-                                "category": "console",
-                                "output": message,
-                                "line": line_number,
-                                "source": {"path": path},
-                            },
-                        )
-                    case triggered if triggered:
-                        # Triggered, no logMessage - stop.
-                        stop_bps.append(bp)
-                    case _:
-                        continue
-
-            if stop_bps:
-                self.log.info(
-                    f"Stack frame {frame} stopping at breakpoints {[bp.__getstate__() for bp in stop_bps]}."
+                bps = self.Breakpoint.at(source, line_number)
+                if not bps and not is_stepping:
+                    self.log.debug(f"No breakpoints at {source}:{line_number}.")
+                    return self.monitoring.DISABLE
+                self.log.debug(
+                    f"Considering breakpoints: {[bp.__getstate__() for bp in bps]}."
                 )
-                with self._cvar:
-                    self._pause_ids.add(thread.id)
-                    self._cvar.notify_all()
-                return self._stop(frame.frame_object, "breakpoint", stop_bps)
+
+                frame = self.StackFrame(thread, self.inspect.currentframe().f_back)
+                stop_bps = []
+                for bp in bps:
+                    match bp.is_triggered(frame):
+                        case str() as message:
+                            # Triggered, has logMessage - print it but don't stop.
+                            self.adapter.channel.send_event(
+                                "output",
+                                {
+                                    "category": "console",
+                                    "output": message,
+                                    "line": line_number,
+                                    "source": source,
+                                },
+                            )
+                        case triggered if triggered:
+                            # Triggered, no logMessage - stop.
+                            stop_bps.append(bp)
+                        case _:
+                            continue
+
+                if stop_bps:
+                    self.log.info(
+                        f"Stack frame {frame} stopping at breakpoints {[bp.__getstate__() for bp in stop_bps]}."
+                    )
+                    self.begin_stop(thread, "breakpoint", stop_bps)
+                    self.suspend_this_thread(frame.frame_object)
         finally:
             del frame
+            del python_frame
 
     def _trace_py_start(self, code: CodeType, ip: int):
         thread = self.Thread.from_python_thread()
