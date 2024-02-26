@@ -3,13 +3,13 @@
 # for license information.
 
 import re
-import sys
 import threading
 import traceback
 from collections import defaultdict
 from dataclasses import dataclass
 from debugpy import server
 from debugpy.common import log
+from debugpy.server import new_dap_id
 from debugpy.server.eval import Scope, VariableContainer
 from pathlib import Path
 from sys import monitoring
@@ -18,6 +18,47 @@ from typing import Callable, ClassVar, Dict, Iterable, List, Literal, Union
 
 # Shared for all global state pertaining to breakpoints and stepping.
 _cvar = threading.Condition()
+
+
+class Source:
+    """
+    Represents a DAP Source object.
+    """
+
+    path: str
+    """
+    Path to the source file; immutable. Note that this needs not be an actual valid
+    path on the filesystem; values such as <string> or <stdin> are also allowed.
+    """
+
+    # TODO: support "sourceReference" for cases where path isn't available (e.g. decompiled code)
+
+    def __init__(self, path: str):
+        # If it is a valid file path, we want to resolve and normalize it, so that it
+        # can be unambiguously compared to code object paths later.
+        try:
+            path = str(Path(path).resolve())
+        except (OSError, RuntimeError):
+            # Something like <string> or <stdin>
+            pass
+        self.path = path
+
+    def __getstate__(self) -> dict:
+        return {"path": self.path}
+
+    def __repr__(self) -> str:
+        return f"Source({self.path!r})"
+
+    def __str__(self) -> str:
+        return self.path
+
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, Source):
+            return False
+        return self.path == other.path
+
+    def __hash__(self) -> int:
+        return hash(self.path)
 
 
 class Thread:
@@ -32,6 +73,12 @@ class Thread:
     python_thread: threading.Thread
     """The Python thread object this DAP Thread represents."""
 
+    python_frame: FrameType | None
+    """
+    The Python frame object corresponding to the topmost stack frame on this thread
+    if it is suspended, or None if it is running.
+    """
+
     is_known_to_adapter: bool
     """
     Whether this thread has been reported to the adapter via the
@@ -44,42 +91,46 @@ class Thread:
     can exclude a specific thread from tracing.
     """
 
-    _last_id = 0
     _all: ClassVar[Dict[int, "Thread"]] = {}
 
-    def __init__(self, python_thread):
+    def __init__(self, python_thread: threading.Thread):
         """
         Create a new Thread object for the given thread. Do not invoke directly;
         use Thread.get() instead.
         """
+
         self.python_thread = python_thread
+        self.current_frame = None
         self.is_known_to_adapter = False
         self.is_traced = True
 
-        with _cvar:
-            # Thread IDs are serialized as JSON numbers in DAP, which are handled as 64-bit
-            # floats by most DAP clients. However, OS thread IDs can be large 64-bit integers
-            # on some platforms. To avoid loss of precision, we map all thread IDs to 32-bit
-            # signed integers; if the original ID fits, we use it as is, otherwise we use a
-            # generated negative ID that is guaranteed to fit.
-            self.id = self.python_thread.ident
-            if self.id != float(self.id):
-                Thread._last_id -= 1
-                self.id = Thread._last_id
-            self._all[self.id] = self
+        # Thread IDs are serialized as JSON numbers in DAP, which are handled as 64-bit
+        # floats by most DAP clients. However, OS thread IDs can be large 64-bit integers
+        # on some platforms. To avoid loss of precision, we map all thread IDs to 32-bit
+        # signed integers; if the original ID fits, we use it as is, otherwise we use a
+        # generated negative ID that is guaranteed to fit.
+        self.id = self.python_thread.ident
+        assert self.id is not None
+
+        if self.id < 0 or self.id != float(self.id):
+            self.id = new_dap_id()
+        self._all[self.id] = self
 
         log.info(
-            f"DAP Thread(id={self.id}) created for Python Thread(ident={self.python_thread.ident})"
+            f"DAP {self} created for Python Thread(ident={self.python_thread.ident})"
         )
 
-    def __getstate__(self):
+    def __repr__(self) -> str:
+        return f"Thread({self.id})"
+
+    def __getstate__(self) -> dict:
         return {
             "id": self.id,
             "name": self.name,
         }
 
     @property
-    def name(self):
+    def name(self) -> str:
         return self.python_thread.name
 
     @classmethod
@@ -89,18 +140,19 @@ class Thread:
         the current Python thread if None, creating it and reporting it to adapter if
         necessary. If the current thread is internal debugpy thread, returns None.
         """
-
         if python_thread is None:
             python_thread = threading.current_thread()
+        if python_thread.ident is None:
+            return None
         if getattr(python_thread, "is_debugpy_thread", False):
             return None
         with _cvar:
             for thread in self._all.values():
-                if thread.python_thread is python_thread:
+                if thread.python_thread.ident == python_thread.ident:
                     break
             else:
                 thread = Thread(python_thread)
-        thread.make_known_to_adapter()
+            thread.make_known_to_adapter()
         return thread
 
     @classmethod
@@ -112,16 +164,11 @@ class Thread:
             return self._all.get(id, None)
 
     @classmethod
-    def enumerate(self) -> List["Thread"]:
+    def enumerate(self) -> list["Thread"]:
         """
-        Returns a list of all running threads in this process.
+        Returns all running threads in this process.
         """
-        return [
-            thread
-            for python_thread in threading.enumerate()
-            for thread in [Thread.from_python_thread(python_thread)]
-            if thread is not None and thread.is_traced
-        ]
+        return [thread for thread in self._all.values() if thread.is_traced]
 
     def make_known_to_adapter(self):
         """
@@ -155,15 +202,16 @@ class Thread:
         starting with the topmost frame.
         """
         try:
-            (fobj,) = (
-                fobj for (id, fobj) in sys._current_frames().items() if id == self.id
-            )
+            with _cvar:
+                python_frame = self.python_frame
         except ValueError:
             raise ValueError(f"Can't get frames for inactive Thread({self.id})")
-        for fobj, _ in traceback.walk_stack(fobj):
-            frame = StackFrame.from_frame_object(self, fobj)
+        for python_frame, _ in traceback.walk_stack(python_frame):
+            frame = StackFrame.from_frame_object(self, python_frame)
+            log.info("{0}", f"{self}: {frame}")
             if not frame.is_internal():
                 yield frame
+        log.info("{0}", f"{self}: End stack trace.")
 
 
 class StackFrame:
@@ -176,10 +224,9 @@ class StackFrame:
     frame_object: FrameType
 
     id: int
-    _path: Path
+    _source: Source | None
     _scopes: List[Scope]
 
-    _last_id = 0
     _all: ClassVar[Dict[int, "StackFrame"]] = {}
 
     def __init__(self, thread: Thread, frame_object: FrameType):
@@ -187,45 +234,44 @@ class StackFrame:
         Create a new StackFrame object for the given thread and frame object. Do not
         invoke directly; use StackFrame.from_frame_object() instead.
         """
-        StackFrame._last_id += 1
-        self.id = StackFrame._last_id
+        self.id = new_dap_id()
         self.thread = thread
         self.frame_object = frame_object
-        self._path = None
+        self._source = None
         self._scopes = None
         self._all[self.id] = self
 
-    def __getstate__(self):
+    def __getstate__(self) -> dict:
         return {
             "id": self.id,
             "name": self.frame_object.f_code.co_name,
-            "source": {
-                # TODO: use "sourceReference" when path isn't available (e.g. decompiled code)
-                "path": str(self.path()),
-            },
+            "source": self.source(),
             "line": self.frame_object.f_lineno,
             "column": 1,  # TODO
             # TODO: "endLine", "endColumn", "moduleId", "instructionPointerReference"
         }
 
+    def __repr__(self) -> str:
+        result = f"StackFrame({self.id}, {self.frame_object}"
+        if self.is_internal():
+            result += ", internal=True"
+        result += ")"
+        return result
+
     @property
     def line(self) -> int:
         return self.frame_object.f_lineno
 
-    def path(self) -> Path:
-        if self._path is None:
-            path = Path(self.frame_object.f_code.co_filename)
-            try:
-                path = path.resolve()
-            except (OSError, RuntimeError):
-                pass
-            # No need to sync this since all instances are equivalent.
-            self._path = path
-        return self._path
+    def source(self) -> Source:
+        if self._source is None:
+            # No need to sync this since all instances created from the same path
+            # are equivalent for all purposes.
+            self._source = Source(self.frame_object.f_code.co_filename)
+        return self._source
 
     def is_internal(self) -> bool:
         # TODO: filter internal frames properly
-        parts = self.path().parts
+        parts = Path(self.source().path).parts
         internals = ["debugpy", "threading"]
         return any(part.startswith(s) for s in internals for part in parts)
 
@@ -262,38 +308,68 @@ class Step:
     origin: FrameType = None
     origin_line: int = None
 
+    def __repr__(self):
+        return f"Step({self.step})"
+
+    def is_complete(self, python_frame: FrameType) -> bool:
+        is_complete = False
+        if self.step == "in":
+            is_complete = (
+                python_frame is not self.origin
+                or python_frame.f_lineno != self.origin_line
+            )
+        elif self.step == "over":
+            is_complete = True
+            for python_frame, _ in traceback.walk_stack(python_frame):
+                if (
+                    python_frame is self.origin
+                    and python_frame.f_lineno == self.origin_line
+                ):
+                    is_complete = False
+                    break
+            return is_complete
+        elif self.step == "out":
+            while python_frame is not None:
+                if python_frame is self.origin:
+                    is_complete = False
+                    break
+        else:
+            raise ValueError(f"Unknown step type: {self.step}")
+        return is_complete
+
 
 class Condition:
     """
     Expression that must be true for the breakpoint to be triggered.
     """
 
+    id: int
+    """Used to identify the condition in stack traces. Should match breakpoint ID."""
+
     expression: str
     """Python expression that must evaluate to True for the breakpoint to be triggered."""
 
     _code: CodeType
 
-    def __init__(self, breakpoint: "Breakpoint", expression: str):
+    def __init__(self, id: int, expression: str):
+        self.id = id
         self.expression = expression
-        self._code = compile(
-            expression, f"breakpoint-{breakpoint.id}-condition", "eval"
-        )
+        self._code = compile(expression, f"breakpoint-{id}-condition", "eval")
 
     def test(self, frame: StackFrame) -> bool:
         """
         Returns True if the breakpoint should be triggered in the specified frame.
         """
         try:
-            return bool(
-                eval(
-                    self._code,
-                    frame.frame_object.f_globals,
-                    frame.frame_object.f_locals,
-                )
+            result = eval(
+                self._code,
+                frame.frame_object.f_globals,
+                frame.frame_object.f_locals,
             )
-        except:
-            log.exception(
-                f"Exception while evaluating breakpoint condition: {self.expression}"
+            return bool(result)
+        except BaseException as exc:
+            log.error(
+                f"Exception while evaluating breakpoint condition ({self.expression}): {exc}"
             )
             return False
 
@@ -322,20 +398,26 @@ class HitCondition:
         "%": lambda expected_count, count: count % expected_count == 0,
     }
 
+    id: int
+    """Used to identify the condition in stack traces. Should match breakpoint ID."""
+
     hit_condition: str
+    """Hit count expression."""
+
     _count: int
     _operator: Callable[[int, int], bool]
 
-    def __init__(self, hit_condition: str):
+    def __init__(self, id: int, hit_condition: str):
+        self.id = id
         self.hit_condition = hit_condition
-        m = re.match(r"([<>=]+)?(\d+)", hit_condition)
+        m = re.match(r"^\D*(\d+)$", hit_condition)
         if not m:
-            raise ValueError(f"Invalid hit condition: {hit_condition}")
+            raise SyntaxError(f"Invalid hit condition: {hit_condition}")
         self._count = int(m.group(2))
         try:
             op = self._OPERATORS[m.group(1) or "=="]
         except KeyError:
-            raise ValueError(f"Invalid hit condition operator: {op}")
+            raise SyntaxError(f"Invalid hit condition operator: {op}")
         self.test = lambda count: op(self._count, count)
 
     def test(self, count: int) -> bool:
@@ -352,16 +434,20 @@ class LogMessage:
     A message with spliced expressions, to be logged when a breakpoint is triggered.
     """
 
+    id: int
+    """Used to identify the condition in stack traces. Should match breakpoint ID."""
+
     message: str
     """The message to be logged. May contain expressions in curly braces."""
 
     _code: CodeType
     """Compiled code object for the f-string corresponding to the message."""
 
-    def __init__(self, breakpoint: "Breakpoint", message: str):
+    def __init__(self, id: int, message: str):
+        self.id = id
         self.message = message
         f_string = "f" + repr(message)
-        self._code = compile(f_string, f"breakpoint-{breakpoint.id}-logMessage", "eval")
+        self._code = compile(f_string, f"breakpoint-{id}-logMessage", "eval")
 
     def format(self, frame: StackFrame) -> str:
         """
@@ -371,9 +457,9 @@ class LogMessage:
             return eval(
                 self._code, frame.frame_object.f_globals, frame.frame_object.f_locals
             )
-        except:
+        except BaseException as exc:
             log.exception(
-                f"Exception while formatting breakpoint log message: {self.message}"
+                f"Exception while formatting breakpoint log message f{self.message!r}: {exc}"
             )
             return self.message
 
@@ -384,7 +470,7 @@ class Breakpoint:
     """
 
     id: int
-    path: Path
+    source: Source
     line: int
     is_enabled: bool
 
@@ -397,92 +483,68 @@ class Breakpoint:
     hit_count: int
     """Number of times this breakpoint has been hit."""
 
-    _last_id = 0
-
     _all: ClassVar[Dict[int, "Breakpoint"]] = {}
 
-    _at: ClassVar[Dict[Path, Dict[int, List["Breakpoint"]]]] = defaultdict(
+    _at: ClassVar[Dict[Source, Dict[int, List["Breakpoint"]]]] = defaultdict(
         lambda: defaultdict(lambda: [])
     )
 
+    # ID must be explicitly specified so that conditions and log message can
+    # use the same ID - this makes for better call stacks and error messages.
     def __init__(
-        self, path, line, *, condition=None, hit_condition=None, log_message=None
+        self,
+        id: int,
+        source: Source,
+        line: int,
+        *,
+        condition: Condition | None = None,
+        hit_condition: HitCondition | None = None,
+        log_message: LogMessage | None = None,
     ):
-        with _cvar:
-            Breakpoint._last_id += 1
-            self.id = Breakpoint._last_id
-
-        self.path = path
+        self.id = id
+        self.source = source
         self.line = line
         self.is_enabled = True
-        self.condition = Condition(self, condition) if condition else None
-        self.hit_condition = HitCondition(hit_condition) if hit_condition else None
-        self.log_message = LogMessage(self, log_message) if log_message else None
+        self.condition = condition
+        self.hit_condition = hit_condition
+        self.log_message = log_message
         self.hit_count = 0
 
         with _cvar:
             self._all[self.id] = self
-            self._at[self.path][self.line].append(self)
+            self._at[self.source][self.line].append(self)
             _cvar.notify_all()
+        monitoring.restart_events()
 
-    def __getstate__(self):
+    def __getstate__(self) -> dict:
         return {
             "line": self.line,
             "verified": True,  # TODO
         }
 
     @classmethod
-    def at(self, path: str, line: int) -> List["Breakpoint"]:
+    def at(self, source: Source, line: int) -> List["Breakpoint"]:
         """
         Returns a list of all breakpoints at the specified location.
         """
         with _cvar:
-            return self._at[path][line]
+            return self._at[source][line]
 
     @classmethod
-    def clear(self, paths: Iterable[str] = None):
+    def clear(self, sources: Iterable[Source] = None):
         """
         Removes all breakpoints in the specified files, or all files if None.
         """
-        if paths is not None:
-            paths = [Path(path).resolve() for path in paths]
         with _cvar:
-            if paths is None:
-                paths = list(self._at.keys())
-            for path in paths:
-                bps_in = self._at.pop(path, {}).values()
+            if sources is None:
+                sources = list(self._at.keys())
+            for source in sources:
+                bps_in = self._at.pop(source, {}).values()
                 for bps_at in bps_in:
                     for bp in bps_at:
                         del self._all[bp.id]
             _cvar.notify_all()
         monitoring.restart_events()
-
-    @classmethod
-    def set(
-        self,
-        path: str,
-        line: int,
-        *,
-        condition=None,
-        hit_condition=None,
-        log_message=None,
-    ) -> "Breakpoint":
-        """
-        Creates a new breakpoint at the specified location.
-        """
-        try:
-            path = Path(path).resolve()
-        except (OSError, RuntimeError):
-            pass
-        bp = Breakpoint(
-            path,
-            line,
-            condition=condition,
-            hit_condition=hit_condition,
-            log_message=log_message,
-        )
-        monitoring.restart_events()
-        return bp
 
     def enable(self, is_enabled: bool):
         """
@@ -501,11 +563,11 @@ class Breakpoint:
         a log message, it is formatted and returned, otherwise True is returned.
         """
         with _cvar:
-            # Check path last since path resolution is potentially expensive.
+            # Check source last since path resolution is potentially expensive.
             if (
                 not self.is_enabled
                 or frame.line != self.line
-                or frame.path() != self.path
+                or frame.source() != self.source
             ):
                 return False
 
@@ -520,7 +582,7 @@ class Breakpoint:
                 return False
             if self.condition is not None and not self.condition.test(frame):
                 return False
-            
+
             # If this is a logpoint, return the formatted message instead of True.
             if self.log_message is not None:
                 return self.log_message.format(frame)

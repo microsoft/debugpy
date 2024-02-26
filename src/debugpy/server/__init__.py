@@ -2,6 +2,18 @@
 # Licensed under the MIT License. See LICENSE in the project root
 # for license information.
 
+import itertools
+
+# Unique IDs for DAP objects such as threads, variables, breakpoints etc. These are
+# negative to allow for pre-existing OS-assigned IDs (which are positive) to be used
+# where available, e.g. for threads.
+_dap_ids = itertools.count(-1, -1)
+
+
+def new_dap_id():
+    """Returns the next unique ID."""
+    return next(_dap_ids)
+
 
 def adapter():
     """
