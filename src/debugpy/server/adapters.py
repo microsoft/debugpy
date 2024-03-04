@@ -14,12 +14,13 @@ from debugpy.server import eval, new_dap_id
 from debugpy.server.tracing import (
     Breakpoint,
     Condition,
+    ExceptionBreakMode,
     HitCondition,
     LogMessage,
     Source,
     StackFrame,
     Thread,
-    Tracer,
+    tracer,
 )
 
 
@@ -65,7 +66,6 @@ class Adapter:
     _capabilities: Capabilities = None
     _expectations: Expectations = None
     _start_request: messaging.Request = None
-    _tracer: Tracer = None
 
     def __init__(self, stream: messaging.JsonIOStream):
         self._is_initialized = False
@@ -74,13 +74,13 @@ class Adapter:
         self._capabilities = None
         self._expectations = None
         self._start_request = None
-        self._tracer = Tracer.instance
+        self._tracer = tracer
 
         self.channel = messaging.JsonMessageChannel(stream, self)
         self.channel.start()
 
     @classmethod
-    def connect(self, host, port):
+    def connect(self, host, port) -> "Adapter":
         assert self.instance is None
         log.info("Connecting to adapter at {0}:{1}", host, port)
         sock = sockets.create_client()
@@ -135,19 +135,19 @@ class Adapter:
                 "description": "Break whenever any exception is raised.",
             },
             # TODO: https://github.com/microsoft/debugpy/issues/1453
-            # {
-            #     "filter": "uncaught",
-            #     "label": "Uncaught Exceptions",
-            #     "default": True,
-            #     "description": "Break when the process is exiting due to unhandled exception.",
-            # },
+            {
+                "filter": "uncaught",
+                "label": "Uncaught Exceptions",
+                "default": True,
+                "description": "Break when the process is exiting due to unhandled exception.",
+            },
             # TODO: https://github.com/microsoft/debugpy/issues/1454
-            # {
-            #     "filter": "userUnhandled",
-            #     "label": "User Uncaught Exceptions",
-            #     "default": False,
-            #     "description": "Break when exception escapes into library code.",
-            # },
+            {
+                "filter": "userUncaught",
+                "label": "User Uncaught Exceptions",
+                "default": False,
+                "description": "Break when exception escapes into library code.",
+            },
         ]
 
         return {
@@ -196,7 +196,7 @@ class Adapter:
 
     def configurationDone_request(self, request: Request):
         if self._start_request is None or self._has_started:
-            request.cant_handle(
+            raise request.cant_handle(
                 '"configurationDone" is only allowed during handling of a "launch" '
                 'or an "attach" request'
             )
@@ -224,8 +224,25 @@ class Adapter:
         return Exception("Function breakpoints are not supported")
 
     def setExceptionBreakpoints_request(self, request: Request):
-        # TODO
-        return Exception("Exception breakpoints are not supported")
+        # TODO: "exceptionOptions"
+
+        filters = set(request("filters", json.array(str)))
+        if len(filters - {"raised", "uncaught", "userUncaught"}):
+            raise request.isnt_valid(
+                f"Unsupported exception breakpoint filter: {filter!r}"
+            )
+        
+        break_mode = ExceptionBreakMode.NEVER
+        if "raised" in filters:
+            break_mode = ExceptionBreakMode.ALWAYS
+        elif "uncaught" in filters:
+            break_mode = ExceptionBreakMode.UNHANDLED
+        elif "userUncaught" in filters:
+            break_mode = ExceptionBreakMode.USER_UNHANDLED
+        self._tracer.exception_break_mode = break_mode
+
+        # TODO: return "breakpoints"
+        return {}
 
     def setBreakpoints_request(self, request: Request):
         # TODO: implement source.reference for setting breakpoints in sources for
@@ -318,14 +335,11 @@ class Adapter:
 
         thread = Thread.get(thread_id)
         if thread is None:
-            raise request.isnt_valid(f'Invalid "threadId": {thread_id}')
+            raise request.isnt_valid(f'Unknown thread with "threadId":{thread_id}')
 
         frames = None
         try:
-            frames = (
-                frame for frame in thread.stack_trace() if not frame.is_internal()
-            )
-            frames = islice(frames, start_frame, None)
+            frames = islice(thread.stack_trace(), start_frame, None)
             return {"stackFrames": list(frames)}
         finally:
             del frames
@@ -353,28 +367,49 @@ class Adapter:
         return {}
 
     def stepIn_request(self, request: Request):
-        # TODO: support "singleThread" and "granularity"
-        thread = Thread.get(request("threadId", int))
+        # TODO: support "granularity"
+        thread_id = request("threadId", int)
+        thread = Thread.get(thread_id)
+        if thread is None:
+            raise request.isnt_valid(f'Unknown thread with "threadId":{thread_id}')
         self._tracer.step_in(thread)
         return {}
 
     def stepOut_request(self, request: Request):
-        # TODO: support "singleThread" and "granularity"
-        thread = Thread.get(request("threadId", int))
+        # TODO: support "granularity"
+        thread_id = request("threadId", int)
+        thread = Thread.get(thread_id)
+        if thread is None:
+            raise request.isnt_valid(f'Unknown thread with "threadId":{thread_id}')
         self._tracer.step_out(thread)
         return {}
 
     def next_request(self, request: Request):
-        # TODO: support "singleThread" and "granularity"
-        thread = Thread.get(request("threadId", int))
+        thread_id = request("threadId", int)
+        thread = Thread.get(thread_id)
+        if thread is None:
+            raise request.isnt_valid(f'Unknown thread with "threadId":{thread_id}')
         self._tracer.step_over(thread)
         return {}
+    
+    def exceptionInfo_request(self, request: Request):
+        thread_id = request("threadId", int)
+        thread = Thread.get(thread_id)
+        if thread is None:
+            raise request.isnt_valid(f'Unknown thread with "threadId":{thread_id}')
+        exc_info = thread.current_exception
+        if exc_info is None:
+            raise request.cant_handle(f'No current exception on thread with "threadId":{thread_id}')
+        return exc_info.__getstate__()
 
     def scopes_request(self, request: Request):
         frame_id = request("frameId", int)
         frame = StackFrame.get(frame_id)
         if frame is None:
-            request.isnt_valid(f'Invalid "frameId": {frame_id}')
+            # This is fairly common when user quickly resumes after stopping on a breakpoint
+            # or an exception, such that "scopes" request from the client gets processed at
+            # the point where the frame is already invalidated.
+            return request.isnt_valid(f'Invalid "frameId": {frame_id}', silent=True)
         return {"scopes": frame.scopes()}
 
     def variables_request(self, request: Request):

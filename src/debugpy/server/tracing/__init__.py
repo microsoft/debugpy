@@ -11,6 +11,7 @@ from debugpy import server
 from debugpy.common import log
 from debugpy.server import new_dap_id
 from debugpy.server.eval import Scope, VariableContainer
+from enum import Enum
 from pathlib import Path
 from sys import monitoring
 from types import CodeType, FrameType
@@ -18,6 +19,13 @@ from typing import Callable, ClassVar, Dict, Iterable, List, Literal, Union
 
 # Shared for all global state pertaining to breakpoints and stepping.
 _cvar = threading.Condition()
+
+
+def is_internal_python_frame(frame: FrameType) -> bool:
+    # TODO: filter internal frames properly
+    parts = Path(frame.f_code.co_filename).parts
+    internals = ["debugpy", "threading"]
+    return any(part.startswith(s) for s in internals for part in parts)
 
 
 class Source:
@@ -61,6 +69,47 @@ class Source:
         return hash(self.path)
 
 
+class ExceptionBreakMode(Enum):
+    NEVER = "never"
+    ALWAYS = "always"
+    UNHANDLED = "unhandled"
+    USER_UNHANDLED = "userUnhandled"
+
+
+class ExceptionInfo:
+    """
+    Information about exception that is reported to the DAP client.
+    """
+
+    exception: BaseException
+    """The exception that is being reported."""
+
+    break_mode: ExceptionBreakMode
+    """The break mode that triggered the reporting."""
+
+    def __init__(self, exception: BaseException, break_mode: ExceptionBreakMode):
+        self.exception = exception
+        self.break_mode = break_mode
+
+    def __getstate__(self) -> dict:
+        exc_type = type(self.exception)
+        desc = ""
+        if self.break_mode == ExceptionBreakMode.UNHANDLED:
+            desc += "(unhandled) "
+        try:
+            desc += str(self.exception)
+        except:
+            try:
+                desc += repr(self.exception)
+            except:
+                pass
+        result = {
+            "exceptionId": exc_type.__qualname__,
+            "description": desc,
+        }
+        return result
+
+
 class Thread:
     """
     Represents a DAP Thread object. Instances must never be created directly;
@@ -73,10 +122,15 @@ class Thread:
     python_thread: threading.Thread
     """The Python thread object this DAP Thread represents."""
 
-    python_frame: FrameType | None
+    current_frame: FrameType | None
     """
     The Python frame object corresponding to the topmost stack frame on this thread
     if it is suspended, or None if it is running.
+    """
+
+    current_exception: ExceptionInfo | None
+    """
+    The exception currently being propagated on this thread, if any.
     """
 
     is_known_to_adapter: bool
@@ -134,7 +188,7 @@ class Thread:
         return self.python_thread.name
 
     @classmethod
-    def from_python_thread(self, python_thread: threading.Thread = None) -> "Thread":
+    def from_python_thread(self, python_thread: threading.Thread) -> "Thread":
         """
         Returns the DAP Thread object corresponding to the given Python thread, or for
         the current Python thread if None, creating it and reporting it to adapter if
@@ -203,13 +257,13 @@ class Thread:
         """
         try:
             with _cvar:
-                python_frame = self.python_frame
+                python_frame = self.current_frame
         except ValueError:
             raise ValueError(f"Can't get frames for inactive Thread({self.id})")
         for python_frame, _ in traceback.walk_stack(python_frame):
             frame = StackFrame.from_frame_object(self, python_frame)
             log.info("{0}", f"{self}: {frame}")
-            if not frame.is_internal():
+            if not is_internal_python_frame(python_frame):
                 yield frame
         log.info("{0}", f"{self}: End stack trace.")
 
@@ -253,7 +307,7 @@ class StackFrame:
 
     def __repr__(self) -> str:
         result = f"StackFrame({self.id}, {self.frame_object}"
-        if self.is_internal():
+        if is_internal_python_frame(self.frame_object):
             result += ", internal=True"
         result += ")"
         return result
@@ -268,12 +322,6 @@ class StackFrame:
             # are equivalent for all purposes.
             self._source = Source(self.frame_object.f_code.co_filename)
         return self._source
-
-    def is_internal(self) -> bool:
-        # TODO: filter internal frames properly
-        parts = Path(self.source().path).parts
-        internals = ["debugpy", "threading"]
-        return any(part.startswith(s) for s in internals for part in parts)
 
     @classmethod
     def from_frame_object(
@@ -297,9 +345,11 @@ class StackFrame:
         return self._scopes
 
     @classmethod
-    def invalidate(self, thread_id: int):
-        frames = [frame for frame in self._all.values() if frame.thread.id == thread_id]
+    def invalidate(self, thread: Thread):
+        frames = [frame for frame in self._all.values() if frame.thread is thread]
         VariableContainer.invalidate(*frames)
+        for frame in frames:
+            del self._all[frame.id]
 
 
 @dataclass
@@ -592,4 +642,4 @@ class Breakpoint:
 
 # sys.monitoring callbacks are defined in a separate submodule to enable tighter
 # control over their use of global state; see comment there for details.
-from .tracer import Tracer  # noqa
+from .tracer import tracer  # noqa
