@@ -46,7 +46,14 @@ class ObjectInspector:
         self.obj = obj
 
     def repr(self) -> Iterable[str]:
-        yield repr(self.obj)
+        try:
+            result = repr(self.obj)
+        except BaseException as exc:
+            try:
+                result = f"<repr() error: {exc}>"
+            except:
+                result = "<repr() error>"
+        yield result
     
     def children(self) -> Iterable[ChildObject]:
         return sorted(self._attributes(), key=lambda var: var.name)
