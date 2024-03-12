@@ -379,7 +379,8 @@ class Step:
                     break
             return is_complete
         elif self.step == "out":
-            while python_frame is not None:
+            is_complete = True
+            for python_frame, _ in traceback.walk_stack(python_frame):
                 if python_frame is self.origin:
                     is_complete = False
                     break
