@@ -421,10 +421,42 @@ class Adapter:
 
     def evaluate_request(self, request: Request):
         expr = request("expression", str)
-        frameId = request("frameId", int)
-        var = eval.evaluate(expr, frameId)
-        return {"result": var.repr, "variablesReference": var.id}
-
+        frame_id = request("frameId", int)
+        frame = StackFrame.get(frame_id)
+        if frame is None:
+            return request.isnt_valid(f'Invalid "frameId": {frame_id}', silent=True)
+        try:
+            result = frame.evaluate(expr)
+        except BaseException as exc:
+            result = exc
+        return eval.Result(frame, result)
+    
+    def setVariable_request(self, request: Request):
+        name = request("name", str)
+        value = request("value", str)
+        container_id = request("variablesReference", int)
+        container = eval.VariableContainer.get(container_id)
+        if container is None:
+            raise request.isnt_valid(f'Invalid "variablesReference": {container_id}')
+        try:
+            return container.set_variable(name, value)
+        except BaseException as exc:
+            raise request.cant_handle(str(exc))
+        
+    def setExpression_request(self, request: Request):
+        expr = request("expression", str)
+        value = request("value", str)
+        frame_id = request("frameId", int)
+        frame = StackFrame.get(frame_id)
+        if frame is None:
+            return request.isnt_valid(f'Invalid "frameId": {frame_id}', silent=True)
+        try:
+            frame.evaluate(f"{expr} = ({value})", "exec")
+            result = frame.evaluate(expr)
+        except BaseException as exc:
+            raise request.cant_handle(str(exc))
+        return eval.Result(frame, result)
+ 
     def disconnect_request(self, request: Request):
         Breakpoint.clear()
         self._tracer.abandon_step()
