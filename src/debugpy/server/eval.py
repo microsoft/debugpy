@@ -7,9 +7,8 @@ import threading
 from collections.abc import Iterable
 from debugpy.server.inspect import inspect
 from types import FrameType
-from typing import ClassVar, Dict, Literal, Self
+from typing import ClassVar, Dict, Self
 
-type ScopeKind = Literal["global", "nonlocal", "local"]
 type StackFrame = "debugpy.server.tracing.StackFrame"
 
 
@@ -30,7 +29,7 @@ class VariableContainer:
             self.id = VariableContainer._last_id
             self._all[self.id] = self
 
-    def __getstate__(self):
+    def __getstate__(self) -> dict[str, object]:
         return {"variablesReference": self.id}
 
     def __repr__(self):
@@ -42,6 +41,9 @@ class VariableContainer:
             return cls._all.get(id)
 
     def variables(self) -> Iterable["Variable"]:
+        raise NotImplementedError
+
+    def set_variable(self, name: str, value: str) -> "Value":
         raise NotImplementedError
 
     @classmethod
@@ -56,51 +58,18 @@ class VariableContainer:
                 del self._all[id]
 
 
-class Scope(VariableContainer):
-    frame: FrameType
-    kind: ScopeKind
-
-    def __init__(self, frame: StackFrame, kind: ScopeKind):
-        super().__init__(frame)
-        self.kind = kind
-
-    def __getstate__(self):
-        state = super().__getstate__()
-        state.update(
-            {
-                "name": self.kind,
-                "presentationHint": self.kind,
-            }
-        )
-        return state
-
-    def variables(self) -> Iterable["Variable"]:
-        match self.kind:
-            case "global":
-                d = self.frame.f_globals
-            case "local":
-                d = self.frame.f_locals
-            case _:
-                raise ValueError(f"Unknown scope kind: {self.kind}")
-        for name, value in d.items():
-            yield Variable(self.frame, name, value)
-
-
-class Variable(VariableContainer):
-    name: str
+class Value(VariableContainer):
     value: object
-    # TODO: evaluateName, memoryReference, presentationHint
+    # TODO: memoryReference, presentationHint
 
-    def __init__(self, frame: StackFrame, name: str, value: object):
+    def __init__(self, frame: StackFrame, value: object):
         super().__init__(frame)
-        self.name = name
         self.value = value
 
-    def __getstate__(self):
+    def __getstate__(self) -> dict[str, object]:
         state = super().__getstate__()
         state.update(
             {
-                "name": self.name,
                 "value": self.repr,
                 "type": self.typename,
             }
@@ -122,17 +91,52 @@ class Variable(VariableContainer):
         for child in inspect(self.value).children():
             yield Variable(self.frame, child.name, child.value)
 
+    def set_variable(self, name: str, value_expr: str) -> "Value":
+        value = self.frame.evaluate(value_expr)
+        if name.startswith("[") and name.endswith("]"):
+            key_expr = name[1:-1]
+            key = self.frame.evaluate(key_expr)
+            self.value[key] = value
+            result = self.value[key]
+        else:
+            setattr(self.value, name, value)
+            result = getattr(self.value, name)
+        return Value(self.frame, result)
+    
 
-def evaluate(expr: str, frame_id: int) -> Variable:
-    from debugpy.server.tracing import StackFrame
+class Result(Value):
+    def __getstate__(self) -> dict[str, object]:
+        state = super().__getstate__()
+        state["result"] = state.pop("value")
+        return state
 
-    frame = StackFrame.get(frame_id)
-    if frame is None:
-        raise ValueError(f"Invalid frame ID: {frame_id}")
-    fobj = frame.frame_object
-    try:
-        code = compile(expr, "<string>", "eval")
-        result = eval(code, fobj.f_globals, fobj.f_locals)
-    except BaseException as exc:
-        result = exc
-    return Variable(frame, expr, result)
+
+class Variable(Value):
+    name: str
+    # TODO: evaluateName
+
+    def __init__(self, frame: StackFrame, name: str, value: object):
+        super().__init__(frame, value)
+        self.name = name
+
+    def __getstate__(self) -> dict[str, object]:
+        state = super().__getstate__()
+        state["name"] = self.name
+        return state
+
+
+class Scope(Variable):
+    frame: FrameType
+
+    def __init__(self, frame: StackFrame, name: str, storage: dict[str, object]):
+        class ScopeObject:
+            def __dir__(self):
+                return list(storage.keys())
+
+            def __getattr__(self, name):
+                return storage[name]
+
+            def __setattr__(self, name, value):
+                storage[name] = value
+
+        super().__init__(frame, name, ScopeObject())

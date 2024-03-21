@@ -16,10 +16,6 @@ class ChildObject:
     def __init__(self, value: object):
         self.value = value
 
-    @property
-    def name(self) -> str:
-        raise NotImplementedError
-
     def expr(self, obj: object) -> str:
         raise NotImplementedError
     
@@ -72,7 +68,7 @@ class ObjectInspector:
             except BaseException as exc:
                 value = exc
             try:
-                if hasattr(type(value), "__call__"):
+                if hasattr(value, "__call__"):
                     continue
             except:
                 pass

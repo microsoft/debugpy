@@ -339,10 +339,14 @@ class StackFrame:
     def scopes(self) -> List[Scope]:
         if self._scopes is None:
             self._scopes = [
-                Scope(self.frame_object, "local"),
-                Scope(self.frame_object, "global"),
+                Scope(self, "local", self.frame_object.f_locals),
+                Scope(self, "global", self.frame_object.f_globals),
             ]
         return self._scopes
+    
+    def evaluate(self, source: str, mode: Literal["eval", "exec", "single"] = "eval") -> object:
+        code = compile(source, "<string>", mode)
+        return eval(code, self.frame_object.f_globals, self.frame_object.f_locals)
 
     @classmethod
     def invalidate(self, thread: Thread):
