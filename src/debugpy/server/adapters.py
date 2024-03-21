@@ -231,7 +231,7 @@ class Adapter:
             raise request.isnt_valid(
                 f"Unsupported exception breakpoint filter: {filter!r}"
             )
-        
+
         break_mode = ExceptionBreakMode.NEVER
         if "raised" in filters:
             break_mode = ExceptionBreakMode.ALWAYS
@@ -391,7 +391,7 @@ class Adapter:
             raise request.isnt_valid(f'Unknown thread with "threadId":{thread_id}')
         self._tracer.step_over(thread)
         return {}
-    
+
     def exceptionInfo_request(self, request: Request):
         thread_id = request("threadId", int)
         thread = Thread.get(thread_id)
@@ -399,7 +399,9 @@ class Adapter:
             raise request.isnt_valid(f'Unknown thread with "threadId":{thread_id}')
         exc_info = thread.current_exception
         if exc_info is None:
-            raise request.cant_handle(f'No current exception on thread with "threadId":{thread_id}')
+            raise request.cant_handle(
+                f'No current exception on thread with "threadId":{thread_id}'
+            )
         return exc_info.__getstate__()
 
     def scopes_request(self, request: Request):
@@ -430,7 +432,7 @@ class Adapter:
         except BaseException as exc:
             result = exc
         return eval.Result(frame, result)
-    
+
     def setVariable_request(self, request: Request):
         name = request("name", str)
         value = request("value", str)
@@ -442,7 +444,7 @@ class Adapter:
             return container.set_variable(name, value)
         except BaseException as exc:
             raise request.cant_handle(str(exc))
-        
+
     def setExpression_request(self, request: Request):
         expr = request("expression", str)
         value = request("value", str)
@@ -456,7 +458,7 @@ class Adapter:
         except BaseException as exc:
             raise request.cant_handle(str(exc))
         return eval.Result(frame, result)
- 
+
     def disconnect_request(self, request: Request):
         Breakpoint.clear()
         self._tracer.abandon_step()

@@ -2,11 +2,11 @@
 # Licensed under the MIT License. See LICENSE in the project root
 # for license information.
 
+import ctypes
 import debugpy
 import threading
 from collections.abc import Iterable
 from debugpy.server.inspect import inspect
-from types import FrameType
 from typing import ClassVar, Dict, Self
 
 type StackFrame = "debugpy.server.tracing.StackFrame"
@@ -102,7 +102,7 @@ class Value(VariableContainer):
             setattr(self.value, name, value)
             result = getattr(self.value, name)
         return Value(self.frame, result)
-    
+
 
 class Result(Value):
     def __getstate__(self) -> dict[str, object]:
@@ -126,8 +126,6 @@ class Variable(Value):
 
 
 class Scope(Variable):
-    frame: FrameType
-
     def __init__(self, frame: StackFrame, name: str, storage: dict[str, object]):
         class ScopeObject:
             def __dir__(self):
@@ -138,5 +136,15 @@ class Scope(Variable):
 
             def __setattr__(self, name, value):
                 storage[name] = value
+                # Until PEP 667 is implemented, this is necessary to propagate the changes
+                # from the dict to actual locals.
+                try:
+                    PyFrame_LocalsToFast = ctypes.pythonapi.PyFrame_LocalsToFast
+                except:
+                    pass
+                else:
+                    PyFrame_LocalsToFast(
+                        ctypes.py_object(frame.frame_object), ctypes.c_int(0)
+                    )
 
         super().__init__(frame, name, ScopeObject())
