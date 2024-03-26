@@ -2,15 +2,7 @@
 # Licensed under the MIT License. See LICENSE in the project root
 # for license information.
 
-# Once callbacks are registered they are invoked even during finalization when the
-# Python is shutting down. Thus, trace_* methods, and any other methods that they
-# invoke, must not use any globals from this or other modules (including globals
-# that represent imported modules or defined classes!) until it checks that they
-# are present, or preload them into local variables or object attributes in advance.
-# To facilitate this, Tracer is defined in a separate submodule which should not
-# contain ANY top-level imports other than typing nor definitions other than the
-# class itself. All other imports must be done in function or class scope.
-
+import gc
 import inspect
 import sys
 import threading
@@ -282,7 +274,7 @@ class Tracer:
             else Thread.from_python_thread(threading.current_thread())
         )
 
-    def _suspend_this_thread(self, frame_obj: FrameType):
+    def _suspend_this_thread(self, python_frame: FrameType):
         """
         Suspends execution of this thread until the current stop ends.
         """
@@ -293,19 +285,20 @@ class Tracer:
                 return
 
             log.info(f"{thread} suspended.")
-            thread.current_frame = frame_obj
+            thread.current_frame = python_frame
             while self._stopped_by is not None:
                 _cvar.wait()
             thread.current_frame = None
-            StackFrame.invalidate(thread)
             log.info(f"{thread} resumed.")
+            StackFrame.invalidate(thread)
+            gc.collect()
 
             step = self._steps.get(thread, None)
             if step is not None and step.origin is None:
                 # This step has just begun - update the Step object with information
                 # about current frame that will be used to track step completion.
-                step.origin = frame_obj
-                step.origin_line = frame_obj.f_lineno
+                step.origin = python_frame
+                step.origin_line = python_frame.f_lineno
 
     def _trace_line(self, code: CodeType, line_number: int):
         thread = self._this_thread()
@@ -380,7 +373,7 @@ class Tracer:
                         f"Stack frame {frame} stopping at breakpoints {[bp.__getstate__() for bp in stop_bps]}."
                     )
                     self._begin_stop(thread, "breakpoint", stop_bps)
-                    self._suspend_this_thread(frame.frame_object)
+                    self._suspend_this_thread(frame.python_frame)
         finally:
             del frame
             del python_frame
