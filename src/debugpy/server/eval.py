@@ -144,7 +144,7 @@ class Scope(Variable):
                     pass
                 else:
                     PyFrame_LocalsToFast(
-                        ctypes.py_object(frame.frame_object), ctypes.c_int(0)
+                        ctypes.py_object(frame.python_frame), ctypes.c_int(0)
                     )
 
         super().__init__(frame, name, ScopeObject())

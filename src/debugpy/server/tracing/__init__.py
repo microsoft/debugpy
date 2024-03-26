@@ -261,7 +261,7 @@ class Thread:
         except ValueError:
             raise ValueError(f"Can't get frames for inactive Thread({self.id})")
         for python_frame, _ in traceback.walk_stack(python_frame):
-            frame = StackFrame.from_frame_object(self, python_frame)
+            frame = StackFrame.from_python_frame(self, python_frame)
             log.info("{0}", f"{self}: {frame}")
             if not is_internal_python_frame(python_frame):
                 yield frame
@@ -271,26 +271,27 @@ class Thread:
 class StackFrame:
     """
     Represents a DAP StackFrame object. Instances must never be created directly;
-    use StackFrame.from_frame_object() instead.
+    use StackFrame.from_python_frame() instead.
     """
 
-    thread: Thread
-    frame_object: FrameType
-
     id: int
+
+    thread: Thread
+    python_frame: FrameType
+
     _source: Source | None
     _scopes: List[Scope]
 
     _all: ClassVar[Dict[int, "StackFrame"]] = {}
 
-    def __init__(self, thread: Thread, frame_object: FrameType):
+    def __init__(self, thread: Thread, python_frame: FrameType):
         """
         Create a new StackFrame object for the given thread and frame object. Do not
-        invoke directly; use StackFrame.from_frame_object() instead.
+        invoke directly; use StackFrame.from_python_frame() instead.
         """
         self.id = new_dap_id()
         self.thread = thread
-        self.frame_object = frame_object
+        self.python_frame = python_frame
         self._source = None
         self._scopes = None
         self._all[self.id] = self
@@ -298,39 +299,39 @@ class StackFrame:
     def __getstate__(self) -> dict:
         return {
             "id": self.id,
-            "name": self.frame_object.f_code.co_name,
+            "name": self.python_frame.f_code.co_name,
             "source": self.source(),
-            "line": self.frame_object.f_lineno,
+            "line": self.python_frame.f_lineno,
             "column": 1,  # TODO
             # TODO: "endLine", "endColumn", "moduleId", "instructionPointerReference"
         }
 
     def __repr__(self) -> str:
-        result = f"StackFrame({self.id}, {self.frame_object}"
-        if is_internal_python_frame(self.frame_object):
+        result = f"StackFrame({self.id}, {self.python_frame}"
+        if is_internal_python_frame(self.python_frame):
             result += ", internal=True"
         result += ")"
         return result
-
+    
     @property
     def line(self) -> int:
-        return self.frame_object.f_lineno
+        return self.python_frame.f_lineno
 
     def source(self) -> Source:
         if self._source is None:
             # No need to sync this since all instances created from the same path
             # are equivalent for all purposes.
-            self._source = Source(self.frame_object.f_code.co_filename)
+            self._source = Source(self.python_frame.f_code.co_filename)
         return self._source
 
     @classmethod
-    def from_frame_object(
-        self, thread: Thread, frame_object: FrameType
+    def from_python_frame(
+        self, thread: Thread, python_frame: FrameType
     ) -> "StackFrame":
         for frame in self._all.values():
-            if frame.thread is thread and frame.frame_object is frame_object:
+            if frame.thread is thread and frame.python_frame is python_frame:
                 return frame
-        return StackFrame(thread, frame_object)
+        return StackFrame(thread, python_frame)
 
     @classmethod
     def get(self, id: int) -> "StackFrame":
@@ -339,14 +340,14 @@ class StackFrame:
     def scopes(self) -> List[Scope]:
         if self._scopes is None:
             self._scopes = [
-                Scope(self, "local", self.frame_object.f_locals),
-                Scope(self, "global", self.frame_object.f_globals),
+                Scope(self, "local", self.python_frame.f_locals),
+                Scope(self, "global", self.python_frame.f_globals),
             ]
         return self._scopes
     
     def evaluate(self, source: str, mode: Literal["eval", "exec", "single"] = "eval") -> object:
         code = compile(source, "<string>", mode)
-        return eval(code, self.frame_object.f_globals, self.frame_object.f_locals)
+        return eval(code, self.python_frame.f_globals, self.python_frame.f_locals)
 
     @classmethod
     def invalidate(self, thread: Thread):
@@ -354,6 +355,7 @@ class StackFrame:
         VariableContainer.invalidate(*frames)
         for frame in frames:
             del self._all[frame.id]
+            frame.python_frame = None
 
 
 @dataclass
@@ -418,8 +420,8 @@ class Condition:
         try:
             result = eval(
                 self._code,
-                frame.frame_object.f_globals,
-                frame.frame_object.f_locals,
+                frame.python_frame.f_globals,
+                frame.python_frame.f_locals,
             )
             return bool(result)
         except BaseException as exc:
@@ -510,7 +512,7 @@ class LogMessage:
         """
         try:
             return eval(
-                self._code, frame.frame_object.f_globals, frame.frame_object.f_locals
+                self._code, frame.python_frame.f_globals, frame.python_frame.f_locals
             )
         except BaseException as exc:
             log.exception(
