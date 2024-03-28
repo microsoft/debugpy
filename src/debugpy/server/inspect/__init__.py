@@ -16,7 +16,7 @@ class ChildObject:
     def __init__(self, value: object):
         self.value = value
 
-    def expr(self, obj: object) -> str:
+    def expr(self, parent_expr: str) -> str:
         raise NotImplementedError
     
 
@@ -27,8 +27,8 @@ class ChildAttribute(ChildObject):
         super().__init__(value)
         self.name = name
 
-    def expr(self, obj_expr: str) -> str:
-        return f"({obj_expr}).{self.name}"
+    def expr(self, parent_expr: str) -> str:
+        return f"({parent_expr}).{self.name}"
 
 
 class ObjectInspector:
@@ -84,7 +84,7 @@ def inspect(obj: object) -> ObjectInspector:
             return stdlib.ListInspector(obj)
         case {}:
             return stdlib.MappingInspector(obj)
-        case []:
+        case [*_] | set() | frozenset() | str() | bytes() | bytearray():
             return stdlib.SequenceInspector(obj)
         case _:
             return ObjectInspector(obj)
