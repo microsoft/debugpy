@@ -8,6 +8,7 @@ backends = {'tk': 'TkAgg',
             'qt': 'QtAgg', # Auto-choose qt4/5
             'qt4': 'Qt4Agg',
             'qt5': 'Qt5Agg',
+            'qt6': 'Qt6Agg',
             'osx': 'MacOSX'}
 
 # We also need a reverse backends2guis mapping that will properly choose which
