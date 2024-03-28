@@ -18,8 +18,8 @@ class ChildLen(ChildObject):
     def __init__(self, parent: object):
         super().__init__(len(parent))
 
-    def expr(self, obj_expr: str) -> str:
-        return f"len({obj_expr})"
+    def expr(self, parent_expr: str) -> str:
+        return f"len({parent_expr})"
 
 
 class ChildItem(ChildObject):
@@ -34,8 +34,8 @@ class ChildItem(ChildObject):
         key_repr = "".join(inspect(self.key).repr())
         return f"[{key_repr}]"
 
-    def expr(self, obj_expr: str) -> str:
-        return f"({obj_expr}){self.name}"
+    def expr(self, parent_expr: str) -> str:
+        return f"({parent_expr}){self.name}"
 
 
 class SequenceInspector(ObjectInspector):
