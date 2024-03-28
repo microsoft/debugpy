@@ -37,7 +37,7 @@ import sys
 from pydev_ipython.version import check_version
 from pydev_ipython.qt_loaders import (load_qt, QT_API_PYSIDE, QT_API_PYSIDE2,
                                          QT_API_PYQT, QT_API_PYQT_DEFAULT,
-                                         loaded_api, QT_API_PYQT5)
+                                         loaded_api, QT_API_PYQT5, QT_API_PYQT6)
 
 
 # Constraints placed on an imported matplotlib
@@ -71,10 +71,21 @@ def matplotlib_options(mpl):
         raise ImportError("unhandled value for backend.qt5 from matplotlib: %r" %
                           mpqt)
 
+    elif backend == 'Qt6Agg':
+        mpqt = mpl.rcParams.get('backend.qt6', None)
+        if mpqt is None:
+            return None
+        if mpqt.lower() == 'pyqt6':
+            return [QT_API_PYQT6]
+        raise ImportError("unhandled value for backend.qt6 from matplotlib: %r" %
+                          mpqt)
+
     # Fallback without checking backend (previous code)
     mpqt = mpl.rcParams.get('backend.qt4', None)
     if mpqt is None:
         mpqt = mpl.rcParams.get('backend.qt5', None)
+    if mpqt is None:
+        mpqt = mpl.rcParams.get('backend.qt6', None)
 
     if mpqt is None:
         return None
@@ -84,6 +95,8 @@ def matplotlib_options(mpl):
         return [QT_API_PYQT_DEFAULT]
     elif mpqt.lower() == 'pyqt5':
         return [QT_API_PYQT5]
+    elif mpqt.lower() == 'pyqt6':
+        return [QT_API_PYQT6]
     raise ImportError("unhandled value for qt backend from matplotlib: %r" %
                       mpqt)
 
@@ -105,7 +118,7 @@ def get_options():
 
     if os.environ.get('QT_API', None) is None:
         # no ETS variable. Ask mpl, then use either
-        return matplotlib_options(mpl) or [QT_API_PYQT_DEFAULT, QT_API_PYSIDE, QT_API_PYSIDE2, QT_API_PYQT5]
+        return matplotlib_options(mpl) or [QT_API_PYQT_DEFAULT, QT_API_PYSIDE, QT_API_PYSIDE2, QT_API_PYQT5, QT_API_PYQT6]
 
     # ETS variable present. Will fallback to external.qt
     return None
