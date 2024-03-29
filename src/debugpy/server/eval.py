@@ -3,13 +3,16 @@
 # for license information.
 
 import ctypes
+import itertools
 import debugpy
 import threading
-from collections.abc import Iterable
+from collections.abc import Iterable, Set 
+from debugpy.common import log
 from debugpy.server.inspect import inspect
-from typing import ClassVar, Dict, Self
+from typing import ClassVar, Literal, Optional, Self
 
 type StackFrame = "debugpy.server.tracing.StackFrame"
+type VariableFilter = Set[Literal["named", "indexed"]]
 
 
 _lock = threading.RLock()
@@ -20,7 +23,7 @@ class VariableContainer:
     id: int
 
     _last_id: ClassVar[int] = 0
-    _all: ClassVar[Dict[int, "VariableContainer"]] = {}
+    _all: ClassVar[dict[int, "VariableContainer"]] = {}
 
     def __init__(self, frame: StackFrame):
         self.frame = frame
@@ -33,14 +36,16 @@ class VariableContainer:
         return {"variablesReference": self.id}
 
     def __repr__(self):
-        return f"{type(self).__name__}{self.__getstate__()}"
+        return f"{type(self).__name__}({self.id})"
 
     @classmethod
     def get(cls, id: int) -> Self | None:
         with _lock:
             return cls._all.get(id)
 
-    def variables(self) -> Iterable["Variable"]:
+    def variables(
+        self, filter: VariableFilter, start: int = 0, count: Optional[int] = None
+    ) -> Iterable["Variable"]:
         raise NotImplementedError
 
     def set_variable(self, name: str, value: str) -> "Value":
@@ -87,8 +92,17 @@ class Value(VariableContainer):
     def repr(self) -> str:
         return "".join(inspect(self.value).repr())
 
-    def variables(self) -> Iterable["Variable"]:
-        for child in inspect(self.value).children():
+    def variables(
+        self, filter: VariableFilter, start: int = 0, count: Optional[int] = None
+    ) -> Iterable["Variable"]:
+        children = inspect(self.value).children(
+            include_attrs=("named" in filter),
+            include_items=("indexed" in filter),
+        )
+        stop = None if count is None else start + count
+        log.info("Computing {0} children of {1!r} in range({2}, {3}).", filter, self, start, stop)
+        children = itertools.islice(children, start, stop)
+        for child in children:
             yield Variable(self.frame, child.name, child.value)
 
     def set_variable(self, name: str, value_expr: str) -> "Value":

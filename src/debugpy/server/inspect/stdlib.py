@@ -39,8 +39,14 @@ class ChildItem(ChildObject):
 
 
 class SequenceInspector(ObjectInspector):
-    def children(self) -> Iterable[ChildObject]:
-        yield from super().children()
+    def children(
+        self, *, include_attrs: bool = True, include_items: bool = True
+    ) -> Iterable[ChildObject]:
+        yield from super().children(
+            include_attrs=include_attrs, include_items=include_items
+        )
+        if not include_items:
+            return
         yield ChildLen(self.obj)
         try:
             it = iter(self.obj)
@@ -58,8 +64,14 @@ class SequenceInspector(ObjectInspector):
 
 
 class MappingInspector(ObjectInspector):
-    def children(self) -> Iterable["ChildObject"]:
-        yield from super().children()
+    def children(
+        self, *, include_attrs: bool = True, include_items: bool = True
+    ) -> Iterable[ChildObject]:
+        yield from super().children(
+            include_attrs=include_attrs, include_items=include_items
+        )
+        if not include_items:
+            return
         yield ChildLen(self.obj)
         try:
             keys = self.obj.keys()
@@ -79,7 +91,7 @@ class MappingInspector(ObjectInspector):
                 value = exc
             yield ChildItem(key, value)
 
-            
+
 class ListInspector(SequenceInspector):
     def repr(self) -> Iterable[str]:
         # TODO: move logic from SafeRepr here

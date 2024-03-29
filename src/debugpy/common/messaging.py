@@ -372,7 +372,7 @@ class MessageDict(collections.OrderedDict):
         See debugpy.common.json for reusable validators.
         """
 
-        if not validate:
+        if validate is None:
             validate = lambda x: x
         elif isinstance(validate, type) or isinstance(validate, tuple):
             validate = json.of_type(validate, optional=optional)
