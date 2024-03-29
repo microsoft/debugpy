@@ -6,7 +6,7 @@
 Object inspection: rendering values, enumerating children etc.
 """
 
-from typing import Iterable
+from collections.abc import Iterable
 
 
 class ChildObject:

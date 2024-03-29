@@ -7,6 +7,7 @@ import inspect
 import sys
 import threading
 import traceback
+from collections.abc import Iterable
 from debugpy import server
 from debugpy.server.tracing import (
     Breakpoint,
@@ -21,7 +22,7 @@ from debugpy.server.tracing import (
 )
 from sys import monitoring
 from types import CodeType, FrameType, TracebackType
-from typing import Iterable, Literal, Type
+from typing import Literal
 
 
 class Log:
@@ -442,7 +443,7 @@ class Tracer:
         self._process_exception(exc, thread, "reraise")
 
     def _sys_excepthook(
-        self, exc_type: Type, exc: BaseException, tb: TracebackType
+        self, exc_type: type, exc: BaseException, tb: TracebackType
     ):
         thread = self._this_thread()
         if thread is None or not thread.is_traced:
