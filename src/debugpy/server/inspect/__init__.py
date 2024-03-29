@@ -18,7 +18,7 @@ class ChildObject:
 
     def expr(self, parent_expr: str) -> str:
         raise NotImplementedError
-    
+
 
 class ChildAttribute(ChildObject):
     name: str
@@ -50,9 +50,15 @@ class ObjectInspector:
             except:
                 result = "<repr() error>"
         yield result
-    
-    def children(self) -> Iterable[ChildObject]:
-        return sorted(self._attributes(), key=lambda var: var.name)
+
+    def children(
+        self, *, include_attrs: bool = True, include_items: bool = True
+    ) -> Iterable[ChildObject]:
+        return (
+            sorted(self._attributes(), key=lambda var: var.name)
+            if include_attrs
+            else ()
+        )
 
     def _attributes(self) -> Iterable[ChildObject]:
         # TODO: group class/instance/function/special

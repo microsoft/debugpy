@@ -7,6 +7,7 @@ import sys
 import threading
 from itertools import islice
 
+from debugpy import adapter
 from debugpy.adapter import components
 from debugpy.common import json, log, messaging, sockets
 from debugpy.common.messaging import MessageDict, Request
@@ -28,14 +29,7 @@ class Adapter:
     """Represents the debug adapter connected to this debug server."""
 
     class Capabilities(components.Capabilities):
-        PROPERTIES = {
-            "supportsVariableType": False,
-            "supportsVariablePaging": False,
-            "supportsRunInTerminalRequest": False,
-            "supportsMemoryReferences": False,
-            "supportsArgsCanBeInterpretedByShell": False,
-            "supportsStartDebuggingRequest": False,
-        }
+        PROPERTIES = {}
 
     class Expectations(components.Capabilities):
         PROPERTIES = {
@@ -126,52 +120,7 @@ class Adapter:
         self._capabilities = self.Capabilities(None, request)
         self._expectations = self.Expectations(None, request)
         self._is_initialized = True
-
-        exception_breakpoint_filters = [
-            {
-                "filter": "raised",
-                "label": "Raised Exceptions",
-                "default": False,
-                "description": "Break whenever any exception is raised.",
-            },
-            # TODO: https://github.com/microsoft/debugpy/issues/1453
-            {
-                "filter": "uncaught",
-                "label": "Uncaught Exceptions",
-                "default": True,
-                "description": "Break when the process is exiting due to unhandled exception.",
-            },
-            # TODO: https://github.com/microsoft/debugpy/issues/1454
-            {
-                "filter": "userUncaught",
-                "label": "User Uncaught Exceptions",
-                "default": False,
-                "description": "Break when exception escapes into library code.",
-            },
-        ]
-
-        return {
-            "exceptionBreakpointFilters": exception_breakpoint_filters,
-            "supportsClipboardContext": True,
-            "supportsCompletionsRequest": True,
-            "supportsConditionalBreakpoints": True,
-            "supportsConfigurationDoneRequest": True,
-            "supportsDebuggerProperties": True,
-            "supportsDelayedStackTraceLoading": True,
-            "supportsEvaluateForHovers": True,
-            "supportsExceptionInfoRequest": True,
-            "supportsExceptionOptions": True,
-            "supportsFunctionBreakpoints": True,
-            "supportsGotoTargetsRequest": True,
-            "supportsHitConditionalBreakpoints": True,
-            "supportsLogPoints": True,
-            "supportsModulesRequest": True,
-            "supportsSetExpression": True,
-            "supportsSetVariable": True,
-            "supportsStepInTargetsRequest": True,
-            "supportsTerminateRequest": True,
-            "supportsValueFormattingOptions": True,
-        }
+        return adapter.CAPABILITIES_V2
 
     def _handle_start_request(self, request: Request):
         if not self._is_initialized:
@@ -332,15 +281,20 @@ class Adapter:
     def stackTrace_request(self, request: Request):
         thread_id = request("threadId", int)
         start_frame = request("startFrame", 0)
+        levels = request("levels", int, optional=True)
 
         thread = Thread.get(thread_id)
         if thread is None:
             raise request.isnt_valid(f'Unknown thread with "threadId":{thread_id}')
 
+        stop_frame = None if levels is None else start_frame + levels
         frames = None
         try:
-            frames = islice(thread.stack_trace(), start_frame, None)
-            return {"stackFrames": list(frames)}
+            frames = islice(thread.stack_trace(), start_frame, stop_frame)
+            return {
+                "stackFrames": list(frames),
+                "totalFrames": thread.stack_trace_len(),
+            }
         finally:
             del frames
 
@@ -415,11 +369,23 @@ class Adapter:
         return {"scopes": frame.scopes()}
 
     def variables_request(self, request: Request):
+        start = request("start", 0)
+        count = request("count", int, optional=True)
+        if count == ():
+            count = None
+        filter = request("filter", str, optional=True)
+        match filter:
+            case ():
+                filter = {"named", "indexed"}
+            case "named" | "indexed":
+                filter = {filter}
+            case _:
+                raise request.isnt_valid(f'Invalid "filter": {filter!r}')
         container_id = request("variablesReference", int)
         container = eval.VariableContainer.get(container_id)
         if container is None:
             raise request.isnt_valid(f'Invalid "variablesReference": {container_id}')
-        return {"variables": list(container.variables())}
+        return {"variables": list(container.variables(filter, start, count))}
 
     def evaluate_request(self, request: Request):
         expr = request("expression", str)

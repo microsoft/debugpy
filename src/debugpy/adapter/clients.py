@@ -25,10 +25,14 @@ class Client(components.Component):
 
     class Capabilities(components.Capabilities):
         PROPERTIES = {
+            # defaults for optional properties in DAP "initialize request"
             "supportsVariableType": False,
             "supportsVariablePaging": False,
             "supportsRunInTerminalRequest": False,
             "supportsMemoryReferences": False,
+            "supportsProgressReporting": False,
+            "supportsInvalidatedEvent": False,
+            "supportsMemoryEvent": False,
             "supportsArgsCanBeInterpretedByShell": False,
             "supportsStartDebuggingRequest": False,
         }
@@ -148,55 +152,12 @@ class Client(components.Component):
     def initialize_request(self, request):
         if self._initialize_request is not None:
             raise request.isnt_valid("Session is already initialized")
-
+        
         self.client_id = request("clientID", "")
         self.capabilities = self.Capabilities(self, request)
         self.expectations = self.Expectations(self, request)
         self._initialize_request = request
-
-        exception_breakpoint_filters = [
-            {
-                "filter": "raised",
-                "label": "Raised Exceptions",
-                "default": False,
-                "description": "Break whenever any exception is raised.",
-            },
-            {
-                "filter": "uncaught",
-                "label": "Uncaught Exceptions",
-                "default": True,
-                "description": "Break when the process is exiting due to unhandled exception.",
-            },
-            {
-                "filter": "userUnhandled",
-                "label": "User Uncaught Exceptions",
-                "default": False,
-                "description": "Break when exception escapes into library code.",
-            },
-        ]
-
-        return {
-            "supportsCompletionsRequest": True,
-            "supportsConditionalBreakpoints": True,
-            "supportsConfigurationDoneRequest": True,
-            "supportsDebuggerProperties": True,
-            "supportsDelayedStackTraceLoading": True,
-            "supportsEvaluateForHovers": True,
-            "supportsExceptionInfoRequest": True,
-            "supportsExceptionOptions": True,
-            "supportsFunctionBreakpoints": True,
-            "supportsHitConditionalBreakpoints": True,
-            "supportsLogPoints": True,
-            "supportsModulesRequest": True,
-            "supportsSetExpression": True,
-            "supportsSetVariable": True,
-            "supportsValueFormattingOptions": True,
-            "supportsTerminateRequest": True,
-            "supportsGotoTargetsRequest": True,
-            "supportsClipboardContext": True,
-            "exceptionBreakpointFilters": exception_breakpoint_filters,
-            "supportsStepInTargetsRequest": True,
-        }
+        return adapter.CAPABILITIES_V2
 
     # Common code for "launch" and "attach" request handlers.
     #
