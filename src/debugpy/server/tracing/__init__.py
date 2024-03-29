@@ -6,6 +6,7 @@ import re
 import threading
 import traceback
 from collections import defaultdict
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from debugpy import server
 from debugpy.common import log
@@ -15,7 +16,7 @@ from enum import Enum
 from pathlib import Path
 from sys import monitoring
 from types import CodeType, FrameType
-from typing import Callable, ClassVar, Dict, Iterable, List, Literal, Union
+from typing import ClassVar, Literal, Union
 
 # Shared for all global state pertaining to breakpoints and stepping.
 _cvar = threading.Condition()
@@ -145,7 +146,7 @@ class Thread:
     can exclude a specific thread from tracing.
     """
 
-    _all: ClassVar[Dict[int, "Thread"]] = {}
+    _all: ClassVar[dict[int, "Thread"]] = {}
 
     def __init__(self, python_thread: threading.Thread):
         """
@@ -294,9 +295,9 @@ class StackFrame:
     python_frame: FrameType
 
     _source: Source | None
-    _scopes: List[Scope]
+    _scopes: list[Scope]
 
-    _all: ClassVar[Dict[int, "StackFrame"]] = {}
+    _all: ClassVar[dict[int, "StackFrame"]] = {}
 
     def __init__(self, thread: Thread, python_frame: FrameType):
         """
@@ -351,7 +352,7 @@ class StackFrame:
     def get(self, id: int) -> "StackFrame":
         return self._all.get(id, None)
 
-    def scopes(self) -> List[Scope]:
+    def scopes(self) -> list[Scope]:
         if self._scopes is None:
             self._scopes = [
                 Scope(self, "local", self.python_frame.f_locals),
@@ -554,9 +555,9 @@ class Breakpoint:
     hit_count: int
     """Number of times this breakpoint has been hit."""
 
-    _all: ClassVar[Dict[int, "Breakpoint"]] = {}
+    _all: ClassVar[dict[int, "Breakpoint"]] = {}
 
-    _at: ClassVar[Dict[Source, Dict[int, List["Breakpoint"]]]] = defaultdict(
+    _at: ClassVar[dict[Source, dict[int, list["Breakpoint"]]]] = defaultdict(
         lambda: defaultdict(lambda: [])
     )
 
@@ -594,7 +595,7 @@ class Breakpoint:
         }
 
     @classmethod
-    def at(self, source: Source, line: int) -> List["Breakpoint"]:
+    def at(self, source: Source, line: int) -> list["Breakpoint"]:
         """
         Returns a list of all breakpoints at the specified location.
         """

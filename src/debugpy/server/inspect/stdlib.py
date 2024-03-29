@@ -4,8 +4,8 @@
 
 """Object inspection for builtin Python types."""
 
+from collections.abc import Iterable
 from itertools import count
-from typing import Iterable
 
 from debugpy.common import log
 from debugpy.server.inspect import ChildObject, ObjectInspector, inspect
