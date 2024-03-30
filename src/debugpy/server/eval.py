@@ -6,9 +6,9 @@ import ctypes
 import itertools
 import debugpy
 import threading
-from collections.abc import Iterable, Set 
+from collections.abc import Iterable, Set
 from debugpy.common import log
-from debugpy.server.inspect import inspect
+from debugpy.server.inspect import ObjectInspector, inspect
 from typing import ClassVar, Literal, Optional, Self
 
 type StackFrame = "debugpy.server.tracing.StackFrame"
@@ -65,18 +65,22 @@ class VariableContainer:
 
 class Value(VariableContainer):
     value: object
+    inspector: ObjectInspector
     # TODO: memoryReference, presentationHint
 
     def __init__(self, frame: StackFrame, value: object):
         super().__init__(frame)
         self.value = value
+        self.inspector = inspect(value)
 
     def __getstate__(self) -> dict[str, object]:
         state = super().__getstate__()
         state.update(
             {
-                "value": self.repr,
                 "type": self.typename,
+                "value": self.repr(),
+                "namedVariables": self.inspector.named_children_count(),
+                "indexedVariables": self.inspector.indexed_children_count(),
             }
         )
         return state
@@ -88,22 +92,28 @@ class Value(VariableContainer):
         except:
             return ""
 
-    @property
     def repr(self) -> str:
-        return "".join(inspect(self.value).repr())
+        return "".join(self.inspector.repr())
 
     def variables(
         self, filter: VariableFilter, start: int = 0, count: Optional[int] = None
     ) -> Iterable["Variable"]:
-        children = inspect(self.value).children(
-            include_attrs=("named" in filter),
-            include_items=("indexed" in filter),
-        )
         stop = None if count is None else start + count
-        log.info("Computing {0} children of {1!r} in range({2}, {3}).", filter, self, start, stop)
+        log.info(
+            "Computing {0} children of {1!r} in range({2}, {3}).",
+            filter,
+            self,
+            start,
+            stop,
+        )
+
+        children = itertools.chain(
+            self.inspector.named_children() if "named" in filter else (),
+            self.inspector.indexed_children() if "indexed" in filter else (),
+        )
         children = itertools.islice(children, start, stop)
         for child in children:
-            yield Variable(self.frame, child.name, child.value)
+            yield Variable(self.frame, child.key, child.value)
 
     def set_variable(self, name: str, value_expr: str) -> "Value":
         value = self.frame.evaluate(value_expr)

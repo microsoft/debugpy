@@ -370,9 +370,11 @@ class Adapter:
 
     def variables_request(self, request: Request):
         start = request("start", 0)
+
         count = request("count", int, optional=True)
         if count == ():
             count = None
+
         filter = request("filter", str, optional=True)
         match filter:
             case ():
@@ -381,10 +383,12 @@ class Adapter:
                 filter = {filter}
             case _:
                 raise request.isnt_valid(f'Invalid "filter": {filter!r}')
+
         container_id = request("variablesReference", int)
         container = eval.VariableContainer.get(container_id)
         if container is None:
             raise request.isnt_valid(f'Invalid "variablesReference": {container_id}')
+
         return {"variables": list(container.variables(filter, start, count))}
 
     def evaluate_request(self, request: Request):

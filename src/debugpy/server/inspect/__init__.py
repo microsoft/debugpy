@@ -10,7 +10,7 @@ from collections.abc import Iterable
 
 
 class ChildObject:
-    name: str
+    key: str
     value: object
 
     def __init__(self, value: object):
@@ -20,15 +20,45 @@ class ChildObject:
         raise NotImplementedError
 
 
-class ChildAttribute(ChildObject):
-    name: str
-
+class NamedChildObject(ChildObject):
     def __init__(self, name: str, value: object):
         super().__init__(value)
-        self.name = name
+        self.key = name
+
+    @property
+    def name(self) -> str:
+        return self.key
 
     def expr(self, parent_expr: str) -> str:
         return f"({parent_expr}).{self.name}"
+
+
+class LenChildObject(NamedChildObject):
+    def __init__(self, parent: object):
+        super().__init__("len()", len(parent))
+
+    def expr(self, parent_expr: str) -> str:
+        return f"len({parent_expr})"
+
+
+class IndexedChildObject(ChildObject):
+    key_object: object
+    indexer: str
+
+    def __init__(self, key: object, value: object):
+        super().__init__(value)
+        self.key_object = key
+        self.indexer = None
+
+    @property
+    def key(self) -> str:
+        if self.indexer is None:
+            key_repr = "".join(inspect(self.key_object).repr())
+            self.indexer = f"[{key_repr}]"
+        return self.indexer
+
+    def expr(self, parent_expr: str) -> str:
+        return f"({parent_expr}){self.key}"
 
 
 class ObjectInspector:
@@ -51,34 +81,50 @@ class ObjectInspector:
                 result = "<repr() error>"
         yield result
 
-    def children(
-        self, *, include_attrs: bool = True, include_items: bool = True
-    ) -> Iterable[ChildObject]:
-        return (
-            sorted(self._attributes(), key=lambda var: var.name)
-            if include_attrs
-            else ()
-        )
-
-    def _attributes(self) -> Iterable[ChildObject]:
-        # TODO: group class/instance/function/special
+    def children(self) -> Iterable[ChildObject]:
+        yield from self.named_children()
+        yield from self.indexed_children()
+    
+    def indexed_children_count(self) -> int:
         try:
-            names = dir(self.obj)
+            return len(self.obj)
         except:
-            names = []
-        for name in names:
-            if name.startswith("__"):
-                continue
+            return 0
+
+    def indexed_children(self) -> Iterable[IndexedChildObject]:
+        return ()
+    
+    def named_children_count(self) -> int:
+        return len(tuple(self.named_children()))
+
+    def named_children(self) -> Iterable[NamedChildObject]:
+        def attrs():
             try:
-                value = getattr(self.obj, name)
-            except BaseException as exc:
-                value = exc
-            try:
-                if hasattr(value, "__call__"):
+                names = dir(self.obj)
+            except:
+                names = ()
+
+            # TODO: group class/instance/function/special
+            for name in names:
+                if name.startswith("__"):
                     continue
+                try:
+                    value = getattr(self.obj, name)
+                except BaseException as exc:
+                    value = exc
+                try:
+                    if hasattr(value, "__call__"):
+                        continue
+                except:
+                    pass
+                yield NamedChildObject(name, value)
+
+            try:
+                yield LenChildObject(self.obj)
             except:
                 pass
-            yield ChildAttribute(name, value)
+
+        return sorted(attrs(), key=lambda var: var.name)
 
 
 def inspect(obj: object) -> ObjectInspector:
