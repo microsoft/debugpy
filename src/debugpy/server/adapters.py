@@ -368,7 +368,33 @@ class Adapter:
             return request.isnt_valid(f'Invalid "frameId": {frame_id}', silent=True)
         return {"scopes": frame.scopes()}
 
+    def _parse_value_format(self, request: Request) -> eval.ValueFormat:
+        result = eval.ValueFormat(
+            hex=False,
+            max_length=1024,  # VSCode limit for tooltips
+            truncation_suffix="⌇⋯",
+        )
+
+        format = request("format", json.object())
+        if format == {}:
+            return result
+
+        hex = format("hex", bool, optional=True)
+        if hex != ():
+            result.hex = hex
+
+        max_length = format("debugpy.maxLength", int, optional=True)
+        if max_length != ():
+            result.max_length = max_length
+
+        truncation_suffix = format("debugpy.truncationSuffix", str, optional=True)
+        if truncation_suffix != ():
+            result.truncation_suffix = truncation_suffix
+
+        return result
+
     def variables_request(self, request: Request):
+        format = self._parse_value_format(request)
         start = request("start", 0)
 
         count = request("count", int, optional=True)
@@ -389,9 +415,10 @@ class Adapter:
         if container is None:
             raise request.isnt_valid(f'Invalid "variablesReference": {container_id}')
 
-        return {"variables": list(container.variables(filter, start, count))}
+        return {"variables": list(container.variables(filter, format, start, count))}
 
     def evaluate_request(self, request: Request):
+        format = self._parse_value_format(request)
         expr = request("expression", str)
         frame_id = request("frameId", int)
         frame = StackFrame.get(frame_id)
@@ -401,9 +428,10 @@ class Adapter:
             result = frame.evaluate(expr)
         except BaseException as exc:
             result = exc
-        return eval.Result(frame, result)
+        return eval.Result(frame, result, format)
 
     def setVariable_request(self, request: Request):
+        format = self._parse_value_format(request)
         name = request("name", str)
         value = request("value", str)
         container_id = request("variablesReference", int)
@@ -411,7 +439,7 @@ class Adapter:
         if container is None:
             raise request.isnt_valid(f'Invalid "variablesReference": {container_id}')
         try:
-            return container.set_variable(name, value)
+            return container.set_variable(name, value, format)
         except BaseException as exc:
             raise request.cant_handle(str(exc))
 
@@ -427,7 +455,7 @@ class Adapter:
             result = frame.evaluate(expr)
         except BaseException as exc:
             raise request.cant_handle(str(exc))
-        return eval.Result(frame, result)
+        return eval.Result(frame, result, format)
 
     def disconnect_request(self, request: Request):
         Breakpoint.clear()

@@ -140,7 +140,7 @@ class JsonIOStream(object):
             return
         self._closed = True
 
-        log.debug("Closing {0} message stream", self.name)
+        log.info("Closing {0} message stream", self.name)
         try:
             try:
                 # Close the writer first, so that the other end of the connection has
@@ -158,7 +158,7 @@ class JsonIOStream(object):
         except Exception:  # pragma: no cover
             log.reraise_exception("Error while closing {0} message stream", self.name)
 
-    def _log_message(self, dir, data, logger=log.debug):
+    def _log_message(self, dir, data, logger=log.info):
         return logger("{0} {1} {2}", self.name, dir, data)
 
     def _read_line(self, reader):
@@ -1163,13 +1163,13 @@ class JsonMessageChannel(object):
             if parser_thread is not None:
                 parser_thread.join()
         except AssertionError:
-            log.debug("Handled error joining parser thread.")
+            log.info("Handled error joining parser thread.")
         try:
             handler_thread = self._handler_thread
             if handler_thread is not None:
                 handler_thread.join()
         except AssertionError:
-            log.debug("Handled error joining handler thread.")
+            log.info("Handled error joining handler thread.")
 
     # Order of keys for _prettify() - follows the order of properties in
     # https://microsoft.github.io/debug-adapter-protocol/specification
@@ -1289,13 +1289,13 @@ class JsonMessageChannel(object):
             exc.propagate(message)
 
     def _parse_incoming_messages(self):
-        log.debug("Starting message loop for channel {0}", self)
+        log.info("Starting message loop for channel {0}", self)
         try:
             while True:
                 self._parse_incoming_message()
 
         except NoMoreMessages as exc:
-            log.debug("Exiting message loop for channel {0}: {1}", self, exc)
+            log.info("Exiting message loop for channel {0}: {1}", self, exc)
             with self:
                 # Generate dummy responses for all outstanding requests.
                 err_message = str(exc)

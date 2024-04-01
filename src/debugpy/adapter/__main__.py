@@ -46,7 +46,7 @@ def main(args):
     if args.log_dir is not None:
         log.log_dir = args.log_dir
 
-    log.to_file(prefix="debugpy.adapter", levels=("info", "warning", "error"))
+    log.to_file(prefix="debugpy.adapter")
     log.describe_environment("debugpy.adapter startup environment:")
 
     servers.access_token = args.server_access_token

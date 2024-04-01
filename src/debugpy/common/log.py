@@ -223,7 +223,7 @@ def reraise_exception(format_string="", *args, **kwargs):
     raise
 
 
-def to_file(filename=None, prefix=None, levels=LEVELS):
+def to_file(filename=None, prefix=None, levels=("error", "warning", "info")):
     """Starts logging all messages at the specified levels to the designated file.
 
     Either filename or prefix must be specified, but not both.
