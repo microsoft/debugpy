@@ -4,36 +4,105 @@
 
 """
 Object inspection: rendering values, enumerating children etc.
+
+This module provides a generic non-DAP-aware API with minimal dependencies, so that
+it can be unit-tested in isolation without requiring a live debugpy session.
+
+debugpy.server.eval then wraps it in DAP-specific adapter classes that expose the
+same functionality in DAP terms.
 """
 
-from collections.abc import Iterable
+import io
+import sys
+from array import array
+from collections import deque
+from collections.abc import Iterable, Mapping
+
+
+class ValueFormat:
+    hex: bool
+    """Whether integers should be rendered in hexadecimal."""
+
+    max_length: int
+    """
+    Maximum length of the string representation of variable values, including values
+    of indices returned by IndexedChildObject.accessor().
+    """
+
+    truncation_suffix: str
+    """Suffix to append to truncated string representations; counts towards max_length."""
+
+    def __init__(
+        self,
+        *,
+        hex: bool = False,
+        max_length: int = sys.maxsize,
+        truncation_suffix: str = "",
+    ):
+        assert max_length >= len(truncation_suffix)
+        self.hex = hex
+        self.max_length = max_length
+        self.truncation_suffix = truncation_suffix
 
 
 class ChildObject:
-    key: str
+    """
+    Represents an object that is a child of another object that is accessible in some way.
+    """
+
     value: object
 
     def __init__(self, value: object):
         self.value = value
+        self.format = format
+
+    def accessor(self, format: ValueFormat) -> str:
+        """
+        Accessor used to retrieve this object.
+
+        This is a display string and is not intended to be used for eval, but it should
+        generally correlate to the expression that can be used to retrieve the object in
+        some clear and obvious way. Some examples of accessors:
+
+            "attr"  - value.attr
+            "[key]" - value[key]
+            "len()" - len(value)
+        """
+        raise NotImplementedError
 
     def expr(self, parent_expr: str) -> str:
+        """
+        Returns an expression that can be used to retrieve this object from its parent,
+        given the expression to compute the parent.
+        """
         raise NotImplementedError
 
 
 class NamedChildObject(ChildObject):
+    """
+    Child object that has a predefined accessor used to access it.
+
+    This includes not just attributes, but all children that do not require repr() of
+    index, key etc to compute the accessor.
+    """
+
     def __init__(self, name: str, value: object):
         super().__init__(value)
-        self.key = name
+        self.name = name
 
-    @property
-    def name(self) -> str:
-        return self.key
+    def accessor(self, format: ValueFormat) -> str:
+        return self.name
 
     def expr(self, parent_expr: str) -> str:
-        return f"({parent_expr}).{self.name}"
+        accessor = self.accessor(ValueFormat())
+        return f"({parent_expr}).{accessor}"
 
 
 class LenChildObject(NamedChildObject):
+    """
+    A synthetic child object that represents the return value of len().
+    """
+
     def __init__(self, parent: object):
         super().__init__("len()", len(parent))
 
@@ -42,44 +111,69 @@ class LenChildObject(NamedChildObject):
 
 
 class IndexedChildObject(ChildObject):
-    key_object: object
-    indexer: str
+    """
+    Child object that has a computed accessor.
+    """
+
+    key: object
 
     def __init__(self, key: object, value: object):
         super().__init__(value)
-        self.key_object = key
+        self.key = key
         self.indexer = None
 
-    @property
-    def key(self) -> str:
-        if self.indexer is None:
-            key_repr = "".join(inspect(self.key_object).repr())
-            self.indexer = f"[{key_repr}]"
-        return self.indexer
+    def accessor(self, format: ValueFormat) -> str:
+        key_repr = inspect(self.key, format).repr()
+        return f"[{key_repr}]"
 
     def expr(self, parent_expr: str) -> str:
-        return f"({parent_expr}){self.key}"
+        accessor = self.accessor(ValueFormat())
+        return f"({parent_expr}){accessor}"
 
 
 class ObjectInspector:
     """
-    Inspects a generic object. Uses builtins.repr() to render values and dir() to enumerate children.
+    Inspects a generic object, providing access to its string representation and children.
     """
 
-    obj: object
+    class ReprContext:
+        """
+        Context for ObjectInspector.iter_repr().
+        """
 
-    def __init__(self, obj: object):
-        self.obj = obj
+        format: ValueFormat
 
-    def repr(self) -> Iterable[str]:
-        try:
-            result = repr(self.obj)
-        except BaseException as exc:
-            try:
-                result = f"<repr() error: {exc}>"
-            except:
-                result = "<repr() error>"
-        yield result
+        chars_remaining: int
+        """
+        How many more characters are allowed in the output.
+
+        Implementations of ObjectInspector.iter_repr() can use this to optimize by yielding
+        larger chunks if there is enough space left for them.
+        """
+
+        nesting_level: int
+        """
+        Nesting level of the current object being inspected. This is 0 for the top-level
+        object on which ObjectInspector.iter_repr() was called, and increases by 1 for each
+        call to ObjectInspector.nest().
+        """
+
+        def __init__(self, inspector: "ObjectInspector"):
+            self.format = inspector.format
+            self.chars_remaining = self.format.max_length
+            self.nesting_level = 0
+
+        def nest(self, value: object):
+            self.nesting_level += 1
+            yield from inspect(value, self.format).iter_repr(self)
+            self.nesting_level -= 1
+
+    value: object
+    format: ValueFormat
+
+    def __init__(self, value: object, format: ValueFormat):
+        self.value = value
+        self.format = format
 
     def children(self) -> Iterable[ChildObject]:
         yield from self.named_children()
@@ -87,7 +181,7 @@ class ObjectInspector:
 
     def indexed_children_count(self) -> int:
         try:
-            return len(self.obj)
+            return len(self.value)
         except:
             return 0
 
@@ -100,7 +194,7 @@ class ObjectInspector:
     def named_children(self) -> Iterable[NamedChildObject]:
         def attrs():
             try:
-                names = dir(self.obj)
+                names = dir(self.value)
             except:
                 names = ()
 
@@ -109,7 +203,7 @@ class ObjectInspector:
                 if name.startswith("__"):
                     continue
                 try:
-                    value = getattr(self.obj, name)
+                    value = getattr(self.value, name)
                 except BaseException as exc:
                     value = exc
                 try:
@@ -120,23 +214,94 @@ class ObjectInspector:
                 yield NamedChildObject(name, value)
 
             try:
-                yield LenChildObject(self.obj)
+                yield LenChildObject(self.value)
             except:
                 pass
 
         return sorted(attrs(), key=lambda var: var.name)
 
+    def repr(self) -> str:
+        """
+        repr() of the inspected object. Like builtins.repr(), but with additional
+        formatting options and size limit.
+        """
+        context = self.ReprContext(self)
+        output = io.StringIO()
+        for chunk in self.iter_repr(context):
+            output.write(chunk)
+            context.chars_remaining -= len(chunk)
+            if context.chars_remaining < 0:
+                output.seek(self.format.max_length - len(self.format.truncation_suffix))
+                output.truncate()
+                output.write(self.format.truncation_suffix)
+                break
+        return output.getvalue()
 
-def inspect(obj: object) -> ObjectInspector:
+    def iter_repr(self, context: ReprContext) -> Iterable[str]:
+        """
+        Streaming repr of the inspected object. Like builtins.repr(), but instead
+        of computing and returning the whole string right away, returns an iterator
+        that yields chunks of the repr as they are computed.
+
+        When object being inspected contains other objects that it needs to include
+        in its own repr, it should pass the nested objects to context.nest() and
+        yield from the returned iterator. This will dispatch the nested repr to the
+        correct inspector, and make sure that context.nesting_level is updated as
+        needed while nested repr is being computed.
+
+        When possible, implementations should use context.chars_remaining as a hint
+        to yield larger chunks. However, there is no obligation for iter_repr() to
+        yield chunks smaller than chars_remaining.
+
+        The default implementation delegates to builtins.repr(), which will always
+        produce the correct result, but without any streaming. Derived inspectors
+        should always override this method to stream repr if possible.
+        """
+        try:
+            result = repr(self.value)
+        except BaseException as exc:
+            try:
+                result = f"<repr() error: {exc}>"
+            except:
+                result = "<repr() error>"
+        yield result
+
+
+def inspect(value: object, format: ValueFormat) -> ObjectInspector:
     from debugpy.server.inspect import stdlib
 
-    # TODO: proper extensible registry
-    match obj:
-        case list():
-            return stdlib.ListInspector(obj)
-        case {}:
-            return stdlib.MappingInspector(obj)
-        case [*_] | set() | frozenset() | str() | bytes() | bytearray():
-            return stdlib.SequenceInspector(obj)
-        case _:
-            return ObjectInspector(obj)
+    # TODO: proper extensible registry with public API for debugpy plugins.
+    def get_inspector():
+        # TODO: should subtypes of standard collections be treated the same? This works
+        # for fetching items, but gets repr() wrong - might have to split the two.
+        match value:
+            case int():
+                return stdlib.IntInspector
+            case str():
+                return stdlib.StrInspector
+            case bytes():
+                return stdlib.BytesInspector
+            case bytearray():
+                return stdlib.ByteArrayInspector
+            case tuple():
+                return stdlib.TupleInspector
+            case list():
+                return stdlib.ListInspector
+            case set():
+                return stdlib.SetInspector
+            case frozenset():
+                return stdlib.FrozenSetInspector
+            case array():
+                return stdlib.ArrayInspector
+            case deque():
+                return stdlib.DequeInspector
+            case dict():
+                return stdlib.DictInspector
+            case Mapping():
+                return stdlib.MappingInspector
+            case Iterable():
+                return stdlib.IterableInspector
+            case _:
+                return ObjectInspector
+
+    return get_inspector()(value, format)

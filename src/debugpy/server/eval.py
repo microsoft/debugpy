@@ -2,13 +2,21 @@
 # Licensed under the MIT License. See LICENSE in the project root
 # for license information.
 
+"""
+DAP entities related to expression evaluation and inspection of variables and scopes.
+
+Classes here are mostly wrappers around the actual object inspection logic implemented
+in debugpy.server.inspect which adapts it to DAP, allowing debugpy.server.inspect to be
+unit-tested in isolation.
+"""
+
 import ctypes
 import itertools
 import debugpy
 import threading
 from collections.abc import Iterable, Set
 from debugpy.common import log
-from debugpy.server.inspect import ObjectInspector, inspect
+from debugpy.server.inspect import ObjectInspector, ValueFormat, inspect
 from typing import ClassVar, Literal, Optional, Self
 
 type StackFrame = "debugpy.server.tracing.StackFrame"
@@ -44,11 +52,15 @@ class VariableContainer:
             return cls._all.get(id)
 
     def variables(
-        self, filter: VariableFilter, start: int = 0, count: Optional[int] = None
+        self,
+        filter: VariableFilter,
+        format: ValueFormat,
+        start: int = 0,
+        count: Optional[int] = None,
     ) -> Iterable["Variable"]:
         raise NotImplementedError
 
-    def set_variable(self, name: str, value: str) -> "Value":
+    def set_variable(self, name: str, value: str, format: ValueFormat) -> "Value":
         raise NotImplementedError
 
     @classmethod
@@ -65,13 +77,13 @@ class VariableContainer:
 
 class Value(VariableContainer):
     value: object
-    inspector: ObjectInspector
+    format: ValueFormat
     # TODO: memoryReference, presentationHint
 
-    def __init__(self, frame: StackFrame, value: object):
+    def __init__(self, frame: StackFrame, value: object, format: ValueFormat):
         super().__init__(frame)
         self.value = value
-        self.inspector = inspect(value)
+        self.format = format
 
     def __getstate__(self) -> dict[str, object]:
         state = super().__getstate__()
@@ -86,6 +98,10 @@ class Value(VariableContainer):
         return state
 
     @property
+    def inspector(self) -> ObjectInspector:
+        return inspect(self.value, self.format)
+
+    @property
     def typename(self) -> str:
         try:
             return type(self.value).__name__
@@ -93,10 +109,14 @@ class Value(VariableContainer):
             return ""
 
     def repr(self) -> str:
-        return "".join(self.inspector.repr())
+        return self.inspector.repr()
 
     def variables(
-        self, filter: VariableFilter, start: int = 0, count: Optional[int] = None
+        self,
+        filter: VariableFilter,
+        format: ValueFormat,
+        start: int = 0,
+        count: Optional[int] = None,
     ) -> Iterable["Variable"]:
         stop = None if count is None else start + count
         log.info(
@@ -107,15 +127,16 @@ class Value(VariableContainer):
             stop,
         )
 
+        inspector = inspect(self.value, format)
         children = itertools.chain(
-            self.inspector.named_children() if "named" in filter else (),
-            self.inspector.indexed_children() if "indexed" in filter else (),
+            inspector.named_children() if "named" in filter else (),
+            inspector.indexed_children() if "indexed" in filter else (),
         )
         children = itertools.islice(children, start, stop)
         for child in children:
-            yield Variable(self.frame, child.key, child.value)
+            yield Variable(self.frame, child.accessor(format), child.value, format)
 
-    def set_variable(self, name: str, value_expr: str) -> "Value":
+    def set_variable(self, name: str, value_expr: str, format: ValueFormat) -> "Value":
         value = self.frame.evaluate(value_expr)
         if name.startswith("[") and name.endswith("]"):
             key_expr = name[1:-1]
@@ -125,7 +146,7 @@ class Value(VariableContainer):
         else:
             setattr(self.value, name, value)
             result = getattr(self.value, name)
-        return Value(self.frame, result)
+        return Value(self.frame, result, format)
 
 
 class Result(Value):
@@ -139,8 +160,8 @@ class Variable(Value):
     name: str
     # TODO: evaluateName
 
-    def __init__(self, frame: StackFrame, name: str, value: object):
-        super().__init__(frame, value)
+    def __init__(self, frame: StackFrame, name: str, value: object, format: ValueFormat):
+        super().__init__(frame, value, format)
         self.name = name
 
     def __getstate__(self) -> dict[str, object]:
@@ -171,4 +192,4 @@ class Scope(Variable):
                         ctypes.py_object(frame.python_frame), ctypes.c_int(0)
                     )
 
-        super().__init__(frame, name, ScopeObject())
+        super().__init__(frame, name, ScopeObject(), ValueFormat())
