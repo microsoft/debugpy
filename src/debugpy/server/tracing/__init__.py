@@ -250,7 +250,7 @@ class Thread:
             )
             self.is_known_to_adapter = True
             return True
-        
+
     def stack_trace_len(self) -> int:
         """
         Returns the total count of frames in this thread's stack.
@@ -327,7 +327,7 @@ class StackFrame:
             result += ", internal=True"
         result += ")"
         return result
-    
+
     @property
     def line(self) -> int:
         return self.python_frame.f_lineno
@@ -359,8 +359,10 @@ class StackFrame:
                 Scope(self, "global", self.python_frame.f_globals),
             ]
         return self._scopes
-    
-    def evaluate(self, source: str, mode: Literal["eval", "exec", "single"] = "eval") -> object:
+
+    def evaluate(
+        self, source: str, mode: Literal["eval", "exec", "single"] = "eval"
+    ) -> object:
         code = compile(source, "<string>", mode)
         return eval(code, self.python_frame.f_globals, self.python_frame.f_locals)
 
