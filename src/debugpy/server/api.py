@@ -321,7 +321,7 @@ wait_for_client = wait_for_client()
 
 def is_client_connected():
     return Adapter.connected_event.is_set()
-    
+
 
 def breakpoint():
     ensure_logging()

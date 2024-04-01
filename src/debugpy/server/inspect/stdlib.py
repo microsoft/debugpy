@@ -8,7 +8,7 @@ from collections.abc import Iterable
 from itertools import count
 
 from debugpy.common import log
-from debugpy.server.inspect import ObjectInspector, IndexedChildObject, LenChildObject
+from debugpy.server.inspect import ObjectInspector, IndexedChildObject
 from debugpy.server.safe_repr import SafeRepr
 
 

@@ -48,7 +48,7 @@ class Log:
         self.error = lambda *args, **kwargs: log.error("{0}", *args, **kwargs)
         self.exception = lambda *args, **kwargs: log.exception("{0}", *args, **kwargs)
 
-        #self.debug = nop  # TODO: improve logging performance enough to enable this.
+        # self.debug = nop  # TODO: improve logging performance enough to enable this.
 
 
 log = Log()
@@ -442,9 +442,7 @@ class Tracer:
         )
         self._process_exception(exc, thread, "reraise")
 
-    def _sys_excepthook(
-        self, exc_type: type, exc: BaseException, tb: TracebackType
-    ):
+    def _sys_excepthook(self, exc_type: type, exc: BaseException, tb: TracebackType):
         thread = self._this_thread()
         if thread is None or not thread.is_traced:
             return
@@ -521,6 +519,7 @@ class Tracer:
         log.debug(
             f"sys.monitoring event: EXCEPTION_HANDLED({code}, {ip}, {type(exc).__qualname__})"
         )
+
 
 tracer = Tracer()
 del Tracer

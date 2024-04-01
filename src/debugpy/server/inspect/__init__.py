@@ -84,7 +84,7 @@ class ObjectInspector:
     def children(self) -> Iterable[ChildObject]:
         yield from self.named_children()
         yield from self.indexed_children()
-    
+
     def indexed_children_count(self) -> int:
         try:
             return len(self.obj)
@@ -93,7 +93,7 @@ class ObjectInspector:
 
     def indexed_children(self) -> Iterable[IndexedChildObject]:
         return ()
-    
+
     def named_children_count(self) -> int:
         return len(tuple(self.named_children()))
 
