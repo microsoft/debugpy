@@ -17,6 +17,7 @@ import sys
 from array import array
 from collections import deque
 from collections.abc import Iterable, Mapping
+from typing import Optional
 
 
 class ValueFormat:
@@ -32,17 +33,26 @@ class ValueFormat:
     truncation_suffix: str
     """Suffix to append to truncated string representations; counts towards max_length."""
 
+    circular_ref_marker: Optional[str]
+    """
+    String to use for nested circular references (e.g. list containing itself). If None,
+    circular references aren't detected and the caller is responsible for avoiding them
+    in inputs.
+    """
+
     def __init__(
         self,
         *,
         hex: bool = False,
         max_length: int = sys.maxsize,
         truncation_suffix: str = "",
+        circular_ref_marker: Optional[str] = None,
     ):
         assert max_length >= len(truncation_suffix)
         self.hex = hex
         self.max_length = max_length
         self.truncation_suffix = truncation_suffix
+        self.circular_ref_marker = circular_ref_marker
 
 
 class ChildObject:
@@ -131,6 +141,14 @@ class IndexedChildObject(ChildObject):
         return f"({parent_expr}){accessor}"
 
 
+# TODO: break apart into separate classes for child inspection and for repr, because these
+# don't necessarily match. For example, if a user-defined class is derived from dict, the
+# protocol to retrieve the children is still the same, so the same inspector should be used
+# for it. However, its repr will likely be different, and if we use the dict inspector for
+# any subclass of dict, we'll get this wrong. This matters when editing variable values,
+# since repr of the value provides the initial text for the user to edit. So if we show a
+# dict repr for a subclass, and user clicks edit and then saves, the value will be silently
+# replaced with a plain dict.
 class ObjectInspector:
     """
     Inspects a generic object, providing access to its string representation and children.
@@ -151,22 +169,28 @@ class ObjectInspector:
         larger chunks if there is enough space left for them.
         """
 
-        nesting_level: int
+        path: list[object]
         """
-        Nesting level of the current object being inspected. This is 0 for the top-level
-        object on which ObjectInspector.iter_repr() was called, and increases by 1 for each
-        call to ObjectInspector.nest().
+        Path to the current object being inspected, starting from the root object on which
+        repr() was called, with each new element corresponding to a single nest() call.
         """
 
         def __init__(self, inspector: "ObjectInspector"):
             self.format = inspector.format
             self.chars_remaining = self.format.max_length
-            self.nesting_level = 0
+            self.path = []
 
         def nest(self, value: object):
-            self.nesting_level += 1
-            yield from inspect(value, self.format).iter_repr(self)
-            self.nesting_level -= 1
+            circular_ref_marker = self.format.circular_ref_marker
+            if circular_ref_marker is not None and any(x is value for x in self.path):
+                yield circular_ref_marker
+                return
+
+            self.path.append(value)
+            try:
+                yield from inspect(value, self.format).iter_repr(self)
+            finally:
+                self.path.pop()
 
     value: object
     format: ValueFormat
@@ -227,7 +251,7 @@ class ObjectInspector:
         """
         context = self.ReprContext(self)
         output = io.StringIO()
-        for chunk in self.iter_repr(context):
+        for chunk in context.nest(self.value):
             output.write(chunk)
             context.chars_remaining -= len(chunk)
             if context.chars_remaining < 0:

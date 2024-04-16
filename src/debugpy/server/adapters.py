@@ -373,6 +373,7 @@ class Adapter:
             hex=False,
             max_length=1024,  # VSCode limit for tooltips
             truncation_suffix="⌇⋯",
+            circular_ref_marker="↻",
         )
 
         format = request("format", json.object())
@@ -390,6 +391,10 @@ class Adapter:
         truncation_suffix = format("debugpy.truncationSuffix", str, optional=True)
         if truncation_suffix != ():
             result.truncation_suffix = truncation_suffix
+
+        circular_ref_marker = format("debugpy.circularRefMarker", str, optional=True)
+        if circular_ref_marker != ():
+            result.circular_ref_marker = circular_ref_marker
 
         return result
 
