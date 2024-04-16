@@ -4,4 +4,4 @@
 # in the repository, i.e. bar/baz will match /bar/baz and /foo/bar/baz.
 
 # The default owners for everything that is not overridden by specific patterns below.
-* @int19h @AdamYoblick
+*   @microsoft/debugpy-CodeReviewers
