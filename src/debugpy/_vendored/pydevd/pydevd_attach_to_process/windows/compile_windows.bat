@@ -1,12 +1,16 @@
+:: This needs to be run from a Visual Studio Developer Command Prompt
+:: You must also have the "Desktop Development with C++" workload installed
+
 setlocal
 @cd /d %~dp0
 
-@set VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe
-@echo Using vswhere at %VSWHERE%
-@for /f "usebackq tokens=*" %%i in (`"%VSWHERE%" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set VSDIR=%%i
-@echo Using Visual C++ at %VSDIR%
-                                 
-call "%VSDIR%\VC\Auxiliary\Build\vcvarsall.bat" x86 -vcvars_spectre_libs=spectre
+@IF NOT EXIST "%VSINSTALLDIR%VC\Auxiliary\Build\vcvarsall.bat" (
+    echo "Please install Visual Studio 2017 or later with the 'Desktop Development with C++' workload"
+    exit /b 1
+)
+
+:: Build x86 binaries
+call "%VSINSTALLDIR%VC\Auxiliary\Build\vcvarsall.bat" x86 -vcvars_spectre_libs=spectre
 
 cl -DUNICODE -D_UNICODE /EHsc /Zi /O1 /W3 /LD /MD /Qspectre attach.cpp /link /PROFILE /GUARD:CF /out:attach_x86.dll
 copy attach_x86.dll ..\attach_x86.dll /Y
@@ -20,7 +24,8 @@ cl /EHsc /Zi /O1 /W3 /Qspectre inject_dll.cpp /link /PROFILE /GUARD:CF /out:inje
 copy inject_dll_x86.exe ..\inject_dll_x86.exe /Y
 copy inject_dll_x86.pdb ..\inject_dll_x86.pdb /Y
 
-call "%VSDIR%\VC\Auxiliary\Build\vcvarsall.bat" x86_amd64 -vcvars_spectre_libs=spectre
+:: Build x64 binaries
+call "%VSINSTALLDIR%VC\Auxiliary\Build\vcvarsall.bat" x86_amd64 -vcvars_spectre_libs=spectre
 
 cl -DUNICODE -D_UNICODE /EHsc /Zi /O1 /W3 /LD /MD /Qspectre attach.cpp /link /PROFILE /GUARD:CF /out:attach_amd64.dll
 copy attach_amd64.dll ..\attach_amd64.dll /Y
