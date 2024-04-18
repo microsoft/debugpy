@@ -368,15 +368,17 @@ class Adapter:
             return request.isnt_valid(f'Invalid "frameId": {frame_id}', silent=True)
         return {"scopes": frame.scopes()}
 
-    def _parse_value_format(self, request: Request) -> eval.ValueFormat:
+    def _parse_value_format(
+        self, request: Request, property: str = "format", max_length: int = 1024
+    ) -> eval.ValueFormat:
         result = eval.ValueFormat(
             hex=False,
-            max_length=1024,  # VSCode limit for tooltips
+            max_length=max_length,  # VSCode limit for tooltips
             truncation_suffix="⌇⋯",
             circular_ref_marker="↻",
         )
 
-        format = request("format", json.object())
+        format = request(property, json.object())
         if format == {}:
             return result
 
@@ -398,8 +400,12 @@ class Adapter:
 
         return result
 
+    def _parse_name_format(self, request: Request) -> eval.ValueFormat:
+        return self._parse_value_format(request, "debugpy.nameFormat", max_length=32)
+
     def variables_request(self, request: Request):
-        format = self._parse_value_format(request)
+        name_format = self._parse_name_format(request)
+        value_format = self._parse_value_format(request)
         start = request("start", 0)
 
         count = request("count", int, optional=True)
@@ -420,7 +426,11 @@ class Adapter:
         if container is None:
             raise request.isnt_valid(f'Invalid "variablesReference": {container_id}')
 
-        return {"variables": list(container.variables(filter, format, start, count))}
+        return {
+            "variables": list(
+                container.variables(filter, name_format, value_format, start, count)
+            )
+        }
 
     def evaluate_request(self, request: Request):
         format = self._parse_value_format(request)
