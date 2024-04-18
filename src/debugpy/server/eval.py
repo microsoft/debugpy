@@ -16,8 +16,11 @@ import debugpy
 import threading
 from collections.abc import Iterable, Set
 from debugpy.common import log
-from debugpy.server.inspect import ObjectInspector, ValueFormat, inspect
+from debugpy.server.inspect import ValueFormat
+from debugpy.server.inspect.children import inspect_children
 from typing import ClassVar, Literal, Optional, Self
+
+from debugpy.server.inspect.repr import formatted_repr
 
 type StackFrame = "debugpy.server.tracing.StackFrame"
 type VariableFilter = Set[Literal["named", "indexed"]]
@@ -54,7 +57,8 @@ class VariableContainer:
     def variables(
         self,
         filter: VariableFilter,
-        format: ValueFormat,
+        name_format: ValueFormat,
+        value_format: ValueFormat,
         start: int = 0,
         count: Optional[int] = None,
     ) -> Iterable["Variable"]:
@@ -86,20 +90,17 @@ class Value(VariableContainer):
         self.format = format
 
     def __getstate__(self) -> dict[str, object]:
+        inspector = inspect_children(self.value)
         state = super().__getstate__()
         state.update(
             {
                 "type": self.typename,
-                "value": self.repr(),
-                "namedVariables": self.inspector.named_children_count(),
-                "indexedVariables": self.inspector.indexed_children_count(),
+                "value": formatted_repr(self.value, self.format),
+                "namedVariables": inspector.named_children_count(),
+                "indexedVariables": inspector.indexed_children_count(),
             }
         )
         return state
-
-    @property
-    def inspector(self) -> ObjectInspector:
-        return inspect(self.value, self.format)
 
     @property
     def typename(self) -> str:
@@ -108,13 +109,11 @@ class Value(VariableContainer):
         except:
             return ""
 
-    def repr(self) -> str:
-        return self.inspector.repr()
-
     def variables(
         self,
         filter: VariableFilter,
-        format: ValueFormat,
+        name_format: ValueFormat,
+        value_format: ValueFormat,
         start: int = 0,
         count: Optional[int] = None,
     ) -> Iterable["Variable"]:
@@ -127,14 +126,16 @@ class Value(VariableContainer):
             stop,
         )
 
-        inspector = inspect(self.value, format)
+        inspector = inspect_children(self.value)
         children = itertools.chain(
             inspector.named_children() if "named" in filter else (),
             inspector.indexed_children() if "indexed" in filter else (),
         )
         children = itertools.islice(children, start, stop)
         for child in children:
-            yield Variable(self.frame, child.accessor(format), child.value, format)
+            yield Variable(
+                self.frame, child.accessor(name_format), child.value, value_format
+            )
 
     def set_variable(self, name: str, value_expr: str, format: ValueFormat) -> "Value":
         value = self.frame.evaluate(value_expr)
@@ -160,7 +161,9 @@ class Variable(Value):
     name: str
     # TODO: evaluateName
 
-    def __init__(self, frame: StackFrame, name: str, value: object, format: ValueFormat):
+    def __init__(
+        self, frame: StackFrame, name: str, value: object, format: ValueFormat
+    ):
         super().__init__(frame, value, format)
         self.name = name
 

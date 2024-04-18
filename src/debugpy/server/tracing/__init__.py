@@ -385,6 +385,8 @@ class Step:
         return f"Step({self.step})"
 
     def is_complete(self, python_frame: FrameType) -> bool:
+        # TODO: avoid using traceback.walk_stack every time by counting stack
+        # depth via PY_CALL / PY_RETURN events.
         is_complete = False
         if self.step == "in":
             is_complete = (
