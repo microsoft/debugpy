@@ -8,6 +8,7 @@ import sys
 import threading
 import traceback
 from collections.abc import Iterable
+import warnings
 from debugpy import server
 from debugpy.server.tracing import (
     Breakpoint,
@@ -16,6 +17,9 @@ from debugpy.server.tracing import (
     Source,
     StackFrame,
     Step,
+    StepIn,
+    StepOut,
+    StepOver,
     Thread,
     _cvar,
     is_internal_python_frame,
@@ -208,7 +212,7 @@ class Tracer:
         """
         log.info(f"Step in on {thread}.")
         with _cvar:
-            self._steps[thread] = Step("in")
+            self._steps[thread] = StepIn()
             self._end_stop()
         monitoring.restart_events()
 
@@ -218,7 +222,7 @@ class Tracer:
         """
         log.info(f"Step out on {thread}.")
         with _cvar:
-            self._steps[thread] = Step("out")
+            self._steps[thread] = StepOut()
             self._end_stop()
         monitoring.restart_events()
 
@@ -228,9 +232,23 @@ class Tracer:
         Step over the next statement executed by the specified thread.
         """
         with _cvar:
-            self._steps[thread] = Step("over")
+            self._steps[thread] = StepOver()
             self._end_stop()
         monitoring.restart_events()
+
+    def goto(self, thread: Thread, path: str, line: int):
+        log.info(f"Goto {path}:{line} on {thread}")
+        """
+        Change the instruction pointer of the current thread to point to
+        the new line/source file.
+        """
+        with _cvar:
+            thread.pending_ip = line
+            # Notify just this thread
+            _cvar.notify(thread.id)
+
+        # Act like a new stop happened
+        self._begin_stop(thread, "goto")
 
     def _begin_stop(
         self,
@@ -280,7 +298,7 @@ class Tracer:
         Suspends execution of this thread until the current stop ends.
         """
 
-        thread = self._this_thread()
+        thread: Thread | None = self._this_thread()
         with _cvar:
             if self._stopped_by is None:
                 return
@@ -289,6 +307,17 @@ class Tracer:
             thread.current_frame = python_frame
             while self._stopped_by is not None:
                 _cvar.wait()
+
+                # This thread may have had its IP changed. We
+                # want to change the IP before we resume but we
+                # need to change the IP during a trace callback.
+                if thread.pending_ip is not None:
+                    # Filter out runtime warnings that come from doing a goto
+                    with warnings.catch_warnings():
+                        warnings.simplefilter("ignore")
+                        thread.current_frame.f_lineno = thread.pending_ip
+                    thread.pending_ip = None
+
             thread.current_frame = None
             log.info(f"{thread} resumed.")
             StackFrame.invalidate(thread)

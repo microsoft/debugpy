@@ -2,9 +2,12 @@
 # Licensed under the MIT License. See LICENSE in the project root
 # for license information.
 
+from functools import partial
 import inspect
+import itertools
 import os
 import sys
+from types import CodeType
 
 
 def evaluate(code, path=__file__, mode="eval"):
@@ -163,3 +166,29 @@ def hide_thread_from_debugger(thread):
         thread.is_debugpy_thread = True
         thread.pydev_do_not_trace = True
         thread.is_pydev_daemon_thread = True
+
+class IDMap(object):
+
+    def __init__(self):
+        self._value_to_key = {}
+        self._key_to_value = {}
+        self._next_id = partial(next, itertools.count(0))
+
+    def obtain_value(self, key):
+        return self._key_to_value[key]
+
+    def obtain_key(self, value):
+        try:
+            key = self._value_to_key[value]
+        except KeyError:
+            key = self._next_id()
+            self._key_to_value[key] = value
+            self._value_to_key[value] = key
+        return key
+
+def contains_line(code: CodeType, line: int) -> bool:
+    for co_line in code.co_lines():
+        if len(co_line) == 3:
+            if co_line[2] == line:
+                return True
+    return False

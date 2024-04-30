@@ -2,6 +2,7 @@
 # Licensed under the MIT License. See LICENSE in the project root
 # for license information.
 
+import inspect
 import os
 import sys
 import threading
@@ -11,6 +12,7 @@ from debugpy import adapter
 from debugpy.adapter import components
 from debugpy.common import json, log, messaging, sockets
 from debugpy.common.messaging import MessageDict, Request
+from debugpy.common.util import IDMap, contains_line
 from debugpy.server import eval, new_dap_id
 from debugpy.server.tracing import (
     Breakpoint,
@@ -60,6 +62,7 @@ class Adapter:
     _capabilities: Capabilities = None
     _expectations: Expectations = None
     _start_request: messaging.Request = None
+    _goto_targets_map: IDMap = IDMap()
 
     def __init__(self, stream: messaging.JsonIOStream):
         self._is_initialized = False
@@ -344,6 +347,40 @@ class Adapter:
         if thread is None:
             raise request.isnt_valid(f'Unknown thread with "threadId":{thread_id}')
         self._tracer.step_over(thread)
+        return {}
+
+    def gotoTargets_request(self, request: Request) -> dict:
+        path = request("source", dict)["path"]
+        line = request("line", int)
+        target_id = self._goto_targets_map.obtain_key((path, line))
+        target = {"id": target_id, "label": "%s:%s" % (path, line), "line": line}
+
+        return {"targets": [target]}
+    
+
+    def goto_request(self, request: Request) -> dict:
+        thread_id = request("threadId", int)
+        thread = Thread.get(thread_id)
+        if thread is None:
+            return request.isnt_valid(f'Unknown thread with "threadId":{thread_id}')
+        target_id = request("targetId", int)
+        if target_id is None:
+            return request.isnt_valid('Unknown targetId for goto')
+        try:
+            path, line = self._goto_targets_map.obtain_value(target_id)
+        except KeyError:
+            return request.isnt_valid('Invalid targetId for goto')
+
+        # Make sure the thread is in the same source file
+        current_source = inspect.getsourcefile(thread.current_frame.f_code)
+        if current_source.casefold() != path.casefold():
+            return request.cant_handle(f'{path} is not in the same code block as the current frame', silent=True)
+        
+        # Make sure line number is in the same code black
+        if not contains_line(thread.current_frame.f_code, line):
+            return request.cant_handle(f'Line {line} is not in the same code block as the current frame', silent=True)
+
+        self._tracer.goto(thread, path, line)
         return {}
 
     def exceptionInfo_request(self, request: Request):

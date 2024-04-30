@@ -67,6 +67,7 @@ CAPABILITIES_V2 = {
     "supportsSetExpression": True,
     "supportsTerminateRequest": True,
     "supportsClipboardContext": True,
+    "supportsGotoTargetsRequest": True,
 }
 
 access_token = None

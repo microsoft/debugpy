@@ -7,7 +7,6 @@ import threading
 import traceback
 from collections import defaultdict
 from collections.abc import Callable, Iterable
-from dataclasses import dataclass
 from debugpy import server
 from debugpy.common import log
 from debugpy.server import new_dap_id
@@ -16,7 +15,7 @@ from enum import Enum
 from pathlib import Path
 from sys import monitoring
 from types import CodeType, FrameType
-from typing import ClassVar, Literal, Union
+from typing import ClassVar, Literal, Union, override
 
 # Shared for all global state pertaining to breakpoints and stepping.
 _cvar = threading.Condition()
@@ -146,6 +145,12 @@ class Thread:
     can exclude a specific thread from tracing.
     """
 
+    pending_ip: int | None
+    """
+    As a result of a https://microsoft.github.io/debug-adapter-protocol/specification#Requests_Goto
+    this is the line number for the current thread to switch to while it is stopped.
+    """
+
     _all: ClassVar[dict[int, "Thread"]] = {}
 
     def __init__(self, python_thread: threading.Thread):
@@ -158,6 +163,7 @@ class Thread:
         self.current_frame = None
         self.is_known_to_adapter = False
         self.is_traced = True
+        self.pending_ip = None
 
         # Thread IDs are serialized as JSON numbers in DAP, which are handled as 64-bit
         # floats by most DAP clients. However, OS thread IDs can be large 64-bit integers
@@ -375,42 +381,61 @@ class StackFrame:
             frame.python_frame = None
 
 
-@dataclass
 class Step:
-    step: Literal["in", "out", "over"]
-    origin: FrameType = None
-    origin_line: int = None
+    def __init__(
+        self,
+        step: Literal["in", "out", "over", "goto"],
+        origin: FrameType = None,
+        origin_line: int = None,
+    ):
+        self.step = step
+        self.origin = origin
+        self.origin_line = origin_line
 
     def __repr__(self):
         return f"Step({self.step})"
 
     def is_complete(self, python_frame: FrameType) -> bool:
-        # TODO: avoid using traceback.walk_stack every time by counting stack
-        # depth via PY_CALL / PY_RETURN events.
-        is_complete = False
-        if self.step == "in":
-            is_complete = (
-                python_frame is not self.origin
-                or python_frame.f_lineno != self.origin_line
-            )
-        elif self.step == "over":
-            is_complete = True
-            for python_frame, _ in traceback.walk_stack(python_frame):
-                if (
-                    python_frame is self.origin
-                    and python_frame.f_lineno == self.origin_line
-                ):
-                    is_complete = False
-                    break
-            return is_complete
-        elif self.step == "out":
-            is_complete = True
-            for python_frame, _ in traceback.walk_stack(python_frame):
-                if python_frame is self.origin:
-                    is_complete = False
-                    break
-        else:
-            raise ValueError(f"Unknown step type: {self.step}")
+        raise ValueError(f"Unknown step type: {self.step}")
+
+
+class StepIn(Step):
+    def __init__(self):
+        super().__init__("in")
+
+    @override
+    def is_complete(self, python_frame: FrameType) -> bool:
+        return (
+            python_frame is not self.origin or python_frame.f_lineno != self.origin_line
+        )
+
+
+class StepOver(Step):
+    def __init__(self):
+        super().__init__("over")
+
+    def is_complete(self, python_frame: FrameType) -> bool:
+        is_complete = True
+        for python_frame, _ in traceback.walk_stack(python_frame):
+            if (
+                python_frame is self.origin
+                and python_frame.f_lineno == self.origin_line
+            ):
+                is_complete = False
+                break
+        return is_complete
+
+
+class StepOut(Step):
+    def __init__(self):
+        super().__init__("out")
+
+    def is_complete(self, python_frame: FrameType) -> bool:
+        is_complete = True
+        for python_frame, _ in traceback.walk_stack(python_frame):
+            if python_frame is self.origin:
+                is_complete = False
+                break
         return is_complete
 
 
