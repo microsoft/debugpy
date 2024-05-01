@@ -56,7 +56,6 @@ def test_set_next_statement(pyfile, run, target):
         inner2_target = targets[0]["id"]
 
         session.request("goto", {"threadId": stop.thread_id, "targetId": inner2_target})
-        session.wait_for_next_event("continued")
 
         stop = session.wait_for_stop(
             "goto", expected_frames=[some.dap.frame(code_to_debug, "inner2")]
