@@ -378,13 +378,13 @@ class StackFrame:
 
 
 class Step:
+    step: Literal["in", "out", "over"]
+
     def __init__(
         self,
-        step: Literal["in", "out", "over", "goto"],
         origin: FrameType = None,
         origin_line: int = None,
     ):
-        self.step = step
         self.origin = origin
         self.origin_line = origin_line
 
@@ -396,8 +396,7 @@ class Step:
 
 
 class StepIn(Step):
-    def __init__(self):
-        super().__init__("in")
+    step = "in"
 
     @override
     def is_complete(self, python_frame: FrameType) -> bool:
@@ -407,9 +406,9 @@ class StepIn(Step):
 
 
 class StepOver(Step):
-    def __init__(self):
-        super().__init__("over")
+    step = "over"
 
+    @override
     def is_complete(self, python_frame: FrameType) -> bool:
         is_complete = True
         for python_frame, _ in traceback.walk_stack(python_frame):
@@ -423,9 +422,9 @@ class StepOver(Step):
 
 
 class StepOut(Step):
-    def __init__(self):
-        super().__init__("out")
+    step = "out"
 
+    @override
     def is_complete(self, python_frame: FrameType) -> bool:
         is_complete = True
         for python_frame, _ in traceback.walk_stack(python_frame):
