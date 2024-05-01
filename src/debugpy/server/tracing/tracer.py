@@ -25,7 +25,7 @@ from debugpy.server.tracing import (
     is_internal_python_frame,
 )
 from sys import monitoring
-from types import CodeType, FrameType, TracebackType
+from types import CodeType, FrameType, FunctionType, TracebackType
 from typing import Literal
 
 
@@ -236,19 +236,37 @@ class Tracer:
             self._end_stop()
         monitoring.restart_events()
 
-    def goto(self, thread: Thread, source: Source, line: int):
+    def goto(
+        self, thread: Thread, source: Source, line: int, finish_callback: FunctionType
+    ):
         log.info(f"Goto {source}:{line} on {thread}")
         """
         Change the instruction pointer of the current thread to point to
         the new line/source file.
         """
+
+        def goto_handler():
+            log.info(f"Inside goto handler for {thread}:{line}")
+            # Filter out runtime warnings that come from doing a goto
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                try:
+                    thread.current_frame.f_lineno = line
+                except ValueError as e:
+                    finish_callback(e)
+                else:
+                    finish_callback(None)
+                    
+                    # Send a stop once we finish changing the line number
+                    self._begin_stop(thread, "goto")
+
+
         with _cvar:
-            thread.pending_ip = line
+            # We do this with a callback because only the trace function
+            # can change the lineno
+            thread.pending_callback = goto_handler
             # Notify just this thread
             _cvar.notify(thread.id)
-
-        # Act like a new stop happened
-        self._begin_stop(thread, "goto")
 
     def _begin_stop(
         self,
@@ -308,15 +326,11 @@ class Tracer:
             while self._stopped_by is not None:
                 _cvar.wait()
 
-                # This thread may have had its IP changed. We
-                # want to change the IP before we resume but we
-                # need to change the IP during a trace callback.
-                if thread.pending_ip is not None:
-                    # Filter out runtime warnings that come from doing a goto
-                    with warnings.catch_warnings():
-                        warnings.simplefilter("ignore")
-                        thread.current_frame.f_lineno = thread.pending_ip
-                    thread.pending_ip = None
+                # This thread may need to run some code while it's still
+                # stopped.
+                if thread.pending_callback is not None:
+                    thread.pending_callback()
+                    thread.pending_callback = None
 
             thread.current_frame = None
             log.info(f"{thread} resumed.")

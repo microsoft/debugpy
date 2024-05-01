@@ -14,7 +14,7 @@ from debugpy.server.eval import Scope, VariableContainer
 from enum import Enum
 from pathlib import Path
 from sys import monitoring
-from types import CodeType, FrameType
+from types import CodeType, FrameType, FunctionType
 from typing import Any, ClassVar, Generator, Literal, Union, override
 
 # Shared for all global state pertaining to breakpoints and stepping.
@@ -145,10 +145,10 @@ class Thread:
     can exclude a specific thread from tracing.
     """
 
-    pending_ip: int | None
+    pending_callback: FunctionType | None
     """
     As a result of a https://microsoft.github.io/debug-adapter-protocol/specification#Requests_Goto
-    this is the line number for the current thread to switch to while it is stopped.
+    this is a callback to run when the thread is notified after a goto
     """
 
     _all: ClassVar[dict[int, "Thread"]] = {}
@@ -163,7 +163,7 @@ class Thread:
         self.current_frame = None
         self.is_known_to_adapter = False
         self.is_traced = True
-        self.pending_ip = None
+        self.pending_callback = None
 
         # Thread IDs are serialized as JSON numbers in DAP, which are handled as 64-bit
         # floats by most DAP clients. However, OS thread IDs can be large 64-bit integers
@@ -282,7 +282,6 @@ class Thread:
             if not is_internal_python_frame(python_frame):
                 yield frame
         log.info("{0}", f"{self}: End stack trace.")
-
 
 
 class StackFrame:

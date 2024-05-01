@@ -12,7 +12,7 @@ from debugpy import adapter
 from debugpy.adapter import components
 from debugpy.common import json, log, messaging, sockets
 from debugpy.common.messaging import MessageDict, Request
-from debugpy.common.util import IDMap, contains_line
+from debugpy.common.util import IDMap
 from debugpy.server import eval, new_dap_id
 from debugpy.server.tracing import (
     Breakpoint,
@@ -290,7 +290,11 @@ class Adapter:
         if thread is None:
             raise request.isnt_valid(f'Unknown thread with "threadId":{thread_id}')
 
-        stop_frame = thread.stack_trace_len() if levels == () or levels == 0 else start_frame + levels
+        stop_frame = (
+            thread.stack_trace_len()
+            if levels == () or levels == 0
+            else start_frame + levels
+        )
         log.info(f"stackTrace info {start_frame} {stop_frame}")
         frames = None
         try:
@@ -351,7 +355,7 @@ class Adapter:
         return {}
 
     def gotoTargets_request(self, request: Request) -> dict:
-        source = request("source", json.object()) 
+        source = request("source", json.object())
         path = source("path", str)
         source = Source(path)
         line = request("line", int)
@@ -359,7 +363,6 @@ class Adapter:
         target = {"id": target_id, "label": f"({path}:{line})", "line": line}
 
         return {"targets": [target]}
-    
 
     def goto_request(self, request: Request) -> dict:
         thread_id = request("threadId", int)
@@ -370,20 +373,36 @@ class Adapter:
         try:
             source, line = self._goto_targets_map.obtain_value(target_id)
         except KeyError:
-            return request.isnt_valid('Invalid targetId for goto')
+            return request.isnt_valid("Invalid targetId for goto")
 
         # Make sure the thread is in the same source file
         current_path = inspect.getsourcefile(thread.current_frame.f_code)
         current_source = Source(current_path) if current_path is not None else None
         if current_source != source:
-            return request.cant_handle(f'{source} is not in the same code block as the current frame', silent=True)
-        
-        # Make sure line number is in the same code black
-        if not contains_line(thread.current_frame.f_code, line):
-            return request.cant_handle(f'Line {line} is not in the same code block as the current frame', silent=True)
+            return request.cant_handle(
+                f"{source} is not in the same code block as the current frame",
+                silent=True,
+            )
 
-        self._tracer.goto(thread, source, line)
-        return {}
+        # Create a callback for when the goto actually finishes. We don't
+        # want to send our response until then.
+        def goto_finished(e: Exception | None):
+            log.info(f"Inside goto finished handler for {line}")
+            if e is not None:
+                request.cant_handle(
+                    f"Line {line} is not in the same code block as the current frame",
+                    silent=True
+                )
+            else:
+                request.respond({})
+
+
+        self._tracer.goto(
+            thread, source, line, goto_finished
+        )
+
+        # Response will happen when the line_change_callback happens
+        return messaging.NO_RESPONSE
 
     def exceptionInfo_request(self, request: Request):
         thread_id = request("threadId", int)
