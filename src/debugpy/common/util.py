@@ -167,6 +167,7 @@ def hide_thread_from_debugger(thread):
         thread.pydev_do_not_trace = True
         thread.is_pydev_daemon_thread = True
 
+
 class IDMap(object):
 
     def __init__(self):
@@ -186,9 +187,8 @@ class IDMap(object):
             self._value_to_key[value] = key
         return key
 
+
 def contains_line(code: CodeType, line: int) -> bool:
-    for co_line in code.co_lines():
-        if len(co_line) == 3:
-            if co_line[2] == line:
-                return True
-    return False
+    return any(
+        (len(co_line) == 3 and co_line[2] == line for co_line in code.co_lines())
+    )
