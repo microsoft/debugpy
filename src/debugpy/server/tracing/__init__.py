@@ -9,6 +9,7 @@ from collections import defaultdict
 from collections.abc import Callable, Iterable
 from debugpy import server
 from debugpy.common import log
+from debugpy.common.messaging import InvalidMessageError
 from debugpy.server import new_dap_id
 from debugpy.server.eval import Scope, VariableContainer
 from enum import Enum
@@ -122,12 +123,6 @@ class Thread:
     python_thread: threading.Thread
     """The Python thread object this DAP Thread represents."""
 
-    current_frame: FrameType | None
-    """
-    The Python frame object corresponding to the topmost stack frame on this thread
-    if it is suspended, or None if it is running.
-    """
-
     current_exception: ExceptionInfo | None
     """
     The exception currently being propagated on this thread, if any.
@@ -152,6 +147,8 @@ class Thread:
     """
 
     _all: ClassVar[dict[int, "Thread"]] = {}
+    _current_frame: FrameType | None
+    _cached_stack: list["StackFrame"] | None
 
     def __init__(self, python_thread: threading.Thread):
         """
@@ -193,6 +190,20 @@ class Thread:
     @property
     def name(self) -> str:
         return self.python_thread.name
+    
+    @property
+    def current_frame(self) -> FrameType | None:
+        """
+        The Python frame object corresponding to the topmost stack frame on this thread
+        if it is suspended, or None if it is running.
+        """
+        return self._current_frame
+    
+    @current_frame.setter
+    def current_frame(self, val: FrameType | None):
+        # Clear our stack frame list whenever the current frame changes
+        self._cached_stack = None
+        self._current_frame = val
 
     @classmethod
     def from_python_thread(self, python_thread: threading.Thread) -> "Thread":
@@ -261,14 +272,22 @@ class Thread:
         """
         Returns the total count of frames in this thread's stack.
         """
-        return sum(1 for dummy in self._generate_stack_trace())
+        return len(self._get_stack_trace())
 
     def stack_trace(self) -> Iterable["StackFrame"]:
         """
         Returns an iterable of StackFrame objects for the current stack of this thread,
         starting with the topmost frame.
         """
-        return self._generate_stack_trace()
+        return self._get_stack_trace()
+    
+    def _get_stack_trace(self) -> list["StackFrame"]:
+        # If our current frame is none, this is invalid. Throw an error.
+        if self._current_frame is None:
+            raise InvalidMessageError(reason="Tread is not suspended")
+        if self._cached_stack is None:
+            self._cached_stack = list(self._generate_stack_trace())
+        return self._cached_stack
 
     def _generate_stack_trace(self) -> Generator["StackFrame", Any, None]:
         try:
