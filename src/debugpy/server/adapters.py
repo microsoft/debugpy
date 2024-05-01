@@ -354,7 +354,7 @@ class Adapter:
         path = request("source", dict)["path"]
         line = request("line", int)
         target_id = self._goto_targets_map.obtain_key((path, line))
-        target = {"id": target_id, "label": "%s:%s" % (path, line), "line": line}
+        target = {"id": target_id, "label": f"({path}:{line})", "line": line}
 
         return {"targets": [target]}
     
