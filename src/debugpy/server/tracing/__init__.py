@@ -15,7 +15,7 @@ from enum import Enum
 from pathlib import Path
 from sys import monitoring
 from types import CodeType, FrameType
-from typing import ClassVar, Literal, Union, override
+from typing import Any, ClassVar, Generator, Literal, Union, override
 
 # Shared for all global state pertaining to breakpoints and stepping.
 _cvar = threading.Condition()
@@ -261,13 +261,16 @@ class Thread:
         """
         Returns the total count of frames in this thread's stack.
         """
-        return len(list(self.stack_trace()))
+        return sum(1 for dummy in self._generate_stack_trace())
 
     def stack_trace(self) -> Iterable["StackFrame"]:
         """
         Returns an iterable of StackFrame objects for the current stack of this thread,
         starting with the topmost frame.
         """
+        return self._generate_stack_trace()
+
+    def _generate_stack_trace(self) -> Generator["StackFrame", Any, None]:
         try:
             with _cvar:
                 python_frame = self.current_frame
@@ -279,6 +282,7 @@ class Thread:
             if not is_internal_python_frame(python_frame):
                 yield frame
         log.info("{0}", f"{self}: End stack trace.")
+
 
 
 class StackFrame:

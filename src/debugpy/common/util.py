@@ -2,12 +2,12 @@
 # Licensed under the MIT License. See LICENSE in the project root
 # for license information.
 
+from functools import partial
 import inspect
+import itertools
 import os
 import sys
 from types import CodeType
-
-from debugpy.server import new_dap_id
 
 
 def evaluate(code, path=__file__, mode="eval"):
@@ -170,10 +170,10 @@ def hide_thread_from_debugger(thread):
 
 class IDMap(object):
 
-    def __init__(self):
+    def __init__(self, id_generator=partial(next, itertools.count(0))):
         self._value_to_key = {}
         self._key_to_value = {}
-        self._next_id = new_dap_id
+        self._next_id = id_generator
 
     def obtain_value(self, key):
         return self._key_to_value[key]

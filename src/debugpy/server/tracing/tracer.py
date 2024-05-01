@@ -236,8 +236,8 @@ class Tracer:
             self._end_stop()
         monitoring.restart_events()
 
-    def goto(self, thread: Thread, path: str, line: int):
-        log.info(f"Goto {path}:{line} on {thread}")
+    def goto(self, thread: Thread, source: Source, line: int):
+        log.info(f"Goto {source}:{line} on {thread}")
         """
         Change the instruction pointer of the current thread to point to
         the new line/source file.

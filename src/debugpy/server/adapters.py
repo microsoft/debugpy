@@ -62,7 +62,7 @@ class Adapter:
     _capabilities: Capabilities = None
     _expectations: Expectations = None
     _start_request: messaging.Request = None
-    _goto_targets_map: IDMap = IDMap()
+    _goto_targets_map: IDMap = IDMap(new_dap_id)
 
     def __init__(self, stream: messaging.JsonIOStream):
         self._is_initialized = False
@@ -351,9 +351,11 @@ class Adapter:
         return {}
 
     def gotoTargets_request(self, request: Request) -> dict:
-        path = request("source", dict)["path"]
+        source = request("source", json.object()) 
+        path = source("path", str)
+        source = Source(path)
         line = request("line", int)
-        target_id = self._goto_targets_map.obtain_key((path, line))
+        target_id = self._goto_targets_map.obtain_key((source, line))
         target = {"id": target_id, "label": f"({path}:{line})", "line": line}
 
         return {"targets": [target]}
@@ -365,23 +367,22 @@ class Adapter:
         if thread is None:
             return request.isnt_valid(f'Unknown thread with "threadId":{thread_id}')
         target_id = request("targetId", int)
-        if target_id is None:
-            return request.isnt_valid('Unknown targetId for goto')
         try:
-            path, line = self._goto_targets_map.obtain_value(target_id)
+            source, line = self._goto_targets_map.obtain_value(target_id)
         except KeyError:
             return request.isnt_valid('Invalid targetId for goto')
 
         # Make sure the thread is in the same source file
-        current_source = inspect.getsourcefile(thread.current_frame.f_code)
-        if current_source.casefold() != path.casefold():
-            return request.cant_handle(f'{path} is not in the same code block as the current frame', silent=True)
+        current_path = inspect.getsourcefile(thread.current_frame.f_code)
+        current_source = Source(current_path) if current_path is not None else None
+        if current_source != source:
+            return request.cant_handle(f'{source} is not in the same code block as the current frame', silent=True)
         
         # Make sure line number is in the same code black
         if not contains_line(thread.current_frame.f_code, line):
             return request.cant_handle(f'Line {line} is not in the same code block as the current frame', silent=True)
 
-        self._tracer.goto(thread, path, line)
+        self._tracer.goto(thread, source, line)
         return {}
 
     def exceptionInfo_request(self, request: Request):
