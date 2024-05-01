@@ -387,7 +387,6 @@ class Adapter:
         # Create a callback for when the goto actually finishes. We don't
         # want to send our response until then.
         def goto_finished(e: Exception | None):
-            log.info(f"Inside goto finished handler for {line}")
             if e is not None:
                 request.cant_handle(
                     f"Line {line} is not in the same code block as the current frame",

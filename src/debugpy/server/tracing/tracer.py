@@ -246,7 +246,6 @@ class Tracer:
         """
 
         def goto_handler():
-            log.info(f"Inside goto handler for {thread}:{line}")
             # Filter out runtime warnings that come from doing a goto
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
