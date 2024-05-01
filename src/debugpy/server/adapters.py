@@ -290,7 +290,8 @@ class Adapter:
         if thread is None:
             raise request.isnt_valid(f'Unknown thread with "threadId":{thread_id}')
 
-        stop_frame = None if levels is None else start_frame + levels
+        stop_frame = thread.stack_trace_len() if levels == () or levels == 0 else start_frame + levels
+        log.info(f"stackTrace info {start_frame} {stop_frame}")
         frames = None
         try:
             frames = islice(thread.stack_trace(), start_frame, stop_frame)

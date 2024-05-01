@@ -261,15 +261,7 @@ class Thread:
         """
         Returns the total count of frames in this thread's stack.
         """
-        try:
-            with _cvar:
-                python_frame = self.current_frame
-        except ValueError:
-            raise ValueError(f"Can't get frames for inactive Thread({self.id})")
-        try:
-            return len(tuple(traceback.walk_stack(python_frame)))
-        finally:
-            del python_frame
+        return len(list(self.stack_trace()))
 
     def stack_trace(self) -> Iterable["StackFrame"]:
         """
