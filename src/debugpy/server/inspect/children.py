@@ -60,6 +60,11 @@ class NamedChildObject(ChildObject):
     def expr(self, parent_expr: str) -> str:
         accessor = self.accessor(ValueFormat())
         return f"({parent_expr}).{accessor}"
+    
+    def __eq__(self, other):
+        if not isinstance(other, NamedChildObject):
+            return False
+        return (self.name, self.value) == (other.name, other.value)
 
 
 class LenChildObject(NamedChildObject):
@@ -94,6 +99,11 @@ class IndexedChildObject(ChildObject):
     def expr(self, parent_expr: str) -> str:
         accessor = self.accessor(ValueFormat())
         return f"({parent_expr}){accessor}"
+    
+    def __eq__(self, other):
+        if not isinstance(other, IndexedChildObject):
+            return False
+        return (self.key, self.value) == (other.key, other.value)
 
 
 class ObjectInspector:
