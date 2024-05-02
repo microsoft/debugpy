@@ -8,6 +8,7 @@ import sys
 import threading
 import traceback
 from collections.abc import Iterable
+import warnings
 from debugpy import server
 from debugpy.server.tracing import (
     Breakpoint,
@@ -16,12 +17,15 @@ from debugpy.server.tracing import (
     Source,
     StackFrame,
     Step,
+    StepIn,
+    StepOut,
+    StepOver,
     Thread,
     _cvar,
     is_internal_python_frame,
 )
 from sys import monitoring
-from types import CodeType, FrameType, TracebackType
+from types import CodeType, FrameType, FunctionType, TracebackType
 from typing import Literal
 
 
@@ -208,7 +212,7 @@ class Tracer:
         """
         log.info(f"Step in on {thread}.")
         with _cvar:
-            self._steps[thread] = Step("in")
+            self._steps[thread] = StepIn()
             self._end_stop()
         monitoring.restart_events()
 
@@ -218,7 +222,7 @@ class Tracer:
         """
         log.info(f"Step out on {thread}.")
         with _cvar:
-            self._steps[thread] = Step("out")
+            self._steps[thread] = StepOut()
             self._end_stop()
         monitoring.restart_events()
 
@@ -228,9 +232,40 @@ class Tracer:
         Step over the next statement executed by the specified thread.
         """
         with _cvar:
-            self._steps[thread] = Step("over")
+            self._steps[thread] = StepOver()
             self._end_stop()
         monitoring.restart_events()
+
+    def goto(
+        self, thread: Thread, source: Source, line: int, finish_callback: FunctionType
+    ):
+        log.info(f"Goto {source}:{line} on {thread}")
+        """
+        Change the instruction pointer of the current thread to point to
+        the new line/source file.
+        """
+
+        def goto_handler():
+            # Filter out runtime warnings that come from doing a goto
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                try:
+                    thread.current_frame.f_lineno = line
+                except ValueError as e:
+                    finish_callback(e)
+                else:
+                    finish_callback(None)
+                    
+                    # Send a stop once we finish changing the line number
+                    self._begin_stop(thread, "goto")
+
+
+        with _cvar:
+            # We do this with a callback because only the trace function
+            # can change the lineno
+            thread.pending_callback = goto_handler
+            # Notify just this thread
+            _cvar.notify(thread.id)
 
     def _begin_stop(
         self,
@@ -280,7 +315,7 @@ class Tracer:
         Suspends execution of this thread until the current stop ends.
         """
 
-        thread = self._this_thread()
+        thread: Thread | None = self._this_thread()
         with _cvar:
             if self._stopped_by is None:
                 return
@@ -289,6 +324,13 @@ class Tracer:
             thread.current_frame = python_frame
             while self._stopped_by is not None:
                 _cvar.wait()
+
+                # This thread may need to run some code while it's still
+                # stopped.
+                if thread.pending_callback is not None:
+                    thread.pending_callback()
+                    thread.pending_callback = None
+
             thread.current_frame = None
             log.info(f"{thread} resumed.")
             StackFrame.invalidate(thread)

@@ -7,7 +7,6 @@ import threading
 import traceback
 from collections import defaultdict
 from collections.abc import Callable, Iterable
-from dataclasses import dataclass
 from debugpy import server
 from debugpy.common import log
 from debugpy.server import new_dap_id
@@ -15,8 +14,8 @@ from debugpy.server.eval import Scope, VariableContainer
 from enum import Enum
 from pathlib import Path
 from sys import monitoring
-from types import CodeType, FrameType
-from typing import ClassVar, Literal, Union
+from types import CodeType, FrameType, FunctionType
+from typing import Any, ClassVar, Generator, Literal, Union, override
 
 # Shared for all global state pertaining to breakpoints and stepping.
 _cvar = threading.Condition()
@@ -123,12 +122,6 @@ class Thread:
     python_thread: threading.Thread
     """The Python thread object this DAP Thread represents."""
 
-    current_frame: FrameType | None
-    """
-    The Python frame object corresponding to the topmost stack frame on this thread
-    if it is suspended, or None if it is running.
-    """
-
     current_exception: ExceptionInfo | None
     """
     The exception currently being propagated on this thread, if any.
@@ -146,7 +139,15 @@ class Thread:
     can exclude a specific thread from tracing.
     """
 
+    pending_callback: FunctionType | None
+    """
+    As a result of a https://microsoft.github.io/debug-adapter-protocol/specification#Requests_Goto
+    this is a callback to run when the thread is notified after a goto
+    """
+
     _all: ClassVar[dict[int, "Thread"]] = {}
+    _current_frame: FrameType | None
+    _cached_stack: list["StackFrame"] | None
 
     def __init__(self, python_thread: threading.Thread):
         """
@@ -158,6 +159,7 @@ class Thread:
         self.current_frame = None
         self.is_known_to_adapter = False
         self.is_traced = True
+        self.pending_callback = None
 
         # Thread IDs are serialized as JSON numbers in DAP, which are handled as 64-bit
         # floats by most DAP clients. However, OS thread IDs can be large 64-bit integers
@@ -187,6 +189,20 @@ class Thread:
     @property
     def name(self) -> str:
         return self.python_thread.name
+    
+    @property
+    def current_frame(self) -> FrameType | None:
+        """
+        The Python frame object corresponding to the topmost stack frame on this thread
+        if it is suspended, or None if it is running.
+        """
+        return self._current_frame
+    
+    @current_frame.setter
+    def current_frame(self, val: FrameType | None):
+        # Clear our stack frame list whenever the current frame changes
+        self._cached_stack = None
+        self._current_frame = val
 
     @classmethod
     def from_python_thread(self, python_thread: threading.Thread) -> "Thread":
@@ -251,25 +267,20 @@ class Thread:
             self.is_known_to_adapter = True
             return True
 
-    def stack_trace_len(self) -> int:
-        """
-        Returns the total count of frames in this thread's stack.
-        """
-        try:
-            with _cvar:
-                python_frame = self.current_frame
-        except ValueError:
-            raise ValueError(f"Can't get frames for inactive Thread({self.id})")
-        try:
-            return len(tuple(traceback.walk_stack(python_frame)))
-        finally:
-            del python_frame
 
-    def stack_trace(self) -> Iterable["StackFrame"]:
+    def get_stack_trace(self) -> list["StackFrame"]:
         """
-        Returns an iterable of StackFrame objects for the current stack of this thread,
+        Returns a list of StackFrame objects for the current stack of this thread,
         starting with the topmost frame.
         """
+        # If our current frame is none, this is invalid. Throw an error.
+        if self._current_frame is None:
+            raise ValueError(reason="Thread is not suspended")
+        if self._cached_stack is None:
+            self._cached_stack = list(self._generate_stack_trace())
+        return self._cached_stack
+
+    def _generate_stack_trace(self) -> Generator["StackFrame", Any, None]:
         try:
             with _cvar:
                 python_frame = self.current_frame
@@ -375,42 +386,60 @@ class StackFrame:
             frame.python_frame = None
 
 
-@dataclass
 class Step:
     step: Literal["in", "out", "over"]
-    origin: FrameType = None
-    origin_line: int = None
+
+    def __init__(
+        self,
+        origin: FrameType = None,
+        origin_line: int = None,
+    ):
+        self.origin = origin
+        self.origin_line = origin_line
 
     def __repr__(self):
         return f"Step({self.step})"
 
     def is_complete(self, python_frame: FrameType) -> bool:
-        # TODO: avoid using traceback.walk_stack every time by counting stack
-        # depth via PY_CALL / PY_RETURN events.
-        is_complete = False
-        if self.step == "in":
-            is_complete = (
-                python_frame is not self.origin
-                or python_frame.f_lineno != self.origin_line
-            )
-        elif self.step == "over":
-            is_complete = True
-            for python_frame, _ in traceback.walk_stack(python_frame):
-                if (
-                    python_frame is self.origin
-                    and python_frame.f_lineno == self.origin_line
-                ):
-                    is_complete = False
-                    break
-            return is_complete
-        elif self.step == "out":
-            is_complete = True
-            for python_frame, _ in traceback.walk_stack(python_frame):
-                if python_frame is self.origin:
-                    is_complete = False
-                    break
-        else:
-            raise ValueError(f"Unknown step type: {self.step}")
+        raise ValueError(f"Unknown step type: {self.step}")
+
+
+class StepIn(Step):
+    step = "in"
+
+    @override
+    def is_complete(self, python_frame: FrameType) -> bool:
+        return (
+            python_frame is not self.origin or python_frame.f_lineno != self.origin_line
+        )
+
+
+class StepOver(Step):
+    step = "over"
+
+    @override
+    def is_complete(self, python_frame: FrameType) -> bool:
+        is_complete = True
+        for python_frame, _ in traceback.walk_stack(python_frame):
+            if (
+                python_frame is self.origin
+                and python_frame.f_lineno == self.origin_line
+            ):
+                is_complete = False
+                break
+        return is_complete
+
+
+class StepOut(Step):
+    step = "out"
+
+    @override
+    def is_complete(self, python_frame: FrameType) -> bool:
+        is_complete = True
+        for python_frame, _ in traceback.walk_stack(python_frame):
+            if python_frame is self.origin:
+                is_complete = False
+                break
         return is_complete
 
 

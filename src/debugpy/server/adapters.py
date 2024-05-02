@@ -2,6 +2,7 @@
 # Licensed under the MIT License. See LICENSE in the project root
 # for license information.
 
+import inspect
 import os
 import sys
 import threading
@@ -11,6 +12,7 @@ from debugpy import adapter
 from debugpy.adapter import components
 from debugpy.common import json, log, messaging, sockets
 from debugpy.common.messaging import MessageDict, Request
+from debugpy.common.util import IDMap
 from debugpy.server import eval, new_dap_id
 from debugpy.server.tracing import (
     Breakpoint,
@@ -60,6 +62,7 @@ class Adapter:
     _capabilities: Capabilities = None
     _expectations: Expectations = None
     _start_request: messaging.Request = None
+    _goto_targets_map: IDMap = IDMap(new_dap_id)
 
     def __init__(self, stream: messaging.JsonIOStream):
         self._is_initialized = False
@@ -287,13 +290,21 @@ class Adapter:
         if thread is None:
             raise request.isnt_valid(f'Unknown thread with "threadId":{thread_id}')
 
-        stop_frame = None if levels is None else start_frame + levels
+        try:
+            stack_trace = thread.get_stack_trace()
+        except ValueError:
+            raise request.isnt_valid(f"Thread {thread_id} is not suspended")
+
+        stop_frame = (
+            len(stack_trace) if levels == () or levels == 0 else start_frame + levels
+        )
+        log.info(f"stackTrace info {start_frame} {stop_frame}")
         frames = None
         try:
-            frames = islice(thread.stack_trace(), start_frame, stop_frame)
+            frames = islice(stack_trace, start_frame, stop_frame)
             return {
                 "stackFrames": list(frames),
-                "totalFrames": thread.stack_trace_len(),
+                "totalFrames": len(stack_trace),
             }
         finally:
             del frames
@@ -345,6 +356,52 @@ class Adapter:
             raise request.isnt_valid(f'Unknown thread with "threadId":{thread_id}')
         self._tracer.step_over(thread)
         return {}
+
+    def gotoTargets_request(self, request: Request) -> dict:
+        source = request("source", json.object())
+        path = source("path", str)
+        source = Source(path)
+        line = request("line", int)
+        target_id = self._goto_targets_map.obtain_key((source, line))
+        target = {"id": target_id, "label": f"({path}:{line})", "line": line}
+
+        return {"targets": [target]}
+
+    def goto_request(self, request: Request) -> dict:
+        thread_id = request("threadId", int)
+        thread = Thread.get(thread_id)
+        if thread is None:
+            return request.isnt_valid(f'Unknown thread with "threadId":{thread_id}')
+        target_id = request("targetId", int)
+        try:
+            source, line = self._goto_targets_map.obtain_value(target_id)
+        except KeyError:
+            return request.isnt_valid("Invalid targetId for goto")
+
+        # Make sure the thread is in the same source file
+        current_path = inspect.getsourcefile(thread.current_frame.f_code)
+        current_source = Source(current_path) if current_path is not None else None
+        if current_source != source:
+            return request.cant_handle(
+                f"{source} is not in the same code block as the current frame",
+                silent=True,
+            )
+
+        # Create a callback for when the goto actually finishes. We don't
+        # want to send our response until then.
+        def goto_finished(e: Exception | None):
+            if e is not None:
+                request.cant_handle(
+                    f"Line {line} is not in the same code block as the current frame",
+                    silent=True,
+                )
+            else:
+                request.respond({})
+
+        self._tracer.goto(thread, source, line, goto_finished)
+
+        # Response will happen when the line_change_callback happens
+        return messaging.NO_RESPONSE
 
     def exceptionInfo_request(self, request: Request):
         thread_id = request("threadId", int)

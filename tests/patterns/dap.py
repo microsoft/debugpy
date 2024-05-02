@@ -11,7 +11,7 @@ from tests import code
 from tests.patterns import some, _impl
 
 
-id = some.int.in_range(0, 10000)
+id = some.int.in_range(-10000, 10000)
 """Matches a DAP "id", assuming some reasonable range for an implementation that
 generates those ids sequentially.
 """
