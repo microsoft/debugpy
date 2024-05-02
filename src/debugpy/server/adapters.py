@@ -464,6 +464,8 @@ class Adapter:
         name_format = self._parse_name_format(request)
         value_format = self._parse_value_format(request)
         start = request("start", 0)
+        if start < 0:
+            return request.isnt_valid(f'Invalid "start": {start}')
 
         count = request("count", int, optional=True)
         if count == ():
@@ -476,12 +478,12 @@ class Adapter:
             case "named" | "indexed":
                 filter = {filter}
             case _:
-                raise request.isnt_valid(f'Invalid "filter": {filter!r}')
+                return request.isnt_valid(f'Invalid "filter": {filter!r}')
 
         container_id = request("variablesReference", int)
         container = eval.VariableContainer.get(container_id)
         if container is None:
-            raise request.isnt_valid(f'Invalid "variablesReference": {container_id}')
+            return request.isnt_valid(f'Invalid "variablesReference": {container_id}')
 
         return {
             "variables": list(

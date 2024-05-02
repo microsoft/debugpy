@@ -4,6 +4,7 @@
 
 import pytest
 
+from debugpy.common.messaging import InvalidMessageError
 from tests import debug, timeline
 from tests.patterns import some
 
@@ -696,5 +697,82 @@ def test_evaluate_thread_locks(pyfile, target, run):
             {"expression": "processor.process('foo')", "frameId": stop.frame_id},
         )
         assert evaluate == some.dict.containing({"result": "None"})
+
+        session.request_continue()
+
+
+def test_variable_paging(pyfile, target, run):
+    @pyfile
+    def code_to_debug():
+        import debuggee
+
+        debuggee.setup()
+        xs = [i**2 for i in range(10)]
+        print(xs)  # @bp
+
+    with debug.Session() as session:
+        with run(session, target(code_to_debug)):
+            session.set_breakpoints(code_to_debug, all)
+
+        stop = session.wait_for_stop()
+
+        evaluate = session.request(
+            "evaluate", {"expression": "xs", "frameId": stop.frame_id}
+        )
+        assert evaluate == some.dict.containing(
+            {
+                "type": "list",
+                "namedVariables": 1,
+                "indexedVariables": 10,
+                "variablesReference": some.int,
+            }
+        )
+
+        expected = [
+            some.dict.containing(
+                {
+                    "name": "len()",
+                    "type": "int",
+                    "value": repr(10),
+                }
+            )
+        ] + [
+            some.dict.containing(
+                {
+                    "name": f"[{i}]",
+                    "type": "int",
+                    "value": repr(i**2),
+                }
+            )
+            for i in range(10)
+        ]
+
+        def request_children(*, start=None, count=None):
+            body = {"variablesReference": evaluate["variablesReference"]}
+            if start is not None:
+                body["start"] = start
+            if count is not None:
+                body["count"] = count
+            return session.request("variables", body)["variables"]
+
+        # Slice from start.
+        children = request_children(count=3)
+        assert children == expected[:3]
+
+        # Slice to end.
+        children = request_children(start=7)
+        assert children == expected[7:]
+
+        # Slice in the middle.
+        children = request_children(start=4, count=2)
+        assert children == expected[4 : 4 + 2]
+
+        # Slice past end.
+        children = request_children(start=8, count=10)
+        assert children == expected[8:]
+
+        # Invalid start.
+        with pytest.raises(InvalidMessageError):
+            request_children(start=-1)
 
         session.request_continue()
