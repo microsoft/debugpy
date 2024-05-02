@@ -290,18 +290,21 @@ class Adapter:
         if thread is None:
             raise request.isnt_valid(f'Unknown thread with "threadId":{thread_id}')
 
+        try:
+            stack_trace = thread.get_stack_trace()
+        except ValueError:
+            raise request.isnt_valid(f"Thread {thread_id} is not suspended")
+
         stop_frame = (
-            thread.stack_trace_len()
-            if levels == () or levels == 0
-            else start_frame + levels
+            len(stack_trace) if levels == () or levels == 0 else start_frame + levels
         )
         log.info(f"stackTrace info {start_frame} {stop_frame}")
         frames = None
         try:
-            frames = islice(thread.stack_trace(), start_frame, stop_frame)
+            frames = islice(stack_trace, start_frame, stop_frame)
             return {
                 "stackFrames": list(frames),
-                "totalFrames": thread.stack_trace_len(),
+                "totalFrames": len(stack_trace),
             }
         finally:
             del frames
@@ -390,15 +393,12 @@ class Adapter:
             if e is not None:
                 request.cant_handle(
                     f"Line {line} is not in the same code block as the current frame",
-                    silent=True
+                    silent=True,
                 )
             else:
                 request.respond({})
 
-
-        self._tracer.goto(
-            thread, source, line, goto_finished
-        )
+        self._tracer.goto(thread, source, line, goto_finished)
 
         # Response will happen when the line_change_callback happens
         return messaging.NO_RESPONSE

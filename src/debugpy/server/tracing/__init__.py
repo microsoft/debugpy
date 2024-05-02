@@ -9,7 +9,6 @@ from collections import defaultdict
 from collections.abc import Callable, Iterable
 from debugpy import server
 from debugpy.common import log
-from debugpy.common.messaging import InvalidMessageError
 from debugpy.server import new_dap_id
 from debugpy.server.eval import Scope, VariableContainer
 from enum import Enum
@@ -268,23 +267,15 @@ class Thread:
             self.is_known_to_adapter = True
             return True
 
-    def stack_trace_len(self) -> int:
-        """
-        Returns the total count of frames in this thread's stack.
-        """
-        return len(self._get_stack_trace())
 
-    def stack_trace(self) -> Iterable["StackFrame"]:
+    def get_stack_trace(self) -> list["StackFrame"]:
         """
-        Returns an iterable of StackFrame objects for the current stack of this thread,
+        Returns a list of StackFrame objects for the current stack of this thread,
         starting with the topmost frame.
         """
-        return self._get_stack_trace()
-    
-    def _get_stack_trace(self) -> list["StackFrame"]:
         # If our current frame is none, this is invalid. Throw an error.
         if self._current_frame is None:
-            raise InvalidMessageError(reason="Tread is not suspended")
+            raise ValueError(reason="Thread is not suspended")
         if self._cached_stack is None:
             self._cached_stack = list(self._generate_stack_trace())
         return self._cached_stack
