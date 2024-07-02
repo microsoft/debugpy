@@ -88,3 +88,7 @@ To test integration between debugpy and Visual Studio Code, the latter can be di
     ...
 }
 ```
+
+## Enabling logging in VS code
+See the directions here:
+https://github.com/microsoft/debugpy/wiki/Enable-debugger-logs
