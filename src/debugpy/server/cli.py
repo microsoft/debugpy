@@ -7,6 +7,7 @@ import os
 import re
 import sys
 from importlib.util import find_spec
+from typing import Any, Optional
 
 # debugpy.__main__ should have preloaded pydevd properly before importing this module.
 # Otherwise, some stdlib modules above might have had imported threading before pydevd
@@ -18,6 +19,7 @@ import pydevd
 from _pydevd_bundle import pydevd_runpy as runpy
 
 import debugpy
+import debugpy.server
 from debugpy.common import log
 from debugpy.server import api
 
@@ -41,13 +43,14 @@ Usage: debugpy --listen | --connect
 
 class Options(object):
     mode = None
-    address = None
+    address: "Optional[tuple[str, int]]" = None
     log_to = None
     log_to_stderr = False
-    target = None
-    target_kind = None
+    target: "Optional[str]" = None
+    target_kind: "Optional[str]" = None
     wait_for_client = False
     adapter_access_token = None
+    config: "dict[str, Any]" = {}
 
 
 options = Options()
@@ -139,7 +142,7 @@ def set_config(arg, it):
     options.config[name] = value
 
 
-def set_target(kind, parser=(lambda x: x), positional=False):
+def set_target(kind: str, parser=(lambda x: x), positional=False):
     def do(arg, it):
         options.target_kind = kind
         target = parser(arg if positional else next(it))
@@ -252,9 +255,9 @@ def start_debugging(argv_0):
 
     debugpy.configure(options.config)
 
-    if options.mode == "listen":
+    if options.mode == "listen" and options.address is not None:
         debugpy.listen(options.address)
-    elif options.mode == "connect":
+    elif options.mode == "connect" and options.address is not None:
         debugpy.connect(options.address, access_token=options.adapter_access_token)
     else:
         raise AssertionError(repr(options.mode))
@@ -272,7 +275,7 @@ def run_file():
     # parent directory to sys.path. Thus, importing other modules from the
     # same directory is broken unless sys.path is patched here.
 
-    if os.path.isfile(target):
+    if target is not None and os.path.isfile(target):
         dir = os.path.dirname(target)
         sys.path.insert(0, dir)
     else:
@@ -293,7 +296,7 @@ def run_module():
     # actually invoking it.
     argv_0 = sys.argv[0]
     try:
-        spec = find_spec(options.target)
+        spec = None if options.target is None else find_spec(options.target)
         if spec is not None:
             argv_0 = spec.origin
     except Exception:
@@ -318,16 +321,19 @@ def run_module():
 
 
 def run_code():
-    # Add current directory to path, like Python itself does for -c.
-    sys.path.insert(0, str(""))
-    code = compile(options.target, str("<string>"), str("exec"))
+    if options.target is not None:
+        # Add current directory to path, like Python itself does for -c.
+        sys.path.insert(0, str(""))
+        code = compile(options.target, str("<string>"), str("exec"))
 
-    start_debugging(str("-c"))
+        start_debugging(str("-c"))
 
-    log.describe_environment("Pre-launch environment:")
-    log.info("Running code:\n\n{0}", options.target)
+        log.describe_environment("Pre-launch environment:")
+        log.info("Running code:\n\n{0}", options.target)
 
-    eval(code, {})
+        eval(code, {})
+    else:
+        log.error("No target to run.")
 
 
 def attach_to_pid():
@@ -421,13 +427,14 @@ def main():
     )
 
     try:
-        run = {
-            "file": run_file,
-            "module": run_module,
-            "code": run_code,
-            "pid": attach_to_pid,
-        }[options.target_kind]
-        run()
+        if options.target_kind is not None:
+            run = {
+                "file": run_file,
+                "module": run_module,
+                "code": run_code,
+                "pid": attach_to_pid,
+            }[options.target_kind]
+            run()
     except SystemExit as exc:
         log.reraise_exception(
             "Debuggee exited via SystemExit: {0!r}", exc.code, level="debug"
