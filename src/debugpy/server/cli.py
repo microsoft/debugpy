@@ -7,7 +7,7 @@ import os
 import re
 import sys
 from importlib.util import find_spec
-from typing import Any, Optional
+from typing import Any
 
 # debugpy.__main__ should have preloaded pydevd properly before importing this module.
 # Otherwise, some stdlib modules above might have had imported threading before pydevd
@@ -43,11 +43,11 @@ Usage: debugpy --listen | --connect
 
 class Options(object):
     mode = None
-    address: "Optional[tuple[str, int]]" = None
+    address: "tuple[str, int] | None" = None
     log_to = None
     log_to_stderr = False
-    target: "Optional[str]" = None
-    target_kind: "Optional[str]" = None
+    target: str  | None = None
+    target_kind: str | None = None
     wait_for_client = False
     adapter_access_token = None
     config: "dict[str, Any]" = {}
