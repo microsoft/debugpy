@@ -38,7 +38,7 @@ def _api(cancelable=False):
                 wrapped = getattr(api, f.__name__)
                 return wrapped.cancel(*args, **kwargs)
 
-            wrapper.cancel = cancel
+            wrapper.cancel = cancel # pyright: ignore
 
         return wrapper
 
@@ -46,7 +46,7 @@ def _api(cancelable=False):
 
 
 @_api()
-def log_to(__path: str) -> None:
+def log_to(__path: str | typing.TextIO) -> None:
     """Generate detailed debugpy logs in the specified directory.
 
     The directory must already exist. Several log files are generated,
@@ -117,7 +117,7 @@ def listen(
     adapter that it starts. Use `wait_for_client` to block execution
     until the client connects.
     """
-
+    ...
 
 @_api()
 def connect(__endpoint: Endpoint | int, *, access_token: str | None = None) -> Endpoint:
@@ -135,7 +135,7 @@ def connect(__endpoint: Endpoint | int, *, access_token: str | None = None) -> E
     adapter that it connects to. Use `wait_for_client` to block
     execution until the client connects.
     """
-
+    ...
 
 @_api(cancelable=True)
 def wait_for_client() -> None:
@@ -153,6 +153,7 @@ def is_client_connected() -> bool:
     """True if a client is connected to the debug adapter that is
     debugging this process.
     """
+    ...
 
 
 @_api()
