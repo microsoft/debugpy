@@ -19,7 +19,7 @@ def evaluate(code, path=__file__, mode="eval"):
 class Observable(object):
     """An object with change notifications."""
 
-    observers = ()  # used when attributes are set before __init__ is invoked
+    observers = []  # used when attributes are set before __init__ is invoked
 
     def __init__(self):
         self.observers = []

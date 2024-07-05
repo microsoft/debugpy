@@ -12,7 +12,7 @@ import platform
 import sys
 import threading
 import traceback
-from typing import Any, NoReturn, Protocol, Union
+from typing import Any, Callable, NoReturn, Protocol, Union
 from typing_extensions import TypeIs
 
 import debugpy
@@ -124,7 +124,7 @@ def newline(level="info"):
         stderr.write(level, "\n")
 
 
-def write(level, text, _to_files=all):
+def write(level, text: str, _to_files=all):
     assert level in LEVELS
 
     t = timestamp.current()
@@ -145,7 +145,7 @@ def write(level, text, _to_files=all):
     return text
 
 
-def write_format(level, format_string, *args, **kwargs) -> Union[Any, str, None]:
+def write_format(level, format_string: str, *args, **kwargs) -> Union[str, None]:
     # Don't spend cycles doing expensive formatting if we don't have to. Errors are
     # always formatted, so that error() can return the text even if it's not logged.
     if level != "error" and level not in _levels:

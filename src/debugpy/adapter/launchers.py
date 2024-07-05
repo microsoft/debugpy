@@ -3,6 +3,7 @@
 # for license information.
 
 import os
+import socket
 import subprocess
 import sys
 
@@ -18,7 +19,7 @@ class Launcher(components.Component):
 
     message_handler = components.Component.message_handler
 
-    def __init__(self, session, stream):
+    def __init__(self, session: sessions.Session, stream):
         with session:
             assert not session.launcher
             super().__init__(session, stream)
@@ -88,12 +89,13 @@ def spawn_debuggee(
     env = {}
 
     arguments = dict(start_request.arguments)
-    if not session.no_debug:
+    if not session.no_debug and servers.listener is not None:
         _, arguments["port"] = servers.listener.getsockname()
         arguments["adapterAccessToken"] = adapter.access_token
 
-    def on_launcher_connected(sock):
-        listener.close()
+    def on_launcher_connected(sock: socket.socket):
+        if listener is not None:
+            listener.close()
         stream = messaging.JsonIOStream.from_socket(sock)
         Launcher(session, stream)
 

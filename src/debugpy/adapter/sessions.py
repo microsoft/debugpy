@@ -7,6 +7,7 @@ import os
 import signal
 import threading
 import time
+from typing import Union
 
 from debugpy import common
 from debugpy.common import log, util
@@ -26,6 +27,7 @@ class Session(util.Observable):
     """
 
     _counter = itertools.count(1)
+    pid: Union[int, None] = None
 
     def __init__(self):
         from debugpy.adapter import clients
@@ -94,7 +96,7 @@ class Session(util.Observable):
                     _sessions.remove(self)
                     _sessions_changed.set()
 
-    def wait_for(self, predicate, timeout=None):
+    def wait_for(self, predicate, timeout: Union[float, None]=None):
         """Waits until predicate() becomes true.
 
         The predicate is invoked with the session locked. If satisfied, the method
@@ -113,11 +115,11 @@ class Session(util.Observable):
         """
 
         def wait_for_timeout():
-            time.sleep(timeout)
-            wait_for_timeout.timed_out = True
+            if timeout is not None:
+                time.sleep(timeout)
+            setattr(wait_for_timeout, "timed_out", True)
             self.notify_changed()
 
-        wait_for_timeout.timed_out = False
         if timeout is not None:
             thread = threading.Thread(
                 target=wait_for_timeout, name="Session.wait_for() timeout"
@@ -127,7 +129,7 @@ class Session(util.Observable):
 
         with self:
             while not predicate():
-                if wait_for_timeout.timed_out:
+                if hasattr(wait_for_timeout, "timed_out"):
                     return False
                 self._changed_condition.wait()
             return True

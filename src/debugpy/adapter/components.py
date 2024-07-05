@@ -3,7 +3,9 @@
 # for license information.
 
 import functools
+from typing import Union
 
+from debugpy.adapter.sessions import Session
 from debugpy.common import json, log, messaging, util
 
 
@@ -31,7 +33,7 @@ class Component(util.Observable):
     to wait_for() a change caused by another component.
     """
 
-    def __init__(self, session, stream=None, channel=None):
+    def __init__(self, session: Session, stream: Union[messaging.JsonIOStream, None]=None, channel=None):
         assert (stream is None) ^ (channel is None)
 
         try:
@@ -44,11 +46,11 @@ class Component(util.Observable):
 
         self.session = session
 
-        if channel is None:
+        if channel is None and stream is not None:
             stream.name = str(self)
             channel = messaging.JsonMessageChannel(stream, self)
             channel.start()
-        else:
+        elif channel is not None:
             channel.name = channel.stream.name = str(self)
             channel.handlers = self
         self.channel = channel
