@@ -344,7 +344,7 @@ class MessageDict(collections.OrderedDict):
     such guarantee for outgoing messages.
     """
 
-    def __init__(self, message, items=None):
+    def __init__(self, message, items: Union[dict, None]=None):
         assert message is None or isinstance(message, Message)
 
         if items is None:
@@ -683,7 +683,7 @@ class Request(Message):
             arguments.associate_with(self)
         self.arguments = arguments
 
-        self.response = None
+        self.response: Union[Response, None] = None
         """Response to this request.
 
         For incoming requests, it is set as soon as the request handler returns.
@@ -809,7 +809,7 @@ class OutgoingRequest(Request):
             while self.response is None:
                 self.channel._handlers_enqueued.wait()
 
-        if raise_if_failed and not self.response.success and isinstance( self.response.body, Exception):
+        if raise_if_failed and not self.response.success and isinstance( self.response.body, BaseException):
             raise self.response.body
         return self.response.body
 
@@ -1297,7 +1297,10 @@ class JsonMessageChannel(object):
 
     def request(self, *args, **kwargs):
         """Same as send_request(...).wait_for_response()"""
-        return self.send_request(*args, **kwargs).wait_for_response()
+        # This should always raise an exception on failure
+        result = self.send_request(*args, **kwargs).wait_for_response()
+        assert not isinstance(result, BaseException)
+        return result
 
     def propagate(self, message):
         """Sends a new message with the same type and payload.

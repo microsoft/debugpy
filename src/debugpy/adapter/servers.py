@@ -292,7 +292,7 @@ class Server(components.Component):
 
     # Generic request handler, used if there's no specific handler below.
     @message_handler
-    def request(self, request):
+    def request(self, request: messaging.Message):
         # Do not delegate requests from the server by default. There is a security
         # boundary between the server and the adapter, and we cannot trust arbitrary
         # requests sent over that boundary, since they may contain arbitrary code
@@ -397,7 +397,7 @@ class Server(components.Component):
 
 def serve(host="127.0.0.1", port=0):
     global listener
-    listener = sockets.serve("Server", Connection, host, port)
+    listener = sockets.serve("Server", Connection, host, port) # type: ignore
     sessions.report_sockets()
     return listener.getsockname()
 
@@ -422,21 +422,21 @@ def connections():
         return list(_connections)
 
 
-def wait_for_connection(session, predicate, timeout=None):
+def wait_for_connection(session, predicate, timeout: Union[float, None]=None):
     """Waits until there is a server matching the specified predicate connected to
     this adapter, and returns the corresponding Connection.
 
     If there is more than one server connection already available, returns the oldest
     one.
     """
-
     def wait_for_timeout():
-        time.sleep(timeout)
-        wait_for_timeout.timed_out = True
+        if timeout is not None:
+            time.sleep(timeout)
+        setattr(wait_for_timeout, "timed_out", True)
         with _lock:
             _connections_changed.set()
 
-    wait_for_timeout.timed_out = timeout == 0
+    setattr(wait_for_timeout, "timed_out", timeout == 0)
     if timeout:
         thread = threading.Thread(
             target=wait_for_timeout, name="servers.wait_for_connection() timeout"
@@ -451,7 +451,7 @@ def wait_for_connection(session, predicate, timeout=None):
             _connections_changed.clear()
             conns = (conn for conn in _connections if predicate(conn))
             conn = next(conns, None)
-            if conn is not None or wait_for_timeout.timed_out:
+            if conn is not None or getattr(wait_for_timeout, "timed_out") is True:
                 return conn
         _connections_changed.wait()
 
@@ -479,7 +479,7 @@ def dont_wait_for_first_connection():
 
 
 def inject(pid, debugpy_args, on_output):
-    host, port = listener.getsockname()
+    host, port = listener.getsockname() if listener is not None else ("", 0)
 
     cmdline = [
         sys.executable,
