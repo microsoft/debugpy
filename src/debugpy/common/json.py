@@ -94,12 +94,12 @@ class JsonObject(object):
 # some substitutions - e.g. replacing () with some default value.
 
 
-def _converter(value: str, classinfo) -> Any:
+def _converter(value: str, classinfo) -> Union[int, float, None]:
     """Convert value (str) to number, otherwise return None if is not possible"""
     for one_info in classinfo:
-        if issubclass(one_info, numbers.Number):
+        if issubclass(one_info, int) or issubclass(one_info, float):
             try:
-                return one_info(value) # pyright: ignore
+                return one_info(value)
             except ValueError:
                 pass
 
