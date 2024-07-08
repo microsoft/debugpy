@@ -9,6 +9,7 @@ pytest-timeout
 
 importlib_metadata
 psutil
+untangle
 
 ## Used in Python code that is run/debugged by the tests:
 

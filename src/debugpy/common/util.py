@@ -175,5 +175,5 @@ class WaitForTimeout():
     def __call__(self):
         if self._timeout is not None:
             time.sleep(self._timeout)
-        self.timed_out = True
+            self.timed_out = True
         self._func()
