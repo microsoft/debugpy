@@ -300,7 +300,7 @@ def connect(address, settrace_kwargs, access_token=None):
     _settrace(host=host, port=port, client_access_token=access_token, **settrace_kwargs)
 
 
-class wait_for_client:
+class wait_for_client_cls:
     def __call__(self):
         ensure_logging()
         log.debug("wait_for_client()")
@@ -317,7 +317,7 @@ class wait_for_client:
     def cancel() -> None:
         raise RuntimeError("wait_for_client() must be called first")
 
-
+wait_for_client = wait_for_client_cls()
 
 def is_client_connected():
     return pydevd._is_attached()
