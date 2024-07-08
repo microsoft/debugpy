@@ -19,6 +19,8 @@ from debugpy.adapter import components, sessions
 import traceback
 import io
 
+from debugpy.common.util import WaitForTimeout
+
 access_token = None
 """Access token used to authenticate with the servers."""
 
@@ -429,14 +431,11 @@ def wait_for_connection(session, predicate, timeout: Union[float, None]=None):
     If there is more than one server connection already available, returns the oldest
     one.
     """
-    def wait_for_timeout():
-        if timeout is not None:
-            time.sleep(timeout)
-        setattr(wait_for_timeout, "timed_out", True)
+    def after_wait():
         with _lock:
             _connections_changed.set()
+    wait_for_timeout = WaitForTimeout(timeout, after_wait)
 
-    setattr(wait_for_timeout, "timed_out", timeout == 0)
     if timeout:
         thread = threading.Thread(
             target=wait_for_timeout, name="servers.wait_for_connection() timeout"
@@ -451,7 +450,7 @@ def wait_for_connection(session, predicate, timeout: Union[float, None]=None):
             _connections_changed.clear()
             conns = (conn for conn in _connections if predicate(conn))
             conn = next(conns, None)
-            if conn is not None or getattr(wait_for_timeout, "timed_out") is True:
+            if conn is not None or wait_for_timeout.timed_out:
                 return conn
         _connections_changed.wait()
 

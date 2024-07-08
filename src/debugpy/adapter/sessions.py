@@ -113,12 +113,7 @@ class Session(util.Observable):
         seconds regardless of whether the predicate was satisfied. The method returns
         False if it timed out, and True otherwise.
         """
-
-        def wait_for_timeout():
-            if timeout is not None:
-                time.sleep(timeout)
-            setattr(wait_for_timeout, "timed_out", True)
-            self.notify_changed()
+        wait_for_timeout = util.WaitForTimeout(timeout, lambda: self.notify_changed())
 
         if timeout is not None:
             thread = threading.Thread(
@@ -129,7 +124,7 @@ class Session(util.Observable):
 
         with self:
             while not predicate():
-                if hasattr(wait_for_timeout, "timed_out"):
+                if wait_for_timeout.timed_out:
                     return False
                 self._changed_condition.wait()
             return True

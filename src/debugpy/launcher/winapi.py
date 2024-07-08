@@ -64,14 +64,14 @@ def _errcheck(is_error_result=(lambda result: not result)):
     def impl(result, func, args):
         if is_error_result(result):
             log.debug("{0} returned {1}", func.__name__, result)
-            raise ctypes.WinError()
+            raise ctypes.WinError() # type: ignore
         else:
             return result
 
     return impl
 
 
-kernel32 = ctypes.windll.kernel32
+kernel32 = ctypes.windll.kernel32 # type: ignore
 
 kernel32.AssignProcessToJobObject.errcheck = _errcheck()
 kernel32.AssignProcessToJobObject.restype = BOOL

@@ -344,7 +344,7 @@ class MessageDict(collections.OrderedDict):
     such guarantee for outgoing messages.
     """
 
-    def __init__(self, message, items: Union[dict, None]=None):
+    def __init__(self, message: Union[Message, None], items: Union[dict, None]=None):
         assert message is None or isinstance(message, Message)
 
         if items is None:
@@ -429,7 +429,7 @@ class MessageDict(collections.OrderedDict):
 
 class AssociatableMessageDict(MessageDict):
     def associate_with(self, message: Message):
-        ...
+        self.message = message
 
 def is_associatable(obj) -> TypeIs[AssociatableMessageDict]:
     return isinstance(obj, MessageDict) and hasattr(obj, "associate_with")
@@ -448,12 +448,7 @@ def _payload(value):
     # Missing payload. Construct a dummy MessageDict, and make it look like it was
     # deserialized. See JsonMessageChannel._parse_incoming_message for why it needs
     # to have associate_with().
-
-    def associate_with(message):
-        value.message = message
-
-    value = MessageDict(None)
-    setattr(value, "associate_with", associate_with)
+    value = AssociatableMessageDict(None)
     return value
 
 
@@ -1373,7 +1368,7 @@ class JsonMessageChannel(object):
         # for all JSON objects, and track them so that they can be later wired up to
         # the Message they belong to, once it is instantiated.
         def object_hook(d):
-            d = MessageDict(None, d)
+            d = AssociatableMessageDict(None, d)
             if "seq" in d:
                 self._prettify(d)
             setattr(d, "associate_with", associate_with)
