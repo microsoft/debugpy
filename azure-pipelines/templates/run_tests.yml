@@ -10,16 +10,20 @@ steps:
       echo 'tox environment: $toxEnv'
       python -m tox -e $toxEnv -- --junitxml=$(Build.ArtifactStagingDirectory)/tests.xml --debugpy-log-dir=$(Build.ArtifactStagingDirectory)/logs tests
     displayName: "Run tests using tox"
+    env: 
+      DEBUGPY_PROCESS_SPAWN_TIMEOUT: 60
+      DEBUGPY_LAUNCH_TIMEOUT: 60
+      ACCEPT_CONNECTIONS_TIMEOUT: 60
 
-  - task: "PublishBuildArtifacts@1"
-    condition: "failed()"
+  - task: PublishBuildArtifacts@1
+    condition: failed()
     inputs:
       artifactName: "Test logs"
       pathToPublish: "$(Build.ArtifactStagingDirectory)/logs"
     displayName: "Publish test logs"
 
-  - task: "PublishTestResults@2"
-    condition: "always()"
+  - task: PublishTestResults@2
+    condition: always()
     inputs:
       testRunTitle: "$(Agent.JobName)"
       testResultsFiles: "tests.xml"
