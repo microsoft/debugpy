@@ -13,7 +13,6 @@ steps:
     env: 
       DEBUGPY_PROCESS_SPAWN_TIMEOUT: 60
       DEBUGPY_LAUNCH_TIMEOUT: 60
-      ACCEPT_CONNECTIONS_TIMEOUT: 60
 
   - task: PublishBuildArtifacts@1
     condition: failed()
