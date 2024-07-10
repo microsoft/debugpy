@@ -4,6 +4,7 @@ pytest
 pytest-xdist
 pytest-cov
 pytest-timeout
+pytest-retry
 
 ## Used by test helpers:
 
