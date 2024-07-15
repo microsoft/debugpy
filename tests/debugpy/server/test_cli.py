@@ -136,15 +136,21 @@ def test_configure_subProcess(cli, value):
 
 
 def test_unsupported_switch(cli):
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError) as ex:
         cli(["--listen", "8888", "--xyz", "123", "spam.py"])
+    
+    assert "unrecognized switch --xyz" in str(ex.value)
 
 
 def test_unsupported_configure(cli):
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError) as ex:
         cli(["--connect", "127.0.0.1:8888", "--configure-xyz", "123", "spam.py"])
+    
+    assert "unknown property 'xyz'" in str(ex.value)
 
 
 def test_address_required(cli):
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError) as ex:
         cli(["-m", "spam"])
+    
+    assert "either --listen or --connect is required" in str(ex.value)
