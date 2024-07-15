@@ -21,7 +21,7 @@ def cli(pyfile):
         from debugpy.server import cli
 
         try:
-            cli.parse_argv()
+            cli.parse_args()
         except Exception as exc:
             os.write(1, pickle.dumps(exc))
             sys.exit(1)
