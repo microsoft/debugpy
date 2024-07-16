@@ -76,12 +76,17 @@ On Linux or macOS:
 
 You can run all tests in a single file using a specified python version, like this:
 ```
-...\debugpy> py -m tox --develop -e py312 -- -n0 ".\tests\debugpy\server\test_cli.py"
+...\debugpy> py -m tox --develop -e py312 -- ".\tests\debugpy\server\test_cli.py"
 ```
 
 You can also specify a single test, like this:
 ```
-...\debugpy> py -m tox --develop -e py312 -- -n0 ".\tests\debugpy\server\test_cli.py::test_duplicate_switch"
+...\debugpy> py -m tox --develop -e py312 -- ".\tests\debugpy\server\test_cli.py::test_duplicate_switch"
+```
+
+The tests are run concurrently, and the default number of workers is 8. You can force a single worker by using the `-n0` flag, like this:
+```
+...\debugpy> py -m tox --develop -e py312 -- -n0 ".\tests\debugpy\server\test_cli.py"
 ```
 
 ### Running tests without tox
