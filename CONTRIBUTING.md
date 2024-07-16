@@ -74,6 +74,16 @@ On Linux or macOS:
 .../debugpy$ python3 -m tox -e py27,py37 --develop
 ```
 
+You can run all tests in a single file using a specified python version, like this:
+```
+...\debugpy> py -m tox --develop -e py312 -- -n0 ".\tests\debugpy\server\test_cli.py"
+```
+
+You can also specify a single test, like this:
+```
+...\debugpy> py -m tox --develop -e py312 -- -n0 ".\tests\debugpy\server\test_cli.py::test_duplicate_switch"
+```
+
 ### Running tests without tox
 
 While tox is the recommended way to run the test suite, pytest can also be invoked directly from the root of the repository. This requires packages in tests/test_requirements.txt to be installed first.
