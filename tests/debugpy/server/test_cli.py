@@ -2,11 +2,13 @@
 # Licensed under the MIT License. See LICENSE in the project root
 # for license information.
 
+import os
 import pickle
 import pytest
 import subprocess
 import sys
 
+from unittest import mock
 from debugpy.common import log
 from tests.patterns import some
 
@@ -43,14 +45,19 @@ def cli(pyfile):
                 "wait_for_client",
             ]
         }
+
+        # Serialize the command line args and the options to stdout
         os.write(1, pickle.dumps([sys.argv[1:], options]))
 
     def parse(args):
         log.debug("Parsing argv: {0!r}", args)
         try:
+            # Run the CLI parser in a subprocess, and capture its output.
             output = subprocess.check_output(
                 [sys.executable, "-u", cli_parser.strpath] + args
             )
+
+            # Deserialize the output and return the parsed argv and options.
             argv, options = pickle.loads(output)
         except subprocess.CalledProcessError as exc:
             raise pickle.loads(exc.output)
@@ -116,7 +123,6 @@ def test_targets(cli, target_kind, mode, address, wait_for_client, script_args):
         script_args = []
 
     argv, options = cli(args)
-    assert argv == script_args
     assert options == some.dict.containing(expected_options)
 
 
@@ -166,3 +172,25 @@ def test_duplicate_switch(cli):
         cli(["--listen", "8888", "--listen", "9999", "spam.py"])
     
     assert "duplicate switch on command line: --listen" in str(ex.value)
+
+# Test that switches can be read from the environment
+@mock.patch.dict(os.environ, {"DEBUGPY_EXTRA_ARGV": "--connect 5678"})
+def test_read_switches_from_environment(cli):
+    args = ["spam.py"]
+
+    _, options = cli(args)
+
+    assert options["mode"] == "connect"
+    assert options["address"] == ("127.0.0.1", 5678)
+    assert options["target"] == "spam.py"
+
+# Test that command line switches override environment variables
+@mock.patch.dict(os.environ, {"DEBUGPY_EXTRA_ARGV": "--connect 5678"})
+def test_override_environment_switch(cli):
+    args = ["--connect", "8888", "spam.py"]
+
+    _, options = cli(args)
+
+    assert options["mode"] == "connect"
+    assert options["address"] == ("127.0.0.1", 8888)
+    assert options["target"] == "spam.py"

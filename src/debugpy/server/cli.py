@@ -192,9 +192,9 @@ switches = [
 
 # Consume all the args from a given list
 def consume_args(args: list):
-    while len(args) >= 2:
-        value = args[1]
-        del args[1]
+    while len(args) >= 1:
+        value = args[0]
+        del args[0]
         yield value
 
 # Parse the args from the command line, then from the environment.
@@ -206,6 +206,9 @@ def parse_args():
 
     parse_args_from_command_line(seen)
     parse_args_from_environment(seen)
+
+    #print("options:", file=sys.stderr)
+    #print(options.__dict__, file=sys.stderr)
 
     if options.target is None:
         raise ValueError("missing target: " + TARGET)
@@ -222,14 +225,18 @@ def parse_args():
     assert options.address is not None
 
 def parse_args_from_command_line(seen: set):
-    parse_args_helper(sys.argv, seen)
+    parse_args_helper(sys.argv[1:], seen)
 
 def parse_args_from_environment(seenFromCommandLine: set):
-    args = os.getenv("DEBUGPY_EXTRA_ARGV")
+    args = os.environ.get("DEBUGPY_EXTRA_ARGV")
     if (not args):
         return
 
     argsList = args.split()
+
+    #print("args:", file=sys.stderr)
+    #print(*argsList, file=sys.stderr)
+
     seenFromEnvironment = set()
     parse_args_helper(argsList, seenFromCommandLine, seenFromEnvironment, True)
 

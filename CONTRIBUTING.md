@@ -91,7 +91,7 @@ The tests are run concurrently, and the default number of workers is 8. You can 
 
 ### Running tests without tox
 
-While tox is the recommended way to run the test suite, pytest can also be invoked directly from the root of the repository. This requires packages in tests/test_requirements.txt to be installed first.
+While tox is the recommended way to run the test suite, pytest can also be invoked directly from the root of the repository. This requires packages in tests/requirements.txt to be installed first.
 
 ## Using modified debugpy in Visual Studio Code
 To test integration between debugpy and Visual Studio Code, the latter can be directed to use a custom version of debugpy in lieu of the one bundled with the Python extension. This is done by specifying `"debugAdapterPath"` in `launch.json` - it must point at the root directory of the *package*, which is `src/debugpy` inside the repository:
