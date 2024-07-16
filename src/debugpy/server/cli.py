@@ -207,6 +207,9 @@ def parse_args():
     parse_args_from_command_line(seen)
     parse_args_from_environment(seen)
 
+    if options.target is None:
+        raise ValueError("missing target: " + TARGET)
+
     if options.mode is None:
         raise ValueError("either --listen or --connect is required")
     if options.adapter_access_token is not None and options.mode != "connect":
@@ -231,23 +234,9 @@ def parse_args_from_environment(seenFromCommandLine: set):
     parse_args_helper(argsList, seenFromCommandLine, seenFromEnvironment, True)
 
 def parse_args_helper(args: list, seenFromCommandLine: set, seenFromEnvironment: set = None, isFromEnvironment=False):
-    it = consume_args(args)
+    iterator = consume_args(args)
 
-    while True:
-        try:
-            arg = next(it)
-        except StopIteration:
-            # If we get here, we've processed all the arguments.
-
-            # If we're parsing from the command line, we should never get here, so this is an error
-            # (because we break from the loop as soon as the target is set).
-            if (not isFromEnvironment):
-                raise ValueError("missing target: " + TARGET)
-            # Otherwise, we're done parsing from the environment, so make sure the target is set
-            else:
-                if (options.target is None):
-                    raise ValueError("missing target from environment: " + TARGET)
-
+    for arg in iterator:
         switch = arg
         if not switch.startswith("-"):
             switch = ""
@@ -259,10 +248,10 @@ def parse_args_helper(args: list, seenFromCommandLine: set, seenFromEnvironment:
 
         # if we're parsing from the command line, and we've already seen the switch on the command line, this is an error
         if (not isFromEnvironment and switch in seenFromCommandLine):
-            raise ValueError("duplicate switch on command line" + switch)
+            raise ValueError("duplicate switch on command line: " + switch)
         # if we're parsing from the environment, and we've already seen the switch in the environment, this is an error
         elif (isFromEnvironment and switch in seenFromEnvironment):
-            raise ValueError("duplicate switch from environment" + switch)
+            raise ValueError("duplicate switch from environment: " + switch)
         # if we're parsing from the environment, and we've already seen the switch on the command line, skip it, since command line takes precedence
         elif (isFromEnvironment and switch in seenFromCommandLine):
             continue
@@ -275,7 +264,7 @@ def parse_args_helper(args: list, seenFromCommandLine: set, seenFromEnvironment:
 
         # process the switch, running the corresponding action
         try:
-            action(arg, it)
+            action(arg, iterator)
         except StopIteration:
             assert placeholder is not None
             raise ValueError("{0}: missing {1}".format(switch, placeholder))

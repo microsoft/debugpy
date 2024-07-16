@@ -154,3 +154,15 @@ def test_address_required(cli):
         cli(["-m", "spam"])
     
     assert "either --listen or --connect is required" in str(ex.value)
+
+def test_missing_target(cli):
+    with pytest.raises(ValueError) as ex:
+        cli(["--listen", "8888"])
+    
+    assert "missing target" in str(ex.value)
+
+def test_duplicate_switch(cli):
+    with pytest.raises(ValueError) as ex:
+        cli(["--listen", "8888", "--listen", "9999", "spam.py"])
+    
+    assert "duplicate switch on command line: --listen" in str(ex.value)
