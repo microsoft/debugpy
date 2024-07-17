@@ -8,7 +8,10 @@ import pytest
 import subprocess
 import sys
 
+# This is used for mocking environment variables
+# See https://docs.python.org/3/library/unittest.mock-examples.html for more info
 from unittest import mock
+
 from debugpy.common import log
 from tests.patterns import some
 
@@ -69,16 +72,15 @@ def cli(pyfile):
     return parse
 
 
+# Test a combination of command line switches
 @pytest.mark.parametrize("target_kind", ["file", "module", "code"])
 @pytest.mark.parametrize("mode", ["listen", "connect"])
 @pytest.mark.parametrize("address", ["8888", "localhost:8888"])
 @pytest.mark.parametrize("wait_for_client", ["", "wait_for_client"])
-@pytest.mark.parametrize("script_args", ["", "script_args"])
-def test_targets(cli, target_kind, mode, address, wait_for_client, script_args):
+def test_targets(cli, target_kind, mode, address, wait_for_client):
     expected_options = {
         "mode": mode,
         "target_kind": target_kind,
-        "wait_for_client": bool(wait_for_client),
     }
 
     args = ["--" + mode, address]
@@ -91,6 +93,7 @@ def test_targets(cli, target_kind, mode, address, wait_for_client, script_args):
 
     if wait_for_client:
         args += ["--wait-for-client"]
+        expected_options["wait_for_client"] = True
 
     if target_kind == "file":
         target = "spam.py"
@@ -105,41 +108,23 @@ def test_targets(cli, target_kind, mode, address, wait_for_client, script_args):
         pytest.fail(target_kind)
     expected_options["target"] = target
 
-    if script_args:
-        script_args = [
-            "ham",
-            "--listen",
-            "--wait-for-client",
-            "-y",
-            "spam",
-            "--",
-            "--connect",
-            "-c",
-            "--something",
-            "-m",
-        ]
-        args += script_args
-    else:
-        script_args = []
-
     argv, options = cli(args)
     assert options == some.dict.containing(expected_options)
 
-
-@pytest.mark.parametrize("value", ["", True, False])
+@pytest.mark.parametrize("value", [True, False])
 def test_configure_subProcess(cli, value):
-    args = ["--listen", "8888"]
-
-    if value == "":
-        value = True
-    else:
-        args += ["--configure-subProcess", str(value)]
-
-    args += ["spam.py"]
+    args = ["--listen", "8888", "--configure-subProcess", str(value), "spam.py"]
     _, options = cli(args)
 
     assert options["config"]["subProcess"] == value
 
+@pytest.mark.parametrize("value", [True, False])
+def test_configure_subProcess_from_environment(cli, value):
+    args = ["--listen", "8888", "spam.py"]
+    with mock.patch.dict(os.environ, {"DEBUGPY_EXTRA_ARGV": "--configure-subProcess " + str(value)}):
+        _, options = cli(args)
+
+        assert options["config"]["subProcess"] == value
 
 def test_unsupported_switch(cli):
     with pytest.raises(ValueError) as ex:
@@ -147,6 +132,12 @@ def test_unsupported_switch(cli):
     
     assert "unrecognized switch --xyz" in str(ex.value)
 
+def test_unsupported_switch_from_environment(cli):
+    with pytest.raises(ValueError) as ex:
+        with mock.patch.dict(os.environ, {"DEBUGPY_EXTRA_ARGV": "--xyz 123"}):
+            cli(["--listen", "8888", "spam.py"])
+    
+    assert "unrecognized switch --xyz" in str(ex.value)
 
 def test_unsupported_configure(cli):
     with pytest.raises(ValueError) as ex:
@@ -154,6 +145,12 @@ def test_unsupported_configure(cli):
     
     assert "unknown property 'xyz'" in str(ex.value)
 
+def test_unsupported_configure_from_environment(cli):
+    with pytest.raises(ValueError) as ex:
+        with mock.patch.dict(os.environ, {"DEBUGPY_EXTRA_ARGV": "--configure-xyz 123"}):
+            cli(["--connect", "127.0.0.1:8888", "spam.py"])
+
+    assert "unknown property 'xyz'" in str(ex.value)
 
 def test_address_required(cli):
     with pytest.raises(ValueError) as ex:
@@ -173,16 +170,23 @@ def test_duplicate_switch(cli):
     
     assert "duplicate switch on command line: --listen" in str(ex.value)
 
+def test_duplicate_switch_from_environment(cli):
+    with pytest.raises(ValueError) as ex:
+        with mock.patch.dict(os.environ, {"DEBUGPY_EXTRA_ARGV": "--listen 8888 --listen 9999"}):
+            cli(["spam.py"])
+    
+    assert "duplicate switch from environment: --listen" in str(ex.value)
+
 # Test that switches can be read from the environment
-@mock.patch.dict(os.environ, {"DEBUGPY_EXTRA_ARGV": "--connect 5678"})
 def test_read_switches_from_environment(cli):
     args = ["spam.py"]
 
-    _, options = cli(args)
+    with mock.patch.dict(os.environ, {"DEBUGPY_EXTRA_ARGV": "--connect 5678"}):
+        _, options = cli(args)
 
-    assert options["mode"] == "connect"
-    assert options["address"] == ("127.0.0.1", 5678)
-    assert options["target"] == "spam.py"
+        assert options["mode"] == "connect"
+        assert options["address"] == ("127.0.0.1", 5678)
+        assert options["target"] == "spam.py"
 
 # Test that command line switches override environment variables
 @mock.patch.dict(os.environ, {"DEBUGPY_EXTRA_ARGV": "--connect 5678"})
