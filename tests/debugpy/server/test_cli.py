@@ -77,10 +77,12 @@ def cli(pyfile):
 @pytest.mark.parametrize("mode", ["listen", "connect"])
 @pytest.mark.parametrize("address", ["8888", "localhost:8888"])
 @pytest.mark.parametrize("wait_for_client", ["", "wait_for_client"])
-def test_targets(cli, target_kind, mode, address, wait_for_client):
+@pytest.mark.parametrize("script_args", ["", "script_args"])
+def test_targets(cli, target_kind, mode, address, wait_for_client, script_args):
     expected_options = {
         "mode": mode,
         "target_kind": target_kind,
+        "wait_for_client": False
     }
 
     args = ["--" + mode, address]
@@ -108,7 +110,25 @@ def test_targets(cli, target_kind, mode, address, wait_for_client):
         pytest.fail(target_kind)
     expected_options["target"] = target
 
+    if script_args:
+        script_args = [
+            "ham",
+            "--listen",
+            "--wait-for-client",
+            "-y",
+            "spam",
+            "--",
+            "--connect",
+            "-c",
+            "--something",
+            "-m",
+        ]
+        args += script_args
+    else:
+        script_args = []
+
     argv, options = cli(args)
+    assert argv == script_args
     assert options == some.dict.containing(expected_options)
 
 @pytest.mark.parametrize("value", [True, False])
@@ -189,12 +209,20 @@ def test_read_switches_from_environment(cli):
         assert options["target"] == "spam.py"
 
 # Test that command line switches override environment variables
-@mock.patch.dict(os.environ, {"DEBUGPY_EXTRA_ARGV": "--connect 5678"})
 def test_override_environment_switch(cli):
     args = ["--connect", "8888", "spam.py"]
 
-    _, options = cli(args)
+    with mock.patch.dict(os.environ, {"DEBUGPY_EXTRA_ARGV": "--connect 5678"}):
+        _, options = cli(args)
 
-    assert options["mode"] == "connect"
-    assert options["address"] == ("127.0.0.1", 8888)
+        assert options["mode"] == "connect"
+        assert options["address"] == ("127.0.0.1", 8888)
+        assert options["target"] == "spam.py"
+
+# Test that script args (passed to target) are preserved
+def test_script_args(cli):
+    args = ["--listen", "8888", "spam.py", "arg1", "arg2"]
+    argv, options = cli(args)
+
+    assert argv == ["--listen", "8888", "spam.py", "arg1", "arg2"]
     assert options["target"] == "spam.py"
