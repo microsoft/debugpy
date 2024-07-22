@@ -219,7 +219,7 @@ def parse_args():
     seen = set()
 
     parse_args_from_command_line(seen)
-    #parse_args_from_environment(seen)
+    parse_args_from_environment(seen)
 
     log.debug("options:")
     log.debug(options.__dict__)
