@@ -158,7 +158,11 @@ def set_target(kind: str, parser=(lambda x: x), positional=False):
                     import locale
 
                     target = target.decode(locale.getpreferredencoding(False))
+
         options.target = target
+
+        log.debug("kind: " + kind)
+        log.debug("target: " + target)
 
     return do
 
@@ -199,7 +203,7 @@ def consume_argv():
 
 # Consume all the args from a given list
 def consume_args(args: list):
-    if (args == sys.argv):
+    if (args is sys.argv):
         return consume_argv()
     
     while len(args) >= 1:
@@ -217,8 +221,8 @@ def parse_args():
     parse_args_from_command_line(seen)
     #parse_args_from_environment(seen)
 
-    #print("options:", file=sys.stderr)
-    #print(options.__dict__, file=sys.stderr)
+    log.debug("options:")
+    log.debug(options.__dict__)
 
     if options.target is None:
         raise ValueError("missing target: " + TARGET)
@@ -253,7 +257,12 @@ def parse_args_from_environment(seenFromCommandLine: set):
 def parse_args_helper(args: list, seenFromCommandLine: set, seenFromEnvironment: set = None, isFromEnvironment=False):
     iterator = consume_args(args)
 
-    for arg in iterator:
+    while True:
+        try:
+            arg = next(iterator)
+        except StopIteration:
+            break
+
         switch = arg
         if not switch.startswith("-"):
             switch = ""

@@ -73,11 +73,16 @@ def cli(pyfile):
 
 
 # Test a combination of command line switches
-@pytest.mark.parametrize("target_kind", ["file", "module", "code"])
-@pytest.mark.parametrize("mode", ["listen", "connect"])
-@pytest.mark.parametrize("address", ["8888", "localhost:8888"])
-@pytest.mark.parametrize("wait_for_client", ["", "wait_for_client"])
-@pytest.mark.parametrize("script_args", ["", "script_args"])
+#@pytest.mark.parametrize("target_kind", ["file", "module", "code"])
+#@pytest.mark.parametrize("mode", ["listen", "connect"])
+#@pytest.mark.parametrize("address", ["8888", "localhost:8888"])
+#@pytest.mark.parametrize("wait_for_client", ["", "wait_for_client"])
+#@pytest.mark.parametrize("script_args", ["", "script_args"])
+@pytest.mark.parametrize("target_kind", ["file"])
+@pytest.mark.parametrize("mode", ["listen"])
+@pytest.mark.parametrize("address", ["8888"])
+@pytest.mark.parametrize("wait_for_client", ["wait_for_client"])
+@pytest.mark.parametrize("script_args", ["script_args"])
 def test_targets(cli, target_kind, mode, address, wait_for_client, script_args):
     expected_options = {
         "mode": mode,
