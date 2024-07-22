@@ -204,7 +204,7 @@ def consume_argv():
 # Consume all the args from a given list
 def consume_args(args: list):
     if (args is sys.argv):
-        return consume_argv()
+        yield from consume_argv()
     
     while len(args) >= 1:
         value = args[0]
