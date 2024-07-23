@@ -180,7 +180,7 @@ def test_address_required(cli):
 
 def test_missing_target(cli):
     with pytest.raises(ValueError) as ex:
-        cli(["--listen", "8888"])
+        cli(["--listen", "8888", "-m", ""])
     
     assert "missing target" in str(ex.value)
 

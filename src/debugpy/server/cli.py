@@ -218,7 +218,8 @@ def parse_args():
     parse_args_from_command_line(seen)
     parse_args_from_environment(seen)
 
-    if options.target is None:
+    # if the target is not set, or is empty, this is an error
+    if options.target is None or not options.target.strip():
         raise ValueError("missing target: " + TARGET)
 
     if options.mode is None:
@@ -228,7 +229,6 @@ def parse_args():
     if options.target_kind == "pid" and options.wait_for_client:
         raise ValueError("--pid does not support --wait-for-client")
 
-    assert options.target is not None
     assert options.target_kind is not None
     assert options.address is not None
 
