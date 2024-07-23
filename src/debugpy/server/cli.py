@@ -161,9 +161,6 @@ def set_target(kind: str, parser=(lambda x: x), positional=False):
 
         options.target = target
 
-        log.debug("kind: " + kind)
-        log.debug("target: " + target)
-
     return do
 
 
@@ -220,9 +217,6 @@ def parse_args():
 
     parse_args_from_command_line(seen)
     parse_args_from_environment(seen)
-
-    log.debug("options:")
-    log.debug(options.__dict__)
 
     if options.target is None:
         raise ValueError("missing target: " + TARGET)

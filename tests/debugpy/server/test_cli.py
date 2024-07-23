@@ -224,5 +224,5 @@ def test_script_args(cli):
     args = ["--listen", "8888", "spam.py", "arg1", "arg2"]
     argv, options = cli(args)
 
-    assert argv == ["--listen", "8888", "spam.py", "arg1", "arg2"]
+    assert argv == ["arg1", "arg2"]
     assert options["target"] == "spam.py"
