@@ -219,7 +219,7 @@ def parse_args():
     parse_args_from_environment(seen)
 
     # if the target is not set, or is empty, this is an error
-    if options.target is None or not options.target.strip():
+    if options.target is None or options.target == "":
         raise ValueError("missing target: " + TARGET)
 
     if options.mode is None:
