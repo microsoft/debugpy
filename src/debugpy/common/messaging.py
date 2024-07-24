@@ -20,7 +20,7 @@ import os
 import socket
 import sys
 import threading
-from typing import BinaryIO, Callable, Union, cast
+from typing import BinaryIO, Callable, Union, cast, Any
 from typing_extensions import TypeIs
 
 from debugpy.common import json, log, util
@@ -408,8 +408,7 @@ class MessageDict(collections.OrderedDict):
             raise message.isnt_valid("{0}{1}", json.repr(key), err)
         return value
 
-    @staticmethod
-    def _invalid_if_no_key(func):
+    def _invalid_if_no_key(func: Callable[..., Any]): # type: ignore
         def wrap(self, key, *args, **kwargs):
             try:
                 return func(self, key, *args, **kwargs)
