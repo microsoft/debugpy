@@ -7,7 +7,7 @@ import os
 import re
 import sys
 from importlib.util import find_spec
-from typing import Any, Tuple, Union
+from typing import Any, Tuple, Union, Dict
 
 # debugpy.__main__ should have preloaded pydevd properly before importing this module.
 # Otherwise, some stdlib modules above might have had imported threading before pydevd
@@ -50,7 +50,7 @@ class Options(object):
     target_kind: Union[str, None] = None
     wait_for_client = False
     adapter_access_token = None
-    config: "dict[str, Any]" = {}
+    config: Dict[str, Any] = {}
 
 
 options = Options()

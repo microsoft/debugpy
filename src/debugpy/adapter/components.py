@@ -9,7 +9,7 @@ from debugpy.adapter.sessions import Session
 from debugpy.common import json, log, messaging, util
 
 
-ACCEPT_CONNECTIONS_TIMEOUT = 10
+ACCEPT_CONNECTIONS_TIMEOUT = 60
 
 
 class ComponentNotAvailable(Exception):

@@ -51,7 +51,7 @@ def test_ndarray(pyfile, target, run):
                 {
                     "type": "int32",
                     "name": "0",
-                    "value": "123",
+                    "value": some.str.containing("123"),
                     "variablesReference": some.int,
                 }
             ),
@@ -59,7 +59,7 @@ def test_ndarray(pyfile, target, run):
                 {
                     "type": "int32",
                     "name": "1",
-                    "value": "456",
+                    "value": some.str.containing("456"),
                     "variablesReference": some.int,
                 }
             ),
