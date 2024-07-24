@@ -8,7 +8,7 @@ import atexit
 import os
 import socket
 import sys
-from typing import Literal, Union
+from typing import Any, Literal, Union, cast
 
 import debugpy
 from debugpy import adapter, common, launcher
@@ -219,7 +219,7 @@ class Client(components.Component):
             if self.session.no_debug:
                 servers.dont_wait_for_first_connection()
 
-            request_options = request("debugOptions", json.array(str))
+            request_options: list[Any] = cast("list[Any]", request("debugOptions", json.array(str)))
             self.session.debug_options = debug_options = set(
                 request_options
             )
