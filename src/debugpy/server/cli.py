@@ -202,11 +202,11 @@ def consume_argv():
 def consume_args(args: list):
     if (args is sys.argv):
         yield from consume_argv()
-    
-    while len(args) >= 1:
-        value = args[0]
-        del args[0]
-        yield value
+    else:
+        while len(args) >= 1:
+            value = args[0]
+            del args[0]
+            yield value
 
 # Parse the args from the command line, then from the environment.
 # Args from the environment are only used if they are not already set from the command line.
