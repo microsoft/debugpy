@@ -20,12 +20,11 @@ import os
 import socket
 import sys
 import threading
-from typing import Any, BinaryIO, Callable, Literal, Protocol, Union, cast
+from typing import BinaryIO, Callable, Union, cast
 from typing_extensions import TypeIs
 
 from debugpy.common import json, log, util
 from debugpy.common.util import hide_thread_from_debugger
-from winappdbg.compat import b
 
 
 class JsonIOError(IOError):

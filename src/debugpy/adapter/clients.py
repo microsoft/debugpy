@@ -219,7 +219,7 @@ class Client(components.Component):
             if self.session.no_debug:
                 servers.dont_wait_for_first_connection()
 
-            request_options = request("debugOptions", json.array(str))
+            request("debugOptions", json.array(str))
             self.session.debug_options = debug_options = set(
                 
             )

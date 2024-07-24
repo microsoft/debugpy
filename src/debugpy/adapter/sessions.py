@@ -6,8 +6,7 @@ import itertools
 import os
 import signal
 import threading
-import time
-from typing import Union, cast
+from typing import Union
 
 from debugpy import common
 from debugpy.common import log, util

@@ -5,7 +5,6 @@
 import inspect
 import os
 import sys
-import threading
 import time
 from typing import Callable, Union
 

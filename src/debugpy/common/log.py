@@ -12,7 +12,7 @@ import platform
 import sys
 import threading
 import traceback
-from typing import Any, Callable, NoReturn, Protocol, Union
+from typing import Any, NoReturn, Protocol, Union
 from typing_extensions import TypeIs
 
 import debugpy
