@@ -141,9 +141,9 @@ class ThreadSafeSingleton(Singleton):
     # with @threadsafe_method. Such methods should perform the necessary locking to
     # ensure thread safety for the callers.
 
-    @staticmethod
-    def assert_locked(self): # type: ignore
+    def assert_locked(self):
         lock = type(self)._lock
+        assert lock is not None
         assert lock.acquire(blocking=False), (
             "ThreadSafeSingleton accessed without locking. Either use with-statement, "
             "or if it is a method or property, mark it as @threadsafe_method or with "

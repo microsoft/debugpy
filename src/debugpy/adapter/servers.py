@@ -399,7 +399,7 @@ class Server(components.Component):
 
 def serve(host="127.0.0.1", port=0):
     global listener
-    listener = sockets.serve("Server", Connection, host, port) # type: ignore
+    listener = sockets.serve("Server", Connection, host, port)
     sessions.report_sockets()
     return listener.getsockname()
 

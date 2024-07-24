@@ -91,7 +91,7 @@ def spawn(process_name, cmdline, env, redirect_output):
 
         try:
             global process
-            process = subprocess.Popen(cmdline, env=env, bufsize=0, **kwargs) # type: ignore
+            process = subprocess.Popen(cmdline, env=env, bufsize=0, **kwargs)
         except Exception as exc:
             raise messaging.MessageHandlingError(
                 "Couldn't spawn debuggee: {0}\n\nCommand line:{1!r}".format(
@@ -244,7 +244,7 @@ def _wait_for_user_input():
             log.debug("msvcrt available - waiting for user input via getch()")
             sys.stdout.write("Press any key to continue . . . ")
             sys.stdout.flush()
-            msvcrt.getch() # type: ignore
+            msvcrt.getch() # pyright: ignore[reportPossiblyUnboundVariable, reportAttributeAccessIssue]
         else:
             log.debug("msvcrt not available - waiting for user input via read()")
             sys.stdout.write("Press Enter to continue . . . ")

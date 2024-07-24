@@ -54,16 +54,16 @@ class _settrace():
 
 def ensure_logging():
     """Starts logging to log.log_dir, if it hasn't already been done."""
-    if ensure_logging.ensured: # type: ignore
+    if ensure_logging.ensured: # pyright: ignore[reportFunctionMemberAccess]
         return
-    ensure_logging.ensured = True # type: ignore
+    ensure_logging.ensured = True # pyright: ignore[reportFunctionMemberAccess]
     log.to_file(prefix="debugpy.server")
     log.describe_environment("Initial environment:")
     if log.log_dir is not None:
         pydevd.log_to(log.log_dir + "/debugpy.pydevd.log")
 
 
-ensure_logging.ensured = False # type: ignore
+ensure_logging.ensured = False # pyright: ignore[reportFunctionMemberAccess]
 
 
 def log_to(path):

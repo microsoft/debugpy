@@ -5,7 +5,7 @@
 import socket
 import sys
 import threading
-from typing import Callable, Union
+from typing import Any, Callable, Union
 
 from debugpy.common import log
 from debugpy.common.util import hide_thread_from_debugger
@@ -89,7 +89,7 @@ def close_socket(sock):
     sock.close()
 
 
-def serve(name: str, handler: Callable[[socket.socket], None], host: str, port: int=0, backlog=socket.SOMAXCONN, timeout: Union[int, None]=None):
+def serve(name: str, handler: Callable[[socket.socket], Any], host: str, port: int=0, backlog=socket.SOMAXCONN, timeout: Union[int, None]=None):
     """Accepts TCP connections on the specified host and port, and invokes the
     provided handler function for every new connection.
 

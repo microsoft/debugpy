@@ -408,7 +408,7 @@ class MessageDict(collections.OrderedDict):
             raise message.isnt_valid("{0}{1}", json.repr(key), err)
         return value
 
-    def _invalid_if_no_key(func: Callable[..., Any]): # type: ignore
+    def _invalid_if_no_key(func: Callable[..., Any]): # pyright: ignore[reportSelfClsParameterName]
         def wrap(self, key, *args, **kwargs):
             try:
                 return func(self, key, *args, **kwargs)
@@ -425,11 +425,11 @@ class MessageDict(collections.OrderedDict):
     del _invalid_if_no_key
 
 
-class AssociatableMessageDict(MessageDict):
+class AssociableMessageDict(MessageDict):
     def associate_with(self, message: Message):
         self.message = message
 
-def is_associatable(obj) -> TypeIs[AssociatableMessageDict]:
+def is_associable(obj) -> TypeIs[AssociableMessageDict]:
     return isinstance(obj, MessageDict) and hasattr(obj, "associate_with")
 
 def _payload(value):
@@ -446,7 +446,7 @@ def _payload(value):
     # Missing payload. Construct a dummy MessageDict, and make it look like it was
     # deserialized. See JsonMessageChannel._parse_incoming_message for why it needs
     # to have associate_with().
-    value = AssociatableMessageDict(None)
+    value = AssociableMessageDict(None)
     return value
 
 
@@ -471,7 +471,7 @@ class Message(object):
         """
 
     def __str__(self):
-        return json.repr(self.json).__str__() if self.json is not None else repr(self)
+        return str(json.repr(self.json)) if self.json is not None else repr(self)
 
     def describe(self):
         """A brief description of the message that is enough to identify it.
@@ -483,14 +483,17 @@ class Message(object):
         raise NotImplementedError
 
     @property
-    def payload(self) -> MessageDict:
+    def payload(self) -> MessageDict | Exception:
         """Payload of the message - self.body or self.arguments, depending on the
         message type.
         """
         raise NotImplementedError
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args, **kwargs) -> MessageDict | Any | int | float:
         """Same as self.payload(...)."""
+        assert not isinstance(self.payload, Exception)
+        if args.count == 0 and kwargs == {}:
+            return self.payload
         return self.payload(*args, **kwargs)
 
     def __contains__(self, key):
@@ -573,12 +576,12 @@ class Event(Message):
     the appropriate exception type that applies_to() the Event object.
     """
 
-    def __init__(self, channel, seq, event, body, json=None):
+    def __init__(self, channel, seq, event, body: MessageDict, json=None):
         super().__init__(channel, seq, json)
 
         self.event = event
 
-        if is_associatable(body):
+        if is_associable(body):
             body.associate_with(self)
         self.body = body
 
@@ -667,12 +670,12 @@ class Request(Message):
     the appropriate exception type that applies_to() the Request object.
     """
 
-    def __init__(self, channel, seq, command, arguments, json=None):
+    def __init__(self, channel, seq, command, arguments: MessageDict, json=None):
         super().__init__(channel, seq, json)
 
         self.command = command
 
-        if is_associatable(arguments):
+        if is_associable(arguments):
             arguments.associate_with(self)
         self.arguments = arguments
 
@@ -787,7 +790,7 @@ class OutgoingRequest(Request):
     def describe(self):
         return f"{self.seq} request {json.repr(self.command)} to {self.channel}"
 
-    def wait_for_response(self, raise_if_failed=True)-> AssociatableMessageDict | Exception:
+    def wait_for_response(self, raise_if_failed=True)-> MessageDict:
         """Waits until a response is received for this request, records the Response
         object for it in self.response, and returns response.body.
 
@@ -804,6 +807,8 @@ class OutgoingRequest(Request):
 
         if raise_if_failed and not self.response.success and isinstance( self.response.body, BaseException):
             raise self.response.body
+        
+        assert not isinstance(self.response.body, Exception)
         return self.response.body
 
     def on_response(self, response_handler):
@@ -889,13 +894,13 @@ class Response(Message):
     the appropriate exception type that applies_to() the Response object.
     """
 
-    def __init__(self, channel, seq, request, body, json=None):
+    def __init__(self, channel, seq, request, body: MessageDict | Exception, json=None):
         super().__init__(channel, seq, json)
 
         self.request = request
         """The request to which this is the response."""
 
-        if is_associatable(body):
+        if is_associable(body):
             body.associate_with(self)
         self.body = body
         """Body of the response if the request was successful, or an instance
@@ -1366,7 +1371,7 @@ class JsonMessageChannel(object):
         # for all JSON objects, and track them so that they can be later wired up to
         # the Message they belong to, once it is instantiated.
         def object_hook(d):
-            d = AssociatableMessageDict(None, d)
+            d = AssociableMessageDict(None, d)
             if "seq" in d:
                 self._prettify(d)
             setattr(d, "associate_with", associate_with)

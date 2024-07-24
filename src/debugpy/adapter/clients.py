@@ -219,9 +219,9 @@ class Client(components.Component):
             if self.session.no_debug:
                 servers.dont_wait_for_first_connection()
 
-            request("debugOptions", json.array(str))
+            request_options = request("debugOptions", json.array(str))
             self.session.debug_options = debug_options = set(
-                
+                request_options
             )
 
             f(self, request)
@@ -656,7 +656,7 @@ class Client(components.Component):
         result = {"debugpy": {"version": debugpy.__version__}}
         if self.server:
             try:
-                pydevd_info: messaging.AssociatableMessageDict = self.server.channel.request("pydevdSystemInfo")
+                pydevd_info: messaging.MessageDict = self.server.channel.request("pydevdSystemInfo")
             except Exception:
                 # If the server has already disconnected, or couldn't handle it,
                 # report what we've got.
@@ -777,7 +777,7 @@ class Client(components.Component):
 
 def serve(host, port):
     global listener
-    listener = sockets.serve("Client", Client, host, port) # type: ignore
+    listener = sockets.serve("Client", Client, host, port)
     sessions.report_sockets()
     return listener.getsockname()
 
