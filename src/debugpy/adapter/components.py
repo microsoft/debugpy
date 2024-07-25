@@ -36,7 +36,7 @@ class Component(util.Observable):
     to wait_for() a change caused by another component.
     """
 
-    def __init__(self, session: Session, stream: Union[messaging.JsonIOStream, None]=None, channel: Union[messaging.JsonMessageChannel, None]=None):
+    def __init__(self, session: "Session", stream: "Union[messaging.JsonIOStream, None]"=None, channel: "Union[messaging.JsonMessageChannel, None]"=None):
         assert (stream is None) ^ (channel is None)
 
         try:
