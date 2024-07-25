@@ -242,9 +242,6 @@ def parse_args_from_environment(seenFromCommandLine: set):
 
     argsList = args.split()
 
-    #print("args:", file=sys.stderr)
-    #print(*argsList, file=sys.stderr)
-
     seenFromEnvironment = set()
     parse_args_helper(argsList, seenFromCommandLine, seenFromEnvironment, True)
 
