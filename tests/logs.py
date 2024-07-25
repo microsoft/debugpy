@@ -5,7 +5,6 @@
 import io
 import os
 import shutil
-import pytest_timeout
 import sys
 
 from debugpy.common import json, log

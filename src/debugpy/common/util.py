@@ -5,8 +5,6 @@
 import inspect
 import os
 import sys
-import time
-from typing import Callable, Union
 
 
 def evaluate(code, path=__file__, mode="eval"):
