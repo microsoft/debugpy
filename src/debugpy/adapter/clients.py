@@ -7,7 +7,7 @@ from __future__ import annotations
 import atexit
 import os
 import sys
-from typing import TYPE_CHECKING, Any, Callable, Literal, Union, cast
+from typing import Any, Callable, Union, cast
 
 import debugpy
 from debugpy import adapter, common, launcher
