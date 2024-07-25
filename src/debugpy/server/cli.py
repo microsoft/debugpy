@@ -245,7 +245,7 @@ def parse_args_from_environment(seenFromCommandLine: set):
     seenFromEnvironment = set()
     parse_args_helper(argsList, seenFromCommandLine, seenFromEnvironment, True)
 
-def parse_args_helper(args: list, seenFromCommandLine: set, seenFromEnvironment: set = None, isFromEnvironment=False):
+def parse_args_helper(args: list, seenFromCommandLine: set, seenFromEnvironment: set = set(), isFromEnvironment=False):
     iterator = consume_args(args)
 
     while True:
