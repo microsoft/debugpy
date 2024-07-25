@@ -12,8 +12,12 @@ import platform
 import sys
 import threading
 import traceback
-from typing import Any, NoReturn, Protocol, Union
-from typing_extensions import TypeIs
+from typing import TYPE_CHECKING, Any, NoReturn, Protocol, Union
+
+if TYPE_CHECKING:
+    # Careful not force this import in production code, as it's not available in all
+    # code that we run.
+    from typing_extensions import TypeIs
 
 import debugpy
 from debugpy.common import json, timestamp, util
@@ -283,7 +287,7 @@ def prefixed(format_string, *args, **kwargs):
 class HasName(Protocol):
     name: str
 
-def has_name(obj: Any) -> TypeIs[HasName]:
+def has_name(obj: Any) -> "TypeIs[HasName]":
     try:
         return hasattr(obj, "name")
     except NameError:

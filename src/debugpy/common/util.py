@@ -165,14 +165,3 @@ def hide_thread_from_debugger(thread):
         thread.pydev_do_not_trace = True
         thread.is_pydev_daemon_thread = True
 
-class WaitForTimeout():
-    def __init__(self, timeout: Union[float, None], func: Callable[[], None]):
-        self._func = func
-        self._timeout = timeout
-        self.timed_out = False
-
-    def __call__(self):
-        if self._timeout is not None:
-            time.sleep(self._timeout)
-            self.timed_out = True
-        self._func()

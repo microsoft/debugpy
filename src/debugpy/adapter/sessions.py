@@ -6,6 +6,7 @@ import itertools
 import os
 import signal
 import threading
+import time
 from typing import Union
 
 from debugpy import common
@@ -112,8 +113,14 @@ class Session(util.Observable):
         seconds regardless of whether the predicate was satisfied. The method returns
         False if it timed out, and True otherwise.
         """
-        wait_for_timeout = util.WaitForTimeout(timeout, lambda: self.notify_changed())
+        def wait_for_timeout():
+            if timeout is not None:
+                time.sleep(timeout)
+            wait_for_timeout.timed_out = True # pyright: ignore[reportFunctionMemberAccess]
+            self.notify_changed()
 
+        wait_for_timeout.timed_out = False # pyright: ignore[reportFunctionMemberAccess]
+        
         if timeout is not None:
             thread = threading.Thread(
                 target=wait_for_timeout, name="Session.wait_for() timeout"
@@ -123,7 +130,7 @@ class Session(util.Observable):
 
         with self:
             while not predicate():
-                if wait_for_timeout.timed_out:
+                if wait_for_timeout.timed_out: # pyright: ignore[reportFunctionMemberAccess]
                     return False
                 self._changed_condition.wait()
             return True

@@ -19,3 +19,4 @@ flask
 gevent
 numpy
 requests
+typing_extensions

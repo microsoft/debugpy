@@ -20,8 +20,11 @@ import os
 import socket
 import sys
 import threading
-from typing import BinaryIO, Callable, Union, cast, Any
-from typing_extensions import TypeIs
+from typing import TYPE_CHECKING, BinaryIO, Callable, Union, cast, Any
+if TYPE_CHECKING:
+    # Careful not force this import in production code, as it's not available in all
+    # code that we run.
+    from typing_extensions import TypeIs
 
 from debugpy.common import json, log, util
 from debugpy.common.util import hide_thread_from_debugger
@@ -429,7 +432,7 @@ class AssociableMessageDict(MessageDict):
     def associate_with(self, message: Message):
         self.message = message
 
-def is_associable(obj) -> TypeIs[AssociableMessageDict]:
+def is_associable(obj) -> "TypeIs[AssociableMessageDict]":
     return isinstance(obj, MessageDict) and hasattr(obj, "associate_with")
 
 def _payload(value):
