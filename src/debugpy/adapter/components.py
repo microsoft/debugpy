@@ -3,9 +3,12 @@
 # for license information.
 
 import functools
-from typing import Type, TypeVar, Union, cast
+from typing import TYPE_CHECKING, Type, TypeVar, Union, cast
 
-from debugpy.adapter.sessions import Session
+if TYPE_CHECKING:
+    # Dont import this during runtime. There's an order
+    # of imports issue that causes the debugger to hang.
+    from debugpy.adapter.sessions import Session
 from debugpy.common import json, log, messaging, util
 
 
