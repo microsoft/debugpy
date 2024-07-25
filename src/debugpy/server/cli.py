@@ -7,10 +7,7 @@ import os
 import re
 import sys
 from importlib.util import find_spec
-from typing import Any
-from typing import Union
-from typing import Tuple
-from typing import Dict
+from typing import Any, Tuple, Union, Dict
 
 # debugpy.__main__ should have preloaded pydevd properly before importing this module.
 # Otherwise, some stdlib modules above might have had imported threading before pydevd

@@ -21,6 +21,8 @@ ignore = ["src/debugpy/_vendored/pydevd", "src/debugpy/_version.py"]
 executionEnvironments = [
   { root = "src" }, { root = "." }
 ]
+typeCheckingMode = "standard"
+enableTypeIgnoreComments = false
 
 [tool.ruff]
 # Enable the pycodestyle (`E`) and Pyflakes (`F`) rules by default.

@@ -10,6 +10,7 @@ pytest-retry
 
 importlib_metadata
 psutil
+untangle
 
 ## Used in Python code that is run/debugged by the tests:
 
@@ -18,3 +19,4 @@ flask
 gevent
 numpy
 requests
+typing_extensions

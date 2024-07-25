@@ -65,7 +65,7 @@ On Linux or macOS:
 ```
 .../debugpy$ python3 -m tox
 ```
-This will perform a full run with the default settings. A full run will run tests on Python 2.7 and 3.5-3.8, and requires all of those to be installed. If some versions are missing, or it is desired to skip them for a particular run, tox can be directed to only run tests on specific versions with `-e`. In addition, the `--developer` option can be used to skip the packaging step, running tests directly against the source code in `src/debugpy`. This should only be used when iterating on the code, and a proper run should be performed before submitting a PR. On Windows:
+This will perform a full run with the default settings. A full run will run tests on Python 2.7 and 3.5-3.8, and requires all of those to be installed. If some versions are missing, or it is desired to skip them for a particular run, tox can be directed to only run tests on specific versions with `-e`. In addition, the `--develop` option can be used to skip the packaging step, running tests directly against the source code in `src/debugpy`. This should only be used when iterating on the code, and a proper run should be performed before submitting a PR. On Windows:
 ```
 ...\debugpy> py -m tox -e py27,py37 --develop
 ```
@@ -76,7 +76,7 @@ On Linux or macOS:
 
 ### Running tests without tox
 
-While tox is the recommended way to run the test suite, pytest can also be invoked directly from the root of the repository. This requires packages in tests/test_requirements.txt to be installed first.
+While tox is the recommended way to run the test suite, pytest can also be invoked directly from the root (src/debugpy) of the repository. This requires packages in tests/requirements.txt to be installed first.
 
 ## Using modified debugpy in Visual Studio Code
 To test integration between debugpy and Visual Studio Code, the latter can be directed to use a custom version of debugpy in lieu of the one bundled with the Python extension. This is done by specifying `"debugAdapterPath"` in `launch.json` - it must point at the root directory of the *package*, which is `src/debugpy` inside the repository:

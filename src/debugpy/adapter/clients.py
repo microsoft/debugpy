@@ -7,12 +7,12 @@ from __future__ import annotations
 import atexit
 import os
 import sys
+from typing import Any, Callable, Union, cast
 
 import debugpy
 from debugpy import adapter, common, launcher
 from debugpy.common import json, log, messaging, sockets
 from debugpy.adapter import clients, components, launchers, servers, sessions
-
 
 class Client(components.Component):
     """Handles the client side of a debug session."""
@@ -67,7 +67,7 @@ class Client(components.Component):
             fully handled.
             """
 
-            self.start_request = None
+            self.start_request: Union[messaging.Request, None] = None
             """The "launch" or "attach" request as received from the client.
             """
 
@@ -124,11 +124,12 @@ class Client(components.Component):
             self.client.channel.propagate(event)
 
     def _propagate_deferred_events(self):
-        log.debug("Propagating deferred events to {0}...", self.client)
-        for event in self._deferred_events:
-            log.debug("Propagating deferred {0}", event.describe())
-            self.client.channel.propagate(event)
-        log.info("All deferred events propagated to {0}.", self.client)
+        if self._deferred_events is not None:
+            log.debug("Propagating deferred events to {0}...", self.client)
+            for event in self._deferred_events:
+                log.debug("Propagating deferred {0}", event.describe())
+                self.client.channel.propagate(event)
+            log.info("All deferred events propagated to {0}.", self.client)
         self._deferred_events = None
 
     # Generic event handler. There are no specific handlers for client events, because
@@ -202,9 +203,9 @@ class Client(components.Component):
     #
     # See https://github.com/microsoft/vscode/issues/4902#issuecomment-368583522
     # for the sequence of request and events necessary to orchestrate the start.
-    def _start_message_handler(f):
+    def _start_message_handler(f: Callable[..., Any])-> Callable[..., object | None]:   # pyright: ignore[reportGeneralTypeIssues, reportSelfClsParameterName]
         @components.Component.message_handler
-        def handle(self, request):
+        def handle(self, request: messaging.Message):
             assert request.is_request("launch", "attach")
             if self._initialize_request is None:
                 raise request.isnt_valid("Session is not initialized yet")
@@ -215,15 +216,16 @@ class Client(components.Component):
             if self.session.no_debug:
                 servers.dont_wait_for_first_connection()
 
+            request_options: list[Any] = cast("list[Any]", request("debugOptions", json.array(str)))
             self.session.debug_options = debug_options = set(
-                request("debugOptions", json.array(str))
+                request_options
             )
 
             f(self, request)
-            if request.response is not None:
+            if isinstance(request, messaging.Request) and request.response is not None:
                 return
 
-            if self.server:
+            if self.server and isinstance(request, messaging.Request):
                 self.server.initialize(self._initialize_request)
                 self._initialize_request = None
 
@@ -267,7 +269,7 @@ class Client(components.Component):
                 except messaging.MessageHandlingError as exc:
                     exc.propagate(request)
 
-            if self.session.no_debug:
+            if self.session.no_debug and isinstance(request, messaging.Request):
                 self.start_request = request
                 self.has_started = True
                 request.respond({})
@@ -335,6 +337,7 @@ class Client(components.Component):
             launcher_python = python[0]
 
         program = module = code = ()
+        args = []
         if "program" in request:
             program = request("program", str)
             args = [program]
@@ -391,7 +394,7 @@ class Client(components.Component):
         if cwd == ():
             # If it's not specified, but we're launching a file rather than a module,
             # and the specified path has a directory in it, use that.
-            cwd = None if program == () else (os.path.dirname(program) or None)
+            cwd = None if program == () else (os.path.dirname(str(program)) or None)
 
         sudo = bool(property_or_debug_option("sudo", "Sudo"))
         if sudo and sys.platform == "win32":
@@ -484,7 +487,7 @@ class Client(components.Component):
         else:
             if not servers.is_serving():
                 servers.serve()
-            host, port = servers.listener.getsockname()
+            host, port = servers.listener.getsockname() if servers.listener is not None else ("", 0)
 
         # There are four distinct possibilities here.
         #
@@ -576,9 +579,9 @@ class Client(components.Component):
             request.cant_handle("{0} is already being debugged.", conn)
 
     @message_handler
-    def configurationDone_request(self, request):
+    def configurationDone_request(self, request: messaging.Request):
         if self.start_request is None or self.has_started:
-            request.cant_handle(
+            raise request.cant_handle(
                 '"configurationDone" is only allowed during handling of a "launch" '
                 'or an "attach" request'
             )
@@ -623,7 +626,8 @@ class Client(components.Component):
         def handle_response(response):
             request.respond(response.body)
 
-        propagated_request.on_response(handle_response)
+        if propagated_request is not None:
+            propagated_request.on_response(handle_response)
 
         return messaging.NO_RESPONSE
 
@@ -649,7 +653,7 @@ class Client(components.Component):
         result = {"debugpy": {"version": debugpy.__version__}}
         if self.server:
             try:
-                pydevd_info = self.server.channel.request("pydevdSystemInfo")
+                pydevd_info: messaging.MessageDict = self.server.channel.request("pydevdSystemInfo")
             except Exception:
                 # If the server has already disconnected, or couldn't handle it,
                 # report what we've got.
@@ -754,7 +758,7 @@ class Client(components.Component):
         if "host" not in body["connect"]:
             body["connect"]["host"] = host if host is not None else "127.0.0.1"
         if "port" not in body["connect"]:
-            if port is None:
+            if port is None and listener is not None:
                 _, port = listener.getsockname()
             body["connect"]["port"] = port
 

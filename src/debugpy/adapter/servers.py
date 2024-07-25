@@ -5,10 +5,12 @@
 from __future__ import annotations
 
 import os
+import socket
 import subprocess
 import sys
 import threading
 import time
+from typing import Callable, Union, cast
 
 import debugpy
 from debugpy import adapter
@@ -20,7 +22,7 @@ import io
 access_token = None
 """Access token used to authenticate with the servers."""
 
-listener = None
+listener: Union[socket.socket, None] = None
 """Listener socket that accepts server connections."""
 
 _lock = threading.RLock()
@@ -60,7 +62,7 @@ class Connection(object):
 
     channel: messaging.JsonMessageChannel
 
-    def __init__(self, sock):
+    def __init__(self, sock: socket.socket):
         from debugpy.adapter import sessions
 
         self.disconnected = False
@@ -78,9 +80,10 @@ class Connection(object):
         try:
             self.authenticate()
             info = self.channel.request("pydevdSystemInfo")
-            process_info = info("process", json.object())
-            self.pid = process_info("pid", int)
-            self.ppid = process_info("ppid", int, optional=True)
+            if not isinstance(info, Exception):
+                process_info: Callable[..., int] = cast(Callable[..., int], info("process", json.object()))
+                self.pid = process_info("pid", int)
+                self.ppid = process_info("ppid", int, optional=True)
             if self.ppid == ():
                 self.ppid = None
             self.channel.name = stream.name = str(self)
@@ -171,7 +174,7 @@ class Connection(object):
         auth = self.channel.request(
             "pydevdAuthorize", {"debugServerAccessToken": access_token}
         )
-        if auth["clientAccessToken"] != adapter.access_token:
+        if not isinstance(auth, Exception) and auth["clientAccessToken"] != adapter.access_token:
             self.channel.close()
             raise RuntimeError('Mismatched "clientAccessToken"; server not authorized.')
 
@@ -250,7 +253,7 @@ class Server(components.Component):
             "supportedChecksumAlgorithms": [],
         }
 
-    def __init__(self, session, connection):
+    def __init__(self, session: sessions.Session, connection):
         assert connection.server is None
         with session:
             assert not session.server
@@ -283,12 +286,13 @@ class Server(components.Component):
         assert request.is_request("initialize")
         self.connection.authenticate()
         request = self.channel.propagate(request)
-        request.wait_for_response()
-        self.capabilities = self.Capabilities(self, request.response)
+        if request is not None:
+            request.wait_for_response()
+            self.capabilities = self.Capabilities(self, request.response)
 
     # Generic request handler, used if there's no specific handler below.
     @message_handler
-    def request(self, request):
+    def request(self, request: messaging.Message):
         # Do not delegate requests from the server by default. There is a security
         # boundary between the server and the adapter, and we cannot trust arbitrary
         # requests sent over that boundary, since they may contain arbitrary code
@@ -418,21 +422,21 @@ def connections():
         return list(_connections)
 
 
-def wait_for_connection(session, predicate, timeout=None):
+def wait_for_connection(session, predicate, timeout: Union[float, None]=None):
     """Waits until there is a server matching the specified predicate connected to
     this adapter, and returns the corresponding Connection.
 
     If there is more than one server connection already available, returns the oldest
     one.
     """
-
     def wait_for_timeout():
-        time.sleep(timeout)
-        wait_for_timeout.timed_out = True
+        if timeout is not None:
+            time.sleep(timeout)
+        wait_for_timeout.timed_out = True # pyright: ignore[reportFunctionMemberAccess]
         with _lock:
             _connections_changed.set()
 
-    wait_for_timeout.timed_out = timeout == 0
+    wait_for_timeout.timed_out = timeout == 0 # pyright: ignore[reportFunctionMemberAccess]
     if timeout:
         thread = threading.Thread(
             target=wait_for_timeout, name="servers.wait_for_connection() timeout"
@@ -447,7 +451,7 @@ def wait_for_connection(session, predicate, timeout=None):
             _connections_changed.clear()
             conns = (conn for conn in _connections if predicate(conn))
             conn = next(conns, None)
-            if conn is not None or wait_for_timeout.timed_out:
+            if conn is not None or wait_for_timeout.timed_out: # pyright: ignore[reportFunctionMemberAccess]
                 return conn
         _connections_changed.wait()
 
@@ -475,7 +479,7 @@ def dont_wait_for_first_connection():
 
 
 def inject(pid, debugpy_args, on_output):
-    host, port = listener.getsockname()
+    host, port = listener.getsockname() if listener is not None else ("", 0)
 
     cmdline = [
         sys.executable,

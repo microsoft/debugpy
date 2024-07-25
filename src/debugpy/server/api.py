@@ -4,6 +4,7 @@
 
 import codecs
 import os
+from typing import Any
 import pydevd
 import socket
 import sys
@@ -37,37 +38,36 @@ _config_valid_values = {
 _adapter_process = None
 
 
-def _settrace(*args, **kwargs):
-    log.debug("pydevd.settrace(*{0!r}, **{1!r})", args, kwargs)
-    # The stdin in notification is not acted upon in debugpy, so, disable it.
-    kwargs.setdefault("notify_stdin", False)
-    try:
-        return pydevd.settrace(*args, **kwargs)
-    except Exception:
-        raise
-    else:
-        _settrace.called = True
-
-
-_settrace.called = False
+class _settrace():
+    called = False
+    def __new__(cls, *args, **kwargs):
+        log.debug("pydevd.settrace(*{0!r}, **{1!r})", args, kwargs)
+        # The stdin in notification is not acted upon in debugpy, so, disable it.
+        kwargs.setdefault("notify_stdin", False)
+        try:
+            return pydevd.settrace(*args, **kwargs)
+        except Exception:
+            raise
+        finally:
+            cls.called = True
 
 
 def ensure_logging():
     """Starts logging to log.log_dir, if it hasn't already been done."""
-    if ensure_logging.ensured:
+    if ensure_logging.ensured: # pyright: ignore[reportFunctionMemberAccess]
         return
-    ensure_logging.ensured = True
+    ensure_logging.ensured = True # pyright: ignore[reportFunctionMemberAccess]
     log.to_file(prefix="debugpy.server")
     log.describe_environment("Initial environment:")
     if log.log_dir is not None:
         pydevd.log_to(log.log_dir + "/debugpy.pydevd.log")
 
 
-ensure_logging.ensured = False
+ensure_logging.ensured = False # pyright: ignore[reportFunctionMemberAccess]
 
 
 def log_to(path):
-    if ensure_logging.ensured:
+    if getattr(ensure_logging, "ensured"):
         raise RuntimeError("logging has already begun")
 
     log.debug("log_to{0!r}", (path,))
@@ -78,7 +78,7 @@ def log_to(path):
 
 
 def configure(properties=None, **kwargs):
-    if _settrace.called:
+    if getattr(_settrace, "called"):
         raise RuntimeError("debug adapter is already running")
 
     ensure_logging()
@@ -239,7 +239,10 @@ def listen(address, settrace_kwargs, in_process_debug_adapter=False):
                 sock.settimeout(None)
                 sock_io = sock.makefile("rb", 0)
                 try:
-                    endpoints = json.loads(sock_io.read().decode("utf-8"))
+                    bytes = sock_io.read()
+                    if bytes is None:
+                        raise EOFError("EOF while reading adapter endpoints")
+                    endpoints = json.loads(bytes.decode("utf-8"))
                 finally:
                     sock_io.close()
             finally:
@@ -297,7 +300,7 @@ def connect(address, settrace_kwargs, access_token=None):
     _settrace(host=host, port=port, client_access_token=access_token, **settrace_kwargs)
 
 
-class wait_for_client:
+class wait_for_client_cls:
     def __call__(self):
         ensure_logging()
         log.debug("wait_for_client()")
@@ -311,12 +314,10 @@ class wait_for_client:
         pydevd._wait_for_attach(cancel=cancel_event)
 
     @staticmethod
-    def cancel():
+    def cancel() -> None:
         raise RuntimeError("wait_for_client() must be called first")
 
-
-wait_for_client = wait_for_client()
-
+wait_for_client = wait_for_client_cls()
 
 def is_client_connected():
     return pydevd._is_attached()
@@ -334,6 +335,7 @@ def breakpoint():
     stop_at_frame = sys._getframe().f_back
     while (
         stop_at_frame is not None
+        and pydb is not None
         and pydb.get_file_type(stop_at_frame) == pydb.PYDEV_FILE
     ):
         stop_at_frame = stop_at_frame.f_back
@@ -358,7 +360,7 @@ def trace_this_thread(should_trace):
     ensure_logging()
     log.debug("trace_this_thread({0!r})", should_trace)
 
-    pydb = get_global_debugger()
+    pydb: Any = get_global_debugger()
     if should_trace:
         pydb.enable_tracing()
     else:

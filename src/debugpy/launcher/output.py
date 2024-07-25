@@ -18,7 +18,7 @@ class CaptureOutput(object):
     instances = {}
     """Keys are output categories, values are CaptureOutput instances."""
 
-    def __init__(self, whose, category, fd, stream):
+    def __init__(self, whose, category, fd: int, stream):
         assert category not in self.instances
         self.instances[category] = self
         log.info("Capturing {0} of {1}.", category, whose)
@@ -95,7 +95,7 @@ class CaptureOutput(object):
             while i < size:
                 written = self._stream.write(s[i:])
                 self._stream.flush()
-                if written == 0:
+                if written == 0 and self._fd is not None:
                     # This means that the output stream was closed from the other end.
                     # Do the same to the debuggee, so that it knows as well.
                     os.close(self._fd)

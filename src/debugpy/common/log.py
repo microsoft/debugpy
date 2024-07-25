@@ -12,6 +12,12 @@ import platform
 import sys
 import threading
 import traceback
+from typing import TYPE_CHECKING, Any, NoReturn, Protocol, Union
+
+if TYPE_CHECKING:
+    # Careful not force this import in production code, as it's not available in all
+    # code that we run.
+    from typing_extensions import TypeIs
 
 import debugpy
 from debugpy.common import json, timestamp, util
@@ -122,7 +128,7 @@ def newline(level="info"):
         stderr.write(level, "\n")
 
 
-def write(level, text, _to_files=all):
+def write(level, text: str, _to_files=all):
     assert level in LEVELS
 
     t = timestamp.current()
@@ -143,7 +149,7 @@ def write(level, text, _to_files=all):
     return text
 
 
-def write_format(level, format_string, *args, **kwargs):
+def write_format(level, format_string: str, *args, **kwargs) -> Union[str, None]:
     # Don't spend cycles doing expensive formatting if we don't have to. Errors are
     # always formatted, so that error() can return the text even if it's not logged.
     if level != "error" and level not in _levels:
@@ -215,7 +221,7 @@ def swallow_exception(format_string="", *args, **kwargs):
     _exception(format_string, *args, **kwargs)
 
 
-def reraise_exception(format_string="", *args, **kwargs):
+def reraise_exception(format_string="", *args, **kwargs) -> NoReturn:
     """Like swallow_exception(), but re-raises the current exception after logging it."""
 
     assert "exc_info" not in kwargs
@@ -278,6 +284,14 @@ def prefixed(format_string, *args, **kwargs):
     finally:
         _tls.prefix = old_prefix
 
+class HasName(Protocol):
+    name: str
+
+def has_name(obj: Any) -> "TypeIs[HasName]":
+    try:
+        return hasattr(obj, "name")
+    except NameError:
+        return False
 
 def get_environment_description(header):
     import sysconfig
@@ -359,7 +373,11 @@ def get_environment_description(header):
         report("Installed packages:\n")
         try:
             for pkg in importlib_metadata.distributions():
-                report("    {0}=={1}\n", pkg.name, pkg.version)
+                if has_name(pkg):
+                    name = pkg.name
+                    report("    {0}=={1}\n", name, pkg.version)
+                else:
+                    report("    {0}\n", pkg)
         except Exception:  # pragma: no cover
             swallow_exception(
                 "Error while enumerating installed packages.", level="info"
@@ -395,7 +413,8 @@ def _repr(value):  # pragma: no cover
 
 
 def _vars(*names):  # pragma: no cover
-    locals = inspect.currentframe().f_back.f_locals
+    frame = inspect.currentframe()
+    locals = frame.f_back.f_locals if frame is not None and frame.f_back is not None else {}
     if names:
         locals = {name: locals[name] for name in names if name in locals}
     warning("$VARS {0!r}", locals)
