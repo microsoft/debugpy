@@ -7,7 +7,7 @@ from __future__ import annotations
 import atexit
 import os
 import sys
-from typing import TYPE_CHECKING, Any, Literal, Union, cast
+from typing import TYPE_CHECKING, Any, Callable, Literal, Union, cast
 
 import debugpy
 from debugpy import adapter, common, launcher
@@ -207,7 +207,7 @@ class Client(components.Component):
     #
     # See https://github.com/microsoft/vscode/issues/4902#issuecomment-368583522
     # for the sequence of request and events necessary to orchestrate the start.
-    def _start_message_handler(f):
+    def _start_message_handler(f: Callable[..., Any])-> Callable[..., object | None]:   # pyright: ignore[reportGeneralTypeIssues, reportSelfClsParameterName]
         @components.Component.message_handler
         def handle(self, request: messaging.Message):
             assert request.is_request("launch", "attach")
