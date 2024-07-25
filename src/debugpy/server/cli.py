@@ -203,7 +203,7 @@ def consume_args(args: list):
     if (args is sys.argv):
         yield from consume_argv()
     else:
-        while len(args) >= 1:
+        while args:
             value = args[0]
             del args[0]
             yield value
