@@ -14,10 +14,6 @@ from debugpy import adapter, common, launcher
 from debugpy.common import json, log, messaging, sockets
 from debugpy.adapter import clients, components, launchers, servers, sessions
 
-if TYPE_CHECKING:
-    # socket can't be imported at runtime on linux, causes runtime issues.
-    import socket
-
 class Client(components.Component):
     """Handles the client side of a debug session."""
 
@@ -45,7 +41,7 @@ class Client(components.Component):
             "pathFormat": json.enum("path", optional=True),  # we don't support "uri"
         }
 
-    def __init__(self, sock: "Union[Literal[\"stdio\"], socket.socket]"):
+    def __init__(self, sock):
         if sock == "stdio":
             log.info("Connecting to client over stdio...", self)
             self.using_stdio = True
