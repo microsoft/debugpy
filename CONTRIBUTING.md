@@ -74,9 +74,24 @@ On Linux or macOS:
 .../debugpy$ python3 -m tox -e py27,py37 --develop
 ```
 
+You can run all tests in a single file using a specified python version, like this:
+```
+...\debugpy> py -m tox --develop -e py312 -- ".\tests\debugpy\server\test_cli.py"
+```
+
+You can also specify a single test, like this:
+```
+...\debugpy> py -m tox --develop -e py312 -- ".\tests\debugpy\server\test_cli.py::test_duplicate_switch"
+```
+
+The tests are run concurrently, and the default number of workers is 8. You can force a single worker by using the `-n0` flag, like this:
+```
+...\debugpy> py -m tox --develop -e py312 -- -n0 ".\tests\debugpy\server\test_cli.py"
+```
+
 ### Running tests without tox
 
-While tox is the recommended way to run the test suite, pytest can also be invoked directly from the root of the repository. This requires packages in tests/test_requirements.txt to be installed first.
+While tox is the recommended way to run the test suite, pytest can also be invoked directly from the root of the repository. This requires packages in tests/requirements.txt to be installed first.
 
 ## Using modified debugpy in Visual Studio Code
 To test integration between debugpy and Visual Studio Code, the latter can be directed to use a custom version of debugpy in lieu of the one bundled with the Python extension. This is done by specifying `"debugAdapterPath"` in `launch.json` - it must point at the root directory of the *package*, which is `src/debugpy` inside the repository:

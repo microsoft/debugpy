@@ -7,10 +7,7 @@ import os
 import re
 import sys
 from importlib.util import find_spec
-from typing import Any
-from typing import Union
-from typing import Tuple
-from typing import Dict
+from typing import Any, Union, Tuple, Dict
 
 # debugpy.__main__ should have preloaded pydevd properly before importing this module.
 # Otherwise, some stdlib modules above might have had imported threading before pydevd
@@ -161,6 +158,7 @@ def set_target(kind: str, parser=(lambda x: x), positional=False):
                     import locale
 
                     target = target.decode(locale.getpreferredencoding(False))
+
         options.target = target
 
     return do
@@ -193,23 +191,68 @@ switches = [
 ]
 # fmt: on
 
-
+# Consume all the args from argv
 def consume_argv():
     while len(sys.argv) >= 2:
         value = sys.argv[1]
         del sys.argv[1]
         yield value
 
+# Consume all the args from a given list
+def consume_args(args: list):
+    if (args is sys.argv):
+        yield from consume_argv()
+    else:
+        while args:
+            value = args[0]
+            del args[0]
+            yield value
 
-def parse_argv():
+# Parse the args from the command line, then from the environment.
+# Args from the environment are only used if they are not already set from the command line.
+def parse_args():
+
+    # keep track of the switches we've seen so far
     seen = set()
-    it = consume_argv()
+
+    parse_args_from_command_line(seen)
+    parse_args_from_environment(seen)
+
+    # if the target is not set, or is empty, this is an error
+    if options.target is None or options.target == "":
+        raise ValueError("missing target: " + TARGET)
+
+    if options.mode is None:
+        raise ValueError("either --listen or --connect is required")
+    if options.adapter_access_token is not None and options.mode != "connect":
+        raise ValueError("--adapter-access-token requires --connect")
+    if options.target_kind == "pid" and options.wait_for_client:
+        raise ValueError("--pid does not support --wait-for-client")
+
+    assert options.target_kind is not None
+    assert options.address is not None
+
+def parse_args_from_command_line(seen: set):
+    parse_args_helper(sys.argv, seen)
+
+def parse_args_from_environment(seenFromCommandLine: set):
+    args = os.environ.get("DEBUGPY_EXTRA_ARGV")
+    if (not args):
+        return
+
+    argsList = args.split()
+
+    seenFromEnvironment = set()
+    parse_args_helper(argsList, seenFromCommandLine, seenFromEnvironment, True)
+
+def parse_args_helper(args: list, seenFromCommandLine: set, seenFromEnvironment: set = set(), isFromEnvironment=False):
+    iterator = consume_args(args)
 
     while True:
         try:
-            arg = next(it)
+            arg = next(iterator)
         except StopIteration:
-            raise ValueError("missing target: " + TARGET)
+            break
 
         switch = arg
         if not switch.startswith("-"):
@@ -220,33 +263,36 @@ def parse_argv():
         else:
             raise ValueError("unrecognized switch " + switch)
 
-        if switch in seen:
-            raise ValueError("duplicate switch " + switch)
+        # if we're parsing from the command line, and we've already seen the switch on the command line, this is an error
+        if (not isFromEnvironment and switch in seenFromCommandLine):
+            raise ValueError("duplicate switch on command line: " + switch)
+        # if we're parsing from the environment, and we've already seen the switch in the environment, this is an error
+        elif (isFromEnvironment and switch in seenFromEnvironment):
+            raise ValueError("duplicate switch from environment: " + switch)
+        # if we're parsing from the environment, and we've already seen the switch on the command line, skip it, since command line takes precedence
+        elif (isFromEnvironment and switch in seenFromCommandLine):
+            continue
+        # otherwise, the switch is new, so add it to the appropriate set
         else:
-            seen.add(switch)
+            if (isFromEnvironment):
+                seenFromEnvironment.add(switch)
+            else:
+                seenFromCommandLine.add(switch)
 
+        # process the switch, running the corresponding action
         try:
-            action(arg, it)
+            action(arg, iterator)
         except StopIteration:
             assert placeholder is not None
             raise ValueError("{0}: missing {1}".format(switch, placeholder))
         except Exception as exc:
             raise ValueError("invalid {0} {1}: {2}".format(switch, placeholder, exc))
 
-        if options.target is not None:
+        # If we're parsing the command line, we're done after we've processed the target
+        # Otherwise, we need to keep parsing until all args are consumed, since the target may be set from the command line
+        # already, but there might be additional args in the environment that we want to process.
+        if (not isFromEnvironment and options.target is not None):
             break
-
-    if options.mode is None:
-        raise ValueError("either --listen or --connect is required")
-    if options.adapter_access_token is not None and options.mode != "connect":
-        raise ValueError("--adapter-access-token requires --connect")
-    if options.target_kind == "pid" and options.wait_for_client:
-        raise ValueError("--pid does not support --wait-for-client")
-
-    assert options.target is not None
-    assert options.target_kind is not None
-    assert options.address is not None
-
 
 def start_debugging(argv_0):
     # We need to set up sys.argv[0] before invoking either listen() or connect(),
@@ -411,7 +457,7 @@ attach_pid_injected.attach(setup);
 def main():
     original_argv = list(sys.argv)
     try:
-        parse_argv()
+        parse_args()
     except Exception as exc:
         print(str(HELP) + str("\nError: ") + str(exc), file=sys.stderr)
         sys.exit(2)
