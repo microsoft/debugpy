@@ -63,8 +63,8 @@ if __name__ == "__main__":
         else:
             # Do not use dirname() to walk up - this can be a relative path, e.g. ".".
             sys.path[0] = sys.path[0] + "/../"
-            import debugpy  # noqa
-
+        
+        import debugpy  # noqa
         del sys.path[0]
 
     from debugpy.server import cli
