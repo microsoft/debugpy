@@ -63,7 +63,7 @@ if __name__ == "__main__":
     #
     # To fix both, we need to replace the automatically added entry such that it points
     # at parent directory of debugpy/ instead of debugpy/launcher, import debugpy with that
-    # in sys.path, and then remove the first entry entry altogether, so that it doesn't
+    # in sys.path, and then remove the first entry altogether, so that it doesn't
     # affect any further imports we might do. For example, suppose the user did:
     #
     #   python /foo/bar/debugpy/launcher ...

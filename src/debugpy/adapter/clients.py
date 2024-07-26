@@ -665,7 +665,7 @@ class Client(components.Component):
         self.restart_requested = False
 
         if self._forward_terminate_request:
-            # According to the spec, terminate should try to do a gracefull shutdown.
+            # According to the spec, terminate should try to do a graceful shutdown.
             # We do this in the server by interrupting the main thread with a Ctrl+C.
             # To force the kill a subsequent request would do a disconnect.
             #
