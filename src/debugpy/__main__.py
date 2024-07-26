@@ -3,7 +3,6 @@
 # for license information.
 
 import sys
-import os
 
 if __name__ == "__main__":
 
@@ -29,10 +28,17 @@ if __name__ == "__main__":
     # -----
     #
     # In the third case, running 'python -m debugpy' will not work because the module is not installed
-    # in any environment. Running 'python <path_to_debugpy>' will work, just like the second case. 
-    # But running 'debugpy' will not work because even though the entry point is defined, 
-    # that path is not in sys.path, so 'import debugpy' will fail. So just like in the second case, 
-    # we need to modify sys.path[0].
+    # in any environment. Running 'python <install_dir>/debugpy' will work, just like the second case. 
+    # But running the entry point will not work because python doesn't know where to find the debugpy module.
+    #
+    # In this case, no changes to sys.path are required. You just have to do the following before calling
+    # the entry point:
+    #   1. Add <install_dir> to PYTHONPATH.
+    #       On Windows, this is set PYTHONPATH=%PYTHONPATH%;<install_dir>
+    #   2. Add <install_dir>/bin to PATH. (OPTIONAL)
+    #       On Windows, this is set PATH=%PATH%;<install_dir>\bin
+    #   3. Run the entry point from a command prompt
+    #       On Windows, this is <install_dir>\bin\debugpy.exe, or just 'debugpy' if you did the previous step.
     #
     # -----
     #
@@ -55,15 +61,8 @@ if __name__ == "__main__":
     # or its submodules will resolve accordingly.
     if "debugpy" not in sys.modules:
 
-        # if the user has specified a path to the debugpy module, replace sys.path[0] with
-        # the specified path. Otherwise, replace sys.path[0] with the parent directory of debugpy/
-        debugpy_path = os.environ.get("DEBUGPY_PATH")
-        if (debugpy_path is not None):    
-            sys.path[0] = debugpy_path
-        else:
-            # Do not use dirname() to walk up - this can be a relative path, e.g. ".".
-            sys.path[0] = sys.path[0] + "/../"
-        
+        # Do not use dirname() to walk up - this can be a relative path, e.g. ".".
+        sys.path[0] = sys.path[0] + "/../"
         import debugpy  # noqa
         del sys.path[0]
 
