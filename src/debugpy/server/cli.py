@@ -112,7 +112,7 @@ def set_address(mode):
             port = int(port)
         except Exception:
             port = -1
-        if not (0 <= port < 2 ** 16):
+        if not (0 <= port < 2**16):
             raise ValueError("invalid port number")
 
         options.mode = mode
@@ -191,6 +191,7 @@ switches = [
 ]
 # fmt: on
 
+
 # Consume all the args from argv
 def consume_argv():
     while len(sys.argv) >= 2:
@@ -198,15 +199,17 @@ def consume_argv():
         del sys.argv[1]
         yield value
 
+
 # Consume all the args from a given list
 def consume_args(args: list):
-    if (args is sys.argv):
+    if args is sys.argv:
         yield from consume_argv()
     else:
         while args:
             value = args[0]
             del args[0]
             yield value
+
 
 # Parse the args from the command line, then from the environment.
 # Args from the environment are only used if they are not already set from the command line.
@@ -232,12 +235,14 @@ def parse_args():
     assert options.target_kind is not None
     assert options.address is not None
 
+
 def parse_args_from_command_line(seen: set):
     parse_args_helper(sys.argv, seen)
 
+
 def parse_args_from_environment(seenFromCommandLine: set):
     args = os.environ.get("DEBUGPY_EXTRA_ARGV")
-    if (not args):
+    if not args:
         return
 
     argsList = args.split()
@@ -245,7 +250,13 @@ def parse_args_from_environment(seenFromCommandLine: set):
     seenFromEnvironment = set()
     parse_args_helper(argsList, seenFromCommandLine, seenFromEnvironment, True)
 
-def parse_args_helper(args: list, seenFromCommandLine: set, seenFromEnvironment: set = set(), isFromEnvironment=False):
+
+def parse_args_helper(
+    args: list,
+    seenFromCommandLine: set,
+    seenFromEnvironment: set = set(),
+    isFromEnvironment=False,
+):
     iterator = consume_args(args)
 
     while True:
@@ -264,17 +275,17 @@ def parse_args_helper(args: list, seenFromCommandLine: set, seenFromEnvironment:
             raise ValueError("unrecognized switch " + switch)
 
         # if we're parsing from the command line, and we've already seen the switch on the command line, this is an error
-        if (not isFromEnvironment and switch in seenFromCommandLine):
+        if not isFromEnvironment and switch in seenFromCommandLine:
             raise ValueError("duplicate switch on command line: " + switch)
         # if we're parsing from the environment, and we've already seen the switch in the environment, this is an error
-        elif (isFromEnvironment and switch in seenFromEnvironment):
+        elif isFromEnvironment and switch in seenFromEnvironment:
             raise ValueError("duplicate switch from environment: " + switch)
         # if we're parsing from the environment, and we've already seen the switch on the command line, skip it, since command line takes precedence
-        elif (isFromEnvironment and switch in seenFromCommandLine):
+        elif isFromEnvironment and switch in seenFromCommandLine:
             continue
         # otherwise, the switch is new, so add it to the appropriate set
         else:
-            if (isFromEnvironment):
+            if isFromEnvironment:
                 seenFromEnvironment.add(switch)
             else:
                 seenFromCommandLine.add(switch)
@@ -291,8 +302,9 @@ def parse_args_helper(args: list, seenFromCommandLine: set, seenFromEnvironment:
         # If we're parsing the command line, we're done after we've processed the target
         # Otherwise, we need to keep parsing until all args are consumed, since the target may be set from the command line
         # already, but there might be additional args in the environment that we want to process.
-        if (not isFromEnvironment and options.target is not None):
+        if not isFromEnvironment and options.target is not None:
             break
+
 
 def start_debugging(argv_0):
     # We need to set up sys.argv[0] before invoking either listen() or connect(),
@@ -304,15 +316,18 @@ def start_debugging(argv_0):
 
     debugpy.configure(options.config)
 
-    if options.mode == "listen" and options.address is not None:
-        debugpy.listen(options.address)
-    elif options.mode == "connect" and options.address is not None:
-        debugpy.connect(options.address, access_token=options.adapter_access_token)
-    else:
-        raise AssertionError(repr(options.mode))
+    if os.environ.get("DEBUGPY_RUNNING", "false") != "true":
+        if options.mode == "listen" and options.address is not None:
+            debugpy.listen(options.address)
+        elif options.mode == "connect" and options.address is not None:
+            debugpy.connect(options.address, access_token=options.adapter_access_token)
+        else:
+            raise AssertionError(repr(options.mode))
 
-    if options.wait_for_client:
-        debugpy.wait_for_client()
+        if options.wait_for_client:
+            debugpy.wait_for_client()
+
+    os.environ["DEBUGPY_RUNNING"] = "true"
 
 
 def run_file():
