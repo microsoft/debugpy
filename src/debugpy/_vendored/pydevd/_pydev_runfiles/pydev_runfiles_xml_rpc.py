@@ -4,41 +4,40 @@ import traceback
 import warnings
 
 from _pydev_bundle._pydev_filesystem_encoding import getfilesystemencoding
-from _pydev_bundle.pydev_imports import xmlrpclib, _queue
+from _pydev_bundle.pydev_imports import _queue, xmlrpclib
 from _pydevd_bundle.pydevd_constants import Null
 
 Queue = _queue.Queue
 
 # This may happen in IronPython (in Python it shouldn't happen as there are
 # 'fast' replacements that are used in xmlrpclib.py)
-warnings.filterwarnings(
-    'ignore', 'The xmllib module is obsolete.*', DeprecationWarning)
+warnings.filterwarnings("ignore", "The xmllib module is obsolete.*", DeprecationWarning)
 
 file_system_encoding = getfilesystemencoding()
 
 
-#=======================================================================================================================
+# =======================================================================================================================
 # _ServerHolder
-#=======================================================================================================================
+# =======================================================================================================================
 class _ServerHolder:
-    '''
+    """
     Helper so that we don't have to use a global here.
-    '''
+    """
+
     SERVER = None
 
 
-#=======================================================================================================================
+# =======================================================================================================================
 # set_server
-#=======================================================================================================================
+# =======================================================================================================================
 def set_server(server):
     _ServerHolder.SERVER = server
 
 
-#=======================================================================================================================
+# =======================================================================================================================
 # ParallelNotification
-#=======================================================================================================================
+# =======================================================================================================================
 class ParallelNotification(object):
-
     def __init__(self, method, args):
         self.method = method
         self.args = args
@@ -47,49 +46,47 @@ class ParallelNotification(object):
         return self.method, self.args
 
 
-#=======================================================================================================================
+# =======================================================================================================================
 # KillServer
-#=======================================================================================================================
+# =======================================================================================================================
 class KillServer(object):
     pass
 
 
-#=======================================================================================================================
+# =======================================================================================================================
 # ServerFacade
-#=======================================================================================================================
+# =======================================================================================================================
 class ServerFacade(object):
-
     def __init__(self, notifications_queue):
         self.notifications_queue = notifications_queue
 
     def notifyTestsCollected(self, *args):
-        self.notifications_queue.put_nowait(ParallelNotification('notifyTestsCollected', args))
+        self.notifications_queue.put_nowait(ParallelNotification("notifyTestsCollected", args))
 
     def notifyConnected(self, *args):
-        self.notifications_queue.put_nowait(ParallelNotification('notifyConnected', args))
+        self.notifications_queue.put_nowait(ParallelNotification("notifyConnected", args))
 
     def notifyTestRunFinished(self, *args):
-        self.notifications_queue.put_nowait(ParallelNotification('notifyTestRunFinished', args))
+        self.notifications_queue.put_nowait(ParallelNotification("notifyTestRunFinished", args))
 
     def notifyStartTest(self, *args):
-        self.notifications_queue.put_nowait(ParallelNotification('notifyStartTest', args))
+        self.notifications_queue.put_nowait(ParallelNotification("notifyStartTest", args))
 
     def notifyTest(self, *args):
         new_args = []
         for arg in args:
             new_args.append(_encode_if_needed(arg))
         args = tuple(new_args)
-        self.notifications_queue.put_nowait(ParallelNotification('notifyTest', args))
+        self.notifications_queue.put_nowait(ParallelNotification("notifyTest", args))
 
 
-#=======================================================================================================================
+# =======================================================================================================================
 # ServerComm
-#=======================================================================================================================
+# =======================================================================================================================
 class ServerComm(threading.Thread):
-
     def __init__(self, notifications_queue, port, daemon=False):
-        threading.Thread.__init__(self)
-        self.setDaemon(daemon)  # If False, wait for all the notifications to be passed before exiting!
+        # If daemon is False, wait for all the notifications to be passed before exiting!
+        threading.Thread.__init__(self, daemon=daemon)
         self.finished = False
         self.notifications_queue = notifications_queue
 
@@ -111,8 +108,7 @@ class ServerComm(threading.Thread):
             # ISO-8859-1 is good enough.
             encoding = "ISO-8859-1"
 
-        self.server = xmlrpclib.Server('http://%s:%s' % (pydev_localhost.get_localhost(), port),
-                                       encoding=encoding)
+        self.server = xmlrpclib.Server("http://%s:%s" % (pydev_localhost.get_localhost(), port), encoding=encoding)
 
     def run(self):
         while True:
@@ -147,9 +143,9 @@ class ServerComm(threading.Thread):
                 return
 
 
-#=======================================================================================================================
+# =======================================================================================================================
 # initialize_server
-#=======================================================================================================================
+# =======================================================================================================================
 def initialize_server(port, daemon=False):
     if _ServerHolder.SERVER is None:
         if port is not None:
@@ -163,36 +159,39 @@ def initialize_server(port, daemon=False):
             _ServerHolder.SERVER_COMM = Null()
 
     try:
-        _ServerHolder.SERVER.notifyConnected()
+        if _ServerHolder.SERVER is not None:
+            _ServerHolder.SERVER.notifyConnected()
     except:
         traceback.print_exc()
 
 
-#=======================================================================================================================
+# =======================================================================================================================
 # notifyTest
-#=======================================================================================================================
+# =======================================================================================================================
 def notifyTestsCollected(tests_count):
     assert tests_count is not None
     try:
-        _ServerHolder.SERVER.notifyTestsCollected(tests_count)
+        if _ServerHolder.SERVER is not None:
+            _ServerHolder.SERVER.notifyTestsCollected(tests_count)
     except:
         traceback.print_exc()
 
 
-#=======================================================================================================================
+# =======================================================================================================================
 # notifyStartTest
-#=======================================================================================================================
+# =======================================================================================================================
 def notifyStartTest(file, test):
-    '''
+    """
     @param file: the tests file (c:/temp/test.py)
     @param test: the test ran (i.e.: TestCase.test1)
-    '''
+    """
     assert file is not None
     if test is None:
-        test = ''  # Could happen if we have an import error importing module.
+        test = ""  # Could happen if we have an import error importing module.
 
     try:
-        _ServerHolder.SERVER.notifyStartTest(file, test)
+        if _ServerHolder.SERVER is not None:
+            _ServerHolder.SERVER.notifyStartTest(file, test)
     except:
         traceback.print_exc()
 
@@ -200,35 +199,38 @@ def notifyStartTest(file, test):
 def _encode_if_needed(obj):
     # In the java side we expect strings to be ISO-8859-1 (org.python.pydev.debug.pyunit.PyUnitServer.initializeDispatches().new Dispatch() {...}.getAsStr(Object))
     if isinstance(obj, str):  # Unicode in py3
-        return xmlrpclib.Binary(obj.encode('ISO-8859-1', 'xmlcharrefreplace'))
+        return xmlrpclib.Binary(obj.encode("ISO-8859-1", "xmlcharrefreplace"))
 
     elif isinstance(obj, bytes):
         try:
-            return xmlrpclib.Binary(obj.decode(sys.stdin.encoding).encode('ISO-8859-1', 'xmlcharrefreplace'))
+            return xmlrpclib.Binary(obj.decode(sys.stdin.encoding, 'replace').encode("ISO-8859-1", "xmlcharrefreplace"))
         except:
             return xmlrpclib.Binary(obj)  # bytes already
 
     return obj
 
 
-#=======================================================================================================================
+# =======================================================================================================================
 # notifyTest
-#=======================================================================================================================
+# =======================================================================================================================
 def notifyTest(cond, captured_output, error_contents, file, test, time):
-    '''
+    """
     @param cond: ok, fail, error
     @param captured_output: output captured from stdout
     @param captured_output: output captured from stderr
     @param file: the tests file (c:/temp/test.py)
     @param test: the test ran (i.e.: TestCase.test1)
     @param time: float with the number of seconds elapsed
-    '''
+    """
+    if _ServerHolder.SERVER is None:
+        return
+
     assert cond is not None
     assert captured_output is not None
     assert error_contents is not None
     assert file is not None
     if test is None:
-        test = ''  # Could happen if we have an import error importing module.
+        test = ""  # Could happen if we have an import error importing module.
     assert time is not None
     try:
         captured_output = _encode_if_needed(captured_output)
@@ -239,19 +241,20 @@ def notifyTest(cond, captured_output, error_contents, file, test, time):
         traceback.print_exc()
 
 
-#=======================================================================================================================
+# =======================================================================================================================
 # notifyTestRunFinished
-#=======================================================================================================================
+# =======================================================================================================================
 def notifyTestRunFinished(total_time):
     assert total_time is not None
     try:
-        _ServerHolder.SERVER.notifyTestRunFinished(total_time)
+        if _ServerHolder.SERVER is not None:
+            _ServerHolder.SERVER.notifyTestRunFinished(total_time)
     except:
         traceback.print_exc()
 
 
-#=======================================================================================================================
+# =======================================================================================================================
 # force_server_kill
-#=======================================================================================================================
+# =======================================================================================================================
 def force_server_kill():
     _ServerHolder.SERVER_COMM.notifications_queue.put_nowait(KillServer())

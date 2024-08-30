@@ -5,17 +5,16 @@ from tests_python.debugger_unittest import IS_JYTHON
 
 
 class Tracer(object):
-
     def __init__(self):
         self.call_calls = 0
         self.line_calls = 0
 
     def trace_func(self, frame, event, arg):
-        if event == 'call':
+        if event == "call":
             self.call_calls += 1
             return self.on_call()
 
-        elif event == 'line':
+        elif event == "line":
             self.line_calls += 1
             # Should disable tracing when None is returned (but doesn't).
             return self.on_line(frame, event, arg)
@@ -31,14 +30,12 @@ class Tracer(object):
 
 
 class TracerSettingNone(Tracer):
-
     def on_line(self, frame, event, arg):
         frame.f_trace = NO_FTRACE
         return NO_FTRACE
 
 
 class TracerChangeToOtherTracing(Tracer):
-
     def on_line(self, frame, event, arg):
         return self._no_trace
 
@@ -47,13 +44,12 @@ class TracerChangeToOtherTracing(Tracer):
 
 
 class TracerDisableOnCall(Tracer):
-
     def on_call(self):
         return None
 
 
 def test_tracing_gotchas():
-    '''
+    """
     Summary of the gotchas tested:
 
     If 'call' is used, a None return value is used for the tracing. Afterwards the return may or may
@@ -68,7 +64,7 @@ def test_tracing_gotchas():
     does not follow the spec (but we have to work with it nonetheless).
 
     Note: Jython seems to do what's written in the docs.
-    '''
+    """
 
     def method():
         _a = 1
@@ -81,7 +77,7 @@ def test_tracing_gotchas():
         (TracerSettingNone(), 1),
         (TracerChangeToOtherTracing(), 1),
         (TracerDisableOnCall(), 0),
-        ):
+    ):
         curr_trace_func = sys.gettrace()
         try:
             sys.settrace(tracer.trace_func)
@@ -89,13 +85,13 @@ def test_tracing_gotchas():
             method()
 
             if tracer.call_calls != 1:
-                pytest.fail('Expected a single call event. Found: %s' % (tracer.call_calls))
+                pytest.fail("Expected a single call event. Found: %s" % (tracer.call_calls))
 
             if tracer.line_calls != line_events:
-                pytest.fail('Expected %s line events. Found: %s. Tracer: %s' % (line_events, tracer.line_calls, tracer))
+                pytest.fail("Expected %s line events. Found: %s. Tracer: %s" % (line_events, tracer.line_calls, tracer))
         finally:
             sys.settrace(curr_trace_func)
 
 
-if __name__ == '__main__':
-    pytest.main(['-k', 'test_tracing_gotchas'])
+if __name__ == "__main__":
+    pytest.main(["-k", "test_tracing_gotchas"])

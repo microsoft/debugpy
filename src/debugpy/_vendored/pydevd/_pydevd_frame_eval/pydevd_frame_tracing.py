@@ -18,7 +18,7 @@ dummy_tracing_holder = DummyTracingHolder()
 
 
 def update_globals_dict(globals_dict):
-    new_globals = {'_pydev_stop_at_break': _pydev_stop_at_break}
+    new_globals = {"_pydev_stop_at_break": _pydev_stop_at_break}
     globals_dict.update(new_globals)
 
 
@@ -50,9 +50,9 @@ def _pydev_stop_at_break(line):
             return
 
         pydev_log.debug("Setting f_trace due to frame eval mode in file: %s on line %s", frame.f_code.co_filename, line)
-        additional_info.trace_suspend_type = 'frame_eval'
+        additional_info.trace_suspend_type = "frame_eval"
 
-        pydevd_frame_eval_cython_wrapper = sys.modules['_pydevd_frame_eval.pydevd_frame_eval_cython_wrapper']
+        pydevd_frame_eval_cython_wrapper = sys.modules["_pydevd_frame_eval.pydevd_frame_eval_cython_wrapper"]
         thread_info = pydevd_frame_eval_cython_wrapper.get_thread_info_py()
         if thread_info.thread_trace_func is not None:
             frame.f_trace = thread_info.thread_trace_func
@@ -63,7 +63,7 @@ def _pydev_stop_at_break(line):
 
 
 def _pydev_needs_stop_at_break(line):
-    '''
+    """
     We separate the functionality into 2 functions so that we can generate a bytecode which
     generates a spurious line change so that we can do:
 
@@ -72,7 +72,7 @@ def _pydev_needs_stop_at_break(line):
         _pydev_stop_at_break()
         # then, proceed to go to the current line
         # (which will then trigger a line event).
-    '''
+    """
     t = threading.current_thread()
     try:
         additional_info = t.additional_info
@@ -119,4 +119,3 @@ def _pydev_needs_stop_at_break(line):
         additional_info.is_tracing -= 1
 
     return False
-

@@ -1,6 +1,6 @@
-'''
+"""
 This module holds the constants used for specifying the states of the debugger.
-'''
+"""
 from __future__ import nested_scopes
 import platform
 import weakref
@@ -28,6 +28,7 @@ import sys  # Note: the sys import must be here anyways (others depend on it)
 
 # Preload codecs to avoid imports to them later on which can potentially halt the debugger.
 import codecs as _codecs
+
 for _codec in ["ascii", "utf8", "utf-8", "latin1", "latin-1", "idna"]:
     _codecs.lookup(_codec)
 
@@ -47,22 +48,22 @@ class DebugInfoHolder:
 # In PyPy "<builtin> ..." can appear and should be ignored for the user.
 # <attrs is used internally by attrs
 # <__array_function__ is used by numpy
-IGNORE_BASENAMES_STARTING_WITH = ('<frozen ', '<builtin', '<attrs', '<__array_function__')
+IGNORE_BASENAMES_STARTING_WITH = ("<frozen ", "<builtin", "<attrs", "<__array_function__")
 
 # Note: <string> has special heuristics to know whether it should be traced or not (it's part of
 # user code when it's the <string> used in python -c and part of the library otherwise).
 
 # Any filename that starts with these strings is considered user (project) code. Note
 # that files for which we have a source mapping are also considered as a part of the project.
-USER_CODE_BASENAMES_STARTING_WITH = ('<ipython',)
+USER_CODE_BASENAMES_STARTING_WITH = ("<ipython",)
 
 # Any filename that starts with these strings is considered library code (note: checked after USER_CODE_BASENAMES_STARTING_WITH).
-LIBRARY_CODE_BASENAMES_STARTING_WITH = ('<',)
+LIBRARY_CODE_BASENAMES_STARTING_WITH = ("<",)
 
-IS_CPYTHON = platform.python_implementation() == 'CPython'
+IS_CPYTHON = platform.python_implementation() == "CPython"
 
 # Hold a reference to the original _getframe (because psyco will change that as soon as it's imported)
-IS_IRONPYTHON = sys.platform == 'cli'
+IS_IRONPYTHON = sys.platform == "cli"
 try:
     get_frame = sys._getframe
     if IS_IRONPYTHON:
@@ -76,49 +77,51 @@ try:
 except AttributeError:
 
     def get_frame():
-        raise AssertionError('sys._getframe not available (possible causes: enable -X:Frames on IronPython?)')
+        raise AssertionError("sys._getframe not available (possible causes: enable -X:Frames on IronPython?)")
+
 
 # Used to determine the maximum size of each variable passed to eclipse -- having a big value here may make
 # the communication slower -- as the variables are being gathered lazily in the latest version of eclipse,
 # this value was raised from 200 to 1000.
 MAXIMUM_VARIABLE_REPRESENTATION_SIZE = 1000
 # Prefix for saving functions return values in locals
-RETURN_VALUES_DICT = '__pydevd_ret_val_dict'
-GENERATED_LEN_ATTR_NAME = 'len()'
+RETURN_VALUES_DICT = "__pydevd_ret_val_dict"
+GENERATED_LEN_ATTR_NAME = "len()"
 
 import os
 
 from _pydevd_bundle import pydevd_vm_type
 
 # Constant detects when running on Jython/windows properly later on.
-IS_WINDOWS = sys.platform == 'win32'
-IS_LINUX = sys.platform in ('linux', 'linux2')
-IS_MAC = sys.platform == 'darwin'
-IS_WASM = sys.platform == 'emscripten' or sys.platform == 'wasi'
+IS_WINDOWS = sys.platform == "win32"
+IS_LINUX = sys.platform in ("linux", "linux2")
+IS_MAC = sys.platform == "darwin"
+IS_WASM = sys.platform == "emscripten" or sys.platform == "wasi"
 
-IS_64BIT_PROCESS = sys.maxsize > (2 ** 32)
+IS_64BIT_PROCESS = sys.maxsize > (2**32)
 
 IS_JYTHON = pydevd_vm_type.get_vm_type() == pydevd_vm_type.PydevdVmType.JYTHON
 
-IS_PYPY = platform.python_implementation() == 'PyPy'
+IS_PYPY = platform.python_implementation() == "PyPy"
 
 if IS_JYTHON:
     import java.lang.System  # @UnresolvedImport
+
     IS_WINDOWS = java.lang.System.getProperty("os.name").lower().startswith("windows")
 
-USE_CUSTOM_SYS_CURRENT_FRAMES = not hasattr(sys, '_current_frames') or IS_PYPY
+USE_CUSTOM_SYS_CURRENT_FRAMES = not hasattr(sys, "_current_frames") or IS_PYPY
 USE_CUSTOM_SYS_CURRENT_FRAMES_MAP = USE_CUSTOM_SYS_CURRENT_FRAMES and (IS_PYPY or IS_IRONPYTHON)
 
 if USE_CUSTOM_SYS_CURRENT_FRAMES:
-
     # Some versions of Jython don't have it (but we can provide a replacement)
     if IS_JYTHON:
         from java.lang import NoSuchFieldException
         from org.python.core import ThreadStateMapping
+
         try:
-            cachedThreadState = ThreadStateMapping.getDeclaredField('globalThreadStates')  # Dev version
+            cachedThreadState = ThreadStateMapping.getDeclaredField("globalThreadStates")  # Dev version
         except NoSuchFieldException:
-            cachedThreadState = ThreadStateMapping.getDeclaredField('cachedThreadState')  # Release Jython 2.7.0
+            cachedThreadState = ThreadStateMapping.getDeclaredField("cachedThreadState")  # Release Jython 2.7.0
         cachedThreadState.accessible = True
         thread_states = cachedThreadState.get(ThreadStateMapping)
 
@@ -148,7 +151,7 @@ if USE_CUSTOM_SYS_CURRENT_FRAMES:
             return constructed_tid_to_last_frame
 
     else:
-        raise RuntimeError('Unable to proceed (sys._current_frames not available in this Python implementation).')
+        raise RuntimeError("Unable to proceed (sys._current_frames not available in this Python implementation).")
 else:
     _current_frames = sys._current_frames
 
@@ -156,38 +159,54 @@ IS_PYTHON_STACKLESS = "stackless" in sys.version.lower()
 CYTHON_SUPPORTED = False
 
 python_implementation = platform.python_implementation()
-if python_implementation == 'CPython':
+if python_implementation == "CPython":
     # Only available for CPython!
     CYTHON_SUPPORTED = True
 
-#=======================================================================================================================
+# =======================================================================================================================
 # Python 3?
-#=======================================================================================================================
+# =======================================================================================================================
 IS_PY36_OR_GREATER = sys.version_info >= (3, 6)
 IS_PY37_OR_GREATER = sys.version_info >= (3, 7)
 IS_PY38_OR_GREATER = sys.version_info >= (3, 8)
 IS_PY39_OR_GREATER = sys.version_info >= (3, 9)
 IS_PY310_OR_GREATER = sys.version_info >= (3, 10)
 IS_PY311_OR_GREATER = sys.version_info >= (3, 11)
+IS_PY312_OR_GREATER = sys.version_info >= (3, 12)
+
+# Not currently supported in Python 3.12.
+SUPPORT_ATTACH_TO_PID = not IS_PY312_OR_GREATER
 
 
 def version_str(v):
-    return '.'.join((str(x) for x in v[:3])) + ''.join((str(x) for x in v[3:]))
+    return ".".join((str(x) for x in v[:3])) + "".join((str(x) for x in v[3:]))
 
 
 PY_VERSION_STR = version_str(sys.version_info)
 try:
     PY_IMPL_VERSION_STR = version_str(sys.implementation.version)
 except AttributeError:
-    PY_IMPL_VERSION_STR = ''
+    PY_IMPL_VERSION_STR = ""
 
 try:
     PY_IMPL_NAME = sys.implementation.name
 except AttributeError:
-    PY_IMPL_NAME = ''
+    PY_IMPL_NAME = ""
 
-ENV_TRUE_LOWER_VALUES = ('yes', 'true', '1')
-ENV_FALSE_LOWER_VALUES = ('no', 'false', '0')
+ENV_TRUE_LOWER_VALUES = ("yes", "true", "1")
+ENV_FALSE_LOWER_VALUES = ("no", "false", "0")
+
+PYDEVD_USE_SYS_MONITORING = IS_PY312_OR_GREATER and hasattr(sys, "monitoring")
+if PYDEVD_USE_SYS_MONITORING:  # Default gotten, let's see if it was somehow customize by the user.
+    _use_sys_monitoring_env_var = os.getenv("PYDEVD_USE_SYS_MONITORING", "").lower()
+    if _use_sys_monitoring_env_var:
+        # Check if the user specified something.
+        if _use_sys_monitoring_env_var in ENV_FALSE_LOWER_VALUES:
+            PYDEVD_USE_SYS_MONITORING = False
+        elif _use_sys_monitoring_env_var in ENV_TRUE_LOWER_VALUES:
+            PYDEVD_USE_SYS_MONITORING = True
+        else:
+            raise RuntimeError("Unrecognized value for PYDEVD_USE_SYS_MONITORING: %s" % (_use_sys_monitoring_env_var,))
 
 
 def is_true_in_env(env_key):
@@ -198,7 +217,7 @@ def is_true_in_env(env_key):
                 return True
         return False
     else:
-        return os.getenv(env_key, '').lower() in ENV_TRUE_LOWER_VALUES
+        return os.getenv(env_key, "").lower() in ENV_TRUE_LOWER_VALUES
 
 
 def as_float_in_env(env_key, default):
@@ -208,9 +227,7 @@ def as_float_in_env(env_key, default):
     try:
         return float(value)
     except Exception:
-        raise RuntimeError(
-            'Error: expected the env variable: %s to be set to a float value. Found: %s' % (
-                env_key, value))
+        raise RuntimeError("Error: expected the env variable: %s to be set to a float value. Found: %s" % (env_key, value))
 
 
 def as_int_in_env(env_key, default):
@@ -220,52 +237,52 @@ def as_int_in_env(env_key, default):
     try:
         return int(value)
     except Exception:
-        raise RuntimeError(
-            'Error: expected the env variable: %s to be set to a int value. Found: %s' % (
-                env_key, value))
+        raise RuntimeError("Error: expected the env variable: %s to be set to a int value. Found: %s" % (env_key, value))
 
 
 # If true in env, use gevent mode.
-SUPPORT_GEVENT = is_true_in_env('GEVENT_SUPPORT')
+SUPPORT_GEVENT = is_true_in_env("GEVENT_SUPPORT")
 
 # Opt-in support to show gevent paused greenlets. False by default because if too many greenlets are
 # paused the UI can slow-down (i.e.: if 1000 greenlets are paused, each one would be shown separate
 # as a different thread, but if the UI isn't optimized for that the experience is lacking...).
-GEVENT_SHOW_PAUSED_GREENLETS = is_true_in_env('GEVENT_SHOW_PAUSED_GREENLETS')
+GEVENT_SHOW_PAUSED_GREENLETS = is_true_in_env("GEVENT_SHOW_PAUSED_GREENLETS")
 
-DISABLE_FILE_VALIDATION = is_true_in_env('PYDEVD_DISABLE_FILE_VALIDATION')
+DISABLE_FILE_VALIDATION = is_true_in_env("PYDEVD_DISABLE_FILE_VALIDATION")
 
 GEVENT_SUPPORT_NOT_SET_MSG = os.getenv(
-    'GEVENT_SUPPORT_NOT_SET_MSG',
-    'It seems that the gevent monkey-patching is being used.\n'
-    'Please set an environment variable with:\n'
-    'GEVENT_SUPPORT=True\n'
-    'to enable gevent support in the debugger.'
+    "GEVENT_SUPPORT_NOT_SET_MSG",
+    "It seems that the gevent monkey-patching is being used.\n"
+    "Please set an environment variable with:\n"
+    "GEVENT_SUPPORT=True\n"
+    "to enable gevent support in the debugger.",
 )
 
 USE_LIB_COPY = SUPPORT_GEVENT
 
-INTERACTIVE_MODE_AVAILABLE = sys.platform in ('darwin', 'win32') or os.getenv('DISPLAY') is not None
+INTERACTIVE_MODE_AVAILABLE = sys.platform in ("darwin", "win32") or os.getenv("DISPLAY") is not None
 
 # If true in env, forces cython to be used (raises error if not available).
 # If false in env, disables it.
 # If not specified, uses default heuristic to determine if it should be loaded.
-USE_CYTHON_FLAG = os.getenv('PYDEVD_USE_CYTHON')
+USE_CYTHON_FLAG = os.getenv("PYDEVD_USE_CYTHON")
 
 if USE_CYTHON_FLAG is not None:
     USE_CYTHON_FLAG = USE_CYTHON_FLAG.lower()
     if USE_CYTHON_FLAG not in ENV_TRUE_LOWER_VALUES and USE_CYTHON_FLAG not in ENV_FALSE_LOWER_VALUES:
-        raise RuntimeError('Unexpected value for PYDEVD_USE_CYTHON: %s (enable with one of: %s, disable with one of: %s)' % (
-            USE_CYTHON_FLAG, ENV_TRUE_LOWER_VALUES, ENV_FALSE_LOWER_VALUES))
+        raise RuntimeError(
+            "Unexpected value for PYDEVD_USE_CYTHON: %s (enable with one of: %s, disable with one of: %s)"
+            % (USE_CYTHON_FLAG, ENV_TRUE_LOWER_VALUES, ENV_FALSE_LOWER_VALUES)
+        )
 
 else:
     if not CYTHON_SUPPORTED:
-        USE_CYTHON_FLAG = 'no'
+        USE_CYTHON_FLAG = "no"
 
 # If true in env, forces frame eval to be used (raises error if not available).
 # If false in env, disables it.
 # If not specified, uses default heuristic to determine if it should be loaded.
-PYDEVD_USE_FRAME_EVAL = os.getenv('PYDEVD_USE_FRAME_EVAL', '').lower()
+PYDEVD_USE_FRAME_EVAL = os.getenv("PYDEVD_USE_FRAME_EVAL", "").lower()
 
 # Values used to determine how much container items will be shown.
 # PYDEVD_CONTAINER_INITIAL_EXPANDED_ITEMS:
@@ -281,48 +298,48 @@ PYDEVD_USE_FRAME_EVAL = os.getenv('PYDEVD_USE_FRAME_EVAL', '').lower()
 # PYDEVD_CONTAINER_RANDOM_ACCESS_MAX_ITEMS
 #    - Defines the maximum number of items for dicts and sets.
 #
-PYDEVD_CONTAINER_INITIAL_EXPANDED_ITEMS = as_int_in_env('PYDEVD_CONTAINER_INITIAL_EXPANDED_ITEMS', 100)
-PYDEVD_CONTAINER_BUCKET_SIZE = as_int_in_env('PYDEVD_CONTAINER_BUCKET_SIZE', 1000)
-PYDEVD_CONTAINER_RANDOM_ACCESS_MAX_ITEMS = as_int_in_env('PYDEVD_CONTAINER_RANDOM_ACCESS_MAX_ITEMS', 500)
-PYDEVD_CONTAINER_NUMPY_MAX_ITEMS = as_int_in_env('PYDEVD_CONTAINER_NUMPY_MAX_ITEMS', 500)
+PYDEVD_CONTAINER_INITIAL_EXPANDED_ITEMS = as_int_in_env("PYDEVD_CONTAINER_INITIAL_EXPANDED_ITEMS", 100)
+PYDEVD_CONTAINER_BUCKET_SIZE = as_int_in_env("PYDEVD_CONTAINER_BUCKET_SIZE", 1000)
+PYDEVD_CONTAINER_RANDOM_ACCESS_MAX_ITEMS = as_int_in_env("PYDEVD_CONTAINER_RANDOM_ACCESS_MAX_ITEMS", 500)
+PYDEVD_CONTAINER_NUMPY_MAX_ITEMS = as_int_in_env("PYDEVD_CONTAINER_NUMPY_MAX_ITEMS", 500)
 
-PYDEVD_IPYTHON_COMPATIBLE_DEBUGGING = is_true_in_env('PYDEVD_IPYTHON_COMPATIBLE_DEBUGGING')
+PYDEVD_IPYTHON_COMPATIBLE_DEBUGGING = is_true_in_env("PYDEVD_IPYTHON_COMPATIBLE_DEBUGGING")
 
 # If specified in PYDEVD_IPYTHON_CONTEXT it must be a string with the basename
 # and then the name of 2 methods in which the evaluate is done.
-PYDEVD_IPYTHON_CONTEXT = ('interactiveshell.py', 'run_code', 'run_ast_nodes')
-_ipython_ctx = os.getenv('PYDEVD_IPYTHON_CONTEXT')
+PYDEVD_IPYTHON_CONTEXT = ("interactiveshell.py", "run_code", "run_ast_nodes")
+_ipython_ctx = os.getenv("PYDEVD_IPYTHON_CONTEXT")
 if _ipython_ctx:
-    PYDEVD_IPYTHON_CONTEXT = tuple(x.strip() for x in _ipython_ctx.split(','))
-    assert len(PYDEVD_IPYTHON_CONTEXT) == 3, 'Invalid PYDEVD_IPYTHON_CONTEXT: %s' % (_ipython_ctx,)
+    PYDEVD_IPYTHON_CONTEXT = tuple(x.strip() for x in _ipython_ctx.split(","))
+    assert len(PYDEVD_IPYTHON_CONTEXT) == 3, "Invalid PYDEVD_IPYTHON_CONTEXT: %s" % (_ipython_ctx,)
 
 # Use to disable loading the lib to set tracing to all threads (default is using heuristics based on where we're running).
-LOAD_NATIVE_LIB_FLAG = os.getenv('PYDEVD_LOAD_NATIVE_LIB', '').lower()
+LOAD_NATIVE_LIB_FLAG = os.getenv("PYDEVD_LOAD_NATIVE_LIB", "").lower()
 
-LOG_TIME = os.getenv('PYDEVD_LOG_TIME', 'true').lower() in ENV_TRUE_LOWER_VALUES
+LOG_TIME = os.getenv("PYDEVD_LOG_TIME", "true").lower() in ENV_TRUE_LOWER_VALUES
 
-SHOW_COMPILE_CYTHON_COMMAND_LINE = is_true_in_env('PYDEVD_SHOW_COMPILE_CYTHON_COMMAND_LINE')
+SHOW_COMPILE_CYTHON_COMMAND_LINE = is_true_in_env("PYDEVD_SHOW_COMPILE_CYTHON_COMMAND_LINE")
 
-LOAD_VALUES_ASYNC = is_true_in_env('PYDEVD_LOAD_VALUES_ASYNC')
+LOAD_VALUES_ASYNC = is_true_in_env("PYDEVD_LOAD_VALUES_ASYNC")
 DEFAULT_VALUE = "__pydevd_value_async"
 ASYNC_EVAL_TIMEOUT_SEC = 60
 NEXT_VALUE_SEPARATOR = "__pydev_val__"
-BUILTINS_MODULE_NAME = 'builtins'
+BUILTINS_MODULE_NAME = "builtins"
 
 # Pandas customization.
-PANDAS_MAX_ROWS = as_int_in_env('PYDEVD_PANDAS_MAX_ROWS', 60)
-PANDAS_MAX_COLS = as_int_in_env('PYDEVD_PANDAS_MAX_COLS', 10)
-PANDAS_MAX_COLWIDTH = as_int_in_env('PYDEVD_PANDAS_MAX_COLWIDTH', 50)
+PANDAS_MAX_ROWS = as_int_in_env("PYDEVD_PANDAS_MAX_ROWS", 60)
+PANDAS_MAX_COLS = as_int_in_env("PYDEVD_PANDAS_MAX_COLS", 10)
+PANDAS_MAX_COLWIDTH = as_int_in_env("PYDEVD_PANDAS_MAX_COLWIDTH", 50)
 
 # If getting an attribute or computing some value is too slow, let the user know if the given timeout elapses.
-PYDEVD_WARN_SLOW_RESOLVE_TIMEOUT = as_float_in_env('PYDEVD_WARN_SLOW_RESOLVE_TIMEOUT', 0.50)
+PYDEVD_WARN_SLOW_RESOLVE_TIMEOUT = as_float_in_env("PYDEVD_WARN_SLOW_RESOLVE_TIMEOUT", 0.50)
 
 # This timeout is used to track the time to send a message saying that the evaluation
 # is taking too long and possible mitigations.
-PYDEVD_WARN_EVALUATION_TIMEOUT = as_float_in_env('PYDEVD_WARN_EVALUATION_TIMEOUT', 3.)
+PYDEVD_WARN_EVALUATION_TIMEOUT = as_float_in_env("PYDEVD_WARN_EVALUATION_TIMEOUT", 3.0)
 
 # If True in env shows a thread dump when the evaluation times out.
-PYDEVD_THREAD_DUMP_ON_WARN_EVALUATION_TIMEOUT = is_true_in_env('PYDEVD_THREAD_DUMP_ON_WARN_EVALUATION_TIMEOUT')
+PYDEVD_THREAD_DUMP_ON_WARN_EVALUATION_TIMEOUT = is_true_in_env("PYDEVD_THREAD_DUMP_ON_WARN_EVALUATION_TIMEOUT")
 
 # This timeout is used only when the mode that all threads are stopped/resumed at once is used
 # (i.e.: multi_threads_single_notification)
@@ -334,29 +351,31 @@ PYDEVD_THREAD_DUMP_ON_WARN_EVALUATION_TIMEOUT = is_true_in_env('PYDEVD_THREAD_DU
 # (without any notification) when the evaluation is started and pause all threads when the
 # evaluation is finished. A positive value will run run all threads after the timeout
 # elapses.
-PYDEVD_UNBLOCK_THREADS_TIMEOUT = as_float_in_env('PYDEVD_UNBLOCK_THREADS_TIMEOUT', -1.)
+PYDEVD_UNBLOCK_THREADS_TIMEOUT = as_float_in_env("PYDEVD_UNBLOCK_THREADS_TIMEOUT", -1.0)
 
 # Timeout to interrupt a thread (so, if some evaluation doesn't finish until this
 # timeout, the thread doing the evaluation is interrupted).
 # A value <= 0 means this is disabled.
 # See: _pydevd_bundle.pydevd_timeout.create_interrupt_this_thread_callback for details
 # on how the thread interruption works (there are some caveats related to it).
-PYDEVD_INTERRUPT_THREAD_TIMEOUT = as_float_in_env('PYDEVD_INTERRUPT_THREAD_TIMEOUT', -1)
+PYDEVD_INTERRUPT_THREAD_TIMEOUT = as_float_in_env("PYDEVD_INTERRUPT_THREAD_TIMEOUT", -1)
 
 # If PYDEVD_APPLY_PATCHING_TO_HIDE_PYDEVD_THREADS is set to False, the patching to hide pydevd threads won't be applied.
-PYDEVD_APPLY_PATCHING_TO_HIDE_PYDEVD_THREADS = os.getenv('PYDEVD_APPLY_PATCHING_TO_HIDE_PYDEVD_THREADS', 'true').lower() in ENV_TRUE_LOWER_VALUES
+PYDEVD_APPLY_PATCHING_TO_HIDE_PYDEVD_THREADS = (
+    os.getenv("PYDEVD_APPLY_PATCHING_TO_HIDE_PYDEVD_THREADS", "true").lower() in ENV_TRUE_LOWER_VALUES
+)
 
-EXCEPTION_TYPE_UNHANDLED = 'UNHANDLED'
-EXCEPTION_TYPE_USER_UNHANDLED = 'USER_UNHANDLED'
-EXCEPTION_TYPE_HANDLED = 'HANDLED'
+EXCEPTION_TYPE_UNHANDLED = "UNHANDLED"
+EXCEPTION_TYPE_USER_UNHANDLED = "USER_UNHANDLED"
+EXCEPTION_TYPE_HANDLED = "HANDLED"
 
-SHOW_DEBUG_INFO_ENV = is_true_in_env(('PYCHARM_DEBUG', 'PYDEV_DEBUG', 'PYDEVD_DEBUG'))
+SHOW_DEBUG_INFO_ENV = is_true_in_env(("PYCHARM_DEBUG", "PYDEV_DEBUG", "PYDEVD_DEBUG"))
 
 if SHOW_DEBUG_INFO_ENV:
     # show debug info before the debugger start
     DebugInfoHolder.DEBUG_TRACE_LEVEL = 3
 
-DebugInfoHolder.PYDEVD_DEBUG_FILE = os.getenv('PYDEVD_DEBUG_FILE')
+DebugInfoHolder.PYDEVD_DEBUG_FILE = os.getenv("PYDEVD_DEBUG_FILE")
 
 
 def protect_libraries_from_patching():
@@ -365,9 +384,23 @@ def protect_libraries_from_patching():
       `_pydev_saved_modules` in order to save their original copies there. After that we can use these
       saved modules within the debugger to protect them from patching by external libraries (e.g. gevent).
     """
-    patched = ['threading', 'thread', '_thread', 'time', 'socket', 'queue', 'select',
-               'xmlrpclib', 'SimpleXMLRPCServer', 'BaseHTTPServer', 'SocketServer',
-               'xmlrpc.client', 'xmlrpc.server', 'http.server', 'socketserver']
+    patched = [
+        "threading",
+        "thread",
+        "_thread",
+        "time",
+        "socket",
+        "queue",
+        "select",
+        "xmlrpclib",
+        "SimpleXMLRPCServer",
+        "BaseHTTPServer",
+        "SocketServer",
+        "xmlrpc.client",
+        "xmlrpc.server",
+        "http.server",
+        "socketserver",
+    ]
 
     for name in patched:
         try:
@@ -375,8 +408,7 @@ def protect_libraries_from_patching():
         except:
             pass
 
-    patched_modules = dict([(k, v) for k, v in sys.modules.items()
-                            if k in patched])
+    patched_modules = dict([(k, v) for k, v in sys.modules.items() if k in patched])
 
     for name in patched_modules:
         del sys.modules[name]
@@ -406,7 +438,7 @@ if IS_JYTHON:
 else:
 
     class ForkSafeLock(object):
-        '''
+        """
         A lock which is fork-safe (when a fork is done, `pydevd_constants.after_fork()`
         should be called to reset the locks in the new process to avoid deadlocks
         from a lock which was locked during the fork).
@@ -429,7 +461,7 @@ else:
             `ForkSafeLock.release` instead of the context manager (as acquire/release are
             bound to the original implementation, whereas __enter__/__exit__ is not due to Python
             limitations).
-        '''
+        """
 
         def __init__(self, rlock=False):
             self._rlock = rlock
@@ -454,9 +486,9 @@ else:
 
 
 def after_fork():
-    '''
+    """
     Must be called after a fork operation (will reset the ForkSafeLock).
-    '''
+    """
     global _fork_safe_locks
     locks = _fork_safe_locks[:]
     _fork_safe_locks = []
@@ -483,7 +515,6 @@ def filter_all_warnings():
 
 
 def silence_warnings_decorator(func):
-
     @functools.wraps(func)
     def new_func(*args, **kwargs):
         with filter_all_warnings():
@@ -493,8 +524,8 @@ def silence_warnings_decorator(func):
 
 
 def sorted_dict_repr(d):
-    s = sorted(d.items(), key=lambda x:str(x[0]))
-    return '{' + ', '.join(('%r: %r' % x) for x in s) + '}'
+    s = sorted(d.items(), key=lambda x: str(x[0]))
+    return "{" + ", ".join(("%r: %r" % x) for x in s) + "}"
 
 
 def iter_chars(b):
@@ -502,11 +533,11 @@ def iter_chars(b):
     # changed that behavior so that when iterating bytes we actually get ints!
     if isinstance(b, bytes):
         # i.e.: do something as struct.unpack('3c', b)
-        return iter(struct.unpack(str(len(b)) + 'c', b))
+        return iter(struct.unpack(str(len(b)) + "c", b))
     return iter(b)
 
 
-if IS_JYTHON:
+if IS_JYTHON or PYDEVD_USE_SYS_MONITORING:
 
     def NO_FTRACE(frame, event, arg):
         return None
@@ -522,9 +553,9 @@ else:
     sys.settrace(_temp_trace)
 
     def _check_ftrace_set_none():
-        '''
+        """
         Will throw an error when executing a line event
-        '''
+        """
         sys._getframe().f_trace = None
         _line_event = 1
         _line_event = 2
@@ -552,9 +583,9 @@ else:
     sys.settrace(_curr_trace)
 
 
-#=======================================================================================================================
+# =======================================================================================================================
 # get_pid
-#=======================================================================================================================
+# =======================================================================================================================
 def get_pid():
     try:
         return os.getpid()
@@ -562,17 +593,18 @@ def get_pid():
         try:
             # Jython does not have it!
             import java.lang.management.ManagementFactory  # @UnresolvedImport -- just for jython
+
             pid = java.lang.management.ManagementFactory.getRuntimeMXBean().getName()
-            return pid.replace('@', '_')
+            return pid.replace("@", "_")
         except:
             # ok, no pid available (will be unable to debug multiple processes)
-            return '000001'
+            return "000001"
 
 
 def clear_cached_thread_id(thread):
     with _thread_id_lock:
         try:
-            if thread.__pydevd_id__ != 'console_main':
+            if thread.__pydevd_id__ != "console_main":
                 # The console_main is a special thread id used in the console and its id should never be reset
                 # (otherwise we may no longer be able to get its variables -- see: https://www.brainwy.com/tracker/PyDev/776).
                 del thread.__pydevd_id__
@@ -587,7 +619,7 @@ _thread_id_to_thread_found = {}
 def _get_or_compute_thread_id_with_lock(thread, is_current_thread):
     with _thread_id_lock:
         # We do a new check with the lock in place just to be sure that nothing changed
-        tid = getattr(thread, '__pydevd_id__', None)
+        tid = getattr(thread, "__pydevd_id__", None)
         if tid is not None:
             return tid
 
@@ -596,7 +628,7 @@ def _get_or_compute_thread_id_with_lock(thread, is_current_thread):
         # Note: don't use thread.ident because a new thread may have the
         # same id from an old thread.
         pid = get_pid()
-        tid = 'pid_%s_id_%s' % (pid, id(thread))
+        tid = "pid_%s_id_%s" % (pid, id(thread))
 
         thread.__pydevd_id__ = tid
 
@@ -604,11 +636,11 @@ def _get_or_compute_thread_id_with_lock(thread, is_current_thread):
 
 
 def get_current_thread_id(thread):
-    '''
+    """
     Note: the difference from get_current_thread_id to get_thread_id is that
     for the current thread we can get the thread id while the thread.ident
     is still not set in the Thread instance.
-    '''
+    """
     try:
         # Fast path without getting lock.
         tid = thread.__pydevd_id__
@@ -643,9 +675,9 @@ def set_thread_id(thread, thread_id):
         thread.__pydevd_id__ = thread_id
 
 
-#=======================================================================================================================
+# =======================================================================================================================
 # Null
-#=======================================================================================================================
+# =======================================================================================================================
 class Null:
     """
     Gotten from: http://aspn.activestate.com/ASPN/Cookbook/Python/Recipe/68205
@@ -664,7 +696,7 @@ class Null:
         return self
 
     def __getattr__(self, mname):
-        if len(mname) > 4 and mname[:2] == '__' and mname[-2:] == '__':
+        if len(mname) > 4 and mname[:2] == "__" and mname[-2:] == "__":
             # Don't pretend to implement special method names.
             raise AttributeError(mname)
         return self
@@ -705,7 +737,6 @@ NULL = Null()
 
 
 class KeyifyList(object):
-
     def __init__(self, inner, key):
         self.inner = inner
         self.key = key
@@ -718,7 +749,7 @@ class KeyifyList(object):
 
 
 def call_only_once(func):
-    '''
+    """
     To be used as a decorator
 
     @call_only_once
@@ -728,7 +759,7 @@ def call_only_once(func):
     Actually, in PyDev it must be called as:
 
     func = call_only_once(func) to support older versions of Python.
-    '''
+    """
 
     def new_func(*args, **kwargs):
         if not new_func._called:
@@ -741,26 +772,26 @@ def call_only_once(func):
 
 # Protocol where each line is a new message (text is quoted to prevent new lines).
 # payload is xml
-QUOTED_LINE_PROTOCOL = 'quoted-line'
-ARGUMENT_QUOTED_LINE_PROTOCOL = 'protocol-quoted-line'
+QUOTED_LINE_PROTOCOL = "quoted-line"
+ARGUMENT_QUOTED_LINE_PROTOCOL = "protocol-quoted-line"
 
 # Uses http protocol to provide a new message.
 # i.e.: Content-Length:xxx\r\n\r\npayload
 # payload is xml
-HTTP_PROTOCOL = 'http'
-ARGUMENT_HTTP_PROTOCOL = 'protocol-http'
+HTTP_PROTOCOL = "http"
+ARGUMENT_HTTP_PROTOCOL = "protocol-http"
 
 # Message is sent without any header.
 # payload is json
-JSON_PROTOCOL = 'json'
-ARGUMENT_JSON_PROTOCOL = 'json-dap'
+JSON_PROTOCOL = "json"
+ARGUMENT_JSON_PROTOCOL = "json-dap"
 
 # Same header as the HTTP_PROTOCOL
 # payload is json
-HTTP_JSON_PROTOCOL = 'http_json'
-ARGUMENT_HTTP_JSON_PROTOCOL = 'json-dap-http'
+HTTP_JSON_PROTOCOL = "http_json"
+ARGUMENT_HTTP_JSON_PROTOCOL = "json-dap-http"
 
-ARGUMENT_PPID = 'ppid'
+ARGUMENT_PPID = "ppid"
 
 
 class _GlobalSettings:
@@ -769,8 +800,7 @@ class _GlobalSettings:
 
 def set_protocol(protocol):
     expected = (HTTP_PROTOCOL, QUOTED_LINE_PROTOCOL, JSON_PROTOCOL, HTTP_JSON_PROTOCOL)
-    assert protocol in expected, 'Protocol (%s) should be one of: %s' % (
-        protocol, expected)
+    assert protocol in expected, "Protocol (%s) should be one of: %s" % (protocol, expected)
 
     _GlobalSettings.protocol = protocol
 
@@ -784,9 +814,10 @@ def is_json_protocol():
 
 
 class GlobalDebuggerHolder:
-    '''
-        Holder for the global debugger.
-    '''
+    """
+    Holder for the global debugger.
+    """
+
     global_dbg = None  # Note: don't rename (the name is used in our attach to process)
 
 
@@ -801,7 +832,6 @@ def set_global_debugger(dbg):
     GlobalDebuggerHolder.global_dbg = dbg
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     if Null():
-        sys.stdout.write('here\n')
-
+        sys.stdout.write("here\n")

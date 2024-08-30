@@ -1,6 +1,7 @@
 """
 Utility for saving locals.
 """
+
 import sys
 
 try:
@@ -40,13 +41,14 @@ def make_save_locals_impl():
     lock being taken in different order in  different threads.
     """
     try:
-        if '__pypy__' in sys.builtin_module_names:
+        if "__pypy__" in sys.builtin_module_names:
             import __pypy__  # @UnresolvedImport
+
             save_locals = __pypy__.locals_to_fast
     except:
         pass
     else:
-        if '__pypy__' in sys.builtin_module_names:
+        if "__pypy__" in sys.builtin_module_names:
 
             def save_locals_pypy_impl(frame):
                 save_locals(frame)
@@ -55,6 +57,7 @@ def make_save_locals_impl():
 
     try:
         import ctypes
+
         locals_to_fast = ctypes.pythonapi.PyFrame_LocalsToFast
     except:
         pass

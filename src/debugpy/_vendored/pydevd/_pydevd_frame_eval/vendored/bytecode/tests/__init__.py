@@ -129,9 +129,7 @@ def get_code(source, *, filename="<string>", function=False):
     source = textwrap.dedent(source).strip()
     code = compile(source, filename, "exec")
     if function:
-        sub_code = [
-            const for const in code.co_consts if isinstance(const, types.CodeType)
-        ]
+        sub_code = [const for const in code.co_consts if isinstance(const, types.CodeType)]
         if len(sub_code) != 1:
             raise ValueError("unable to find function code")
         code = sub_code[0]
@@ -149,6 +147,4 @@ class TestCase(unittest.TestCase):
 
         for block1, block2 in zip(code, expected_blocks):
             block_index = code.get_block_index(block1)
-            self.assertListEqual(
-                list(block1), block2, "Block #%s is different" % block_index
-            )
+            self.assertListEqual(list(block1), block2, "Block #%s is different" % block_index)

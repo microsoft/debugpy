@@ -1,15 +1,17 @@
-from _pydevd_bundle.pydevd_constants import DebugInfoHolder, \
-    get_global_debugger, GetGlobalDebugger, set_global_debugger  # Keep for backward compatibility @UnusedImport
+from _pydevd_bundle.pydevd_constants import (
+    DebugInfoHolder,
+    get_global_debugger,
+    GetGlobalDebugger,
+    set_global_debugger,
+)  # Keep for backward compatibility @UnusedImport
 from _pydevd_bundle.pydevd_utils import quote_smart as quote, to_string
 from _pydevd_bundle.pydevd_comm_constants import ID_TO_MEANING, CMD_EXIT
-from _pydevd_bundle.pydevd_constants import HTTP_PROTOCOL, HTTP_JSON_PROTOCOL, \
-    get_protocol, IS_JYTHON, ForkSafeLock
+from _pydevd_bundle.pydevd_constants import HTTP_PROTOCOL, HTTP_JSON_PROTOCOL, get_protocol, IS_JYTHON, ForkSafeLock
 import json
 from _pydev_bundle import pydev_log
 
 
 class _BaseNetCommand(object):
-
     # Command id. Should be set in instance.
     id = -1
 
@@ -28,7 +30,6 @@ class _NullNetCommand(_BaseNetCommand):
 
 
 class _NullExitCommand(_NullNetCommand):
-
     id = CMD_EXIT
 
 
@@ -46,6 +47,7 @@ class NetCommand(_BaseNetCommand):
     Command can represent command received from the debugger,
     or one to be sent by daemon.
     """
+
     next_seq = 0  # sequence numbers
 
     _showing_debug_info = 0
@@ -67,13 +69,13 @@ class NetCommand(_BaseNetCommand):
         self.seq = seq
 
         if is_json:
-            if hasattr(text, 'to_dict'):
+            if hasattr(text, "to_dict"):
                 as_dict = text.to_dict(update_ids_to_dap=True)
             else:
                 assert isinstance(text, dict)
                 as_dict = text
-            as_dict['pydevd_cmd_id'] = cmd_id
-            as_dict['seq'] = seq
+            as_dict["pydevd_cmd_id"] = cmd_id
+            as_dict["seq"] = seq
             self.as_dict = as_dict
             text = json.dumps(as_dict)
 
@@ -87,13 +89,13 @@ class NetCommand(_BaseNetCommand):
         else:
             if protocol not in (HTTP_PROTOCOL, HTTP_JSON_PROTOCOL):
                 encoded = quote(to_string(text), '/<>_=" \t')
-                msg = '%s\t%s\t%s\n' % (cmd_id, seq, encoded)
+                msg = "%s\t%s\t%s\n" % (cmd_id, seq, encoded)
 
             else:
-                msg = '%s\t%s\t%s' % (cmd_id, seq, text)
+                msg = "%s\t%s\t%s" % (cmd_id, seq, text)
 
         if isinstance(msg, str):
-            msg = msg.encode('utf-8')
+            msg = msg.encode("utf-8")
 
         assert isinstance(msg, bytes)
         as_bytes = msg
@@ -103,7 +105,7 @@ class NetCommand(_BaseNetCommand):
         as_bytes = self._as_bytes
         try:
             if get_protocol() in (HTTP_PROTOCOL, HTTP_JSON_PROTOCOL):
-                sock.sendall(('Content-Length: %s\r\n\r\n' % len(as_bytes)).encode('ascii'))
+                sock.sendall(("Content-Length: %s\r\n\r\n" % len(as_bytes)).encode("ascii"))
             sock.sendall(as_bytes)
             if self._after_send:
                 for method in self._after_send:
@@ -133,14 +135,13 @@ class NetCommand(_BaseNetCommand):
 
             cls._showing_debug_info += 1
             try:
-                out_message = 'sending cmd (%s) --> ' % (get_protocol(),)
-                out_message += "%20s" % ID_TO_MEANING.get(str(cmd_id), 'UNKNOWN')
-                out_message += ' '
-                out_message += text.replace('\n', ' ')
+                out_message = "sending cmd (%s) --> " % (get_protocol(),)
+                out_message += "%20s" % ID_TO_MEANING.get(str(cmd_id), "UNKNOWN")
+                out_message += " "
+                out_message += text.replace("\n", " ")
                 try:
-                    pydev_log.critical('%s\n', out_message)
+                    pydev_log.critical("%s\n", out_message)
                 except:
                     pass
             finally:
                 cls._showing_debug_info -= 1
-

@@ -1,6 +1,16 @@
-from _pydevd_bundle.pydevd_constants import get_frame, IS_CPYTHON, IS_64BIT_PROCESS, IS_WINDOWS, \
-    IS_LINUX, IS_MAC, DebugInfoHolder, LOAD_NATIVE_LIB_FLAG, \
-    ENV_FALSE_LOWER_VALUES, ForkSafeLock
+from _pydevd_bundle.pydevd_constants import (
+    get_frame,
+    IS_CPYTHON,
+    IS_64BIT_PROCESS,
+    IS_WINDOWS,
+    IS_LINUX,
+    IS_MAC,
+    DebugInfoHolder,
+    LOAD_NATIVE_LIB_FLAG,
+    ENV_FALSE_LOWER_VALUES,
+    ForkSafeLock,
+    PYDEVD_USE_SYS_MONITORING,
+)
 from _pydev_bundle._pydev_saved_modules import thread, threading
 from _pydev_bundle import pydev_log, pydev_monkey
 import os.path
@@ -14,8 +24,8 @@ _original_settrace = sys.settrace
 
 
 class TracingFunctionHolder:
-    '''This class exists just to keep some variables (so that we don't keep them in the global namespace).
-    '''
+    """This class exists just to keep some variables (so that we don't keep them in the global namespace)."""
+
     _original_tracing = None
     _warn = True
     _traceback_limit = 1
@@ -30,14 +40,15 @@ def get_exception_traceback_str():
 
 
 def _get_stack_str(frame):
-
-    msg = '\nIf this is needed, please check: ' + \
-          '\nhttp://pydev.blogspot.com/2007/06/why-cant-pydev-debugger-work-with.html' + \
-          '\nto see how to restore the debug tracing back correctly.\n'
+    msg = (
+        "\nIf this is needed, please check: "
+        + "\nhttp://pydev.blogspot.com/2007/06/why-cant-pydev-debugger-work-with.html"
+        + "\nto see how to restore the debug tracing back correctly.\n"
+    )
 
     if TracingFunctionHolder._traceback_limit:
         s = StringIO()
-        s.write('Call Location:\n')
+        s.write("Call Location:\n")
         traceback.print_stack(f=frame, limit=TracingFunctionHolder._traceback_limit, file=s)
         msg = msg + s.getvalue()
 
@@ -45,32 +56,34 @@ def _get_stack_str(frame):
 
 
 def _internal_set_trace(tracing_func):
+    if PYDEVD_USE_SYS_MONITORING:
+        raise RuntimeError("pydevd: Using sys.monitoring, sys.settrace should not be called.")
     if TracingFunctionHolder._warn:
         frame = get_frame()
         if frame is not None and frame.f_back is not None:
             filename = os.path.splitext(frame.f_back.f_code.co_filename.lower())[0]
-            if filename.endswith('threadpool') and 'gevent' in filename:
+            if filename.endswith("threadpool") and "gevent" in filename:
                 if tracing_func is None:
-                    pydev_log.debug('Disabled internal sys.settrace from gevent threadpool.')
+                    pydev_log.debug("Disabled internal sys.settrace from gevent threadpool.")
                     return
 
             elif not filename.endswith(
-                    (
-                        'threading',
-                        'pydevd_tracing',
-                    )
-                ):
-
-                message = \
-                '\nPYDEV DEBUGGER WARNING:' + \
-                '\nsys.settrace() should not be used when the debugger is being used.' + \
-                '\nThis may cause the debugger to stop working correctly.' + \
-                '%s' % _get_stack_str(frame.f_back)
+                (
+                    "threading",
+                    "pydevd_tracing",
+                )
+            ):
+                message = (
+                    "\nPYDEV DEBUGGER WARNING:"
+                    + "\nsys.settrace() should not be used when the debugger is being used."
+                    + "\nThis may cause the debugger to stop working correctly."
+                    + "%s" % _get_stack_str(frame.f_back)
+                )
 
                 if message not in TracingFunctionHolder._warnings_shown:
                     # only warn about each message once...
                     TracingFunctionHolder._warnings_shown[message] = 1
-                    sys.stderr.write('%s\n' % (message,))
+                    sys.stderr.write("%s\n" % (message,))
                     sys.stderr.flush()
 
     if TracingFunctionHolder._original_tracing:
@@ -81,6 +94,8 @@ _last_tracing_func_thread_local = threading.local()
 
 
 def SetTrace(tracing_func):
+    if PYDEVD_USE_SYS_MONITORING:
+        raise RuntimeError("SetTrace should not be used when using sys.monitoring.")
     _last_tracing_func_thread_local.tracing_func = tracing_func
 
     if tracing_func is not None:
@@ -108,12 +123,16 @@ def reapply_settrace():
 
 
 def replace_sys_set_trace_func():
+    if PYDEVD_USE_SYS_MONITORING:
+        return
     if TracingFunctionHolder._original_tracing is None:
         TracingFunctionHolder._original_tracing = sys.settrace
         sys.settrace = _internal_set_trace
 
 
 def restore_sys_set_trace_func():
+    if PYDEVD_USE_SYS_MONITORING:
+        return
     if TracingFunctionHolder._original_tracing is not None:
         sys.settrace = TracingFunctionHolder._original_tracing
         TracingFunctionHolder._original_tracing = None
@@ -146,40 +165,40 @@ def get_python_helper_lib_filename():
     # debugger -- the only situation where it's imported is if the user actually does an attach to
     # process, through `attach_pydevd.py`, but this should usually be called from the IDE directly
     # and not from the debugger).
-    libdir = os.path.join(os.path.dirname(__file__), 'pydevd_attach_to_process')
+    libdir = os.path.join(os.path.dirname(__file__), "pydevd_attach_to_process")
 
-    arch = ''
+    arch = ""
     if IS_WINDOWS:
         # prefer not using platform.machine() when possible (it's a bit heavyweight as it may
         # spawn a subprocess).
-        arch = os.environ.get("PROCESSOR_ARCHITEW6432", os.environ.get('PROCESSOR_ARCHITECTURE', ''))
+        arch = os.environ.get("PROCESSOR_ARCHITEW6432", os.environ.get("PROCESSOR_ARCHITECTURE", ""))
 
     if not arch:
         arch = platform.machine()
         if not arch:
-            pydev_log.info('platform.machine() did not return valid value.')  # This shouldn't happen...
+            pydev_log.info("platform.machine() did not return valid value.")  # This shouldn't happen...
             return None
 
     if IS_WINDOWS:
-        extension = '.dll'
-        suffix_64 = 'amd64'
-        suffix_32 = 'x86'
+        extension = ".dll"
+        suffix_64 = "amd64"
+        suffix_32 = "x86"
 
     elif IS_LINUX:
-        extension = '.so'
-        suffix_64 = 'amd64'
-        suffix_32 = 'x86'
+        extension = ".so"
+        suffix_64 = "amd64"
+        suffix_32 = "x86"
 
     elif IS_MAC:
-        extension = '.dylib'
-        suffix_64 = 'x86_64'
-        suffix_32 = 'x86'
+        extension = ".dylib"
+        suffix_64 = "x86_64"
+        suffix_32 = "x86"
 
     else:
-        pydev_log.info('Unable to set trace to all threads in platform: %s', sys.platform)
+        pydev_log.info("Unable to set trace to all threads in platform: %s", sys.platform)
         return None
 
-    if arch.lower() not in ('amd64', 'x86', 'x86_64', 'i386', 'x86'):
+    if arch.lower() not in ("amd64", "x86", "x86_64", "i386", "x86"):
         # We don't support this processor by default. Still, let's support the case where the
         # user manually compiled it himself with some heuristics.
         #
@@ -190,15 +209,15 @@ def get_python_helper_lib_filename():
         # - linux_and_mac/compile_mac.sh
 
         try:
-            found = [name for name in os.listdir(libdir) if name.startswith('attach_') and name.endswith(extension)]
+            found = [name for name in os.listdir(libdir) if name.startswith("attach_") and name.endswith(extension)]
         except:
             if DebugInfoHolder.DEBUG_TRACE_LEVEL >= 1:
                 # There is no need to show this unless debug tracing is enabled.
-                pydev_log.exception('Error listing dir: %s', libdir)
+                pydev_log.exception("Error listing dir: %s", libdir)
             return None
 
-        expected_name = 'attach_' + arch + extension
-        expected_name_linux = 'attach_linux_' + arch + extension
+        expected_name = "attach_" + arch + extension
+        expected_name_linux = "attach_linux_" + arch + extension
 
         filename = None
         if expected_name in found:  # Heuristic: user compiled with "attach_<arch>.<extension>"
@@ -216,14 +235,10 @@ def get_python_helper_lib_filename():
                 filename = os.path.join(libdir, found[0])
 
         if filename is None:
-            pydev_log.info(
-                'Unable to set trace to all threads in arch: %s (did not find a %s lib in %s).',
-                arch, expected_name, libdir
-
-            )
+            pydev_log.info("Unable to set trace to all threads in arch: %s (did not find a %s lib in %s).", arch, expected_name, libdir)
             return None
 
-        pydev_log.info('Using %s lib in arch: %s.', filename, arch)
+        pydev_log.info("Using %s lib in arch: %s.", filename, arch)
 
     else:
         # Happy path for which we have pre-compiled binaries.
@@ -233,26 +248,30 @@ def get_python_helper_lib_filename():
             suffix = suffix_32
 
         if IS_WINDOWS or IS_MAC:  # just the extension changes
-            prefix = 'attach_'
+            prefix = "attach_"
         elif IS_LINUX:  #
-            prefix = 'attach_linux_'  # historically it has a different name
+            prefix = "attach_linux_"  # historically it has a different name
         else:
-            pydev_log.info('Unable to set trace to all threads in platform: %s', sys.platform)
+            pydev_log.info("Unable to set trace to all threads in platform: %s", sys.platform)
             return None
 
-        filename = os.path.join(libdir, '%s%s%s' % (prefix, suffix, extension))
+        filename = os.path.join(libdir, "%s%s%s" % (prefix, suffix, extension))
 
     if not os.path.exists(filename):
-        pydev_log.critical('Expected: %s to exist.', filename)
+        pydev_log.critical("Expected: %s to exist.", filename)
         return None
 
     return filename
 
 
 def _load_python_helper_lib_uncached():
-    if (not IS_CPYTHON or sys.version_info[:2] > (3, 11)
-            or hasattr(sys, 'gettotalrefcount') or LOAD_NATIVE_LIB_FLAG in ENV_FALSE_LOWER_VALUES):
-        pydev_log.info('Helper lib to set tracing to all threads not loaded.')
+    if (
+        not IS_CPYTHON
+        or sys.version_info[:2] > (3, 11)
+        or hasattr(sys, "gettotalrefcount")
+        or LOAD_NATIVE_LIB_FLAG in ENV_FALSE_LOWER_VALUES
+    ):
+        pydev_log.info("Helper lib to set tracing to all threads not loaded.")
         return None
 
     try:
@@ -261,17 +280,19 @@ def _load_python_helper_lib_uncached():
             return None
         # Load as pydll so that we don't release the gil.
         lib = ctypes.pydll.LoadLibrary(filename)
-        pydev_log.info('Successfully Loaded helper lib to set tracing to all threads.')
+        pydev_log.info("Successfully Loaded helper lib to set tracing to all threads.")
         return lib
     except:
         if DebugInfoHolder.DEBUG_TRACE_LEVEL >= 1:
             # Only show message if tracing is on (we don't have pre-compiled
             # binaries for all architectures -- i.e.: ARM).
-            pydev_log.exception('Error loading: %s', filename)
+            pydev_log.exception("Error loading: %s", filename)
         return None
 
 
 def set_trace_to_threads(tracing_func, thread_idents=None, create_dummy_thread=True):
+    if PYDEVD_USE_SYS_MONITORING:
+        raise RuntimeError("Should not be called when using sys.monitoring.")
     assert tracing_func is not None
 
     ret = 0
@@ -288,7 +309,7 @@ def set_trace_to_threads(tracing_func, thread_idents=None, create_dummy_thread=T
             # PY-44778: ignore pydevd threads and also add any thread that wasn't found on
             # sys._current_frames() as some existing threads may not appear in
             # sys._current_frames() but may be available through the `threading` module.
-            if getattr(t, 'pydev_do_not_trace', False):
+            if getattr(t, "pydev_do_not_trace", False):
                 thread_idents.discard(t.ident)
             else:
                 thread_idents.add(t.ident)
@@ -310,7 +331,6 @@ def set_trace_to_threads(tracing_func, thread_idents=None, create_dummy_thread=T
             if thread_ident not in threading._active:
 
                 class _DummyThread(threading._DummyThread):
-
                     def _set_ident(self):
                         # Note: Hack to set the thread ident that we want.
                         self._ident = thread_ident
@@ -331,7 +351,7 @@ def set_trace_to_threads(tracing_func, thread_idents=None, create_dummy_thread=T
 
                     if t.ident != thread_ident:
                         # Check if it actually worked.
-                        pydev_log.critical('pydevd: creation of _DummyThread with fixed thread ident did not succeed.')
+                        pydev_log.critical("pydevd: creation of _DummyThread with fixed thread ident did not succeed.")
 
         # Some (ptvsd) tests failed because of this, so, leave it always disabled for now.
         # show_debug_info = 1 if DebugInfoHolder.DEBUG_TRACE_LEVEL >= 1 else 0
@@ -360,7 +380,7 @@ def set_trace_to_threads(tracing_func, thread_idents=None, create_dummy_thread=T
 
         lib = _load_python_helper_lib()
         if lib is None:  # This is the case if it's not CPython.
-            pydev_log.info('Unable to load helper lib to set tracing to all threads (unsupported python vm).')
+            pydev_log.info("Unable to load helper lib to set tracing to all threads (unsupported python vm).")
             ret = -1
         else:
             try:
@@ -374,12 +394,11 @@ def set_trace_to_threads(tracing_func, thread_idents=None, create_dummy_thread=T
             except:
                 if DebugInfoHolder.DEBUG_TRACE_LEVEL >= 1:
                     # There is no need to show this unless debug tracing is enabled.
-                    pydev_log.exception('Error attaching debugger tracing')
+                    pydev_log.exception("Error attaching debugger tracing")
                 ret = -1
             else:
                 if result != 0:
-                    pydev_log.info('Unable to set tracing for existing thread. Result: %s', result)
+                    pydev_log.info("Unable to set tracing for existing thread. Result: %s", result)
                     ret = result
 
     return ret
-

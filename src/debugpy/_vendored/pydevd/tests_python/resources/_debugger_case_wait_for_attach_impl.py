@@ -1,6 +1,8 @@
 import os
 import sys
 import time
+from _pydevd_bundle.pydevd_constants import PYDEVD_USE_SYS_MONITORING
+
 port = int(sys.argv[1])
 root_dirname = os.path.dirname(os.path.dirname(__file__))
 
@@ -31,7 +33,10 @@ else:
     raise AssertionError('Expected _enable_attach to raise exception (because it is already hearing in another port).')
 
 assert pydevd.get_global_debugger() is not None
-assert sys.gettrace() is not None
+if PYDEVD_USE_SYS_MONITORING:
+    assert sys.monitoring.get_tool(sys.monitoring.DEBUGGER_ID) == 'pydevd'
+else:
+    assert sys.gettrace() is not None
 
 a = 10  # Break 1
 print('wait for attach')

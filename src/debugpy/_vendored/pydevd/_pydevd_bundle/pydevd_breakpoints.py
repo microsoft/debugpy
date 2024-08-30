@@ -5,7 +5,6 @@ from _pydev_bundle._pydev_saved_modules import threading
 
 
 class ExceptionBreakpoint(object):
-
     def __init__(
         self,
         qname,
@@ -15,8 +14,8 @@ class ExceptionBreakpoint(object):
         notify_on_unhandled_exceptions,
         notify_on_user_unhandled_exceptions,
         notify_on_first_raise_only,
-        ignore_libraries
-        ):
+        ignore_libraries,
+    ):
         exctype = get_exception_class(qname)
         self.qname = qname
         if exctype is not None:
@@ -46,7 +45,6 @@ class ExceptionBreakpoint(object):
 
 
 class LineBreakpoint(object):
-
     def __init__(self, breakpoint_id, line, condition, func_name, expression, suspend_policy="NONE", hit_condition=None, is_logpoint=False):
         self.breakpoint_id = breakpoint_id
         self.line = line
@@ -69,7 +67,7 @@ class LineBreakpoint(object):
         ret = False
         with self._hit_condition_lock:
             self._hit_count += 1
-            expr = self.hit_condition.replace('@HIT@', str(self._hit_count))
+            expr = self.hit_condition.replace("@HIT@", str(self._hit_count))
             try:
                 ret = bool(eval(expr, frame.f_globals, frame.f_locals))
             except Exception:
@@ -78,7 +76,6 @@ class LineBreakpoint(object):
 
 
 class FunctionBreakpoint(object):
-
     def __init__(self, func_name, condition, expression, suspend_policy="NONE", hit_condition=None, is_logpoint=False):
         self.condition = condition
         self.func_name = func_name
@@ -99,7 +96,7 @@ class FunctionBreakpoint(object):
         ret = False
         with self._hit_condition_lock:
             self._hit_count += 1
-            expr = self.hit_condition.replace('@HIT@', str(self._hit_count))
+            expr = self.hit_condition.replace("@HIT@", str(self._hit_count))
             try:
                 ret = bool(eval(expr, frame.f_globals, frame.f_locals))
             except Exception:
@@ -111,7 +108,7 @@ def get_exception_breakpoint(exctype, exceptions):
     if not exctype:
         exception_full_qname = None
     else:
-        exception_full_qname = str(exctype.__module__) + '.' + exctype.__name__
+        exception_full_qname = str(exctype.__module__) + "." + exctype.__name__
 
     exc = None
     if exceptions is not None:
@@ -170,9 +167,9 @@ def stop_on_unhandled_exception(py_db, thread, additional_info, arg):
     try:
         additional_info.pydev_message = exception_breakpoint.qname
     except:
-        additional_info.pydev_message = exception_breakpoint.qname.encode('utf-8')
+        additional_info.pydev_message = exception_breakpoint.qname.encode("utf-8")
 
-    pydev_log.debug('Handling post-mortem stop on exception breakpoint %s' % (exception_breakpoint.qname,))
+    pydev_log.debug("Handling post-mortem stop on exception breakpoint %s" % (exception_breakpoint.qname,))
 
     py_db.do_stop_on_unhandled_exception(thread, user_frame, frames_byid, arg)
 

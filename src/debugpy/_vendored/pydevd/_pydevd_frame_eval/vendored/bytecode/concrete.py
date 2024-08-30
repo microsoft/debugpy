@@ -138,9 +138,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
     def _check_instr(self, instr):
         if not isinstance(instr, (ConcreteInstr, SetLineno)):
             raise ValueError(
-                "ConcreteBytecode must only contain "
-                "ConcreteInstr and SetLineno objects, "
-                "but %s was found" % type(instr).__name__
+                "ConcreteBytecode must only contain " "ConcreteInstr and SetLineno objects, " "but %s was found" % type(instr).__name__
             )
 
     def _copy_attr_from(self, bytecode):
@@ -236,9 +234,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
         for lineno, instr in self._normalize_lineno(self, self.first_lineno):
             code_str.append(instr.assemble())
             i_size = instr.size
-            linenos.append(
-                ((offset * 2) if OFFSET_AS_INSTRUCTION else offset, i_size, lineno)
-            )
+            linenos.append(((offset * 2) if OFFSET_AS_INSTRUCTION else offset, i_size, lineno))
             offset += (i_size // 2) if OFFSET_AS_INSTRUCTION else i_size
         code_str = b"".join(code_str)
         return (code_str, linenos)
@@ -254,9 +250,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
                 continue
             # FIXME: be kind, force monotonic line numbers? add an option?
             if dlineno < 0 and sys.version_info < (3, 6):
-                raise ValueError(
-                    "negative line number delta is not supported " "on Python < 3.6"
-                )
+                raise ValueError("negative line number delta is not supported " "on Python < 3.6")
             old_lineno = lineno
 
             doff = offset - old_offset
@@ -285,7 +279,6 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
 
     @staticmethod
     def _pack_linetable(doff, dlineno, linetable):
-
         while dlineno < -127:
             linetable.append(struct.pack("Bb", 0, -127))
             dlineno -= -127
@@ -309,16 +302,15 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
         assert 0 <= doff <= 254
         assert -127 <= dlineno <= 127
 
-
     def _assemble_linestable(self, first_lineno, linenos):
         if not linenos:
             return b""
 
         linetable = []
         old_offset = 0
-        
+
         iter_in = iter(linenos)
-        
+
         offset, i_size, old_lineno = next(iter_in)
         old_dlineno = old_lineno - first_lineno
         for offset, i_size, lineno in iter_in:
@@ -442,7 +434,6 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
             )
 
     def to_bytecode(self):
-
         # Copy instruction and remove extended args if any (in-place)
         c_instructions = self[:]
         self._remove_extended_args(c_instructions)
@@ -527,7 +518,6 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
 
 
 class _ConvertBytecodeToConcrete:
-
     # Default number of passes of compute_jumps() before giving up.  Refer to
     # assemble_jump_offsets() in compile.c for background.
     _compute_jumps_passes = 10
@@ -631,9 +621,7 @@ class _ConvertBytecodeToConcrete:
 
             if instr.opcode in _opcode.hasjrel:
                 instr_offset = offsets[index]
-                target_offset -= instr_offset + (
-                    instr.size // 2 if OFFSET_AS_INSTRUCTION else instr.size
-                )
+                target_offset -= instr_offset + (instr.size // 2 if OFFSET_AS_INSTRUCTION else instr.size)
 
             old_size = instr.size
             # FIXME: better error report if target_offset is negative
@@ -659,9 +647,7 @@ class _ConvertBytecodeToConcrete:
             if not modified:
                 break
         else:
-            raise RuntimeError(
-                "compute_jumps() failed to converge after" " %d passes" % (pas + 1)
-            )
+            raise RuntimeError("compute_jumps() failed to converge after" " %d passes" % (pas + 1))
 
         concrete = ConcreteBytecode(
             self.instructions,

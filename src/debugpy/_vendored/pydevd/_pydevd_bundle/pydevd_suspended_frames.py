@@ -1,8 +1,7 @@
 from contextlib import contextmanager
 import sys
 
-from _pydevd_bundle.pydevd_constants import get_frame, RETURN_VALUES_DICT, \
-    ForkSafeLock, GENERATED_LEN_ATTR_NAME, silence_warnings_decorator
+from _pydevd_bundle.pydevd_constants import get_frame, RETURN_VALUES_DICT, ForkSafeLock, GENERATED_LEN_ATTR_NAME, silence_warnings_decorator
 from _pydevd_bundle.pydevd_xml import get_variable_details, get_type
 from _pydev_bundle.pydev_override import overrides
 from _pydevd_bundle.pydevd_resolver import sorted_attributes_key, TOO_LARGE_ATTR, get_var_scope
@@ -16,7 +15,6 @@ from typing import Optional
 
 
 class _AbstractVariable(object):
-
     # Default attributes in class, set in instance.
 
     name = None
@@ -36,8 +34,8 @@ class _AbstractVariable(object):
     def get_variable_reference(self):
         return id(self.value)
 
-    def get_var_data(self, fmt: Optional[dict]=None, context: Optional[str]=None, **safe_repr_custom_attrs):
-        '''
+    def get_var_data(self, fmt: Optional[dict] = None, context: Optional[str] = None, **safe_repr_custom_attrs):
+        """
         :param dict fmt:
             Format expected by the DAP (keys: 'hex': bool, 'rawString': bool)
 
@@ -47,58 +45,59 @@ class _AbstractVariable(object):
                 "repl",
                 "hover",
                 "clipboard"
-        '''
+        """
         timer = Timer()
         safe_repr = SafeRepr()
         if fmt is not None:
-            safe_repr.convert_to_hex = fmt.get('hex', False)
-            safe_repr.raw_value = fmt.get('rawString', False)
+            safe_repr.convert_to_hex = fmt.get("hex", False)
+            safe_repr.raw_value = fmt.get("rawString", False)
         for key, val in safe_repr_custom_attrs.items():
             setattr(safe_repr, key, val)
 
         type_name, _type_qualifier, _is_exception_on_eval, resolver, value = get_variable_details(
-            self.value, to_string=safe_repr, context=context)
+            self.value, to_string=safe_repr, context=context
+        )
 
-        is_raw_string = type_name in ('str', 'bytes', 'bytearray')
+        is_raw_string = type_name in ("str", "bytes", "bytearray")
 
         attributes = []
 
         if is_raw_string:
-            attributes.append('rawString')
+            attributes.append("rawString")
 
         name = self.name
 
         if self._is_return_value:
-            attributes.append('readOnly')
-            name = '(return) %s' % (name,)
+            attributes.append("readOnly")
+            name = "(return) %s" % (name,)
 
         elif name in (TOO_LARGE_ATTR, GENERATED_LEN_ATTR_NAME):
-            attributes.append('readOnly')
+            attributes.append("readOnly")
 
         try:
             if self.value.__class__ == DAPGrouper:
-                type_name = ''
+                type_name = ""
         except:
             pass  # Ignore errors accessing __class__.
 
         var_data = {
-            'name': name,
-            'value': value,
-            'type': type_name,
+            "name": name,
+            "value": value,
+            "type": type_name,
         }
 
         if self.evaluate_name is not None:
-            var_data['evaluateName'] = self.evaluate_name
+            var_data["evaluateName"] = self.evaluate_name
 
         if resolver is not None:  # I.e.: it's a container
-            var_data['variablesReference'] = self.get_variable_reference()
+            var_data["variablesReference"] = self.get_variable_reference()
         else:
-            var_data['variablesReference'] = 0  # It's mandatory (although if == 0 it doesn't have children).
+            var_data["variablesReference"] = 0  # It's mandatory (although if == 0 it doesn't have children).
 
         if len(attributes) > 0:
-            var_data['presentationHint'] = {'attributes': attributes}
+            var_data["presentationHint"] = {"attributes": attributes}
 
-        timer.report_if_compute_repr_attr_slow('', name, type_name)
+        timer.report_if_compute_repr_attr_slow("", name, type_name)
         return var_data
 
     def get_children_variables(self, fmt=None, scope=None):
@@ -126,10 +125,10 @@ class _AbstractVariable(object):
                 entry = (attr_name, attr_value, evaluate_name)
                 if scope:
                     presentation = get_presentation(scope)
-                    if presentation == 'hide':
+                    if presentation == "hide":
                         continue
 
-                    elif presentation == 'inline':
+                    elif presentation == "inline":
                         new_lst.append(entry)
 
                     else:  # group
@@ -153,7 +152,6 @@ class _AbstractVariable(object):
 
 
 class _ObjectVariable(_AbstractVariable):
-
     def __init__(self, py_db, name, value, register_variable, is_return_value=False, evaluate_name=None, frame=None):
         _AbstractVariable.__init__(self, py_db)
         self.frame = frame
@@ -171,7 +169,7 @@ class _ObjectVariable(_AbstractVariable):
 
         children_variables = []
         if resolver is not None:  # i.e.: it's a container.
-            if hasattr(resolver, 'get_contents_debug_adapter_protocol'):
+            if hasattr(resolver, "get_contents_debug_adapter_protocol"):
                 # The get_contents_debug_adapter_protocol needs to return sorted.
                 lst = resolver.get_contents_debug_adapter_protocol(self.value, fmt=fmt)
             else:
@@ -192,8 +190,7 @@ class _ObjectVariable(_AbstractVariable):
                             evaluate_name = evaluate_name(parent_evaluate_name)
                         else:
                             evaluate_name = parent_evaluate_name + evaluate_name
-                    variable = _ObjectVariable(
-                        self.py_db, key, val, self._register_variable, evaluate_name=evaluate_name, frame=self.frame)
+                    variable = _ObjectVariable(self.py_db, key, val, self._register_variable, evaluate_name=evaluate_name, frame=self.frame)
                     children_variables.append(variable)
             else:
                 for key, val, evaluate_name in lst:
@@ -204,13 +201,12 @@ class _ObjectVariable(_AbstractVariable):
         return children_variables
 
     def change_variable(self, name, value, py_db, fmt=None):
-
         children_variable = self.get_child_variable_named(name)
         if children_variable is None:
             return None
 
         var_data = children_variable.get_var_data()
-        evaluate_name = var_data.get('evaluateName')
+        evaluate_name = var_data.get("evaluateName")
 
         if not evaluate_name:
             # Note: right now we only pass control to the resolver in the cases where
@@ -218,15 +214,14 @@ class _ObjectVariable(_AbstractVariable):
             # we can use that evaluation to set the value too -- if in the future
             # a case where this isn't true is found this logic may need to be changed).
             _type, _type_name, container_resolver = get_type(self.value)
-            if hasattr(container_resolver, 'change_var_from_name'):
+            if hasattr(container_resolver, "change_var_from_name"):
                 try:
                     new_value = eval(value)
                 except:
                     return None
                 new_key = container_resolver.change_var_from_name(self.value, name, new_value)
                 if new_key is not None:
-                    return _ObjectVariable(
-                        self.py_db, new_key, new_value, self._register_variable, evaluate_name=None, frame=self.frame)
+                    return _ObjectVariable(self.py_db, new_key, new_value, self._register_variable, evaluate_name=None, frame=self.frame)
 
                 return None
             else:
@@ -238,7 +233,7 @@ class _ObjectVariable(_AbstractVariable):
 
         try:
             # This handles the simple cases (such as dict, list, object)
-            Exec('%s=%s' % (evaluate_name, value), frame.f_globals, frame.f_locals)
+            Exec("%s=%s" % (evaluate_name, value), frame.f_globals, frame.f_locals)
         except:
             return None
 
@@ -250,7 +245,6 @@ def sorted_variables_key(obj):
 
 
 class _FrameVariable(_AbstractVariable):
-
     def __init__(self, py_db, frame, register_variable):
         _AbstractVariable.__init__(self, py_db)
         self.frame = frame
@@ -276,19 +270,21 @@ class _FrameVariable(_AbstractVariable):
             assert isinstance(scope, ScopeRequest)
             scope = scope.scope
 
-        if scope in ('locals', None):
+        if scope in ("locals", None):
             dct = self.frame.f_locals
-        elif scope == 'globals':
+        elif scope == "globals":
             dct = self.frame.f_globals
         else:
-            raise AssertionError('Unexpected scope: %s' % (scope,))
+            raise AssertionError("Unexpected scope: %s" % (scope,))
 
-        lst, group_entries = self._group_entries([(x[0], x[1], None) for x in list(dct.items()) if x[0] != '_pydev_stop_at_break'], handle_return_values=True)
+        lst, group_entries = self._group_entries(
+            [(x[0], x[1], None) for x in list(dct.items()) if x[0] != "_pydev_stop_at_break"], handle_return_values=True
+        )
         group_variables = []
 
         for key, val, _ in group_entries:
             # Make sure that the contents in the group are also sorted.
-            val.contents_debug_adapter_protocol.sort(key=lambda v:sorted_attributes_key(v[0]))
+            val.contents_debug_adapter_protocol.sort(key=lambda v: sorted_attributes_key(v[0]))
             variable = _ObjectVariable(self.py_db, key, val, self._register_variable, False, key, frame=self.frame)
             group_variables.append(variable)
 
@@ -297,7 +293,14 @@ class _FrameVariable(_AbstractVariable):
             if is_return_value:
                 for return_key, return_value in val.items():
                     variable = _ObjectVariable(
-                        self.py_db, return_key, return_value, self._register_variable, is_return_value, '%s[%r]' % (key, return_key), frame=self.frame)
+                        self.py_db,
+                        return_key,
+                        return_value,
+                        self._register_variable,
+                        is_return_value,
+                        "%s[%r]" % (key, return_key),
+                        frame=self.frame,
+                    )
                     children_variables.append(variable)
             else:
                 variable = _ObjectVariable(self.py_db, key, val, self._register_variable, is_return_value, key, frame=self.frame)
@@ -313,9 +316,9 @@ class _FrameVariable(_AbstractVariable):
 
 
 class _FramesTracker(object):
-    '''
+    """
     This is a helper class to be used to track frames when a thread becomes suspended.
-    '''
+    """
 
     def __init__(self, suspended_frames_manager, py_db):
         self._suspended_frames_manager = suspended_frames_manager
@@ -342,7 +345,7 @@ class _FramesTracker(object):
         self._untracked = False
 
         # We need to be thread-safe!
-        self._lock = ForkSafeLock()
+        self._lock = ForkSafeLock(rlock=True)
 
         self._variable_reference_to_variable = {}
 
@@ -361,7 +364,8 @@ class _FramesTracker(object):
 
         # Still not created, let's do it now.
         return _ObjectVariable(
-            self.py_db, name, value, self._register_variable, is_return_value=False, evaluate_name=evaluate_name, frame=frame)
+            self.py_db, name, value, self._register_variable, is_return_value=False, evaluate_name=evaluate_name, frame=frame
+        )
 
     def get_main_thread_id(self):
         return self._main_thread_id
@@ -370,7 +374,7 @@ class _FramesTracker(object):
         return self._variable_reference_to_variable[variable_reference]
 
     def track(self, thread_id, frames_list, frame_custom_thread_id=None):
-        '''
+        """
         :param thread_id:
             The thread id to be used for this frame.
 
@@ -379,19 +383,18 @@ class _FramesTracker(object):
 
         :param frame_custom_thread_id:
             If None this this is the id of the thread id for the custom frame (i.e.: coroutine).
-        '''
+        """
         assert frames_list.__class__ == FramesList
         with self._lock:
             coroutine_or_main_thread_id = frame_custom_thread_id or thread_id
 
             if coroutine_or_main_thread_id in self._suspended_frames_manager._thread_id_to_tracker:
-                sys.stderr.write('pydevd: Something is wrong. Tracker being added twice to the same thread id.\n')
+                sys.stderr.write("pydevd: Something is wrong. Tracker being added twice to the same thread id.\n")
 
             self._suspended_frames_manager._thread_id_to_tracker[coroutine_or_main_thread_id] = self
             self._main_thread_id = thread_id
 
-            frame_ids_from_thread = self._thread_id_to_frame_ids.setdefault(
-                coroutine_or_main_thread_id, [])
+            frame_ids_from_thread = self._thread_id_to_frame_ids.setdefault(coroutine_or_main_thread_id, [])
 
             self._thread_id_to_frames_list[coroutine_or_main_thread_id] = frames_list
             for frame in frames_list:
@@ -433,20 +436,20 @@ class _FramesTracker(object):
         with self._lock:
             return self._frame_id_to_frame.get(frame_id)
 
-    def create_thread_suspend_command(self, thread_id, stop_reason, message, suspend_type):
+    def create_thread_suspend_command(self, thread_id, stop_reason, message, trace_suspend_type, thread, additional_info):
         with self._lock:
             # First one is topmost frame suspended.
             frames_list = self._thread_id_to_frames_list[thread_id]
 
             cmd = self.py_db.cmd_factory.make_thread_suspend_message(
-                self.py_db, thread_id, frames_list, stop_reason, message, suspend_type)
+                self.py_db, thread_id, frames_list, stop_reason, message, trace_suspend_type, thread, additional_info
+            )
 
             frames_list = None
             return cmd
 
 
 class SuspendedFramesManager(object):
-
     def __init__(self):
         self._thread_id_to_fake_frames = {}
         self._thread_id_to_tracker = {}
@@ -470,7 +473,7 @@ class SuspendedFramesManager(object):
         return None
 
     def get_thread_id_for_variable_reference(self, variable_reference):
-        '''
+        """
         We can't evaluate variable references values on any thread, only in the suspended
         thread (the main reason for this is that in UI frameworks inspecting a UI object
         from a different thread can potentially crash the application).
@@ -482,7 +485,7 @@ class SuspendedFramesManager(object):
         :return str:
             The thread id for the thread to be used to inspect the given variable reference or
             None if the thread was already resumed.
-        '''
+        """
         frames_tracker = self._get_tracker_for_variable_reference(variable_reference)
         if frames_tracker is not None:
             return frames_tracker.get_main_thread_id()
@@ -492,9 +495,9 @@ class SuspendedFramesManager(object):
         return self._thread_id_to_tracker.get(thread_id)
 
     def get_variable(self, variable_reference):
-        '''
+        """
         :raises KeyError
-        '''
+        """
         frames_tracker = self._get_tracker_for_variable_reference(variable_reference)
         if frames_tracker is None:
             raise KeyError()

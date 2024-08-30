@@ -5,16 +5,16 @@ Qt4's inputhook support function
 Author: Christian Boos
 """
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 #  Copyright (C) 2011  The IPython Development Team
 #
 #  Distributed under the terms of the BSD License.  The full license is in
 #  the file COPYING, distributed as part of this software.
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Imports
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 import os
 import signal
@@ -25,31 +25,35 @@ import threading
 from pydev_ipython.qt_for_kernel import QtCore, QtGui
 from pydev_ipython.inputhook import allow_CTRL_C, ignore_CTRL_C, stdin_ready
 
+
 # To minimise future merging complexity, rather than edit the entire code base below
 # we fake InteractiveShell here
 class InteractiveShell:
     _instance = None
+
     @classmethod
     def instance(cls):
         if cls._instance is None:
             cls._instance = cls()
         return cls._instance
+
     def set_hook(self, *args, **kwargs):
         # We don't consider the pre_prompt_hook because we don't have
         # KeyboardInterrupts to consider since we are running under PyDev
         pass
 
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Module Globals
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 got_kbdint = False
 sigint_timer = None
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Code
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+
 
 def create_inputhook_qt4(mgr, app=None):
     """Create an input hook for running the Qt4 application event loop.
@@ -85,7 +89,7 @@ def create_inputhook_qt4(mgr, app=None):
 
     # Re-use previously created inputhook if any
     ip = InteractiveShell.instance()
-    if hasattr(ip, '_inputhook_qt4'):
+    if hasattr(ip, "_inputhook_qt4"):
         return app, ip._inputhook_qt4
 
     # Otherwise create the inputhook_qt4/preprompthook_qt4 pair of
@@ -106,7 +110,7 @@ def create_inputhook_qt4(mgr, app=None):
         try:
             allow_CTRL_C()
             app = QtCore.QCoreApplication.instance()
-            if not app: # shouldn't happen, but safer if it happens anyway...
+            if not app:  # shouldn't happen, but safer if it happens anyway...
                 return 0
             app.processEvents(QtCore.QEventLoop.AllEvents, 300)
             if not stdin_ready():
@@ -154,19 +158,18 @@ def create_inputhook_qt4(mgr, app=None):
             #
             # Unfortunately this doesn't work on Windows (SIGINT kills
             # Python and CTRL_C_EVENT doesn't work).
-            if(os.name == 'posix'):
+            if os.name == "posix":
                 pid = os.getpid()
-                if(not sigint_timer):
-                    sigint_timer = threading.Timer(.01, os.kill,
-                                         args=[pid, signal.SIGINT] )
+                if not sigint_timer:
+                    sigint_timer = threading.Timer(0.01, os.kill, args=[pid, signal.SIGINT])
                     sigint_timer.start()
             else:
                 print("\nKeyboardInterrupt - Ctrl-C again for new prompt")
 
-
-        except: # NO exceptions are allowed to escape from a ctypes callback
+        except:  # NO exceptions are allowed to escape from a ctypes callback
             ignore_CTRL_C()
             from traceback import print_exc
+
             print_exc()
             print("Got exception from inputhook_qt4, unregistering.")
             mgr.clear_inputhook()
@@ -182,7 +185,7 @@ def create_inputhook_qt4(mgr, app=None):
         """
         global got_kbdint, sigint_timer
 
-        if(sigint_timer):
+        if sigint_timer:
             sigint_timer.cancel()
             sigint_timer = None
 
@@ -191,6 +194,6 @@ def create_inputhook_qt4(mgr, app=None):
         got_kbdint = False
 
     ip._inputhook_qt4 = inputhook_qt4
-    ip.set_hook('pre_prompt_hook', preprompthook_qt4)
+    ip.set_hook("pre_prompt_hook", preprompthook_qt4)
 
     return app, inputhook_qt4

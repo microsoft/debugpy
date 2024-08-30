@@ -25,3 +25,18 @@ cdef class PyDBAdditionalThreadInfo:
     cdef public tuple pydev_smart_step_into_variants
     cdef public dict target_id_to_smart_step_into_variant
     cdef public bint pydev_use_scoped_step_frame
+    cdef public object weak_thread
+    cdef public bint is_in_wait_loop
+    
+    cpdef get_topmost_frame(self, thread)
+    cpdef update_stepping_info(self)
+    
+    # Private APIs
+    cpdef object _get_related_thread(self)
+    cpdef bint _is_stepping(self)
+
+cpdef set_additional_thread_info(thread)
+
+cpdef add_additional_info(PyDBAdditionalThreadInfo info)
+cpdef remove_additional_info(PyDBAdditionalThreadInfo info)
+cpdef bint any_thread_stepping()

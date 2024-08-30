@@ -2,7 +2,6 @@ from _pydev_bundle._pydev_saved_modules import threading
 
 
 def wrapper(fun):
-
     def pydev_after_run_call():
         pass
 
@@ -20,11 +19,11 @@ def wrap_attr(obj, attr):
 
 
 class ObjectWrapper(object):
-
     def __init__(self, obj):
         self.wrapped_object = obj
         try:
             import functools
+
             functools.update_wrapper(self, obj)
         except:
             pass
@@ -62,7 +61,6 @@ class ObjectWrapper(object):
 
 
 def factory_wrapper(fun):
-
     def inner(*args, **kwargs):
         obj = fun(*args, **kwargs)
         return ObjectWrapper(obj)
@@ -80,4 +78,5 @@ def wrap_threads():
 
     # queue patching
     import queue  # @UnresolvedImport
+
     queue.Queue = factory_wrapper(queue.Queue)

@@ -37,18 +37,18 @@ __revision__ = "$Id$"
 from winappdbg.win32.defines import *
 from winappdbg.win32.advapi32 import *
 
-#==============================================================================
+# ==============================================================================
 # This is used later on to calculate the list of exported symbols.
 _all = None
 _all = set(vars().keys())
-#==============================================================================
+# ==============================================================================
 
-#--- Constants ----------------------------------------------------------------
+# --- Constants ----------------------------------------------------------------
 
 WTS_CURRENT_SERVER_HANDLE = 0
-WTS_CURRENT_SESSION       = 1
+WTS_CURRENT_SESSION = 1
 
-#--- WTS_PROCESS_INFO structure -----------------------------------------------
+# --- WTS_PROCESS_INFO structure -----------------------------------------------
 
 # typedef struct _WTS_PROCESS_INFO {
 #   DWORD  SessionId;
@@ -57,25 +57,31 @@ WTS_CURRENT_SESSION       = 1
 #   PSID   pUserSid;
 # } WTS_PROCESS_INFO, *PWTS_PROCESS_INFO;
 
+
 class WTS_PROCESS_INFOA(Structure):
     _fields_ = [
-        ("SessionId",    DWORD),
-        ("ProcessId",    DWORD),
+        ("SessionId", DWORD),
+        ("ProcessId", DWORD),
         ("pProcessName", LPSTR),
-        ("pUserSid",     PSID),
+        ("pUserSid", PSID),
     ]
+
+
 PWTS_PROCESS_INFOA = POINTER(WTS_PROCESS_INFOA)
+
 
 class WTS_PROCESS_INFOW(Structure):
     _fields_ = [
-        ("SessionId",    DWORD),
-        ("ProcessId",    DWORD),
+        ("SessionId", DWORD),
+        ("ProcessId", DWORD),
         ("pProcessName", LPWSTR),
-        ("pUserSid",     PSID),
+        ("pUserSid", PSID),
     ]
+
+
 PWTS_PROCESS_INFOW = POINTER(WTS_PROCESS_INFOW)
 
-#--- WTSQuerySessionInformation enums and structures --------------------------
+# --- WTSQuerySessionInformation enums and structures --------------------------
 
 # typedef enum _WTS_INFO_CLASS {
 #   WTSInitialProgram          = 0,
@@ -110,36 +116,36 @@ PWTS_PROCESS_INFOW = POINTER(WTS_PROCESS_INFOW)
 #   WTSIsRemoteSession         = 29
 # } WTS_INFO_CLASS;
 
-WTSInitialProgram          = 0
-WTSApplicationName         = 1
-WTSWorkingDirectory        = 2
-WTSOEMId                   = 3
-WTSSessionId               = 4
-WTSUserName                = 5
-WTSWinStationName          = 6
-WTSDomainName              = 7
-WTSConnectState            = 8
-WTSClientBuildNumber       = 9
-WTSClientName              = 10
-WTSClientDirectory         = 11
-WTSClientProductId         = 12
-WTSClientHardwareId        = 13
-WTSClientAddress           = 14
-WTSClientDisplay           = 15
-WTSClientProtocolType      = 16
-WTSIdleTime                = 17
-WTSLogonTime               = 18
-WTSIncomingBytes           = 19
-WTSOutgoingBytes           = 20
-WTSIncomingFrames          = 21
-WTSOutgoingFrames          = 22
-WTSClientInfo              = 23
-WTSSessionInfo             = 24
-WTSSessionInfoEx           = 25
-WTSConfigInfo              = 26
-WTSValidationInfo          = 27
-WTSSessionAddressV4        = 28
-WTSIsRemoteSession         = 29
+WTSInitialProgram = 0
+WTSApplicationName = 1
+WTSWorkingDirectory = 2
+WTSOEMId = 3
+WTSSessionId = 4
+WTSUserName = 5
+WTSWinStationName = 6
+WTSDomainName = 7
+WTSConnectState = 8
+WTSClientBuildNumber = 9
+WTSClientName = 10
+WTSClientDirectory = 11
+WTSClientProductId = 12
+WTSClientHardwareId = 13
+WTSClientAddress = 14
+WTSClientDisplay = 15
+WTSClientProtocolType = 16
+WTSIdleTime = 17
+WTSLogonTime = 18
+WTSIncomingBytes = 19
+WTSOutgoingBytes = 20
+WTSIncomingFrames = 21
+WTSOutgoingFrames = 22
+WTSClientInfo = 23
+WTSSessionInfo = 24
+WTSSessionInfoEx = 25
+WTSConfigInfo = 26
+WTSValidationInfo = 27
+WTSSessionAddressV4 = 28
+WTSIsRemoteSession = 29
 
 WTS_INFO_CLASS = ctypes.c_int
 
@@ -156,18 +162,19 @@ WTS_INFO_CLASS = ctypes.c_int
 #   WTSInit
 # } WTS_CONNECTSTATE_CLASS;
 
-WTSActive       = 0
-WTSConnected    = 1
+WTSActive = 0
+WTSConnected = 1
 WTSConnectQuery = 2
-WTSShadow       = 3
+WTSShadow = 3
 WTSDisconnected = 4
-WTSIdle         = 5
-WTSListen       = 6
-WTSReset        = 7
-WTSDown         = 8
-WTSInit         = 9
+WTSIdle = 5
+WTSListen = 6
+WTSReset = 7
+WTSDown = 8
+WTSInit = 9
 
 WTS_CONNECTSTATE_CLASS = ctypes.c_int
+
 
 # typedef struct _WTS_CLIENT_DISPLAY {
 #   DWORD HorizontalResolution;
@@ -177,9 +184,11 @@ WTS_CONNECTSTATE_CLASS = ctypes.c_int
 class WTS_CLIENT_DISPLAY(Structure):
     _fields_ = [
         ("HorizontalResolution", DWORD),
-        ("VerticalResolution",   DWORD),
-        ("ColorDepth",           DWORD),
+        ("VerticalResolution", DWORD),
+        ("ColorDepth", DWORD),
     ]
+
+
 PWTS_CLIENT_DISPLAY = POINTER(WTS_CLIENT_DISPLAY)
 
 # typedef struct _WTS_CLIENT_ADDRESS {
@@ -239,7 +248,8 @@ PWTS_CLIENT_DISPLAY = POINTER(WTS_CLIENT_DISPLAY)
 
 # XXX TODO
 
-#--- wtsapi32.dll -------------------------------------------------------------
+# --- wtsapi32.dll -------------------------------------------------------------
+
 
 # void WTSFreeMemory(
 #   __in  PVOID pMemory
@@ -247,8 +257,9 @@ PWTS_CLIENT_DISPLAY = POINTER(WTS_CLIENT_DISPLAY)
 def WTSFreeMemory(pMemory):
     _WTSFreeMemory = windll.wtsapi32.WTSFreeMemory
     _WTSFreeMemory.argtypes = [PVOID]
-    _WTSFreeMemory.restype  = None
+    _WTSFreeMemory.restype = None
     _WTSFreeMemory(pMemory)
+
 
 # BOOL WTSEnumerateProcesses(
 #   __in   HANDLE hServer,
@@ -257,10 +268,10 @@ def WTSFreeMemory(pMemory):
 #   __out  PWTS_PROCESS_INFO *ppProcessInfo,
 #   __out  DWORD *pCount
 # );
-def WTSEnumerateProcessesA(hServer = WTS_CURRENT_SERVER_HANDLE):
+def WTSEnumerateProcessesA(hServer=WTS_CURRENT_SERVER_HANDLE):
     _WTSEnumerateProcessesA = windll.wtsapi32.WTSEnumerateProcessesA
     _WTSEnumerateProcessesA.argtypes = [HANDLE, DWORD, DWORD, POINTER(PWTS_PROCESS_INFOA), PDWORD]
-    _WTSEnumerateProcessesA.restype  = bool
+    _WTSEnumerateProcessesA.restype = bool
     _WTSEnumerateProcessesA.errcheck = RaiseIfZero
 
     pProcessInfo = PWTS_PROCESS_INFOA()
@@ -268,10 +279,11 @@ def WTSEnumerateProcessesA(hServer = WTS_CURRENT_SERVER_HANDLE):
     _WTSEnumerateProcessesA(hServer, 0, 1, byref(pProcessInfo), byref(Count))
     return pProcessInfo, Count.value
 
-def WTSEnumerateProcessesW(hServer = WTS_CURRENT_SERVER_HANDLE):
+
+def WTSEnumerateProcessesW(hServer=WTS_CURRENT_SERVER_HANDLE):
     _WTSEnumerateProcessesW = windll.wtsapi32.WTSEnumerateProcessesW
     _WTSEnumerateProcessesW.argtypes = [HANDLE, DWORD, DWORD, POINTER(PWTS_PROCESS_INFOW), PDWORD]
-    _WTSEnumerateProcessesW.restype  = bool
+    _WTSEnumerateProcessesW.restype = bool
     _WTSEnumerateProcessesW.errcheck = RaiseIfZero
 
     pProcessInfo = PWTS_PROCESS_INFOW()
@@ -279,7 +291,9 @@ def WTSEnumerateProcessesW(hServer = WTS_CURRENT_SERVER_HANDLE):
     _WTSEnumerateProcessesW(hServer, 0, 1, byref(pProcessInfo), byref(Count))
     return pProcessInfo, Count.value
 
+
 WTSEnumerateProcesses = DefaultStringType(WTSEnumerateProcessesA, WTSEnumerateProcessesW)
+
 
 # BOOL WTSTerminateProcess(
 #   __in  HANDLE hServer,
@@ -289,9 +303,10 @@ WTSEnumerateProcesses = DefaultStringType(WTSEnumerateProcessesA, WTSEnumeratePr
 def WTSTerminateProcess(hServer, ProcessId, ExitCode):
     _WTSTerminateProcess = windll.wtsapi32.WTSTerminateProcess
     _WTSTerminateProcess.argtypes = [HANDLE, DWORD, DWORD]
-    _WTSTerminateProcess.restype  = bool
+    _WTSTerminateProcess.restype = bool
     _WTSTerminateProcess.errcheck = RaiseIfZero
     _WTSTerminateProcess(hServer, ProcessId, ExitCode)
+
 
 # BOOL WTSQuerySessionInformation(
 #   __in   HANDLE hServer,
@@ -303,9 +318,10 @@ def WTSTerminateProcess(hServer, ProcessId, ExitCode):
 
 # XXX TODO
 
-#--- kernel32.dll -------------------------------------------------------------
+# --- kernel32.dll -------------------------------------------------------------
 
 # I've no idea why these functions are in kernel32.dll instead of wtsapi32.dll
+
 
 # BOOL ProcessIdToSessionId(
 #   __in   DWORD dwProcessId,
@@ -314,24 +330,26 @@ def WTSTerminateProcess(hServer, ProcessId, ExitCode):
 def ProcessIdToSessionId(dwProcessId):
     _ProcessIdToSessionId = windll.kernel32.ProcessIdToSessionId
     _ProcessIdToSessionId.argtypes = [DWORD, PDWORD]
-    _ProcessIdToSessionId.restype  = bool
+    _ProcessIdToSessionId.restype = bool
     _ProcessIdToSessionId.errcheck = RaiseIfZero
 
     dwSessionId = DWORD(0)
     _ProcessIdToSessionId(dwProcessId, byref(dwSessionId))
     return dwSessionId.value
 
+
 # DWORD WTSGetActiveConsoleSessionId(void);
 def WTSGetActiveConsoleSessionId():
     _WTSGetActiveConsoleSessionId = windll.kernel32.WTSGetActiveConsoleSessionId
     _WTSGetActiveConsoleSessionId.argtypes = []
-    _WTSGetActiveConsoleSessionId.restype  = DWORD
+    _WTSGetActiveConsoleSessionId.restype = DWORD
     _WTSGetActiveConsoleSessionId.errcheck = RaiseIfZero
     return _WTSGetActiveConsoleSessionId()
 
-#==============================================================================
+
+# ==============================================================================
 # This calculates the list of exported symbols.
 _all = set(vars().keys()).difference(_all)
-__all__ = [_x for _x in _all if not _x.startswith('_')]
+__all__ = [_x for _x in _all if not _x.startswith("_")]
 __all__.sort()
-#==============================================================================
+# ==============================================================================

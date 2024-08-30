@@ -37,7 +37,7 @@ SQL database storage support.
 
 __revision__ = "$Id$"
 
-__all__ = ['CrashDAO']
+__all__ = ["CrashDAO"]
 
 import sqlite3
 import datetime
@@ -50,46 +50,52 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.interfaces import PoolListener
 from sqlalchemy.orm import sessionmaker, deferred
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
-from sqlalchemy.types import Integer, BigInteger, Boolean, DateTime, String, \
-                             LargeBinary, Enum, VARCHAR
+from sqlalchemy.types import Integer, BigInteger, Boolean, DateTime, String, LargeBinary, Enum, VARCHAR
 from sqlalchemy.sql.expression import asc, desc
 
 from crash import Crash, Marshaller, pickle, HIGHEST_PROTOCOL
 from textio import CrashDump
 import win32
 
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 try:
     from decorator import decorator
 except ImportError:
     import functools
+
     def decorator(w):
         """
         The C{decorator} module was not found. You can install it from:
         U{http://pypi.python.org/pypi/decorator/}
         """
+
         def d(fn):
             @functools.wraps(fn)
             def x(*argv, **argd):
                 return w(fn, *argv, **argd)
+
             return x
+
         return d
 
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
-@compiles(String, 'mysql')
-@compiles(VARCHAR, 'mysql')
+
+@compiles(String, "mysql")
+@compiles(VARCHAR, "mysql")
 def _compile_varchar_mysql(element, compiler, **kw):
     """MySQL hack to avoid the "VARCHAR requires a length" error."""
-    if not element.length or element.length == 'max':
+    if not element.length or element.length == "max":
         return "TEXT"
     else:
         return compiler.visit_VARCHAR(element, **kw)
 
-#------------------------------------------------------------------------------
 
-class _SQLitePatch (PoolListener):
+# ------------------------------------------------------------------------------
+
+
+class _SQLitePatch(PoolListener):
     """
     Used internally by L{BaseDAO}.
 
@@ -98,6 +104,7 @@ class _SQLitePatch (PoolListener):
 
     @see: U{http://sqlite.org/foreignkeys.html}
     """
+
     def connect(dbapi_connection, connection_record):
         """
         Called once by SQLAlchemy for each new SQLite DB-API connection.
@@ -124,29 +131,28 @@ class _SQLitePatch (PoolListener):
             dbapi_connection.close()
             raise sqlite3.Error()
 
-#------------------------------------------------------------------------------
 
-class BaseDTO (object):
+# ------------------------------------------------------------------------------
+
+
+class BaseDTO(object):
     """
     Customized declarative base for SQLAlchemy.
     """
 
     __table_args__ = {
-
         # Don't use MyISAM in MySQL. It doesn't support ON DELETE CASCADE.
-        'mysql_engine': 'InnoDB',
-
+        "mysql_engine": "InnoDB",
         # Don't use BlitzDB in Drizzle. It doesn't support foreign keys.
-        'drizzle_engine': 'InnoDB',
-
+        "drizzle_engine": "InnoDB",
         # Collate to UTF-8.
-        'mysql_charset': 'utf8',
+        "mysql_charset": "utf8",
+    }
 
-        }
 
-BaseDTO = declarative_base(cls = BaseDTO)
+BaseDTO = declarative_base(cls=BaseDTO)
 
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 # TODO: if using mssql, check it's at least SQL Server 2005
 #       (LIMIT and OFFSET support is required).
@@ -160,7 +166,8 @@ BaseDTO = declarative_base(cls = BaseDTO)
 #       http://dev.mysql.com/doc/refman/5.1/en/optimize-table.html
 #       http://msdn.microsoft.com/en-us/library/ms174459(v=sql.90).aspx
 
-class BaseDAO (object):
+
+class BaseDAO(object):
     """
     Data Access Object base class.
 
@@ -187,12 +194,9 @@ class BaseDAO (object):
 
     _echo = False
 
-    _new_session = sessionmaker(autoflush = True,
-                                autocommit = True,
-                                expire_on_commit = True,
-                                weak_identity_map = True)
+    _new_session = sessionmaker(autoflush=True, autocommit=True, expire_on_commit=True, weak_identity_map=True)
 
-    def __init__(self, url, creator = None):
+    def __init__(self, url, creator=None):
         """
         Connect to the database using the given connection URL.
 
@@ -252,34 +256,34 @@ class BaseDAO (object):
         # Parse the connection URL.
         parsed_url = URL(url)
         schema = parsed_url.drivername
-        if '+' in schema:
-            dialect, driver = schema.split('+')
+        if "+" in schema:
+            dialect, driver = schema.split("+")
         else:
-            dialect, driver = schema, 'base'
+            dialect, driver = schema, "base"
         dialect = dialect.strip().lower()
         driver = driver.strip()
 
         # Prepare the database engine arguments.
-        arguments = {'echo' : self._echo}
-        if dialect == 'sqlite':
-            arguments['module'] = sqlite3.dbapi2
-            arguments['listeners'] = [_SQLitePatch()]
+        arguments = {"echo": self._echo}
+        if dialect == "sqlite":
+            arguments["module"] = sqlite3.dbapi2
+            arguments["listeners"] = [_SQLitePatch()]
         if creator is not None:
-            arguments['creator'] = creator
+            arguments["creator"] = creator
 
         # Load the database engine.
         engine = create_engine(url, **arguments)
 
         # Create a new session.
-        session = self._new_session(bind = engine)
+        session = self._new_session(bind=engine)
 
         # Create the required tables if they don't exist.
         BaseDTO.metadata.create_all(engine)
         # TODO: create a dialect specific index on the "signature" column.
 
         # Set the instance properties.
-        self._url     = parsed_url
-        self._driver  = driver
+        self._url = parsed_url
+        self._driver = driver
         self._dialect = dialect
         self._session = session
 
@@ -299,7 +303,7 @@ class BaseDAO (object):
 
         @raise Exception: Any exception raised by the method.
         """
-        self._session.begin(subtransactions = True)
+        self._session.begin(subtransactions=True)
         try:
             result = method(self, *argv, **argd)
             self._session.commit()
@@ -308,7 +312,9 @@ class BaseDAO (object):
             self._session.rollback()
             raise
 
-#------------------------------------------------------------------------------
+
+# ------------------------------------------------------------------------------
+
 
 @decorator
 def Transactional(fn, self, *argv, **argd):
@@ -319,7 +325,9 @@ def Transactional(fn, self, *argv, **argd):
     """
     return self._transactional(fn, *argv, **argd)
 
-#==============================================================================
+
+# ==============================================================================
+
 
 # Generates all possible memory access flags.
 def _gen_valid_access_flags():
@@ -330,19 +338,17 @@ def _gen_valid_access_flags():
                 for a4 in ("W", "-"):
                     f.append("%s %s%s%s" % (a1, a2, a3, a4))
     return tuple(f)
+
+
 _valid_access_flags = _gen_valid_access_flags()
 
 # Enumerated types for the memory table.
-n_MEM_ACCESS_ENUM = {"name" : "MEM_ACCESS_ENUM"}
-n_MEM_ALLOC_ACCESS_ENUM = {"name" : "MEM_ALLOC_ACCESS_ENUM"}
-MEM_ACCESS_ENUM = Enum(*_valid_access_flags,
-                       **n_MEM_ACCESS_ENUM)
-MEM_ALLOC_ACCESS_ENUM = Enum(*_valid_access_flags,
-                             **n_MEM_ALLOC_ACCESS_ENUM)
-MEM_STATE_ENUM  = Enum("Reserved", "Commited", "Free", "Unknown",
-                       name = "MEM_STATE_ENUM")
-MEM_TYPE_ENUM   = Enum("Image", "Mapped", "Private", "Unknown",
-                       name = "MEM_TYPE_ENUM")
+n_MEM_ACCESS_ENUM = {"name": "MEM_ACCESS_ENUM"}
+n_MEM_ALLOC_ACCESS_ENUM = {"name": "MEM_ALLOC_ACCESS_ENUM"}
+MEM_ACCESS_ENUM = Enum(*_valid_access_flags, **n_MEM_ACCESS_ENUM)
+MEM_ALLOC_ACCESS_ENUM = Enum(*_valid_access_flags, **n_MEM_ALLOC_ACCESS_ENUM)
+MEM_STATE_ENUM = Enum("Reserved", "Commited", "Free", "Unknown", name="MEM_STATE_ENUM")
+MEM_TYPE_ENUM = Enum("Image", "Mapped", "Private", "Unknown", name="MEM_TYPE_ENUM")
 
 # Cleanup the namespace.
 del _gen_valid_access_flags
@@ -350,30 +356,27 @@ del _valid_access_flags
 del n_MEM_ACCESS_ENUM
 del n_MEM_ALLOC_ACCESS_ENUM
 
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
-class MemoryDTO (BaseDTO):
+
+class MemoryDTO(BaseDTO):
     """
     Database mapping for memory dumps.
     """
 
     # Declare the table mapping.
-    __tablename__ = 'memory'
-    id            = Column(Integer, Sequence(__tablename__ + '_seq'),
-                           primary_key = True, autoincrement = True)
-    crash_id      = Column(Integer, ForeignKey('crashes.id',
-                                               ondelete = 'CASCADE',
-                                               onupdate = 'CASCADE'),
-                           nullable = False)
-    address       = Column(BigInteger, nullable = False, index = True)
-    size          = Column(BigInteger, nullable = False)
-    state         = Column(MEM_STATE_ENUM, nullable = False)
-    access        = Column(MEM_ACCESS_ENUM)
-    type          = Column(MEM_TYPE_ENUM)
-    alloc_base    = Column(BigInteger)
-    alloc_access  = Column(MEM_ALLOC_ACCESS_ENUM)
-    filename      = Column(String)
-    content       = deferred(Column(LargeBinary))
+    __tablename__ = "memory"
+    id = Column(Integer, Sequence(__tablename__ + "_seq"), primary_key=True, autoincrement=True)
+    crash_id = Column(Integer, ForeignKey("crashes.id", ondelete="CASCADE", onupdate="CASCADE"), nullable=False)
+    address = Column(BigInteger, nullable=False, index=True)
+    size = Column(BigInteger, nullable=False)
+    state = Column(MEM_STATE_ENUM, nullable=False)
+    access = Column(MEM_ACCESS_ENUM)
+    type = Column(MEM_TYPE_ENUM)
+    alloc_base = Column(BigInteger)
+    alloc_access = Column(MEM_ALLOC_ACCESS_ENUM)
+    filename = Column(String)
+    content = deferred(Column(LargeBinary))
 
     def __init__(self, crash_id, mbi):
         """
@@ -390,7 +393,7 @@ class MemoryDTO (BaseDTO):
         self.size = mbi.RegionSize
 
         # State (free or allocated).
-        if   mbi.State == win32.MEM_RESERVE:
+        if mbi.State == win32.MEM_RESERVE:
             self.state = "Reserved"
         elif mbi.State == win32.MEM_COMMIT:
             self.state = "Commited"
@@ -406,7 +409,7 @@ class MemoryDTO (BaseDTO):
             self.access = self._to_access(mbi.Protect)
 
         # Type (file mapping, executable image, or private memory).
-        if   mbi.Type == win32.MEM_IMAGE:
+        if mbi.Type == win32.MEM_IMAGE:
             self.type = "Image"
         elif mbi.Type == win32.MEM_MAPPED:
             self.type = "Mapped"
@@ -418,7 +421,7 @@ class MemoryDTO (BaseDTO):
             self.type = "Unknown"
 
         # Allocation info.
-        self.alloc_base   = mbi.AllocationBase
+        self.alloc_base = mbi.AllocationBase
         if not mbi.AllocationProtect:
             self.alloc_access = None
         else:
@@ -437,7 +440,7 @@ class MemoryDTO (BaseDTO):
             self.content = None
 
     def _to_access(self, protect):
-        if   protect & win32.PAGE_NOACCESS:
+        if protect & win32.PAGE_NOACCESS:
             access = "--- "
         elif protect & win32.PAGE_READONLY:
             access = "R-- "
@@ -455,21 +458,21 @@ class MemoryDTO (BaseDTO):
             access = "RCX "
         else:
             access = "??? "
-        if   protect & win32.PAGE_GUARD:
+        if protect & win32.PAGE_GUARD:
             access += "G"
         else:
             access += "-"
-        if   protect & win32.PAGE_NOCACHE:
+        if protect & win32.PAGE_NOCACHE:
             access += "N"
         else:
             access += "-"
-        if   protect & win32.PAGE_WRITECOMBINE:
+        if protect & win32.PAGE_WRITECOMBINE:
             access += "W"
         else:
             access += "-"
         return access
 
-    def toMBI(self, getMemoryDump = False):
+    def toMBI(self, getMemoryDump=False):
         """
         Returns a L{win32.MemoryBasicInformation} object using the data
         retrieved from the database.
@@ -483,10 +486,10 @@ class MemoryDTO (BaseDTO):
         """
         mbi = win32.MemoryBasicInformation()
         mbi.BaseAddress = self.address
-        mbi.RegionSize  = self.size
-        mbi.State       = self._parse_state(self.state)
-        mbi.Protect     = self._parse_access(self.access)
-        mbi.Type        = self._parse_type(self.type)
+        mbi.RegionSize = self.size
+        mbi.State = self._parse_state(self.state)
+        mbi.Protect = self._parse_access(self.access)
+        mbi.Type = self._parse_type(self.type)
         if self.alloc_base is not None:
             mbi.AllocationBase = self.alloc_base
         else:
@@ -498,7 +501,7 @@ class MemoryDTO (BaseDTO):
         if self.filename is not None:
             mbi.filename = self.filename
         if getMemoryDump and self.content is not None:
-            mbi.content  = self.content
+            mbi.content = self.content
         return mbi
 
     @staticmethod
@@ -529,7 +532,7 @@ class MemoryDTO (BaseDTO):
         if not access:
             return 0
         perm = access[:3]
-        if   perm == "R--":
+        if perm == "R--":
             protect = win32.PAGE_READONLY
         elif perm == "RW-":
             protect = win32.PAGE_READWRITE
@@ -553,9 +556,11 @@ class MemoryDTO (BaseDTO):
             protect = protect | win32.PAGE_WRITECOMBINE
         return protect
 
-#------------------------------------------------------------------------------
 
-class CrashDTO (BaseDTO):
+# ------------------------------------------------------------------------------
+
+
+class CrashDTO(BaseDTO):
     """
     Database mapping for crash dumps.
     """
@@ -564,31 +569,30 @@ class CrashDTO (BaseDTO):
     __tablename__ = "crashes"
 
     # Primary key.
-    id = Column(Integer, Sequence(__tablename__ + '_seq'),
-                primary_key = True, autoincrement = True)
+    id = Column(Integer, Sequence(__tablename__ + "_seq"), primary_key=True, autoincrement=True)
 
     # Timestamp.
-    timestamp = Column(DateTime, nullable = False, index = True)
+    timestamp = Column(DateTime, nullable=False, index=True)
 
     # Exploitability test.
-    exploitable = Column(Integer, nullable = False)
-    exploitability_rule = Column(String(32), nullable = False)
-    exploitability_rating = Column(String(32), nullable = False)
-    exploitability_desc = Column(String, nullable = False)
+    exploitable = Column(Integer, nullable=False)
+    exploitability_rule = Column(String(32), nullable=False)
+    exploitability_rating = Column(String(32), nullable=False)
+    exploitability_desc = Column(String, nullable=False)
 
     # Platform description.
-    os = Column(String(32), nullable = False)
-    arch = Column(String(16), nullable = False)
-    bits = Column(Integer, nullable = False)    # Integer(4) is deprecated :(
+    os = Column(String(32), nullable=False)
+    arch = Column(String(16), nullable=False)
+    bits = Column(Integer, nullable=False)  # Integer(4) is deprecated :(
 
     # Event description.
-    event = Column(String, nullable = False)
-    pid = Column(Integer, nullable = False)
-    tid = Column(Integer, nullable = False)
-    pc = Column(BigInteger, nullable = False)
-    sp = Column(BigInteger, nullable = False)
-    fp = Column(BigInteger, nullable = False)
-    pc_label = Column(String, nullable = False)
+    event = Column(String, nullable=False)
+    pid = Column(Integer, nullable=False)
+    tid = Column(Integer, nullable=False)
+    pc = Column(BigInteger, nullable=False)
+    sp = Column(BigInteger, nullable=False)
+    fp = Column(BigInteger, nullable=False)
+    pc_label = Column(String, nullable=False)
 
     # Exception description.
     exception = Column(String(64))
@@ -613,10 +617,10 @@ class CrashDTO (BaseDTO):
     notes = Column(String)
 
     # Heuristic signature.
-    signature = Column(String, nullable = False)
+    signature = Column(String, nullable=False)
 
     # Pickled Crash object, minus the memory dump.
-    data = deferred(Column(LargeBinary, nullable = False))
+    data = deferred(Column(LargeBinary, nullable=False))
 
     def __init__(self, crash):
         """
@@ -625,60 +629,56 @@ class CrashDTO (BaseDTO):
         """
 
         # Timestamp and signature.
-        self.timestamp = datetime.datetime.fromtimestamp( crash.timeStamp )
-        self.signature = pickle.dumps(crash.signature, protocol = 0)
+        self.timestamp = datetime.datetime.fromtimestamp(crash.timeStamp)
+        self.signature = pickle.dumps(crash.signature, protocol=0)
 
         # Marshalled Crash object, minus the memory dump.
         # This code is *not* thread safe!
         memoryMap = crash.memoryMap
         try:
             crash.memoryMap = None
-            self.data = buffer( Marshaller.dumps(crash) )
+            self.data = buffer(Marshaller.dumps(crash))
         finally:
             crash.memoryMap = memoryMap
 
         # Exploitability test.
-        self.exploitability_rating, \
-        self.exploitability_rule,   \
-        self.exploitability_desc  = crash.isExploitable()
+        self.exploitability_rating, self.exploitability_rule, self.exploitability_desc = crash.isExploitable()
 
         # Exploitability test as an integer result (for sorting).
         self.exploitable = [
-                                "Not an exception",
-                                "Not exploitable",
-                                "Not likely exploitable",
-                                "Unknown",
-                                "Probably exploitable",
-                                "Exploitable",
-                            ].index(self.exploitability_rating)
+            "Not an exception",
+            "Not exploitable",
+            "Not likely exploitable",
+            "Unknown",
+            "Probably exploitable",
+            "Exploitable",
+        ].index(self.exploitability_rating)
 
         # Platform description.
-        self.os   = crash.os
+        self.os = crash.os
         self.arch = crash.arch
         self.bits = crash.bits
 
         # Event description.
-        self.event    = crash.eventName
-        self.pid      = crash.pid
-        self.tid      = crash.tid
-        self.pc       = crash.pc
-        self.sp       = crash.sp
-        self.fp       = crash.fp
+        self.event = crash.eventName
+        self.pid = crash.pid
+        self.tid = crash.tid
+        self.pc = crash.pc
+        self.sp = crash.sp
+        self.fp = crash.fp
         self.pc_label = crash.labelPC
 
         # Exception description.
-        self.exception         = crash.exceptionName
-        self.exception_text    = crash.exceptionDescription
+        self.exception = crash.exceptionName
+        self.exception_text = crash.exceptionDescription
         self.exception_address = crash.exceptionAddress
-        self.exception_label   = crash.exceptionLabel
-        self.first_chance      = crash.firstChance
-        self.fault_type        = crash.faultType
-        self.fault_address     = crash.faultAddress
-        self.fault_label       = crash.faultLabel
-        self.fault_disasm      = CrashDump.dump_code( crash.faultDisasm,
-                                                      crash.pc )
-        self.stack_trace       = CrashDump.dump_stack_trace_with_labels(
-                                                      crash.stackTracePretty )
+        self.exception_label = crash.exceptionLabel
+        self.first_chance = crash.firstChance
+        self.fault_type = crash.faultType
+        self.fault_address = crash.faultAddress
+        self.fault_label = crash.faultLabel
+        self.fault_disasm = CrashDump.dump_code(crash.faultDisasm, crash.pc)
+        self.stack_trace = CrashDump.dump_stack_trace_with_labels(crash.stackTracePretty)
 
         # Command line.
         self.command_line = crash.commandLine
@@ -687,11 +687,11 @@ class CrashDTO (BaseDTO):
         if crash.environment:
             envList = crash.environment.items()
             envList.sort()
-            environment = ''
+            environment = ""
             for envKey, envVal in envList:
                 # Must concatenate here instead of using a substitution,
                 # so strings can be automatically promoted to Unicode.
-                environment += envKey + '=' + envVal + '\n'
+                environment += envKey + "=" + envVal + "\n"
             if environment:
                 self.environment = environment
 
@@ -701,7 +701,7 @@ class CrashDTO (BaseDTO):
         # Notes.
         self.notes = crash.notesReport()
 
-    def toCrash(self, getMemoryDump = False):
+    def toCrash(self, getMemoryDump=False):
         """
         Returns a L{Crash} object using the data retrieved from the database.
 
@@ -714,8 +714,7 @@ class CrashDTO (BaseDTO):
         """
         crash = Marshaller.loads(str(self.data))
         if not isinstance(crash, Crash):
-            raise TypeError(
-                "Expected Crash instance, got %s instead" % type(crash))
+            raise TypeError("Expected Crash instance, got %s instead" % type(crash))
         crash._rowid = self.id
         if not crash.memoryMap:
             memory = getattr(self, "memory", [])
@@ -723,18 +722,20 @@ class CrashDTO (BaseDTO):
                 crash.memoryMap = [dto.toMBI(getMemoryDump) for dto in memory]
         return crash
 
-#==============================================================================
+
+# ==============================================================================
 
 # TODO: add a method to modify already stored crash dumps.
 
-class CrashDAO (BaseDAO):
+
+class CrashDAO(BaseDAO):
     """
     Data Access Object to read, write and search for L{Crash} objects in a
     database.
     """
 
     @Transactional
-    def add(self, crash, allow_duplicates = True):
+    def add(self, crash, allow_duplicates=True):
         """
         Add a new crash dump to the database, optionally filtering them by
         signature to avoid duplicates.
@@ -757,10 +758,8 @@ class CrashDAO (BaseDAO):
 
         # Filter out duplicated crashes, if requested.
         if not allow_duplicates:
-            signature = pickle.dumps(crash.signature, protocol = 0)
-            if self._session.query(CrashDTO.id)                \
-                            .filter_by(signature = signature) \
-                            .count() > 0:
+            signature = pickle.dumps(crash.signature, protocol=0)
+            if self._session.query(CrashDTO.id).filter_by(signature=signature).count() > 0:
                 return
 
         # Fill out a new row for the crashes table.
@@ -779,7 +778,6 @@ class CrashDAO (BaseDAO):
         session = self._session
         r_crash = None
         try:
-
             # Fill out a new row for the crashes table.
             r_crash = CrashDTO(crash)
             session.add(r_crash)
@@ -790,13 +788,11 @@ class CrashDAO (BaseDAO):
 
         finally:
             try:
-
                 # Make the ORM forget the CrashDTO object.
                 if r_crash is not None:
                     session.expire(r_crash)
 
             finally:
-
                 # Delete the last reference to the CrashDTO
                 # object, so the Python garbage collector claims it.
                 del r_crash
@@ -814,10 +810,7 @@ class CrashDAO (BaseDAO):
                 session.flush()
 
     @Transactional
-    def find(self,
-             signature = None, order = 0,
-             since     = None, until = None,
-             offset    = None, limit = None):
+    def find(self, signature=None, order=0, since=None, until=None, offset=None, limit=None):
         """
         Retrieve all crash dumps in the database, optionally filtering them by
         signature and timestamp, and/or sorting them by timestamp.
@@ -857,18 +850,16 @@ class CrashDAO (BaseDAO):
 
         # Validate the parameters.
         if since and until and since > until:
-            warnings.warn("CrashDAO.find() got the 'since' and 'until'"
-                          " arguments reversed, corrected automatically.")
+            warnings.warn("CrashDAO.find() got the 'since' and 'until'" " arguments reversed, corrected automatically.")
             since, until = until, since
         if limit is not None and not limit:
-            warnings.warn("CrashDAO.find() was set a limit of 0 results,"
-                          " returning without executing a query.")
+            warnings.warn("CrashDAO.find() was set a limit of 0 results," " returning without executing a query.")
             return []
 
         # Build the SQL query.
         query = self._session.query(CrashDTO)
         if signature is not None:
-            sig_pickled = pickle.dumps(signature, protocol = 0)
+            sig_pickled = pickle.dumps(signature, protocol=0)
             query = query.filter(CrashDTO.signature == sig_pickled)
         if since:
             query = query.filter(CrashDTO.timestamp >= since)
@@ -895,7 +886,7 @@ class CrashDAO (BaseDAO):
             return []
 
     @Transactional
-    def find_by_example(self, crash, offset = None, limit = None):
+    def find_by_example(self, crash, offset=None, limit=None):
         """
         Find all crash dumps that have common properties with the crash dump
         provided.
@@ -924,8 +915,7 @@ class CrashDAO (BaseDAO):
 
         # Validate the parameters.
         if limit is not None and not limit:
-            warnings.warn("CrashDAO.find_by_example() was set a limit of 0"
-                          " results, returning without executing a query.")
+            warnings.warn("CrashDAO.find_by_example() was set a limit of 0" " results, returning without executing a query.")
             return []
 
         # Build the query.
@@ -941,9 +931,7 @@ class CrashDAO (BaseDAO):
         # Filter all the fields in the crashes table that are present in the
         # CrashDTO object and not set to None, except for the row ID.
         for name, column in compat.iteritems(CrashDTO.__dict__):
-            if not name.startswith('__') and name not in ('id',
-                                                          'signature',
-                                                          'data'):
+            if not name.startswith("__") and name not in ("id", "signature", "data"):
                 if isinstance(column, Column):
                     value = getattr(dto, name, None)
                     if value is not None:
@@ -962,7 +950,7 @@ class CrashDAO (BaseDAO):
             return []
 
     @Transactional
-    def count(self, signature = None):
+    def count(self, signature=None):
         """
         Counts how many crash dumps have been stored in this database.
         Optionally filters the count by heuristic signature.
@@ -976,8 +964,8 @@ class CrashDAO (BaseDAO):
         """
         query = self._session.query(CrashDTO.id)
         if signature:
-            sig_pickled = pickle.dumps(signature, protocol = 0)
-            query = query.filter_by(signature = sig_pickled)
+            sig_pickled = pickle.dumps(signature, protocol=0)
+            query = query.filter_by(signature=sig_pickled)
         return query.count()
 
     @Transactional
@@ -988,6 +976,6 @@ class CrashDAO (BaseDAO):
         @type  crash: L{Crash}
         @param crash: Crash dump to remove.
         """
-        query = self._session.query(CrashDTO).filter_by(id = crash._rowid)
-        query.delete(synchronize_session = False)
+        query = self._session.query(CrashDTO).filter_by(id=crash._rowid)
+        query.delete(synchronize_session=False)
         del crash._rowid

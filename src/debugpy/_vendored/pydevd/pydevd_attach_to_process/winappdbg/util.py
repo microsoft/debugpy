@@ -52,27 +52,23 @@ Miscellaneous utility classes and functions.
 __revision__ = "$Id$"
 
 __all__ = [
-
     # Filename and pathname manipulation
-    'PathOperations',
-
+    "PathOperations",
     # Memory address operations
-    'MemoryAddresses',
-    'CustomAddressIterator',
-    'DataAddressIterator',
-    'ImageAddressIterator',
-    'MappedAddressIterator',
-    'ExecutableAddressIterator',
-    'ReadableAddressIterator',
-    'WriteableAddressIterator',
-    'ExecutableAndWriteableAddressIterator',
-
+    "MemoryAddresses",
+    "CustomAddressIterator",
+    "DataAddressIterator",
+    "ImageAddressIterator",
+    "MappedAddressIterator",
+    "ExecutableAddressIterator",
+    "ReadableAddressIterator",
+    "WriteableAddressIterator",
+    "ExecutableAndWriteableAddressIterator",
     # Debug registers manipulation
-    'DebugRegister',
-
+    "DebugRegister",
     # Miscellaneous
-    'Regenerator',
-    ]
+    "Regenerator",
+]
 
 import sys
 import os
@@ -82,7 +78,8 @@ import optparse
 from winappdbg import win32
 from winappdbg import compat
 
-#==============================================================================
+# ==============================================================================
+
 
 class classproperty(property):
     """
@@ -93,21 +90,27 @@ class classproperty(property):
 
     Inspired on: U{http://stackoverflow.com/a/7864317/426293}
     """
+
     def __init__(self, fget=None, fset=None, fdel=None, doc=""):
         if fset is not None or fdel is not None:
             raise NotImplementedError()
         super(classproperty, self).__init__(fget=classmethod(fget), doc=doc)
+
     def __get__(self, cls, owner):
         return self.fget.__get__(None, owner)()
 
+
 class BannerHelpFormatter(optparse.IndentedHelpFormatter):
     "Just a small tweak to optparse to be able to print a banner."
+
     def __init__(self, banner, *argv, **argd):
         self.banner = banner
         optparse.IndentedHelpFormatter.__init__(self, *argv, **argd)
+
     def format_usage(self, usage):
         msg = optparse.IndentedHelpFormatter.format_usage(self, usage)
-        return '%s\n%s' % (self.banner, msg)
+        return "%s\n%s" % (self.banner, msg)
+
 
 # See Process.generate_memory_snapshot()
 class Regenerator(object):
@@ -129,33 +132,35 @@ class Regenerator(object):
         @param d_args: Variable arguments to pass to the generator function.
         """
         self.__g_function = g_function
-        self.__v_args     = v_args
-        self.__d_args     = d_args
-        self.__g_object   = None
+        self.__v_args = v_args
+        self.__d_args = d_args
+        self.__g_object = None
 
     def __iter__(self):
-        'x.__iter__() <==> iter(x)'
+        "x.__iter__() <==> iter(x)"
         return self
 
     def next(self):
-        'x.next() -> the next value, or raise StopIteration'
+        "x.next() -> the next value, or raise StopIteration"
         if self.__g_object is None:
-            self.__g_object = self.__g_function( *self.__v_args, **self.__d_args )
+            self.__g_object = self.__g_function(*self.__v_args, **self.__d_args)
         try:
             return self.__g_object.next()
         except StopIteration:
             self.__g_object = None
             raise
 
-class StaticClass (object):
+
+class StaticClass(object):
     def __new__(cls, *argv, **argd):
         "Don't try to instance this class, just use the static methods."
-        raise NotImplementedError(
-                "Cannot instance static class %s" % cls.__name__)
+        raise NotImplementedError("Cannot instance static class %s" % cls.__name__)
 
-#==============================================================================
 
-class PathOperations (StaticClass):
+# ==============================================================================
+
+
+class PathOperations(StaticClass):
     """
     Static methods for filename and pathname manipulation.
     """
@@ -187,7 +192,7 @@ class PathOperations (StaticClass):
         return not win32.PathIsRelative(path)
 
     @staticmethod
-    def make_relative(path, current = None):
+    def make_relative(path, current=None):
         """
         @type  path: str
         @param path: Absolute path.
@@ -202,7 +207,7 @@ class PathOperations (StaticClass):
             This happens when the path and the current path are not on the
             same disk drive or network share.
         """
-        return win32.PathRelativePathTo(pszFrom = current, pszTo = path)
+        return win32.PathRelativePathTo(pszFrom=current, pszTo=path)
 
     @staticmethod
     def make_absolute(path):
@@ -226,7 +231,7 @@ class PathOperations (StaticClass):
             Tuple containing the file and extension components of the filename.
         """
         filepart = win32.PathRemoveExtension(pathname)
-        extpart  = win32.PathFindExtension(pathname)
+        extpart = win32.PathFindExtension(pathname)
         return (filepart, extpart)
 
     @staticmethod
@@ -257,7 +262,7 @@ class PathOperations (StaticClass):
         while path:
             next = win32.PathFindNextComponent(path)
             if next:
-                prev = path[ : -len(next) ]
+                prev = path[: -len(next)]
                 components.append(prev)
             path = next
         return components
@@ -293,30 +298,28 @@ class PathOperations (StaticClass):
         # XXX TODO
         # There are probably some native paths that
         # won't be converted by this naive approach.
-        if name.startswith(compat.b("\\")):
-            if name.startswith(compat.b("\\??\\")):
+        if name.startswith("\\"):
+            if name.startswith("\\??\\"):
                 name = name[4:]
-            elif name.startswith(compat.b("\\SystemRoot\\")):
-                system_root_path = os.environ['SYSTEMROOT']
-                if system_root_path.endswith('\\'):
+            elif name.startswith("\\SystemRoot\\"):
+                system_root_path = os.environ["SYSTEMROOT"]
+                if system_root_path.endswith("\\"):
                     system_root_path = system_root_path[:-1]
                 name = system_root_path + name[11:]
             else:
-                for drive_number in compat.xrange(ord('A'), ord('Z') + 1):
-                    drive_letter = '%c:' % drive_number
+                for drive_number in compat.xrange(ord("A"), ord("Z") + 1):
+                    drive_letter = "%c:" % drive_number
                     try:
                         device_native_path = win32.QueryDosDevice(drive_letter)
                     except WindowsError:
                         e = sys.exc_info()[1]
-                        if e.winerror in (win32.ERROR_FILE_NOT_FOUND, \
-                                                 win32.ERROR_PATH_NOT_FOUND):
+                        if e.winerror in (win32.ERROR_FILE_NOT_FOUND, win32.ERROR_PATH_NOT_FOUND):
                             continue
                         raise
-                    if not device_native_path.endswith(compat.b('\\')):
-                        device_native_path += compat.b('\\')
+                    if not device_native_path.endswith("\\"):
+                        device_native_path += "\\"
                     if name.startswith(device_native_path):
-                        name = drive_letter + compat.b('\\') + \
-                                              name[ len(device_native_path) : ]
+                        name = drive_letter + "\\" + name[len(device_native_path) :]
                         break
         return name
 
@@ -336,9 +339,11 @@ class PathOperations (StaticClass):
         """
         return win32.PathFindFileName(pathname)
 
-#==============================================================================
 
-class MemoryAddresses (StaticClass):
+# ==============================================================================
+
+
+class MemoryAddresses(StaticClass):
     """
     Class to manipulate memory addresses.
 
@@ -359,7 +364,7 @@ class MemoryAddresses (StaticClass):
                 pageSize = 0x1000
         except NameError:
             pageSize = 0x1000
-        cls.pageSize = pageSize     # now this function won't be called again
+        cls.pageSize = pageSize  # now this function won't be called again
         return pageSize
 
     @classmethod
@@ -373,7 +378,7 @@ class MemoryAddresses (StaticClass):
         @rtype:  int
         @return: Aligned memory address.
         """
-        return address - ( address % cls.pageSize )
+        return address - (address % cls.pageSize)
 
     @classmethod
     def align_address_to_page_end(cls, address):
@@ -387,7 +392,7 @@ class MemoryAddresses (StaticClass):
         @rtype:  int
         @return: Aligned memory address.
         """
-        return address + cls.pageSize - ( address % cls.pageSize )
+        return address + cls.pageSize - (address % cls.pageSize)
 
     @classmethod
     def align_address_range(cls, begin, end):
@@ -431,7 +436,7 @@ class MemoryAddresses (StaticClass):
         @return: Buffer size in number of pages.
         """
         if size < 0:
-            size    = -size
+            size = -size
             address = address - size
         begin, end = cls.align_address_range(address, address + size)
         # XXX FIXME
@@ -458,12 +463,11 @@ class MemoryAddresses (StaticClass):
         @rtype:  bool
         @return: C{True} if the two ranges intersect, C{False} otherwise.
         """
-        return  (old_begin <= begin < old_end) or \
-                (old_begin < end <= old_end)   or \
-                (begin <= old_begin < end)     or \
-                (begin < old_end <= end)
+        return (old_begin <= begin < old_end) or (old_begin < end <= old_end) or (begin <= old_begin < end) or (begin < old_end <= end)
 
-#==============================================================================
+
+# ==============================================================================
+
 
 def CustomAddressIterator(memory_map, condition):
     """
@@ -483,11 +487,12 @@ def CustomAddressIterator(memory_map, condition):
     """
     for mbi in memory_map:
         if condition(mbi):
-            address  = mbi.BaseAddress
+            address = mbi.BaseAddress
             max_addr = address + mbi.RegionSize
             while address < max_addr:
                 yield address
                 address = address + 1
+
 
 def DataAddressIterator(memory_map):
     """
@@ -501,8 +506,8 @@ def DataAddressIterator(memory_map):
     @rtype:  generator of L{win32.MemoryBasicInformation}
     @return: Generator object to iterate memory blocks.
     """
-    return CustomAddressIterator(memory_map,
-                                      win32.MemoryBasicInformation.has_content)
+    return CustomAddressIterator(memory_map, win32.MemoryBasicInformation.has_content)
+
 
 def ImageAddressIterator(memory_map):
     """
@@ -516,8 +521,8 @@ def ImageAddressIterator(memory_map):
     @rtype:  generator of L{win32.MemoryBasicInformation}
     @return: Generator object to iterate memory blocks.
     """
-    return CustomAddressIterator(memory_map,
-                                         win32.MemoryBasicInformation.is_image)
+    return CustomAddressIterator(memory_map, win32.MemoryBasicInformation.is_image)
+
 
 def MappedAddressIterator(memory_map):
     """
@@ -531,8 +536,8 @@ def MappedAddressIterator(memory_map):
     @rtype:  generator of L{win32.MemoryBasicInformation}
     @return: Generator object to iterate memory blocks.
     """
-    return CustomAddressIterator(memory_map,
-                                        win32.MemoryBasicInformation.is_mapped)
+    return CustomAddressIterator(memory_map, win32.MemoryBasicInformation.is_mapped)
+
 
 def ReadableAddressIterator(memory_map):
     """
@@ -546,8 +551,8 @@ def ReadableAddressIterator(memory_map):
     @rtype:  generator of L{win32.MemoryBasicInformation}
     @return: Generator object to iterate memory blocks.
     """
-    return CustomAddressIterator(memory_map,
-                                      win32.MemoryBasicInformation.is_readable)
+    return CustomAddressIterator(memory_map, win32.MemoryBasicInformation.is_readable)
+
 
 def WriteableAddressIterator(memory_map):
     """
@@ -563,8 +568,8 @@ def WriteableAddressIterator(memory_map):
     @rtype:  generator of L{win32.MemoryBasicInformation}
     @return: Generator object to iterate memory blocks.
     """
-    return CustomAddressIterator(memory_map,
-                                     win32.MemoryBasicInformation.is_writeable)
+    return CustomAddressIterator(memory_map, win32.MemoryBasicInformation.is_writeable)
+
 
 def ExecutableAddressIterator(memory_map):
     """
@@ -580,8 +585,8 @@ def ExecutableAddressIterator(memory_map):
     @rtype:  generator of L{win32.MemoryBasicInformation}
     @return: Generator object to iterate memory blocks.
     """
-    return CustomAddressIterator(memory_map,
-                                    win32.MemoryBasicInformation.is_executable)
+    return CustomAddressIterator(memory_map, win32.MemoryBasicInformation.is_executable)
+
 
 def ExecutableAndWriteableAddressIterator(memory_map):
     """
@@ -598,10 +603,10 @@ def ExecutableAndWriteableAddressIterator(memory_map):
     @rtype:  generator of L{win32.MemoryBasicInformation}
     @return: Generator object to iterate memory blocks.
     """
-    return CustomAddressIterator(memory_map,
-                      win32.MemoryBasicInformation.is_executable_and_writeable)
+    return CustomAddressIterator(memory_map, win32.MemoryBasicInformation.is_executable_and_writeable)
 
-#==============================================================================
+
+# ==============================================================================
 try:
     _registerMask = win32.SIZE_T(-1).value
 except TypeError:
@@ -612,7 +617,8 @@ except TypeError:
     else:
         raise
 
-class DebugRegister (StaticClass):
+
+class DebugRegister(StaticClass):
     """
     Class to manipulate debug registers.
     Used by L{HardwareBreakpoint}.
@@ -720,19 +726,19 @@ class DebugRegister (StaticClass):
         Bitmask to clear all meaningful bits in C{Dr6}.
     """
 
-    BREAK_ON_EXECUTION  = 0
-    BREAK_ON_WRITE      = 1
-    BREAK_ON_ACCESS     = 3
-    BREAK_ON_IO_ACCESS  = 2
+    BREAK_ON_EXECUTION = 0
+    BREAK_ON_WRITE = 1
+    BREAK_ON_ACCESS = 3
+    BREAK_ON_IO_ACCESS = 2
 
-    WATCH_BYTE  = 0
-    WATCH_WORD  = 1
+    WATCH_BYTE = 0
+    WATCH_WORD = 1
     WATCH_DWORD = 3
     WATCH_QWORD = 2
 
     registerMask = _registerMask
 
-#------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------
 
     ###########################################################################
     # http://en.wikipedia.org/wiki/Debug_register
@@ -759,16 +765,16 @@ class DebugRegister (StaticClass):
 
     # Dr7 |= enableMask[register]
     enableMask = (
-        1 << 0,     # Dr0 (bit 0)
-        1 << 2,     # Dr1 (bit 2)
-        1 << 4,     # Dr2 (bit 4)
-        1 << 6,     # Dr3 (bit 6)
+        1 << 0,  # Dr0 (bit 0)
+        1 << 2,  # Dr1 (bit 2)
+        1 << 4,  # Dr2 (bit 4)
+        1 << 6,  # Dr3 (bit 6)
     )
 
     # Dr7 &= disableMask[register]
-    disableMask = tuple( [_registerMask ^ x for x in enableMask] ) # The registerMask from the class is not there in py3
+    disableMask = tuple([_registerMask ^ x for x in enableMask])  # The registerMask from the class is not there in py3
     try:
-        del x # It's not there in py3
+        del x  # It's not there in py3
     except:
         pass
 
@@ -842,14 +848,14 @@ class DebugRegister (StaticClass):
 
     # Dr7 = Dr7 & clearMask[register]
     clearMask = (
-        registerMask ^ ( (1 << 0) + (3 << 16) + (3 << 18) ),    # Dr0
-        registerMask ^ ( (1 << 2) + (3 << 20) + (3 << 22) ),    # Dr1
-        registerMask ^ ( (1 << 4) + (3 << 24) + (3 << 26) ),    # Dr2
-        registerMask ^ ( (1 << 6) + (3 << 28) + (3 << 30) ),    # Dr3
+        registerMask ^ ((1 << 0) + (3 << 16) + (3 << 18)),  # Dr0
+        registerMask ^ ((1 << 2) + (3 << 20) + (3 << 22)),  # Dr1
+        registerMask ^ ((1 << 4) + (3 << 24) + (3 << 26)),  # Dr2
+        registerMask ^ ((1 << 6) + (3 << 28) + (3 << 30)),  # Dr3
     )
 
     # Dr7 = Dr7 | generalDetectMask
-    generalDetectMask = (1 << 13)
+    generalDetectMask = 1 << 13
 
     ###########################################################################
     # http://en.wikipedia.org/wiki/Debug_register
@@ -868,10 +874,18 @@ class DebugRegister (StaticClass):
 
     # bool(Dr6 & hitMask[register])
     hitMask = (
-        (1 << 0),   # Dr0
-        (1 << 1),   # Dr1
-        (1 << 2),   # Dr2
-        (1 << 3),   # Dr3
+        (
+            1 << 0  # Dr0
+        ),
+        (
+            1 << 1  # Dr1
+        ),
+        (
+            1 << 2  # Dr2
+        ),
+        (
+            1 << 3  # Dr3
+        ),
     )
 
     # bool(Dr6 & anyHitMask)
@@ -881,91 +895,98 @@ class DebugRegister (StaticClass):
     clearHitMask = registerMask ^ hitMaskAll
 
     # bool(Dr6 & debugAccessMask)
-    debugAccessMask = (1 << 13)
+    debugAccessMask = 1 << 13
 
     # bool(Dr6 & singleStepMask)
-    singleStepMask  = (1 << 14)
+    singleStepMask = 1 << 14
 
     # bool(Dr6 & taskSwitchMask)
-    taskSwitchMask  = (1 << 15)
+    taskSwitchMask = 1 << 15
 
     # Dr6 = Dr6 & clearDr6Mask
-    clearDr6Mask = registerMask ^ (hitMaskAll | \
-                            debugAccessMask | singleStepMask | taskSwitchMask)
+    clearDr6Mask = registerMask ^ (hitMaskAll | debugAccessMask | singleStepMask | taskSwitchMask)
 
-#------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------
 
-###############################################################################
-#
-#    (from the AMD64 manuals)
-#
-#    The fields within the DebugCtlMSR register are:
-#
-#    Last-Branch Record (LBR) - Bit 0, read/write. Software sets this bit to 1
-#    to cause the processor to record the source and target addresses of the
-#    last control transfer taken before a debug exception occurs. The recorded
-#    control transfers include branch instructions, interrupts, and exceptions.
-#
-#    Branch Single Step (BTF) - Bit 1, read/write. Software uses this bit to
-#    change the behavior of the rFLAGS.TF bit. When this bit is cleared to 0,
-#    the rFLAGS.TF bit controls instruction single stepping, (normal behavior).
-#    When this bit is set to 1, the rFLAGS.TF bit controls single stepping on
-#    control transfers. The single-stepped control transfers include branch
-#    instructions, interrupts, and exceptions. Control-transfer single stepping
-#    requires both BTF=1 and rFLAGS.TF=1.
-#
-#    Performance-Monitoring/Breakpoint Pin-Control (PBi) - Bits 5-2, read/write.
-#    Software uses these bits to control the type of information reported by
-#    the four external performance-monitoring/breakpoint pins on the processor.
-#    When a PBi bit is cleared to 0, the corresponding external pin (BPi)
-#    reports performance-monitor information. When a PBi bit is set to 1, the
-#    corresponding external pin (BPi) reports breakpoint information.
-#
-#    All remaining bits in the DebugCtlMSR register are reserved.
-#
-#    Software can enable control-transfer single stepping by setting
-#    DebugCtlMSR.BTF to 1 and rFLAGS.TF to 1. The processor automatically
-#    disables control-transfer single stepping when a debug exception (#DB)
-#    occurs by clearing DebugCtlMSR.BTF to 0. rFLAGS.TF is also cleared when a
-#    #DB exception occurs. Before exiting the debug-exception handler, software
-#    must set both DebugCtlMSR.BTF and rFLAGS.TF to 1 to restart single
-#    stepping.
-#
-###############################################################################
+    ###############################################################################
+    #
+    #    (from the AMD64 manuals)
+    #
+    #    The fields within the DebugCtlMSR register are:
+    #
+    #    Last-Branch Record (LBR) - Bit 0, read/write. Software sets this bit to 1
+    #    to cause the processor to record the source and target addresses of the
+    #    last control transfer taken before a debug exception occurs. The recorded
+    #    control transfers include branch instructions, interrupts, and exceptions.
+    #
+    #    Branch Single Step (BTF) - Bit 1, read/write. Software uses this bit to
+    #    change the behavior of the rFLAGS.TF bit. When this bit is cleared to 0,
+    #    the rFLAGS.TF bit controls instruction single stepping, (normal behavior).
+    #    When this bit is set to 1, the rFLAGS.TF bit controls single stepping on
+    #    control transfers. The single-stepped control transfers include branch
+    #    instructions, interrupts, and exceptions. Control-transfer single stepping
+    #    requires both BTF=1 and rFLAGS.TF=1.
+    #
+    #    Performance-Monitoring/Breakpoint Pin-Control (PBi) - Bits 5-2, read/write.
+    #    Software uses these bits to control the type of information reported by
+    #    the four external performance-monitoring/breakpoint pins on the processor.
+    #    When a PBi bit is cleared to 0, the corresponding external pin (BPi)
+    #    reports performance-monitor information. When a PBi bit is set to 1, the
+    #    corresponding external pin (BPi) reports breakpoint information.
+    #
+    #    All remaining bits in the DebugCtlMSR register are reserved.
+    #
+    #    Software can enable control-transfer single stepping by setting
+    #    DebugCtlMSR.BTF to 1 and rFLAGS.TF to 1. The processor automatically
+    #    disables control-transfer single stepping when a debug exception (#DB)
+    #    occurs by clearing DebugCtlMSR.BTF to 0. rFLAGS.TF is also cleared when a
+    #    #DB exception occurs. Before exiting the debug-exception handler, software
+    #    must set both DebugCtlMSR.BTF and rFLAGS.TF to 1 to restart single
+    #    stepping.
+    #
+    ###############################################################################
 
-    DebugCtlMSR      = 0x1D9
-    LastBranchRecord = (1 << 0)
-    BranchTrapFlag   = (1 << 1)
-    PinControl       = (
-                        (1 << 2),   # PB1
-                        (1 << 3),   # PB2
-                        (1 << 4),   # PB3
-                        (1 << 5),   # PB4
-                       )
+    DebugCtlMSR = 0x1D9
+    LastBranchRecord = 1 << 0
+    BranchTrapFlag = 1 << 1
+    PinControl = (
+        (
+            1 << 2  # PB1
+        ),
+        (
+            1 << 3  # PB2
+        ),
+        (
+            1 << 4  # PB3
+        ),
+        (
+            1 << 5  # PB4
+        ),
+    )
 
-###############################################################################
-#
-#    (from the AMD64 manuals)
-#
-#    Control-transfer recording MSRs: LastBranchToIP, LastBranchFromIP,
-#    LastExceptionToIP, and LastExceptionFromIP. These registers are loaded
-#    automatically by the processor when the DebugCtlMSR.LBR bit is set to 1.
-#    These MSRs are read-only.
-#
-#    The processor automatically disables control-transfer recording when a
-#    debug exception (#DB) occurs by clearing DebugCtlMSR.LBR to 0. The
-#    contents of the control-transfer recording MSRs are not altered by the
-#    processor when the #DB occurs. Before exiting the debug-exception handler,
-#    software can set DebugCtlMSR.LBR to 1 to re-enable the recording mechanism.
-#
-###############################################################################
+    ###############################################################################
+    #
+    #    (from the AMD64 manuals)
+    #
+    #    Control-transfer recording MSRs: LastBranchToIP, LastBranchFromIP,
+    #    LastExceptionToIP, and LastExceptionFromIP. These registers are loaded
+    #    automatically by the processor when the DebugCtlMSR.LBR bit is set to 1.
+    #    These MSRs are read-only.
+    #
+    #    The processor automatically disables control-transfer recording when a
+    #    debug exception (#DB) occurs by clearing DebugCtlMSR.LBR to 0. The
+    #    contents of the control-transfer recording MSRs are not altered by the
+    #    processor when the #DB occurs. Before exiting the debug-exception handler,
+    #    software can set DebugCtlMSR.LBR to 1 to re-enable the recording mechanism.
+    #
+    ###############################################################################
 
-    LastBranchToIP      = 0x1DC
-    LastBranchFromIP    = 0x1DB
-    LastExceptionToIP   = 0x1DE
+    LastBranchToIP = 0x1DC
+    LastBranchFromIP = 0x1DB
+    LastExceptionToIP = 0x1DE
     LastExceptionFromIP = 0x1DD
 
-#------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------
 
     @classmethod
     def clear_bp(cls, ctx, register):
@@ -980,8 +1001,8 @@ class DebugRegister (StaticClass):
         @type  register: int
         @param register: Slot (debug register) for hardware breakpoint.
         """
-        ctx['Dr7'] &= cls.clearMask[register]
-        ctx['Dr%d' % register] = 0
+        ctx["Dr7"] &= cls.clearMask[register]
+        ctx["Dr%d" % register] = 0
 
     @classmethod
     def set_bp(cls, ctx, register, address, trigger, watch):
@@ -1005,7 +1026,7 @@ class DebugRegister (StaticClass):
         @type  watch: int
         @param watch: Watch flag. See L{HardwareBreakpoint.validWatchSizes}.
         """
-        Dr7 = ctx['Dr7']
+        Dr7 = ctx["Dr7"]
         Dr7 |= cls.enableMask[register]
         orMask, andMask = cls.triggerMask[register][trigger]
         Dr7 &= andMask
@@ -1013,8 +1034,8 @@ class DebugRegister (StaticClass):
         orMask, andMask = cls.watchMask[register][watch]
         Dr7 &= andMask
         Dr7 |= orMask
-        ctx['Dr7'] = Dr7
-        ctx['Dr%d' % register] = address
+        ctx["Dr7"] = Dr7
+        ctx["Dr%d" % register] = address
 
     @classmethod
     def find_slot(cls, ctx):
@@ -1029,7 +1050,7 @@ class DebugRegister (StaticClass):
         @rtype:  int
         @return: Slot (debug register) for hardware breakpoint.
         """
-        Dr7  = ctx['Dr7']
+        Dr7 = ctx["Dr7"]
         slot = 0
         for m in cls.enableMask:
             if (Dr7 & m) == 0:

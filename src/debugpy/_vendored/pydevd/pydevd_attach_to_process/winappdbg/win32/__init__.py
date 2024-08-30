@@ -45,16 +45,16 @@ from winappdbg.win32 import psapi
 from winappdbg.win32 import dbghelp
 from winappdbg.win32 import ntdll
 
-from winappdbg.win32.defines    import *
-from winappdbg.win32.kernel32   import *
-from winappdbg.win32.user32     import *
-from winappdbg.win32.advapi32   import *
-from winappdbg.win32.wtsapi32   import *
-from winappdbg.win32.shell32    import *
-from winappdbg.win32.shlwapi    import *
-from winappdbg.win32.psapi      import *
-from winappdbg.win32.dbghelp    import *
-from winappdbg.win32.ntdll      import *
+from winappdbg.win32.defines import *
+from winappdbg.win32.kernel32 import *
+from winappdbg.win32.user32 import *
+from winappdbg.win32.advapi32 import *
+from winappdbg.win32.wtsapi32 import *
+from winappdbg.win32.shell32 import *
+from winappdbg.win32.shlwapi import *
+from winappdbg.win32.psapi import *
+from winappdbg.win32.dbghelp import *
+from winappdbg.win32.ntdll import *
 
 # This calculates the list of exported symbols.
 _all = set()
@@ -68,5 +68,5 @@ _all.update(shlwapi._all)
 _all.update(psapi._all)
 _all.update(dbghelp._all)
 _all.update(ntdll._all)
-__all__ = [_x for _x in _all if not _x.startswith('_')]
+__all__ = [_x for _x in _all if not _x.startswith("_")]
 __all__.sort()

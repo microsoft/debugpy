@@ -1,7 +1,7 @@
 import unittest
 
+
 class YetAnotherSampleTest(unittest.TestCase):
-    
     def setUp(self):
         return
 
@@ -12,5 +12,5 @@ class YetAnotherSampleTest(unittest.TestCase):
         pass
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
