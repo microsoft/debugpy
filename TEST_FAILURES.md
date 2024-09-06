@@ -1,4 +1,3 @@
-FAILED tests/debugpy/test_output.py::test_redirect_output[program-enabled-attach_listen(api)]
 FAILED tests/debugpy/test_output.py::test_with_no_output[program-attach_listen(api)]
 FAILED tests/debugpy/test_stop_on_entry.py::test_stop_on_entry[program-launch(console=integratedTerminal)-] - assert [{'id': (0 <=...: <int>, ...}] == [{\n ...FAILED tests/debugpy/test_stop_on_entry.py::test_stop_on_entry[module-launch(console=integratedTerminal)-] - assert [{'id': (0 <=...: <int>, ...}] == [{\n  ...FAILED tests/debugpy/test_stop_on_entry.py::test_stop_on_entry[program-launch(console=externalTerminal)-breakpoint]
 FAILED tests/debugpy/test_stop_on_entry.py::test_stop_on_entry[module-launch(console=externalTerminal)-breakpoint]
@@ -7,5 +6,3 @@ FAILED tests/debugpy/test_django.py::test_django_template_exception_no_multiproc
 FAILED tests/debugpy/test_stop_on_entry.py::test_stop_on_entry[module-launch(console=internalConsole)-breakpoint]
 FAILED tests/debugpy/test_stop_on_entry.py::test_stop_on_entry[program-launch(console=externalTerminal)-] - assert [{'id': (0 <=...: <int>, ...}] == [{\n   ...FAILED tests/debugpy/test_stop_on_entry.py::test_stop_on_entry[module-launch(console=externalTerminal)-] - assert [{'id': (0 <=...: <int>, ...}] == [{\n    ...FAILED tests/debugpy/test_stop_on_entry.py::test_stop_on_entry[module-launch(console=integratedTerminal)-breakpoint]
 FAILED tests/debugpy/test_stop_on_entry.py::test_stop_on_entry[program-launch(console=internalConsole)-] - assert [{'id': (0 <=...: <int>, ...}] == [{\n    ...FAILED tests/debugpy/test_stop_on_entry.py::test_stop_on_entry[module-launch(console=internalConsole)-] - assert [{'id': (0 <=...: <int>, ...}] == [{\n    "...FAILED tests/debugpy/test_stop_on_entry.py::test_stop_on_entry[program-launch(console=integratedTerminal)-breakpoint]
-FAILED tests/debugpy/test_output.py::test_redirect_output[program-enabled-attach_connect(api)]
-FAILED tests/debugpy/test_output.py::test_redirect_output[program-disabled-attach_listen(api)]
