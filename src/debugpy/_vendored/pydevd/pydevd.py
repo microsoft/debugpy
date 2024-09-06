@@ -945,6 +945,7 @@ class PyDB(object):
         self.suspended_frames_manager.add_fake_frame(thread_id, frame_id, frame)
 
     def handle_breakpoint_condition(self, info, pybreakpoint, new_frame):
+        pydev_log.debug("RCHIODO == Evaluating breakpoint condition: %s", pybreakpoint.condition)
         condition = pybreakpoint.condition
         try:
             if pybreakpoint.handle_hit_condition(new_frame):

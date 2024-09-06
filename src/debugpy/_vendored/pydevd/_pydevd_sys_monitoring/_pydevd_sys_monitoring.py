@@ -1228,6 +1228,7 @@ def _stop_on_breakpoint(
         True if the breakpoint was suspended inside this function and False otherwise.
         Note that even if False is returned, it's still possible
     """
+    pydev_log.debug("RCHIODO == Stopping on breakpoint %d at %s", stop_reason, frame)
     additional_info = thread_info.additional_info
     # ok, hit breakpoint, now, we have to discover if it is a conditional breakpoint
     # lets do the conditional stuff here
@@ -1357,6 +1358,11 @@ def _jump_event(code, from_offset, to_offset):
 
     # We know the frame depth.
     frame = _getframe(1)
+    pydev_log.debug("RCHIODO == Jump event, %s %s %s %s", code.co_name, from_line, to_line, frame)
+
+    # Disable the next line event as we're jumping to a line. The line event will be redundant.
+    _thread_local_info.f_disable_next_line_if_match = frame.f_lineno
+
     return _internal_line_event(func_code_info, frame, frame.f_lineno)
 
 
@@ -1388,6 +1394,14 @@ def _line_event(code, line):
         # For thread-related stuff we can't disable the code tracing because other
         # threads may still want it...
         return
+    
+    if hasattr(_thread_local_info, "f_disable_next_line_if_match"):
+        if _thread_local_info.f_disable_next_line_if_match is line:
+            # If we're in a jump, we should skip this line event. The jump would have
+            # been considered a line event for this same line and we don't want to
+            # stop twice.
+            del _thread_local_info.f_disable_next_line_if_match
+            return
 
     func_code_info: FuncCodeInfo = _get_func_code_info(code, 1)
     if func_code_info.always_skip_code or func_code_info.always_filtered_out:
@@ -1397,6 +1411,7 @@ def _line_event(code, line):
 
     # We know the frame depth.
     frame = _getframe(1)
+    pydev_log.debug("RCHIODO == Line event %s %s %s", code.co_name, line, frame)
     return _internal_line_event(func_code_info, frame, line)
 
 

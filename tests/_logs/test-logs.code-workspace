@@ -11,6 +11,9 @@
 		},
 		{
 			"path": "3.12-64/tests/debugpy/test_breakpoints.py/test_error_in_condition[program-launch-]"
+		},
+		{
+			"path": "3.12-64/tests/debugpy/test_breakpoints.py/test_error_in_condition[program-launch-NameError]"
 		}
 	],
 	"settings": {}
