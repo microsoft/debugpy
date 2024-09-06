@@ -1,19 +1,7 @@
 {
 	"folders": [
 		{
-			"path": "3.12-64/tests/debugpy/test_exception.py/test_systemexit[0-zero-uncaught-raised-attach_connect(cli)-program]"
-		},
-		{
-			"path": "3.12-64/tests/debugpy/test_exception.py/test_systemexit[0-zero-uncaught-raised-attach_listen(api)-module]"
-		},
-		{
-			"path": "3.12-64/tests/debugpy/test_exception.py/test_systemexit[0-zero-uncaught-raised-launch(console=internalConsole)-program]"
-		},
-		{
-			"path": "3.12-64/tests/debugpy/test_breakpoints.py/test_error_in_condition[program-launch-]"
-		},
-		{
-			"path": "3.12-64/tests/debugpy/test_breakpoints.py/test_error_in_condition[program-launch-NameError]"
+			"path": "3.12-64/tests/debugpy/test_disconnect.py/test_continue_on_disconnect_for_attach[program-attach_listen(api)]"
 		}
 	],
 	"settings": {}

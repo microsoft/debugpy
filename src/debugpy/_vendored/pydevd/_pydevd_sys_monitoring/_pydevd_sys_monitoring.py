@@ -646,6 +646,7 @@ def _enable_line_tracing(code):
 # ENDIF
 # fmt: on
     # print('enable line tracing', code)
+    ensure_monitoring()
     events = monitor.get_local_events(DEBUGGER_ID, code)
     monitor.set_local_events(DEBUGGER_ID, code, events | monitor.events.LINE | monitor.events.JUMP)
 
@@ -658,6 +659,7 @@ def _enable_return_tracing(code):
 # ENDIF
 # fmt: on
     # print('enable return tracing', code)
+    ensure_monitoring()
     events = monitor.get_local_events(DEBUGGER_ID, code)
     monitor.set_local_events(DEBUGGER_ID, code, events | monitor.events.PY_RETURN)
 
@@ -669,6 +671,7 @@ def _enable_return_tracing(code):
 def disable_code_tracing(code):
 # ENDIF
 # fmt: on
+    ensure_monitoring()
     monitor.set_local_events(DEBUGGER_ID, code, 0)
 
 
@@ -1689,6 +1692,19 @@ def _start_method_event(code, instruction_offset):
         return None
 
     return monitor.DISABLE
+
+# fmt: off
+# IFDEF CYTHON
+# cpdef ensure_monitoring():
+# ELSE
+def ensure_monitoring():
+# ENDIF
+# fmt: on
+    DEBUGGER_ID = monitor.DEBUGGER_ID
+    if not monitor.get_tool(DEBUGGER_ID):
+        monitor.use_tool_id(DEBUGGER_ID, "pydevd")
+        update_monitor_events()
+        restart_events()
 
 
 # fmt: off
