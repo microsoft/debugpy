@@ -1,6 +1,7 @@
 import linecache
 import os.path
 import re
+import traceback
 
 from _pydev_bundle import pydev_log
 from _pydevd_bundle import pydevd_dont_trace
@@ -12,7 +13,7 @@ from _pydevd_bundle.pydevd_constants import (
     PYDEVD_IPYTHON_CONTEXT,
     PYDEVD_USE_SYS_MONITORING,
 )
-from _pydevd_bundle.pydevd_frame_utils import add_exception_to_frame, just_raised, remove_exception_from_frame, ignore_exception_trace
+from _pydevd_bundle.pydevd_frame_utils import add_exception_to_frame, just_raised, remove_exception_from_frame, ignore_exception_trace, short_tb
 from _pydevd_bundle.pydevd_utils import get_clsname_for_code
 from pydevd_file_utils import get_abs_path_real_path_and_base_from_frame
 from _pydevd_bundle.pydevd_comm_constants import constant_to_str, CMD_SET_FUNCTION_BREAK
@@ -1067,6 +1068,7 @@ def should_stop_on_exception(py_db, info, frame, thread, arg, prev_user_uncaught
     # STATE_SUSPEND = 2
     if info.pydev_state != 2:  # and breakpoint is not None:
         exception, value, trace = arg
+        pydev_log.debug("RCHIODO == Checking exception %s at %s", exception, short_tb(exception, value, trace))
 
         if trace is not None and hasattr(trace, "tb_next"):
             # on jython trace is None on the first event and it may not have a tb_next.
@@ -1115,7 +1117,7 @@ def should_stop_on_exception(py_db, info, frame, thread, arg, prev_user_uncaught
 
                         if py_db.exclude_exception_by_filter(exc_break, trace):
                             pydev_log.debug(
-                                "Ignore exception %s in library %s -- (%s)" % (exception, frame.f_code.co_filename, frame.f_code.co_name)
+                                "RCHIODO == Ignore exception %s in library %s -- (%s)" % (exception, frame.f_code.co_filename, frame.f_code.co_name)
                             )
                             should_stop = False
 

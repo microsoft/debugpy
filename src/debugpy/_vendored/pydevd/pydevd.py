@@ -2386,6 +2386,7 @@ class PyDB(object):
         while frame is not None:
             if not isinstance(frame, FrameType):
                 # This is the case for django/jinja frames.
+                pydev_log.debug("Not a frame: %s", frame)
                 frame = frame.f_back
                 continue
 
@@ -2400,11 +2401,11 @@ class PyDB(object):
 
                     else:
                         if DEBUG:
-                            pydev_log.debug("Set tracing of frame: %s - %s", frame.f_code.co_filename, frame.f_code.co_name)
+                            pydev_log.debug("Sys.monitoring - Set tracing of frame: %s - %s", frame.f_code.co_filename, frame.f_code.co_name)
                         pydevd_sys_monitoring.enable_code_tracing(thread_ident, frame.f_code, frame)
                 else:
                     if DEBUG:
-                        pydev_log.debug("SKIP set tracing of frame: %s - %s", frame.f_code.co_filename, frame.f_code.co_name)
+                        pydev_log.debug("Sys.monitoring - SKIP set tracing of frame: %s - %s", frame.f_code.co_filename, frame.f_code.co_name)
             else:
                 # Not using sys.monitoring.
                 if file_type is None:

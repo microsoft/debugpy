@@ -99,10 +99,11 @@ def test_wrapper(request, long_tmpdir):
 
     finally:
         if not failed and not request.config.option.debugpy_log_passed:
-            try:
-                py.path.local(log.log_dir).remove()
-            except Exception:
-                pass
+            # try:
+            #     py.path.local(log.log_dir).remove()
+            # except Exception:
+            #     pass
+            pass
         log.log_dir = original_log_dir
 
 

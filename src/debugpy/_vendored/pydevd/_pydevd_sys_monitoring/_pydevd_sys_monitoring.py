@@ -26,6 +26,7 @@ from pydevd_file_utils import (
     NORM_PATHS_AND_BASE_CONTAINER,
     get_abs_path_real_path_and_base_from_file,
     get_abs_path_real_path_and_base_from_frame,
+    contains_dir
 )
 from _pydevd_bundle.pydevd_trace_dispatch import should_stop_on_exception, handle_exception
 from _pydevd_bundle.pydevd_constants import EXCEPTION_TYPE_HANDLED
@@ -39,6 +40,7 @@ from _pydevd_bundle.pydevd_utils import get_clsname_for_code
 # from _pydevd_bundle.pydevd_cython cimport set_additional_thread_info, any_thread_stepping, PyDBAdditionalThreadInfo
 # ELSE
 from _pydevd_bundle.pydevd_additional_thread_info import set_additional_thread_info, any_thread_stepping, PyDBAdditionalThreadInfo
+import pydevd_file_utils
 # ENDIF
 # fmt: on
 
@@ -177,7 +179,9 @@ def _get_unhandled_exception_frame(depth: int) -> Optional[FrameType]:
 # ENDIF
 # fmt: on
     try:
-        return _thread_local_info.f_unhandled
+        result = _thread_local_info.f_unhandled
+        pydev_log.debug("Using cached unhandled frame: %s", result)
+        return result
     except:
         frame = _getframe(depth)
         f_unhandled = frame
@@ -205,9 +209,20 @@ def _get_unhandled_exception_frame(depth: int) -> Optional[FrameType]:
                 if f_back.f_code.co_name.startswith(("run", "_run")):
                     break
 
+            elif filename == "<frozen runpy>":
+                if f_back.f_code.co_name.startswith(("run", "_run")):
+                    break
+
+            elif name == 'runpy':
+                if f_back.f_code.co_name.startswith(("run", "_run")):
+                    break
+
+            pydev_log.debug("Skipping frame: %s:%s", filename, f_back.f_code)
+
             f_unhandled = f_back
 
         if f_unhandled is not None:
+            pydev_log.debug("Caching unhandled frame: %s", f_unhandled)
             _thread_local_info.f_unhandled = f_unhandled
             return _thread_local_info.f_unhandled
 
@@ -818,6 +833,10 @@ def _unwind_event(code, instruction, exc):
         # For thread-related stuff we can't disable the code tracing because other
         # threads may still want it...
         return
+    
+    # Clear the cached unhandled exception frame. We have a new exception
+    if hasattr(_thread_local_info, "f_unhandled"):
+        del _thread_local_info.f_unhandled
 
     func_code_info: FuncCodeInfo = _get_func_code_info(code, 1)
     if func_code_info.always_skip_code:
@@ -850,10 +869,15 @@ def _unwind_event(code, instruction, exc):
                 return
 
     break_on_uncaught_exceptions = py_db.break_on_uncaught_exceptions
+    pydev_log.critical("RCHIODO == Checking unwind, %s", break_on_uncaught_exceptions)
     if break_on_uncaught_exceptions:
-        if frame is _get_unhandled_exception_frame(depth=1):
+        unhandled_frame = _get_unhandled_exception_frame(1)
+        pydev_log.critical("RCHIODO == Checking unwind frame, %s", unhandled_frame)
+        if frame is unhandled_frame:
             stop_on_unhandled_exception(py_db, thread_info.thread, thread_info.additional_info, arg)
             return
+        else:
+            pydev_log.critical("RCHIODO == frame is not unhandled %s", frame)
 
 
 # fmt: off
@@ -1750,6 +1774,8 @@ def update_monitor_events(suspend_requested: Optional[bool] = None) -> None:
     )
 
     break_on_uncaught_exceptions = py_db.break_on_uncaught_exceptions
+
+    pydev_log.critical("RCHIODO -- Updating monitor events %s, %s", has_caught_exception_breakpoint_in_pydb, break_on_uncaught_exceptions)
 
     if has_caught_exception_breakpoint_in_pydb:
         required_events |= monitor.events.RAISE | monitor.events.PY_UNWIND

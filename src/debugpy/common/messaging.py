@@ -295,7 +295,8 @@ class JsonIOStream(object):
         try:
             while data_written < len(data):
                 written = writer.write(data[data_written:])
-                data_written += written
+                if written is not None:
+                    data_written += written
             writer.flush()
         except Exception as exc:  # pragma: no cover
             self._log_message("<--", value, logger=log.swallow_exception)
