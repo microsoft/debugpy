@@ -1646,12 +1646,15 @@ def _start_method_event(code, instruction_offset):
         # threads may still want it...
         return
 
+
     frame = _getframe(1)
     func_code_info = _get_func_code_info(code, frame)
     if func_code_info.always_skip_code:
         # if DEBUG:
         #     print('disable (always skip)')
         return monitor.DISABLE
+
+    pydev_log.debug("RCHIODO == start method event %s %s", code.co_name, frame)
 
     keep_enabled: bool = _enable_code_tracing(py_db, thread_info.additional_info, func_code_info, code, frame, True)
 

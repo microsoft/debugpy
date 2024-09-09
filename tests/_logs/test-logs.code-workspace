@@ -1,7 +1,10 @@
 {
 	"folders": [
 		{
-			"path": "3.12-64/tests/debugpy/test_disconnect.py/test_continue_on_disconnect_for_attach[program-attach_listen(api)]"
+			"path": "3.12-64/tests/debugpy/test_stop_on_entry.py/test_stop_on_entry[program-launch(console=internalConsole)-breakpoint]"
+		},
+		{
+			"path": "../../../debugpy-2/tests/_logs/3.11-64/tests/debugpy/test_stop_on_entry.py/test_stop_on_entry[program-launch(console=internalConsole)-breakpoint]"
 		}
 	],
 	"settings": {}

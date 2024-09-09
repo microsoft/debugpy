@@ -1076,10 +1076,12 @@ class PyDB(object):
             return _cache_file_type[cache_key]
         except:
             if abs_real_path_and_basename[0] == "<string>":
+                pydev_log.debug("RCHIODO == checking get_file_type for string %s, %s", pydevd_file_utils.basename(frame.f_code.co_filename), frame.f_lineno)
                 # Consider it an untraceable file unless there's no back frame (ignoring
                 # internal files and runpy.py).
                 f = frame.f_back
                 while f is not None:
+                    pydev_log.debug("RCHIODO == get_file_type for string: %s, %s = %s", pydevd_file_utils.basename(f.f_code.co_filename), f.f_lineno, self.get_file_type(f))
                     if self.get_file_type(f) != self.PYDEV_FILE and pydevd_file_utils.basename(f.f_code.co_filename) not in (
                         "runpy.py",
                         "<string>",
@@ -1094,9 +1096,15 @@ class PyDB(object):
                         # Note that we return as a LIB_FILE and not PYDEV_FILE because we still want
                         # to show it in the stack.
                         _cache_file_type[cache_key] = LIB_FILE
+                        pydev_log.debug("Found LIB_FILE for string: %s", f.f_code.co_filename)
                         return LIB_FILE
+                    if pydevd_file_utils.basename(f.f_code.co_filename).find("pydevd_sys_monitoring") >= 0:
+                        # We don't want to trace sys monitoring strings. This is a string created in the sys.monitoring code
+                        _cache_file_type[cache_key] = self.PYDEV_FILE
+                        return self.PYDEV_FILE
                     f = f.f_back
                 else:
+                    pydev_log.debug("RCHIODO == get_file_type for string has no back frame")
                     # This is a top-level file (used in python -c), so, trace it as usual... we
                     # still won't be able to show the sources, but some tests require this to work.
                     _cache_file_type[cache_key] = None
@@ -1296,6 +1304,7 @@ class PyDB(object):
                 if file_type == self.LIB_FILE:
                     cache[cache_key] = False
                 else:
+                    pydev_log.debug("RCHIODO == in_project_scope: %s because of file_type %s", absolute_filename, file_type)
                     cache[cache_key] = True
 
             elif self.source_mapping.has_mapping_entry(absolute_filename):
