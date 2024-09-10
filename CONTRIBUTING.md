@@ -97,6 +97,10 @@ While tox is the recommended way to run the test suite, pytest can also be invok
 
 There's an internal setting `debugpy_log_passed` that if set to true will not erase the logs after a successful test run. Just search for this in the code and remove the code that deletes the logs on success.
 
+#### Adding logging
+
+Using `pydevd_log.debug` you can add logging just about anywhere in the pydevd code. However this code won't be called if CYTHON support is enabled without recreating the Cython output. To temporarily disable CYTHON support, look for `CYTHON_SUPPORTED` and make sure it's set to False
+
 ## Using modified debugpy in Visual Studio Code
 To test integration between debugpy and Visual Studio Code, the latter can be directed to use a custom version of debugpy in lieu of the one bundled with the Python extension. This is done by specifying `"debugAdapterPath"` in `launch.json` - it must point at the root directory of the *package*, which is `src/debugpy` inside the repository:
 

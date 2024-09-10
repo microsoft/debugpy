@@ -217,12 +217,9 @@ def _get_unhandled_exception_frame(depth: int) -> Optional[FrameType]:
                 if f_back.f_code.co_name.startswith(("run", "_run")):
                     break
 
-            pydev_log.debug("Skipping frame: %s:%s", filename, f_back.f_code)
-
             f_unhandled = f_back
 
         if f_unhandled is not None:
-            pydev_log.debug("Caching unhandled frame: %s", f_unhandled)
             _thread_local_info.f_unhandled = f_unhandled
             return _thread_local_info.f_unhandled
 
@@ -841,6 +838,14 @@ def _unwind_event(code, instruction, exc):
     if hasattr(_thread_local_info, "f_unhandled"):
         del _thread_local_info.f_unhandled
 
+    # Skip handling this unwind if we just handled the raised exception.
+    if hasattr(_thread_local_info, "f_last_handled_raised"):
+        if _thread_local_info.f_last_handled_raised == exc:
+            del _thread_local_info.f_last_handled_raised
+            return
+        else:
+            del _thread_local_info.f_last_handled_raised
+
     func_code_info: FuncCodeInfo = _get_func_code_info(code, 1)
     if func_code_info.always_skip_code:
         return
@@ -848,6 +853,8 @@ def _unwind_event(code, instruction, exc):
     # print('_unwind_event', code, exc)
     frame = _getframe(1)
     arg = (type(exc), exc, exc.__traceback__)
+
+    pydev_log.debug("RCHIODO == Unwind event, %s %s", exc, frame)
 
     has_caught_exception_breakpoint_in_pydb = (
         py_db.break_on_caught_exceptions or py_db.break_on_user_uncaught_exceptions or py_db.has_plugin_exception_breaks
@@ -930,9 +937,14 @@ def _raise_event(code, instruction, exc):
         py_db, thread_info.additional_info, frame, thread_info.thread, arg, None
     )
     # print('!!!! should_stop (in raise)', should_stop)
+    pydev_log.debug("RCHIODO == Raise event, %s %s", exc, should_stop)
     if should_stop:
         handle_exception(py_db, thread_info.thread, frame, arg, EXCEPTION_TYPE_HANDLED)
+
+        # Save this exception as the last handled exception so we'll skip handling it again in the unwind.
+        _thread_local_info.f_last_handled_raised = exc
         return
+
 
 
 # fmt: off
@@ -1653,8 +1665,6 @@ def _start_method_event(code, instruction_offset):
         # if DEBUG:
         #     print('disable (always skip)')
         return monitor.DISABLE
-
-    pydev_log.debug("RCHIODO == start method event %s %s", code.co_name, frame)
 
     keep_enabled: bool = _enable_code_tracing(py_db, thread_info.additional_info, func_code_info, code, frame, True)
 

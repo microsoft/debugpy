@@ -1440,9 +1440,11 @@ class PyDB(object):
 
     def exclude_exception_by_filter(self, exception_breakpoint, trace):
         if not exception_breakpoint.ignore_libraries and not self._exclude_filters_enabled:
+            pydev_log.debug("RCHIODO == exclude_exception_by_filter: False because ignore_libraries is False and exclude_filters_enabled is False")
             return False
 
         if trace is None:
+            pydev_log.debug("RCHIODO == excluded exception by filter: True because trace is None")
             return True
 
         ignore_libraries = exception_breakpoint.ignore_libraries
@@ -1453,6 +1455,8 @@ class PyDB(object):
             and self._exclude_by_filter(trace.tb_frame, pydevd_file_utils.absolute_path(trace.tb_frame.f_code.co_filename))
         ):
             return True
+
+        pydev_log.debug("RCHIODO == excluded exception by filter: False")
 
         return False
 

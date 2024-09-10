@@ -3,7 +3,7 @@ import inspect
 from _pydev_bundle import pydev_log
 from _pydevd_bundle.pydevd_comm import CMD_SET_BREAK, CMD_ADD_EXCEPTION_BREAK
 from _pydevd_bundle.pydevd_constants import STATE_SUSPEND, DJANGO_SUSPEND, DebugInfoHolder
-from _pydevd_bundle.pydevd_frame_utils import add_exception_to_frame, FCode, just_raised, ignore_exception_trace
+from _pydevd_bundle.pydevd_frame_utils import add_exception_to_frame, FCode, just_raised, ignore_exception_trace, short_tb
 from pydevd_file_utils import canonical_normalized_path, absolute_path
 from _pydevd_bundle.pydevd_api import PyDevdAPI
 from pydevd_plugins.pydevd_line_validation import LineBreakpointWithLazyValidation, ValidationInfo
@@ -588,6 +588,7 @@ def _get_original_filename_from_origin_in_parent_frame_locals(frame, parent_fram
 
 def exception_break(py_db, frame, thread, arg):
     exception, value, trace = arg
+    pydev_log.debug("RCHIODO == Check exception break for django %s %s %s", py_db.django_exception_break, short_tb(exception, value, trace), trace.tb_next)
 
     if py_db.django_exception_break and exception is not None:
         if (
@@ -596,6 +597,7 @@ def exception_break(py_db, frame, thread, arg):
             and not ignore_exception_trace(trace)
         ):
             if exception.__name__ == "TemplateSyntaxError":
+                pydev_log.debug("RCHIODO == Checking template syntax error")
                 # In this case we don't actually have a regular render frame with the context
                 # (we didn't really get to that point).
                 token = getattr(value, "token", None)
