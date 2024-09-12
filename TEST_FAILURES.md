@@ -1,1 +1,4 @@
-FAILED tests/debugpy/test_django.py::test_django_template_exception_no_multiproc[launch] - AssertionError: Unobserved occurrences detected:
+Py39 eval failures? Need to double check on original
+
+Left to do:
+- Get Cython stuff built again? Maybe it's only on windows (pxd files)
