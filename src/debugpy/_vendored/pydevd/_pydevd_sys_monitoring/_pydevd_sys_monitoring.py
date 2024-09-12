@@ -7,6 +7,7 @@ import dis
 import os
 import re
 import sys
+
 from _pydev_bundle._pydev_saved_modules import threading
 from types import CodeType, FrameType
 from typing import Dict, Optional, Tuple, Any
@@ -22,6 +23,7 @@ from _pydevd_bundle.pydevd_constants import (
     RETURN_VALUES_DICT,
     PYTHON_SUSPEND,
 )
+from _pydevd_bundle.pydevd_frame_utils import short_tb
 from pydevd_file_utils import (
     NORM_PATHS_AND_BASE_CONTAINER,
     get_abs_path_real_path_and_base_from_file,
@@ -838,14 +840,6 @@ def _unwind_event(code, instruction, exc):
     if hasattr(_thread_local_info, "f_unhandled"):
         del _thread_local_info.f_unhandled
 
-    # Skip handling this unwind if we just handled the raised exception.
-    if hasattr(_thread_local_info, "f_last_handled_raised"):
-        if _thread_local_info.f_last_handled_raised == exc:
-            del _thread_local_info.f_last_handled_raised
-            return
-        else:
-            del _thread_local_info.f_last_handled_raised
-
     func_code_info: FuncCodeInfo = _get_func_code_info(code, 1)
     if func_code_info.always_skip_code:
         return
@@ -854,7 +848,7 @@ def _unwind_event(code, instruction, exc):
     frame = _getframe(1)
     arg = (type(exc), exc, exc.__traceback__)
 
-    pydev_log.debug("RCHIODO == Unwind event, %s %s", exc, frame)
+    pydev_log.debug("RCHIODO == Unwind event, %s %s %s %s", exc, frame.f_lineno, frame.f_code.co_name, frame.f_code.co_filename)
 
     has_caught_exception_breakpoint_in_pydb = (
         py_db.break_on_caught_exceptions or py_db.break_on_user_uncaught_exceptions or py_db.has_plugin_exception_breaks
@@ -888,7 +882,6 @@ def _unwind_event(code, instruction, exc):
             return
         else:
             pydev_log.critical("RCHIODO == frame is not unhandled %s", frame)
-
 
 # fmt: off
 # IFDEF CYTHON
@@ -933,16 +926,17 @@ def _raise_event(code, instruction, exc):
 
     frame = _getframe(1)
     arg = (type(exc), exc, exc.__traceback__)
+
+    pydev_log.debug("RCHIODO == Raise event, %s %s %s %s", exc, frame.f_lineno, frame.f_code.co_name, frame.f_code.co_filename)
+
     should_stop, frame, _user_uncaught_exc_info = should_stop_on_exception(
         py_db, thread_info.additional_info, frame, thread_info.thread, arg, None
     )
+
+    pydev_log.debug("RCHIODO == Raise event should_stop, %s, %s", exc, should_stop)
     # print('!!!! should_stop (in raise)', should_stop)
-    pydev_log.debug("RCHIODO == Raise event, %s %s", exc, should_stop)
     if should_stop:
         handle_exception(py_db, thread_info.thread, frame, arg, EXCEPTION_TYPE_HANDLED)
-
-        # Save this exception as the last handled exception so we'll skip handling it again in the unwind.
-        _thread_local_info.f_last_handled_raised = exc
         return
 
 
