@@ -2,6 +2,7 @@ from _pydevd_bundle.pydevd_constants import EXCEPTION_TYPE_USER_UNHANDLED, EXCEP
 from _pydev_bundle import pydev_log
 import itertools
 from typing import Any, Dict
+import threading
 
 
 class Frame(object):
@@ -39,9 +40,17 @@ def remove_exception_from_frame(frame):
 FILES_WITH_IMPORT_HOOKS = ["pydev_monkey_qt.py", "pydev_import_hook.py"]
 
 
+_thread_local_info = threading.local()
+def flag_as_unwinding(trace):
+    _thread_local_info._unwinding_trace = trace
+
 def just_raised(trace):
     if trace is None:
         return False
+    
+    if hasattr(_thread_local_info, "_unwinding_trace") and _thread_local_info._unwinding_trace is trace:
+        return False
+    
     return trace.tb_next is None
 
 def short_tb(exc_type, exc_value, exc_tb):

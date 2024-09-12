@@ -169,7 +169,7 @@ def stop_on_unhandled_exception(py_db, thread, additional_info, arg):
     except:
         additional_info.pydev_message = exception_breakpoint.qname.encode("utf-8")
 
-    pydev_log.debug("RCHIODO == Handling post-mortem stop on exception breakpoint %s" % (exception_breakpoint.qname,))
+    # pydev_log.debug("RCHIODO == Handling post-mortem stop on exception breakpoint %s" % (exception_breakpoint.qname,))
 
     py_db.do_stop_on_unhandled_exception(thread, user_frame, frames_byid, arg)
 

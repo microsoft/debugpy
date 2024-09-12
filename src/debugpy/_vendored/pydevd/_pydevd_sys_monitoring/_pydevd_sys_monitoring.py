@@ -23,7 +23,7 @@ from _pydevd_bundle.pydevd_constants import (
     RETURN_VALUES_DICT,
     PYTHON_SUSPEND,
 )
-from _pydevd_bundle.pydevd_frame_utils import short_tb
+from _pydevd_bundle.pydevd_frame_utils import short_tb, flag_as_unwinding
 from pydevd_file_utils import (
     NORM_PATHS_AND_BASE_CONTAINER,
     get_abs_path_real_path_and_base_from_file,
@@ -843,12 +843,12 @@ def _unwind_event(code, instruction, exc):
     func_code_info: FuncCodeInfo = _get_func_code_info(code, 1)
     if func_code_info.always_skip_code:
         return
-
+    
     # print('_unwind_event', code, exc)
     frame = _getframe(1)
     arg = (type(exc), exc, exc.__traceback__)
 
-    pydev_log.debug("RCHIODO == Unwind event, %s %s %s %s", exc, frame.f_lineno, frame.f_code.co_name, frame.f_code.co_filename)
+    # pydev_log.debug("RCHIODO == Unwind event, %s %s %s %s", exc, frame.f_lineno, frame.f_code.co_name, frame.f_code.co_filename)
 
     has_caught_exception_breakpoint_in_pydb = (
         py_db.break_on_caught_exceptions or py_db.break_on_user_uncaught_exceptions or py_db.has_plugin_exception_breaks
@@ -858,6 +858,7 @@ def _unwind_event(code, instruction, exc):
         _should_stop, frame, user_uncaught_exc_info = should_stop_on_exception(
             py_db, thread_info.additional_info, frame, thread_info.thread, arg, None
         )
+        # pydev_log.debug("RCHIODO == Unwind event with break set %s, %s", _should_stop, user_uncaught_exc_info)
         if user_uncaught_exc_info:
             # TODO: Check: this may no longer be needed as in the unwind we know it's
             # an exception bubbling up (wait for all tests to pass to check it).
@@ -865,9 +866,12 @@ def _unwind_event(code, instruction, exc):
                 container_obj = _TryExceptContainerObj(py_db.collect_try_except_info(frame.f_code))
                 func_code_info.try_except_container_obj = container_obj
 
-            if is_unhandled_exception(
+            is_unhandled = is_unhandled_exception(
                 func_code_info.try_except_container_obj, py_db, frame, user_uncaught_exc_info[1], user_uncaught_exc_info[2]
-            ):
+            )
+            # pydev_log.debug("RCHIODO == Unwind event should stop on unhandled %s %s", is_unhandled, user_uncaught_exc_info)
+
+            if is_unhandled:
                 # print('stop in user uncaught')
                 handle_exception(py_db, thread_info.thread, frame, user_uncaught_exc_info[0], EXCEPTION_TYPE_USER_UNHANDLED)
                 return
@@ -927,18 +931,26 @@ def _raise_event(code, instruction, exc):
     frame = _getframe(1)
     arg = (type(exc), exc, exc.__traceback__)
 
-    pydev_log.debug("RCHIODO == Raise event, %s %s %s %s", exc, frame.f_lineno, frame.f_code.co_name, frame.f_code.co_filename)
+    # pydev_log.debug("RCHIODO == Raise event, %s %s %s %s", exc, frame.f_lineno, frame.f_code.co_name, frame.f_code.co_filename)
 
+    # Compute the previous exception info (if any). We use it to check if the exception
+    # should be stopped
+    prev_exc_info = _thread_local_info._user_uncaught_exc_info if hasattr(_thread_local_info, "_user_uncaught_exc_info") else None
     should_stop, frame, _user_uncaught_exc_info = should_stop_on_exception(
-        py_db, thread_info.additional_info, frame, thread_info.thread, arg, None
+        py_db, thread_info.additional_info, frame, thread_info.thread, arg, prev_exc_info
     )
 
-    pydev_log.debug("RCHIODO == Raise event should_stop, %s, %s", exc, should_stop)
+    # Save the current exception info for the next raise event.
+    _thread_local_info._user_uncaught_exc_info = _user_uncaught_exc_info
+
+    # pydev_log.debug("RCHIODO == Raise event should_stop, %s, %s", exc, should_stop)
     # print('!!!! should_stop (in raise)', should_stop)
     if should_stop:
         handle_exception(py_db, thread_info.thread, frame, arg, EXCEPTION_TYPE_HANDLED)
-        return
 
+    # Once we leave the raise event, we are no longer in the state of 'just_raised', so 
+    # indicate that this traceback is for an exception in the unwinding state
+    flag_as_unwinding(exc.__traceback__)
 
 
 # fmt: off
@@ -1237,7 +1249,7 @@ def _stop_on_breakpoint(
         True if the breakpoint was suspended inside this function and False otherwise.
         Note that even if False is returned, it's still possible
     """
-    pydev_log.debug("RCHIODO == Stopping on breakpoint %d at %s", stop_reason, frame)
+    # pydev_log.debug("RCHIODO == Stopping on breakpoint %d at %s", stop_reason, frame)
     additional_info = thread_info.additional_info
     # ok, hit breakpoint, now, we have to discover if it is a conditional breakpoint
     # lets do the conditional stuff here
@@ -1367,7 +1379,7 @@ def _jump_event(code, from_offset, to_offset):
 
     # We know the frame depth.
     frame = _getframe(1)
-    pydev_log.debug("RCHIODO == Jump event, %s %s %s %s", code.co_name, from_line, to_line, frame)
+    # pydev_log.debug("RCHIODO == Jump event, %s %s %s %s", code.co_name, from_line, to_line, frame)
 
     # Disable the next line event as we're jumping to a line. The line event will be redundant.
     _thread_local_info.f_disable_next_line_if_match = frame.f_lineno
@@ -1420,7 +1432,7 @@ def _line_event(code, line):
 
     # We know the frame depth.
     frame = _getframe(1)
-    pydev_log.debug("RCHIODO == Line event %s %s %s", code.co_name, line, frame)
+    # pydev_log.debug("RCHIODO == Line event %s %s %s", code.co_name, line, frame)
     return _internal_line_event(func_code_info, frame, line)
 
 
