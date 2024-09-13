@@ -1487,8 +1487,8 @@ static const char *__pyx_filename;
 /* #### Code section: filename_table ### */
 
 static const char *__pyx_f[] = {
-  "_pydevd_bundle\\\\pydevd_cython.pyx",
-  "_pydevd_bundle\\\\pydevd_cython.pxd",
+  "_pydevd_bundle/pydevd_cython.pyx",
+  "_pydevd_bundle/pydevd_cython.pxd",
   "<stringsource>",
   "type.pxd",
 };
