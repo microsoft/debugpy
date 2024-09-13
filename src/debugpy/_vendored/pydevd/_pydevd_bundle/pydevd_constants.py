@@ -161,7 +161,7 @@ CYTHON_SUPPORTED = False
 python_implementation = platform.python_implementation()
 if python_implementation == "CPython":
     # Only available for CPython!
-    CYTHON_SUPPORTED = False
+    CYTHON_SUPPORTED = True
 
 # =======================================================================================================================
 # Python 3?

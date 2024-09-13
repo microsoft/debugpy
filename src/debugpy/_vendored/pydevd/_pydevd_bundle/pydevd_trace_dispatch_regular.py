@@ -1,6 +1,5 @@
 from _pydev_bundle.pydev_is_thread_alive import is_thread_alive
 from _pydev_bundle.pydev_log import exception as pydev_log_exception
-from _pydev_bundle.pydev_log import debug as pydev_log_debug
 from _pydev_bundle._pydev_saved_modules import threading
 from _pydevd_bundle.pydevd_constants import (
     get_current_thread_id,
@@ -249,7 +248,7 @@ class TopLevelThreadTracerOnlyUnhandledExceptions(object):
             if arg is not None:
                 if not additional_info.suspended_at_unhandled:
                     additional_info.suspended_at_unhandled = True
-                    pydev_log_debug("RCHIODO == Stopping at unhandled exception during trace_unhandled_exceptions")
+
                     py_db.stop_on_unhandled_exception(py_db, t, additional_info, arg)
 
         # No need to reset frame.f_trace to keep the same trace function.
@@ -302,7 +301,6 @@ class TopLevelThreadTracerNoBackFrame(object):
 # fmt: on
 
     def trace_dispatch_and_unhandled_exceptions(self, frame, event, arg):
-        pydev_log_debug("RCHIODO == trace dispatch and unhandled exceptions")
         # DEBUG = 'code_to_debug' in frame.f_code.co_filename
         # if DEBUG: print('trace_dispatch_and_unhandled_exceptions: %s %s %s %s %s %s' % (event, frame.f_code.co_name, frame.f_code.co_filename, frame.f_code.co_firstlineno, self._frame_trace_dispatch, frame.f_lineno))
         frame_trace_dispatch = self._frame_trace_dispatch
@@ -320,7 +318,6 @@ class TopLevelThreadTracerNoBackFrame(object):
                 py_db, t, additional_info = self._args[0:3]
                 if not additional_info.suspended_at_unhandled:  # Note: only check it here, don't set.
                     if is_unhandled_exception(self, py_db, frame, self._last_raise_line, self._raise_lines):
-                        pydev_log_debug("RCHIODO == Stopping at unhandled exception during return")
                         py_db.stop_on_unhandled_exception(py_db, t, additional_info, self._last_exc_arg)
             finally:
                 # Remove reference to exception after handling it.

@@ -28,7 +28,6 @@ from pydevd_file_utils import (
     NORM_PATHS_AND_BASE_CONTAINER,
     get_abs_path_real_path_and_base_from_file,
     get_abs_path_real_path_and_base_from_frame,
-    contains_dir
 )
 from _pydevd_bundle.pydevd_trace_dispatch import should_stop_on_exception, handle_exception
 from _pydevd_bundle.pydevd_constants import EXCEPTION_TYPE_HANDLED
@@ -42,7 +41,6 @@ from _pydevd_bundle.pydevd_utils import get_clsname_for_code
 # from _pydevd_bundle.pydevd_cython cimport set_additional_thread_info, any_thread_stepping, PyDBAdditionalThreadInfo
 # ELSE
 from _pydevd_bundle.pydevd_additional_thread_info import set_additional_thread_info, any_thread_stepping, PyDBAdditionalThreadInfo
-import pydevd_file_utils
 # ENDIF
 # fmt: on
 
@@ -181,9 +179,7 @@ def _get_unhandled_exception_frame(depth: int) -> Optional[FrameType]:
 # ENDIF
 # fmt: on
     try:
-        result = _thread_local_info.f_unhandled
-        pydev_log.debug("Using cached unhandled frame: %s", result)
-        return result
+        return _thread_local_info.f_unhandled
     except:
         frame = _getframe(depth)
         f_unhandled = frame
@@ -645,7 +641,7 @@ def _enable_line_tracing(code):
 # ENDIF
 # fmt: on
     # print('enable line tracing', code)
-    ensure_monitoring()
+    _ensure_monitoring()
     events = monitor.get_local_events(DEBUGGER_ID, code)
     monitor.set_local_events(DEBUGGER_ID, code, events | monitor.events.LINE | monitor.events.JUMP)
 
@@ -658,7 +654,7 @@ def _enable_return_tracing(code):
 # ENDIF
 # fmt: on
     # print('enable return tracing', code)
-    ensure_monitoring()
+    _ensure_monitoring()
     events = monitor.get_local_events(DEBUGGER_ID, code)
     monitor.set_local_events(DEBUGGER_ID, code, events | monitor.events.PY_RETURN)
 
@@ -670,7 +666,7 @@ def _enable_return_tracing(code):
 def disable_code_tracing(code):
 # ENDIF
 # fmt: on
-    ensure_monitoring()
+    _ensure_monitoring()
     monitor.set_local_events(DEBUGGER_ID, code, 0)
 
 
@@ -869,7 +865,6 @@ def _unwind_event(code, instruction, exc):
             is_unhandled = is_unhandled_exception(
                 func_code_info.try_except_container_obj, py_db, frame, user_uncaught_exc_info[1], user_uncaught_exc_info[2]
             )
-            # pydev_log.debug("RCHIODO == Unwind event should stop on unhandled %s %s", is_unhandled, user_uncaught_exc_info)
 
             if is_unhandled:
                 # print('stop in user uncaught')
@@ -877,15 +872,11 @@ def _unwind_event(code, instruction, exc):
                 return
 
     break_on_uncaught_exceptions = py_db.break_on_uncaught_exceptions
-    pydev_log.critical("RCHIODO == Checking unwind, %s", break_on_uncaught_exceptions)
     if break_on_uncaught_exceptions:
-        unhandled_frame = _get_unhandled_exception_frame(1)
-        pydev_log.critical("RCHIODO == Checking unwind frame, %s", unhandled_frame)
-        if frame is unhandled_frame:
+        if frame is _get_unhandled_exception_frame(depth=1):
             stop_on_unhandled_exception(py_db, thread_info.thread, thread_info.additional_info, arg)
             return
-        else:
-            pydev_log.critical("RCHIODO == frame is not unhandled %s", frame)
+
 
 # fmt: off
 # IFDEF CYTHON
@@ -1714,9 +1705,9 @@ def _start_method_event(code, instruction_offset):
 
 # fmt: off
 # IFDEF CYTHON
-# cpdef ensure_monitoring():
+# cpdef _ensure_monitoring():
 # ELSE
-def ensure_monitoring():
+def _ensure_monitoring():
 # ENDIF
 # fmt: on
     DEBUGGER_ID = monitor.DEBUGGER_ID
@@ -1824,8 +1815,6 @@ def update_monitor_events(suspend_requested: Optional[bool] = None) -> None:
     )
 
     break_on_uncaught_exceptions = py_db.break_on_uncaught_exceptions
-
-    pydev_log.critical("RCHIODO -- Updating monitor events %s, %s", has_caught_exception_breakpoint_in_pydb, break_on_uncaught_exceptions)
 
     if has_caught_exception_breakpoint_in_pydb:
         required_events |= monitor.events.RAISE | monitor.events.PY_UNWIND

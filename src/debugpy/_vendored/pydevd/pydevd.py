@@ -1096,7 +1096,6 @@ class PyDB(object):
                         # Note that we return as a LIB_FILE and not PYDEV_FILE because we still want
                         # to show it in the stack.
                         _cache_file_type[cache_key] = LIB_FILE
-                        pydev_log.debug("Found LIB_FILE for string: %s", f.f_code.co_filename)
                         return LIB_FILE
                     if pydevd_file_utils.basename(f.f_code.co_filename).find("pydevd_sys_monitoring") >= 0:
                         # We don't want to trace sys monitoring strings. This is a string created in the sys.monitoring code
@@ -2415,11 +2414,11 @@ class PyDB(object):
 
                     else:
                         if DEBUG:
-                            pydev_log.debug("Sys.monitoring - Set tracing of frame: %s - %s", frame.f_code.co_filename, frame.f_code.co_name)
+                            pydev_log.debug("Set tracing of frame: %s - %s", frame.f_code.co_filename, frame.f_code.co_name)
                         pydevd_sys_monitoring.enable_code_tracing(thread_ident, frame.f_code, frame)
                 else:
                     if DEBUG:
-                        pydev_log.debug("Sys.monitoring - SKIP set tracing of frame: %s - %s", frame.f_code.co_filename, frame.f_code.co_name)
+                        pydev_log.debug("SKIP set tracing of frame: %s - %s", frame.f_code.co_filename, frame.f_code.co_name)
             else:
                 # Not using sys.monitoring.
                 if file_type is None:
