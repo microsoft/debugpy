@@ -157,7 +157,6 @@ DONT_TRACE = {
     'pydevd_thread_lifecycle.py': PYDEV_FILE,
     'pydevd_thread_wrappers.py': PYDEV_FILE,
     'pydevd_timeout.py': PYDEV_FILE,
-    'pydevd_trace_api.py': PYDEV_FILE,
     'pydevd_trace_dispatch.py': PYDEV_FILE,
     'pydevd_trace_dispatch_regular.py': PYDEV_FILE,
     'pydevd_traceproperty.py': PYDEV_FILE,
