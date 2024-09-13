@@ -101,6 +101,27 @@ There's an internal setting `debugpy_log_passed` that if set to true will not er
 
 Using `pydevd_log.debug` you can add logging just about anywhere in the pydevd code. However this code won't be called if CYTHON support is enabled without recreating the Cython output. To temporarily disable CYTHON support, look for `CYTHON_SUPPORTED` and make sure it's set to False
 
+## Updating pydevd
+
+Pydevd (at src/debugpy/_vendored/pydevd) is a copy of https://github.com/fabioz/PyDev.Debugger. We do not use a git submodule but instead just copy the source. 
+
+In order to update the source, you would:
+- Sync to the appropriate commit in a pydevd repo
+- Diff this against the src/debugpy/_vendored/pydevd folder, being careful to not remove the edits made in the debugpy version
+- Run our tests
+- Make any fixes to get the tests to pass (see logging on how to debug)
+
+You might need to regenerate the Cython modules after any changes. This can be done by:
+
+- Install Python latest (3.12 as of this writing)
+- pip install cython, django>=1.9, setuptools>=0.9, wheel>0.21, twine
+- On a windows machine:
+  - set FORCE_PYDEVD_VC_VARS=C:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\VC\Auxiliary\Build\vcvars64.bat
+  - set PYDEVD_FORCE_BUILD_ALL=True
+  - in the pydevd folder: python .\build_tools\build.py
+- On a linux machine:
+  - python ./build_tools/build.py 
+
 ## Using modified debugpy in Visual Studio Code
 To test integration between debugpy and Visual Studio Code, the latter can be directed to use a custom version of debugpy in lieu of the one bundled with the Python extension. This is done by specifying `"debugAdapterPath"` in `launch.json` - it must point at the root directory of the *package*, which is `src/debugpy` inside the repository:
 
