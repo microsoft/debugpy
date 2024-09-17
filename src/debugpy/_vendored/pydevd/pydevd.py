@@ -1076,7 +1076,7 @@ class PyDB(object):
             return _cache_file_type[cache_key]
         except:
             if abs_real_path_and_basename[0] == "<string>":
-                pydev_log.debug("RCHIODO == checking get_file_type for string %s, %s, %s", pydevd_file_utils.basename(frame.f_code.co_filename), frame.f_lineno, frame.f_code.co_name)
+                pydev_log.debug("RCHIODO == checking get_file_type for string %s, %s, %s", frame.f_code.co_filename, frame.f_lineno, frame.f_code.co_name)
                 # Consider it an untraceable file unless there's no back frame (ignoring
                 # internal files and runpy.py).
                 if frame.f_back is None:
@@ -1084,8 +1084,10 @@ class PyDB(object):
                     _cache_file_type[cache_key] = None
                     return None
                 
-                if "sys_monitoring" in pydevd_file_utils.basename(frame.f_back.f_code.co_filename):
-                    # Special case, this is a string coming from sys.monitoring
+                back_basename = pydevd_file_utils.basename(frame.f_back.f_code.co_filename)
+                if "sys_monitoring" in back_basename or "pydevd" in back_basename:
+                    pydev_log.debug("RCHIODO == get_file_type for string is from pydevd")
+                    # Special case, this is a string coming from pydevd itself
                     _cache_file_type[cache_key] = PYDEV_FILE
                     return PYDEV_FILE
 
