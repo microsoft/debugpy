@@ -1079,6 +1079,11 @@ class PyDB(object):
                 pydev_log.debug("RCHIODO == checking get_file_type for string %s, %s", pydevd_file_utils.basename(frame.f_code.co_filename), frame.f_lineno)
                 # Consider it an untraceable file unless there's no back frame (ignoring
                 # internal files and runpy.py).
+                if frame.f_back is None:
+                    pydev_log.debug("RCHIODO == get_file_type for string has no back frame")
+                    _cache_file_type[cache_key] = None
+                    return None
+
                 f = frame.f_back
                 while f is not None:
                     pydev_log.debug("RCHIODO == get_file_type for string: %s, %s = %s", pydevd_file_utils.basename(f.f_code.co_filename), f.f_lineno, self.get_file_type(f))
@@ -1097,17 +1102,11 @@ class PyDB(object):
                         # to show it in the stack.
                         _cache_file_type[cache_key] = LIB_FILE
                         return LIB_FILE
-                    if pydevd_file_utils.basename(f.f_code.co_filename).find("pydevd_sys_monitoring") >= 0:
-                        # We don't want to trace sys monitoring strings. This is a string created in the sys.monitoring code
-                        _cache_file_type[cache_key] = self.PYDEV_FILE
-                        return self.PYDEV_FILE
                     f = f.f_back
-                else:
-                    pydev_log.debug("RCHIODO == get_file_type for string has no back frame")
-                    # This is a top-level file (used in python -c), so, trace it as usual... we
-                    # still won't be able to show the sources, but some tests require this to work.
-                    _cache_file_type[cache_key] = None
-                    return None
+
+                # If we only have internal frames, we can consider it a PYDEV_FILE.
+                _cache_file_type[cache_key] = PYDEV_FILE
+                return PYDEV_FILE
 
             file_type = self._internal_get_file_type(abs_real_path_and_basename)
             if file_type is None:
