@@ -1076,17 +1076,22 @@ class PyDB(object):
             return _cache_file_type[cache_key]
         except:
             if abs_real_path_and_basename[0] == "<string>":
-                pydev_log.debug("RCHIODO == checking get_file_type for string %s, %s", pydevd_file_utils.basename(frame.f_code.co_filename), frame.f_lineno)
+                pydev_log.debug("RCHIODO == checking get_file_type for string %s, %s, %s", pydevd_file_utils.basename(frame.f_code.co_filename), frame.f_lineno, frame.f_code.co_name)
                 # Consider it an untraceable file unless there's no back frame (ignoring
                 # internal files and runpy.py).
                 if frame.f_back is None:
                     pydev_log.debug("RCHIODO == get_file_type for string has no back frame")
                     _cache_file_type[cache_key] = None
                     return None
+                
+                if "sys_monitoring" in pydevd_file_utils.basename(frame.f_back.f_code.co_filename):
+                    # Special case, this is a string coming from sys.monitoring
+                    _cache_file_type[cache_key] = PYDEV_FILE
+                    return PYDEV_FILE
 
                 f = frame.f_back
+                back_frames = ""
                 while f is not None:
-                    pydev_log.debug("RCHIODO == get_file_type for string: %s, %s = %s", pydevd_file_utils.basename(f.f_code.co_filename), f.f_lineno, self.get_file_type(f))
                     if self.get_file_type(f) != self.PYDEV_FILE and pydevd_file_utils.basename(f.f_code.co_filename) not in (
                         "runpy.py",
                         "<string>",
@@ -1101,12 +1106,17 @@ class PyDB(object):
                         # Note that we return as a LIB_FILE and not PYDEV_FILE because we still want
                         # to show it in the stack.
                         _cache_file_type[cache_key] = LIB_FILE
+                        pydev_log.debug("RCHIODO == get_file_type for string is LIB_FILE")
                         return LIB_FILE
+                    
+                    back_frames += " -> %s" % (pydevd_file_utils.basename(f.f_code.co_filename))
                     f = f.f_back
-
-                # If we only have internal frames, we can consider it a PYDEV_FILE.
-                _cache_file_type[cache_key] = PYDEV_FILE
-                return PYDEV_FILE
+                else:
+                    # This is a top-level file (used in python -c), so, trace it as usual... we
+                    # still won't be able to show the sources, but some tests require this to work.
+                    _cache_file_type[cache_key] = None
+                    pydev_log.debug("RCHIODO == get_file_type for string is None %s", back_frames)
+                    return None
 
             file_type = self._internal_get_file_type(abs_real_path_and_basename)
             if file_type is None:
