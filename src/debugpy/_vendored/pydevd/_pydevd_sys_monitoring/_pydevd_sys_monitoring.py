@@ -23,7 +23,7 @@ from _pydevd_bundle.pydevd_constants import (
     RETURN_VALUES_DICT,
     PYTHON_SUSPEND,
 )
-from _pydevd_bundle.pydevd_frame_utils import short_tb, flag_as_unwinding
+from _pydevd_bundle.pydevd_frame_utils import short_tb, flag_as_unwinding, short_frame
 from pydevd_file_utils import (
     NORM_PATHS_AND_BASE_CONTAINER,
     get_abs_path_real_path_and_base_from_file,
@@ -170,59 +170,67 @@ def _get_bootstrap_frame(depth: int) -> Tuple[Optional[FrameType], bool]:
 
         return f_bootstrap, is_bootstrap_frame_internal
 
+# fmt: off
+# IFDEF CYTHON
+# cdef _is_user_frame(frame: FrameType):
+# ELSE
+def _is_user_frame(frame: FrameType) -> bool:
+# ENDIF
+# fmt: on
+    if frame is None:
+        return False
+
+    filename = frame.f_code.co_filename
+    name = splitext(basename(filename))[0]
+
+    # When the frame is the bootstrap it is not a user frame.
+    if name == "threading":
+        if frame.f_code.co_name in ("__bootstrap", "_bootstrap", "__bootstrap_inner", "_bootstrap_inner", "run"):
+            return False
+
+    elif name == "pydev_monkey":
+        if frame.f_code.co_name == "__call__":
+            return False
+
+    elif name == "pydevd":
+        if frame.f_code.co_name in ("_exec", "run", "main"):
+            return False
+
+    elif name == "pydevd_runpy":
+        if frame.f_code.co_name.startswith(("run", "_run")):
+            return False
+
+    elif filename == "<frozen runpy>":
+        if frame.f_code.co_name.startswith(("run", "_run")):
+            return False
+
+    elif name == 'runpy':
+        if frame.f_code.co_name.startswith(("run", "_run")):
+            return False
+
+    return True
 
 # fmt: off
 # IFDEF CYTHON
-# cdef _get_unhandled_exception_frame(int depth):
+# cdef _is_last_user_frame(frame: FrameType):
 # ELSE
-def _get_unhandled_exception_frame(depth: int) -> Optional[FrameType]:
+def _is_last_user_frame(frame: FrameType) -> bool:
 # ENDIF
-# fmt: on
-    try:
-        return _thread_local_info.f_unhandled
-    except:
-        frame = _getframe(depth)
-        f_unhandled = frame
-
-        while f_unhandled is not None and f_unhandled.f_back is not None:
-            f_back = f_unhandled.f_back
-            filename = f_back.f_code.co_filename
-            name = splitext(basename(filename))[0]
-
-            # When the back frame is the bootstrap (or if we have no back
-            # frame) then use this frame as the one to track.
-            if name == "threading":
-                if f_back.f_code.co_name in ("__bootstrap", "_bootstrap", "__bootstrap_inner", "_bootstrap_inner", "run"):
-                    break
-
-            elif name == "pydev_monkey":
-                if f_back.f_code.co_name == "__call__":
-                    break
-
-            elif name == "pydevd":
-                if f_back.f_code.co_name in ("_exec", "run", "main"):
-                    break
-
-            elif name == "pydevd_runpy":
-                if f_back.f_code.co_name.startswith(("run", "_run")):
-                    break
-
-            elif filename == "<frozen runpy>":
-                if f_back.f_code.co_name.startswith(("run", "_run")):
-                    break
-
-            elif name == 'runpy':
-                if f_back.f_code.co_name.startswith(("run", "_run")):
-                    break
-
-            f_unhandled = f_back
-
-        if f_unhandled is not None:
-            _thread_local_info.f_unhandled = f_unhandled
-            return _thread_local_info.f_unhandled
-
-        return f_unhandled
-
+# fmt: on 
+    # If this frame is not a user frame, then it can't be the last one
+    if not _is_user_frame(frame):
+        return False
+    
+    # If this frame is the last frame, then it is the last one
+    if frame.f_back is None:
+        return True
+    
+    # If the next frame is not a user frame, then this frame is the last one
+    if not _is_user_frame(frame.f_back):
+        return True
+    
+    # Otherwise if the next frame is a user frame, then this frame is not the last one
+    return False
 
 # fmt: off
 # IFDEF CYTHON
@@ -823,6 +831,10 @@ def _unwind_event(code, instruction, exc):
         if thread_info is None:
             return
 
+    frame = _getframe(1)
+    arg = (type(exc), exc, exc.__traceback__)
+    pydev_log.debug("RCHIODO == Unwind event, %s %s %s %s", exc, frame.f_lineno, frame.f_code.co_name, frame.f_code.co_filename)
+
     py_db: object = GlobalDebuggerHolder.global_dbg
     if py_db is None or py_db.pydb_disposed:
         return
@@ -832,23 +844,16 @@ def _unwind_event(code, instruction, exc):
         # threads may still want it...
         return
     
-    # Clear the cached unhandled exception frame. We have a new exception
-    if hasattr(_thread_local_info, "f_unhandled"):
-        del _thread_local_info.f_unhandled
-
     func_code_info: FuncCodeInfo = _get_func_code_info(code, 1)
     if func_code_info.always_skip_code:
         return
     
     # print('_unwind_event', code, exc)
-    frame = _getframe(1)
-    arg = (type(exc), exc, exc.__traceback__)
-
-    pydev_log.debug("RCHIODO == Unwind event, %s %s %s %s", exc, frame.f_lineno, frame.f_code.co_name, frame.f_code.co_filename)
 
     has_caught_exception_breakpoint_in_pydb = (
         py_db.break_on_caught_exceptions or py_db.break_on_user_uncaught_exceptions or py_db.has_plugin_exception_breaks
     )
+
 
     if has_caught_exception_breakpoint_in_pydb:
         _should_stop, frame, user_uncaught_exc_info = should_stop_on_exception(
@@ -872,10 +877,10 @@ def _unwind_event(code, instruction, exc):
                 return
 
     break_on_uncaught_exceptions = py_db.break_on_uncaught_exceptions
-    if break_on_uncaught_exceptions:
-        if frame is _get_unhandled_exception_frame(depth=1):
-            stop_on_unhandled_exception(py_db, thread_info.thread, thread_info.additional_info, arg)
-            return
+    if break_on_uncaught_exceptions and _is_last_user_frame(frame):
+        stop_on_unhandled_exception(py_db, thread_info.thread, thread_info.additional_info, arg)
+    else:
+        pydev_log.debug("RCHIODO == Unhandled exception frame does not match current frame")
 
 
 # fmt: off
@@ -904,6 +909,11 @@ def _raise_event(code, instruction, exc):
         if thread_info is None:
             return
 
+    frame = _getframe(1)
+    arg = (type(exc), exc, exc.__traceback__)
+
+    pydev_log.debug("RCHIODO == Raise event, %s %s %s %s", exc, frame.f_lineno, frame.f_code.co_name, frame.f_code.co_filename)
+
     py_db: object = GlobalDebuggerHolder.global_dbg
     if py_db is None or py_db.pydb_disposed:
         return
@@ -918,11 +928,6 @@ def _raise_event(code, instruction, exc):
         return
 
     # print('_raise_event --- ', code, exc)
-
-    frame = _getframe(1)
-    arg = (type(exc), exc, exc.__traceback__)
-
-    pydev_log.debug("RCHIODO == Raise event, %s %s %s %s", exc, frame.f_lineno, frame.f_code.co_name, frame.f_code.co_filename)
 
     # Compute the previous exception info (if any). We use it to check if the exception
     # should be stopped

@@ -1453,6 +1453,7 @@ class PyDB(object):
             exclude_filters_enabled
             and self._exclude_by_filter(trace.tb_frame, pydevd_file_utils.absolute_path(trace.tb_frame.f_code.co_filename))
         ):
+            pydev_log.debug("RCHIODO == excluded exception by filter: True because ignore_libraries is True and exclude_by_filter is True")
             return True
 
         pydev_log.debug("RCHIODO == excluded exception by filter: False")

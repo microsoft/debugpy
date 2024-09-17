@@ -3,6 +3,7 @@ from _pydev_bundle import pydev_log
 import itertools
 from typing import Any, Dict
 import threading
+from os.path import basename, splitext
 
 
 class Frame(object):
@@ -61,6 +62,14 @@ def short_tb(exc_type, exc_value, exc_tb):
                                            exc_tb.tb_lineno))
         exc_tb = exc_tb.tb_next
     return 'Traceback: %s\nError: %s %r\n' % (' -> '.join(traceback), exc_type.__name__, str(exc_value))
+
+def short_frame(frame):
+    if frame is None:
+        return 'None'
+    
+    filename = frame.f_code.co_filename
+    name = splitext(basename(filename))[0]
+    return '%s::%s %s' % (name, frame.f_code.co_name, frame.f_lineno)
 
 def ignore_exception_trace(trace):
     while trace is not None:
