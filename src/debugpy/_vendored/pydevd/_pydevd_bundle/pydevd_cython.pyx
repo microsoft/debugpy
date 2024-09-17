@@ -1402,8 +1402,6 @@ def should_stop_on_exception(py_db, PyDBAdditionalThreadInfo info, frame, thread
             except:
                 pydev_log.exception()
 
-            pydev_log.debug("RCHIODO == Plugin exception result: %s", should_stop)
-
             if not should_stop:
                 # Apply checks that don't need the exception breakpoint (where we shouldn't ever stop).
                 if exception == SystemExit and py_db.ignore_system_exit_code(value):
@@ -1435,7 +1433,6 @@ def should_stop_on_exception(py_db, PyDBAdditionalThreadInfo info, frame, thread
                     for exc_break, is_user_uncaught in check_excs:
                         # Initially mark that it should stop and then go into exclusions.
                         should_stop = True
-                        pydev_log.debug("RCHIODO == Exception %s marked as should_stop", exception)
 
                         if py_db.exclude_exception_by_filter(exc_break, trace):
                             pydev_log.debug(
@@ -1494,7 +1491,6 @@ def should_stop_on_exception(py_db, PyDBAdditionalThreadInfo info, frame, thread
                             break
 
             if should_stop:
-                pydev_log.debug("RCHIODO == Stopping on exception %s", exception)
                 # Always add exception to frame (must remove later after we proceed).
                 add_exception_to_frame(frame, (exception, value, trace))
 

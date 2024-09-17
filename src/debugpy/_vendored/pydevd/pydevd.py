@@ -945,7 +945,6 @@ class PyDB(object):
         self.suspended_frames_manager.add_fake_frame(thread_id, frame_id, frame)
 
     def handle_breakpoint_condition(self, info, pybreakpoint, new_frame):
-        pydev_log.debug("RCHIODO == Evaluating breakpoint condition: %s", pybreakpoint.condition)
         condition = pybreakpoint.condition
         try:
             if pybreakpoint.handle_hit_condition(new_frame):
@@ -1076,17 +1075,14 @@ class PyDB(object):
             return _cache_file_type[cache_key]
         except:
             if abs_real_path_and_basename[0] == "<string>":
-                pydev_log.debug("RCHIODO == checking get_file_type for string %s, %s, %s", frame.f_code.co_filename, frame.f_lineno, frame.f_code.co_name)
                 # Consider it an untraceable file unless there's no back frame (ignoring
                 # internal files and runpy.py).
                 if frame.f_back is None:
-                    pydev_log.debug("RCHIODO == get_file_type for string has no back frame")
                     _cache_file_type[cache_key] = None
                     return None
                 
                 back_basename = pydevd_file_utils.basename(frame.f_back.f_code.co_filename)
                 if "sys_monitoring" in back_basename or "pydevd" in back_basename:
-                    pydev_log.debug("RCHIODO == get_file_type for string is from pydevd")
                     # Special case, this is a string coming from pydevd itself
                     _cache_file_type[cache_key] = PYDEV_FILE
                     return PYDEV_FILE
@@ -1108,7 +1104,6 @@ class PyDB(object):
                         # Note that we return as a LIB_FILE and not PYDEV_FILE because we still want
                         # to show it in the stack.
                         _cache_file_type[cache_key] = LIB_FILE
-                        pydev_log.debug("RCHIODO == get_file_type for string is LIB_FILE")
                         return LIB_FILE
                     
                     back_frames += " -> %s" % (pydevd_file_utils.basename(f.f_code.co_filename))
@@ -1117,7 +1112,6 @@ class PyDB(object):
                     # This is a top-level file (used in python -c), so, trace it as usual... we
                     # still won't be able to show the sources, but some tests require this to work.
                     _cache_file_type[cache_key] = None
-                    pydev_log.debug("RCHIODO == get_file_type for string is None %s", back_frames)
                     return None
 
             file_type = self._internal_get_file_type(abs_real_path_and_basename)
@@ -1314,7 +1308,6 @@ class PyDB(object):
                 if file_type == self.LIB_FILE:
                     cache[cache_key] = False
                 else:
-                    pydev_log.debug("RCHIODO == in_project_scope: %s because of file_type %s", absolute_filename, file_type)
                     cache[cache_key] = True
 
             elif self.source_mapping.has_mapping_entry(absolute_filename):
@@ -1450,11 +1443,9 @@ class PyDB(object):
 
     def exclude_exception_by_filter(self, exception_breakpoint, trace):
         if not exception_breakpoint.ignore_libraries and not self._exclude_filters_enabled:
-            pydev_log.debug("RCHIODO == exclude_exception_by_filter: False because ignore_libraries is False and exclude_filters_enabled is False")
             return False
 
         if trace is None:
-            pydev_log.debug("RCHIODO == excluded exception by filter: True because trace is None")
             return True
 
         ignore_libraries = exception_breakpoint.ignore_libraries
@@ -1464,10 +1455,7 @@ class PyDB(object):
             exclude_filters_enabled
             and self._exclude_by_filter(trace.tb_frame, pydevd_file_utils.absolute_path(trace.tb_frame.f_code.co_filename))
         ):
-            pydev_log.debug("RCHIODO == excluded exception by filter: True because ignore_libraries is True and exclude_by_filter is True")
             return True
-
-        pydev_log.debug("RCHIODO == excluded exception by filter: False")
 
         return False
 
