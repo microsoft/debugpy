@@ -2132,6 +2132,8 @@ def test_evaluate_numpy(case_setup_dap, pyfile):
 
         check = [dict([(variable["name"], variable["value"])]) for variable in variables_response.body.variables]
         assert check in (
+            [{'special variables': ''}, {'dtype': "dtype('int64')"}, {'max': 'np.int64(2)'}, {'min': 'np.int64(2)'}, {'shape': '()'}, {'size': '1'}],
+            [{'special variables': ''}, {'dtype': "dtype('int32')"}, {'max': 'np.int32(2)'}, {'min': 'np.int32(2)'}, {'shape': '()'}, {'size': '1'}],
             [{"special variables": ""}, {"dtype": "dtype('int32')"}, {"max": "2"}, {"min": "2"}, {"shape": "()"}, {"size": "1"}],
             [{"special variables": ""}, {"dtype": "dtype('int64')"}, {"max": "2"}, {"min": "2"}, {"shape": "()"}, {"size": "1"}],
         )
