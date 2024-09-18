@@ -1,7 +1,6 @@
 """
 Entry point module to run a file in the interactive console.
 """
-
 import os
 import sys
 import traceback

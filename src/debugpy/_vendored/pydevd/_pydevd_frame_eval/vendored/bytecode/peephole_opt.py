@@ -2,7 +2,6 @@
 Peephole optimizer of CPython 3.6 reimplemented in pure Python using
 the bytecode module.
 """
-
 import opcode
 import operator
 import sys

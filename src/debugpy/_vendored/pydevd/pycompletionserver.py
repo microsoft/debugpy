@@ -3,7 +3,6 @@ Entry-point module to start the code-completion server for PyDev.
 
 @author Fabio Zadrozny
 """
-
 from _pydevd_bundle.pydevd_constants import IS_JYTHON
 
 if IS_JYTHON:

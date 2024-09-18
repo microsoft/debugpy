@@ -1,7 +1,6 @@
 """
 Utility for saving locals.
 """
-
 import sys
 
 try:

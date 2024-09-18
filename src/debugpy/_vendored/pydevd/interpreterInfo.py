@@ -11,7 +11,6 @@ EXECUTABLE:python.exe|libs@compiled_dlls$builtin_mods
 
 all internal are separated by |
 """
-
 import sys
 
 try:
