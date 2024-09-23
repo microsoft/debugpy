@@ -15,7 +15,6 @@ from io import StringIO
 
 
 class _Stack(object):
-
     def __init__(self):
         self._contents = []
 
@@ -35,9 +34,8 @@ DEBUG = False
 
 
 class _Token(object):
-
     def __init__(self, i_line, instruction=None, tok=_SENTINEL, priority=0, after=None, end_of_line=False):
-        '''
+        """
         :param i_line:
         :param instruction:
         :param tok:
@@ -45,18 +43,18 @@ class _Token(object):
         :param after:
         :param end_of_line:
             Marker to signal only after all the other tokens have been written.
-        '''
+        """
         self.i_line = i_line
         if tok is not _SENTINEL:
             self.tok = tok
         else:
             if instruction is not None:
                 if inspect.iscode(instruction.argval):
-                    self.tok = ''
+                    self.tok = ""
                 else:
                     self.tok = str(instruction.argval)
             else:
-                raise AssertionError('Either the tok or the instruction is needed.')
+                raise AssertionError("Either the tok or the instruction is needed.")
         self.instruction = instruction
         self.priority = priority
         self.end_of_line = end_of_line
@@ -72,7 +70,7 @@ class _Token(object):
             self._after_handler_tokens.add(v)
 
         else:
-            raise AssertionError('Unhandled: %s' % (v,))
+            raise AssertionError("Unhandled: %s" % (v,))
 
     def get_after_tokens(self):
         ret = self._after_tokens.copy()
@@ -81,13 +79,12 @@ class _Token(object):
         return ret
 
     def __repr__(self):
-        return 'Token(%s, after: %s)' % (self.tok, self.get_after_tokens())
+        return "Token(%s, after: %s)" % (self.tok, self.get_after_tokens())
 
     __str__ = __repr__
 
 
 class _Writer(object):
-
     def __init__(self):
         self.line_to_contents = {}
         self.all_tokens = set()
@@ -114,7 +111,6 @@ class _Writer(object):
 
 
 class _BaseHandler(object):
-
     def __init__(self, i_line, instruction, stack, writer, disassembler):
         self.i_line = i_line
         self.instruction = instruction
@@ -149,13 +145,11 @@ def _register(cls):
 
 
 class _BasePushHandler(_BaseHandler):
-
     def _handle(self):
         self.stack.push(self)
 
 
 class _BaseLoadHandler(_BasePushHandler):
-
     def _handle(self):
         _BasePushHandler._handle(self)
         self.tokens = [_Token(self.i_line, self.instruction)]
@@ -188,9 +182,10 @@ class _LoadFast(_BaseLoadHandler):
 
 @_register
 class _GetIter(_BaseHandler):
-    '''
+    """
     Implements TOS = iter(TOS).
-    '''
+    """
+
     opname = "GET_ITER"
     iter_target = None
 
@@ -202,11 +197,12 @@ class _GetIter(_BaseHandler):
 
 @_register
 class _ForIter(_BaseHandler):
-    '''
+    """
     TOS is an iterator. Call its __next__() method. If this yields a new value, push it on the stack
     (leaving the iterator below it). If the iterator indicates it is exhausted TOS is popped, and
     the byte code counter is incremented by delta.
-    '''
+    """
+
     opname = "FOR_ITER"
 
     iter_in = None
@@ -216,7 +212,7 @@ class _ForIter(_BaseHandler):
         self.stack.push(self)
 
     def store_in_name(self, store_name):
-        for_token = _Token(self.i_line, None, 'for ')
+        for_token = _Token(self.i_line, None, "for ")
         self.tokens.append(for_token)
         prev = for_token
 
@@ -224,7 +220,7 @@ class _ForIter(_BaseHandler):
         self.tokens.append(t_name)
         prev = t_name
 
-        in_token = _Token(store_name.i_line, None, ' in ', after=prev)
+        in_token = _Token(store_name.i_line, None, " in ", after=prev)
         self.tokens.append(in_token)
         prev = in_token
 
@@ -236,7 +232,7 @@ class _ForIter(_BaseHandler):
                 prev = t
             self.tokens.extend(self.iter_in.tokens)
 
-        colon_token = _Token(self.i_line, None, ':', after=prev)
+        colon_token = _Token(self.i_line, None, ":", after=prev)
         self.tokens.append(colon_token)
         prev = for_token
 
@@ -245,10 +241,10 @@ class _ForIter(_BaseHandler):
 
 @_register
 class _StoreName(_BaseHandler):
-    '''
+    """
     Implements name = TOS. namei is the index of name in the attribute co_names of the code object.
     The compiler tries to use STORE_FAST or STORE_GLOBAL if possible.
-    '''
+    """
 
     opname = "STORE_NAME"
 
@@ -264,7 +260,7 @@ class _StoreName(_BaseHandler):
                     line = min(line, t.i_line)
 
                 t_name = _Token(line, self.instruction)
-                t_equal = _Token(line, None, '=', after=t_name)
+                t_equal = _Token(line, None, "=", after=t_name)
 
                 self.tokens.append(t_name)
                 self.tokens.append(t_equal)
@@ -286,7 +282,7 @@ class _ReturnValue(_BaseHandler):
 
     def _handle(self):
         v = self.stack.pop()
-        return_token = _Token(self.i_line, None, 'return ', end_of_line=True)
+        return_token = _Token(self.i_line, None, "return ", end_of_line=True)
         self.tokens.append(return_token)
         for token in v.tokens:
             token.mark_after(return_token)
@@ -324,7 +320,7 @@ class _CallFunction(_BaseHandler):
         for t in name.tokens:
             self.tokens.append(t)
 
-        tok_open_parens = _Token(name.i_line, None, '(', after=name)
+        tok_open_parens = _Token(name.i_line, None, "(", after=name)
         self.tokens.append(tok_open_parens)
 
         prev = tok_open_parens
@@ -337,11 +333,11 @@ class _CallFunction(_BaseHandler):
             prev = arg
 
             if i > 0:
-                comma_token = _Token(prev.i_line, None, ',', after=prev)
+                comma_token = _Token(prev.i_line, None, ",", after=prev)
                 self.tokens.append(comma_token)
                 prev = comma_token
 
-        tok_close_parens = _Token(max_line, None, ')', after=prev)
+        tok_close_parens = _Token(max_line, None, ")", after=prev)
         self.tokens.append(tok_close_parens)
 
         self._write_tokens()
@@ -380,10 +376,10 @@ class _MakeFunctionPy3(_BaseHandler):
         if self.instruction.argval & 0x01:
             default_node = stack.pop()
 
-        is_lambda = self.is_lambda = '<lambda>' in [x.tok for x in self.qualified_name.tokens]
+        is_lambda = self.is_lambda = "<lambda>" in [x.tok for x in self.qualified_name.tokens]
 
         if not is_lambda:
-            def_token = _Token(self.i_line, None, 'def ')
+            def_token = _Token(self.i_line, None, "def ")
             self.tokens.append(def_token)
 
         for token in self.qualified_name.tokens:
@@ -392,20 +388,22 @@ class _MakeFunctionPy3(_BaseHandler):
                 token.mark_after(def_token)
         prev = token
 
-        open_parens_token = _Token(self.i_line, None, '(', after=prev)
+        open_parens_token = _Token(self.i_line, None, "(", after=prev)
         self.tokens.append(open_parens_token)
         prev = open_parens_token
 
         code = self.code.instruction.argval
 
         if default_node:
-            defaults = ([_SENTINEL] * (len(code.co_varnames) - len(default_node.instruction.argval))) + list(default_node.instruction.argval)
+            defaults = ([_SENTINEL] * (len(code.co_varnames) - len(default_node.instruction.argval))) + list(
+                default_node.instruction.argval
+            )
         else:
             defaults = [_SENTINEL] * len(code.co_varnames)
 
         for i, arg in enumerate(code.co_varnames):
             if i > 0:
-                comma_token = _Token(prev.i_line, None, ', ', after=prev)
+                comma_token = _Token(prev.i_line, None, ", ", after=prev)
                 self.tokens.append(comma_token)
                 prev = comma_token
 
@@ -414,7 +412,7 @@ class _MakeFunctionPy3(_BaseHandler):
 
             default = defaults[i]
             if default is not _SENTINEL:
-                eq_token = _Token(default_node.i_line, None, '=', after=prev)
+                eq_token = _Token(default_node.i_line, None, "=", after=prev)
                 self.tokens.append(eq_token)
                 prev = eq_token
 
@@ -422,7 +420,7 @@ class _MakeFunctionPy3(_BaseHandler):
                 self.tokens.append(default_token)
                 prev = default_token
 
-        tok_close_parens = _Token(prev.i_line, None, '):', after=prev)
+        tok_close_parens = _Token(prev.i_line, None, "):", after=prev)
         self.tokens.append(tok_close_parens)
 
         self._write_tokens()
@@ -441,12 +439,10 @@ def _print_after_info(line_contents, stream=None):
     for token in line_contents:
         after_tokens = token.get_after_tokens()
         if after_tokens:
-            s = '%s after: %s\n' % (
-                repr(token.tok),
-                ('"' + '", "'.join(t.tok for t in token.get_after_tokens()) + '"'))
+            s = "%s after: %s\n" % (repr(token.tok), ('"' + '", "'.join(t.tok for t in token.get_after_tokens()) + '"'))
             stream.write(s)
         else:
-            stream.write('%s      (NO REQUISITES)' % repr(token.tok))
+            stream.write("%s      (NO REQUISITES)" % repr(token.tok))
 
 
 def _compose_line_contents(line_contents, previous_line_tokens):
@@ -495,13 +491,12 @@ def _compose_line_contents(line_contents, previous_line_tokens):
 
             stream = StringIO()
             _print_after_info(line_contents, stream)
-            pydev_log.critical('Error. After markers are not correct:\n%s', stream.getvalue())
+            pydev_log.critical("Error. After markers are not correct:\n%s", stream.getvalue())
             break
-    return ''.join(lst)
+    return "".join(lst)
 
 
 class _PyCodeToSource(object):
-
     def __init__(self, co, memo=None):
         if memo is None:
             memo = {}
@@ -542,7 +537,7 @@ class _PyCodeToSource(object):
 
     def merge_code(self, code):
         if DEBUG:
-            print('merge code ----')
+            print("merge code ----")
         # for d in dir(code):
         #     if not d.startswith('_'):
         #         print(d, getattr(code, d))
@@ -552,7 +547,7 @@ class _PyCodeToSource(object):
             lines.append(line)
             self.writer.get_line(line).extend(contents)
         if DEBUG:
-            print('end merge code ----')
+            print("end merge code ----")
         return lines
 
     def disassemble(self):
@@ -560,14 +555,14 @@ class _PyCodeToSource(object):
         line_to_contents = self.build_line_to_contents()
         stream = StringIO()
         last_line = 0
-        indent = ''
+        indent = ""
         previous_line_tokens = set()
         for i_line, contents in sorted(line_to_contents.items()):
             while last_line < i_line - 1:
                 if show_lines:
-                    stream.write(u"%s.\n" % (last_line + 1,))
+                    stream.write("%s.\n" % (last_line + 1,))
                 else:
-                    stream.write(u"\n")
+                    stream.write("\n")
                 last_line += 1
 
             line_contents = []
@@ -575,24 +570,24 @@ class _PyCodeToSource(object):
             for part in contents:
                 if part is INDENT_MARKER:
                     if DEBUG:
-                        print('found indent', i_line)
-                    indent += '    '
+                        print("found indent", i_line)
+                    indent += "    "
                     continue
                 if part is DEDENT_MARKER:
                     if DEBUG:
-                        print('found dedent', i_line)
+                        print("found dedent", i_line)
                     dedents_found += 1
                     continue
                 line_contents.append(part)
 
             s = indent + _compose_line_contents(line_contents, previous_line_tokens)
             if show_lines:
-                stream.write(u"%s. %s\n" % (i_line, s))
+                stream.write("%s. %s\n" % (i_line, s))
             else:
-                stream.write(u"%s\n" % s)
+                stream.write("%s\n" % s)
 
             if dedents_found:
-                indent = indent[:-(4 * dedents_found)]
+                indent = indent[: -(4 * dedents_found)]
             last_line = i_line
 
         return stream.getvalue()

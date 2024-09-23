@@ -39,13 +39,12 @@ from __future__ import with_statement
 
 __revision__ = "$Id$"
 
-__all__ = ['System']
+__all__ = ["System"]
 
 from winappdbg import win32
 from winappdbg.registry import Registry
 from winappdbg.textio import HexInput, HexDump
-from winappdbg.util import Regenerator, PathOperations, MemoryAddresses, DebugRegister, \
-                 classproperty
+from winappdbg.util import Regenerator, PathOperations, MemoryAddresses, DebugRegister, classproperty
 from winappdbg.process import _ProcessContainer
 from winappdbg.window import Window
 
@@ -56,9 +55,10 @@ import warnings
 
 from os import path, getenv
 
-#==============================================================================
+# ==============================================================================
 
-class System (_ProcessContainer):
+
+class System(_ProcessContainer):
     """
     Interface to a batch of processes, plus some system wide settings.
     Contains a snapshot of processes.
@@ -116,9 +116,9 @@ class System (_ProcessContainer):
     @cvar registry: Windows Registry for this machine.
     """
 
-    arch  = win32.arch
-    bits  = win32.bits
-    os    = win32.os
+    arch = win32.arch
+    bits = win32.bits
+    os = win32.os
     wow64 = win32.wow64
 
     @classproperty
@@ -129,10 +129,10 @@ class System (_ProcessContainer):
 
     registry = Registry()
 
-#------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------
 
     @staticmethod
-    def find_window(className = None, windowName = None):
+    def find_window(className=None, windowName=None):
         """
         Find the first top-level window in the current desktop to match the
         given class name and/or window name. If neither are provided any
@@ -180,7 +180,7 @@ class System (_ProcessContainer):
 
         @raise WindowsError: An error occured while processing this request.
         """
-        return Window( win32.WindowFromPoint( (x, y) ) )
+        return Window(win32.WindowFromPoint((x, y)))
 
     @staticmethod
     def get_foreground_window():
@@ -189,7 +189,7 @@ class System (_ProcessContainer):
         @return: Returns the foreground window.
         @raise WindowsError: An error occured while processing this request.
         """
-        return Window( win32.GetForegroundWindow() )
+        return Window(win32.GetForegroundWindow())
 
     @staticmethod
     def get_desktop_window():
@@ -198,7 +198,7 @@ class System (_ProcessContainer):
         @return: Returns the desktop window.
         @raise WindowsError: An error occured while processing this request.
         """
-        return Window( win32.GetDesktopWindow() )
+        return Window(win32.GetDesktopWindow())
 
     @staticmethod
     def get_shell_window():
@@ -207,12 +207,12 @@ class System (_ProcessContainer):
         @return: Returns the shell window.
         @raise WindowsError: An error occured while processing this request.
         """
-        return Window( win32.GetShellWindow() )
+        return Window(win32.GetShellWindow())
 
-#------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------
 
     @classmethod
-    def request_debug_privileges(cls, bIgnoreExceptions = False):
+    def request_debug_privileges(cls, bIgnoreExceptions=False):
         """
         Requests debug privileges.
 
@@ -238,7 +238,7 @@ class System (_ProcessContainer):
         return False
 
     @classmethod
-    def drop_debug_privileges(cls, bIgnoreExceptions = False):
+    def drop_debug_privileges(cls, bIgnoreExceptions=False):
         """
         Drops debug privileges.
 
@@ -300,9 +300,8 @@ class System (_ProcessContainer):
 
         @raise WindowsError: Raises an exception on error.
         """
-        with win32.OpenProcessToken(win32.GetCurrentProcess(),
-                                win32.TOKEN_ADJUST_PRIVILEGES) as hToken:
-            NewState = ( (priv, state) for priv in privileges )
+        with win32.OpenProcessToken(win32.GetCurrentProcess(), win32.TOKEN_ADJUST_PRIVILEGES) as hToken:
+            NewState = ((priv, state) for priv in privileges)
             win32.AdjustTokenPrivileges(hToken, NewState)
 
     @staticmethod
@@ -315,35 +314,35 @@ class System (_ProcessContainer):
         """
         return win32.IsUserAnAdmin()
 
-#------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------
 
     __binary_types = {
-        win32.VFT_APP:        "application",
-        win32.VFT_DLL:        "dynamic link library",
+        win32.VFT_APP: "application",
+        win32.VFT_DLL: "dynamic link library",
         win32.VFT_STATIC_LIB: "static link library",
-        win32.VFT_FONT:       "font",
-        win32.VFT_DRV:        "driver",
-        win32.VFT_VXD:        "legacy driver",
+        win32.VFT_FONT: "font",
+        win32.VFT_DRV: "driver",
+        win32.VFT_VXD: "legacy driver",
     }
 
     __driver_types = {
-        win32.VFT2_DRV_COMM:                "communications driver",
-        win32.VFT2_DRV_DISPLAY:             "display driver",
-        win32.VFT2_DRV_INSTALLABLE:         "installable driver",
-        win32.VFT2_DRV_KEYBOARD:            "keyboard driver",
-        win32.VFT2_DRV_LANGUAGE:            "language driver",
-        win32.VFT2_DRV_MOUSE:               "mouse driver",
-        win32.VFT2_DRV_NETWORK:             "network driver",
-        win32.VFT2_DRV_PRINTER:             "printer driver",
-        win32.VFT2_DRV_SOUND:               "sound driver",
-        win32.VFT2_DRV_SYSTEM:              "system driver",
-        win32.VFT2_DRV_VERSIONED_PRINTER:   "versioned printer driver",
+        win32.VFT2_DRV_COMM: "communications driver",
+        win32.VFT2_DRV_DISPLAY: "display driver",
+        win32.VFT2_DRV_INSTALLABLE: "installable driver",
+        win32.VFT2_DRV_KEYBOARD: "keyboard driver",
+        win32.VFT2_DRV_LANGUAGE: "language driver",
+        win32.VFT2_DRV_MOUSE: "mouse driver",
+        win32.VFT2_DRV_NETWORK: "network driver",
+        win32.VFT2_DRV_PRINTER: "printer driver",
+        win32.VFT2_DRV_SOUND: "sound driver",
+        win32.VFT2_DRV_SYSTEM: "system driver",
+        win32.VFT2_DRV_VERSIONED_PRINTER: "versioned printer driver",
     }
 
     __font_types = {
-        win32.VFT2_FONT_RASTER:   "raster font",
+        win32.VFT2_FONT_RASTER: "raster font",
         win32.VFT2_FONT_TRUETYPE: "TrueType font",
-        win32.VFT2_FONT_VECTOR:   "vector font",
+        win32.VFT2_FONT_VECTOR: "vector font",
     }
 
     __months = (
@@ -420,17 +419,14 @@ class System (_ProcessContainer):
         pBuffer, dwLen = win32.VerQueryValue(pBlock, "\\")
         if dwLen != ctypes.sizeof(win32.VS_FIXEDFILEINFO):
             raise ctypes.WinError(win32.ERROR_BAD_LENGTH)
-        pVersionInfo = ctypes.cast(pBuffer,
-                                   ctypes.POINTER(win32.VS_FIXEDFILEINFO))
+        pVersionInfo = ctypes.cast(pBuffer, ctypes.POINTER(win32.VS_FIXEDFILEINFO))
         VersionInfo = pVersionInfo.contents
         if VersionInfo.dwSignature != 0xFEEF04BD:
             raise ctypes.WinError(win32.ERROR_BAD_ARGUMENTS)
 
         # File and product versions.
-        FileVersion = "%d.%d" % (VersionInfo.dwFileVersionMS,
-                                 VersionInfo.dwFileVersionLS)
-        ProductVersion = "%d.%d" % (VersionInfo.dwProductVersionMS,
-                                    VersionInfo.dwProductVersionLS)
+        FileVersion = "%d.%d" % (VersionInfo.dwFileVersionMS, VersionInfo.dwFileVersionLS)
+        ProductVersion = "%d.%d" % (VersionInfo.dwProductVersionMS, VersionInfo.dwProductVersionLS)
 
         # Debug build?
         if VersionInfo.dwFileFlagsMask & win32.VS_FF_DEBUG:
@@ -439,7 +435,7 @@ class System (_ProcessContainer):
             DebugBuild = None
 
         # Legacy OS build?
-        LegacyBuild = (VersionInfo.dwFileOS != win32.VOS_NT_WINDOWS32)
+        LegacyBuild = VersionInfo.dwFileOS != win32.VOS_NT_WINDOWS32
 
         # File type.
         FileType = cls.__binary_types.get(VersionInfo.dwFileType)
@@ -476,77 +472,53 @@ class System (_ProcessContainer):
             CreationTimestamp,
         )
 
-#------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------
 
     # Locations for dbghelp.dll.
     #  Unfortunately, Microsoft started bundling WinDbg with the
     #  platform SDK, so the install directories may vary across
     #  versions and platforms.
     __dbghelp_locations = {
-
         # Intel 64 bits.
-        win32.ARCH_AMD64: set([
-
-            # WinDbg bundled with the SDK, version 8.0.
-            path.join(
-                getenv("ProgramFiles", "C:\\Program Files"),
-                "Windows Kits",
-                "8.0",
-                "Debuggers",
-                "x64",
-                "dbghelp.dll"),
-            path.join(
-                getenv("ProgramW6432", getenv("ProgramFiles",
-                                              "C:\\Program Files")),
-                "Windows Kits",
-                "8.0",
-                "Debuggers",
-                "x64",
-                "dbghelp.dll"),
-
-            # Old standalone versions of WinDbg.
-            path.join(
-                getenv("ProgramFiles", "C:\\Program Files"),
-                "Debugging Tools for Windows (x64)",
-                "dbghelp.dll"),
-        ]),
-
+        win32.ARCH_AMD64: set(
+            [
+                # WinDbg bundled with the SDK, version 8.0.
+                path.join(getenv("ProgramFiles", "C:\\Program Files"), "Windows Kits", "8.0", "Debuggers", "x64", "dbghelp.dll"),
+                path.join(
+                    getenv("ProgramW6432", getenv("ProgramFiles", "C:\\Program Files")),
+                    "Windows Kits",
+                    "8.0",
+                    "Debuggers",
+                    "x64",
+                    "dbghelp.dll",
+                ),
+                # Old standalone versions of WinDbg.
+                path.join(getenv("ProgramFiles", "C:\\Program Files"), "Debugging Tools for Windows (x64)", "dbghelp.dll"),
+            ]
+        ),
         # Intel 32 bits.
-        win32.ARCH_I386 : set([
-
-            # WinDbg bundled with the SDK, version 8.0.
-            path.join(
-                getenv("ProgramFiles", "C:\\Program Files"),
-                "Windows Kits",
-                "8.0",
-                "Debuggers",
-                "x86",
-                "dbghelp.dll"),
-            path.join(
-                getenv("ProgramW6432", getenv("ProgramFiles",
-                                              "C:\\Program Files")),
-                "Windows Kits",
-                "8.0",
-                "Debuggers",
-                "x86",
-                "dbghelp.dll"),
-
-            # Old standalone versions of WinDbg.
-            path.join(
-                getenv("ProgramFiles", "C:\\Program Files"),
-                "Debugging Tools for Windows (x86)",
-                "dbghelp.dll"),
-
-            # Version shipped with Windows.
-            path.join(
-                getenv("ProgramFiles", "C:\\Program Files"),
-                "Debugging Tools for Windows (x86)",
-                "dbghelp.dll"),
-        ]),
+        win32.ARCH_I386: set(
+            [
+                # WinDbg bundled with the SDK, version 8.0.
+                path.join(getenv("ProgramFiles", "C:\\Program Files"), "Windows Kits", "8.0", "Debuggers", "x86", "dbghelp.dll"),
+                path.join(
+                    getenv("ProgramW6432", getenv("ProgramFiles", "C:\\Program Files")),
+                    "Windows Kits",
+                    "8.0",
+                    "Debuggers",
+                    "x86",
+                    "dbghelp.dll",
+                ),
+                # Old standalone versions of WinDbg.
+                path.join(getenv("ProgramFiles", "C:\\Program Files"), "Debugging Tools for Windows (x86)", "dbghelp.dll"),
+                # Version shipped with Windows.
+                path.join(getenv("ProgramFiles", "C:\\Program Files"), "Debugging Tools for Windows (x86)", "dbghelp.dll"),
+            ]
+        ),
     }
 
     @classmethod
-    def load_dbghelp(cls, pathname = None):
+    def load_dbghelp(cls, pathname=None):
         """
         Load the specified version of the C{dbghelp.dll} library.
 
@@ -597,7 +569,6 @@ class System (_ProcessContainer):
 
         # If an explicit pathname was not given, search for the library.
         if not pathname:
-
             # Under WOW64 we'll treat AMD64 as I386.
             arch = win32.arch
             if arch == win32.ARCH_AMD64 and win32.bits == 32:
@@ -606,7 +577,7 @@ class System (_ProcessContainer):
             # Check if the architecture is supported.
             if not arch in cls.__dbghelp_locations:
                 msg = "Architecture %s is not currently supported."
-                raise NotImplementedError(msg  % arch)
+                raise NotImplementedError(msg % arch)
 
             # Grab all versions of the library we can find.
             found = []
@@ -621,7 +592,7 @@ class System (_ProcessContainer):
                         f_ver = p_ver
                     elif p_ver and p_ver > f_ver:
                         f_ver = p_ver
-                    found.append( (f_ver, pathname) )
+                    found.append((f_ver, pathname))
 
             # If we found any, use the newest version.
             if found:
@@ -642,9 +613,7 @@ class System (_ProcessContainer):
         return dbghelp
 
     @staticmethod
-    def fix_symbol_store_path(symbol_store_path = None,
-                              remote = True,
-                              force = False):
+    def fix_symbol_store_path(symbol_store_path=None, remote=True, force=False):
         """
         Fix the symbol store path. Equivalent to the C{.symfix} command in
         Microsoft WinDbg.
@@ -716,12 +685,7 @@ class System (_ProcessContainer):
                     if not path.isdir(local_path):
                         local_path = path.abspath(".")
                 if remote:
-                    symbol_store_path = (
-                        "cache*;SRV*"
-                        + local_path +
-                        "*"
-                        "http://msdl.microsoft.com/download/symbols"
-                    )
+                    symbol_store_path = "cache*;SRV*" + local_path + "*" "http://msdl.microsoft.com/download/symbols"
                 else:
                     symbol_store_path = "cache*;SRV*" + local_path
             previous = os.environ.get("_NT_SYMBOL_PATH", None)
@@ -730,13 +694,12 @@ class System (_ProcessContainer):
             return previous
         except Exception:
             e = sys.exc_info()[1]
-            warnings.warn("Cannot fix symbol path, reason: %s" % str(e),
-                          RuntimeWarning)
+            warnings.warn("Cannot fix symbol path, reason: %s" % str(e), RuntimeWarning)
 
-#------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------
 
     @staticmethod
-    def set_kill_on_exit_mode(bKillOnExit = False):
+    def set_kill_on_exit_mode(bKillOnExit=False):
         """
         Defines the behavior of the debugged processes when the debugging
         thread dies. This method only affects the calling thread.
@@ -793,14 +756,11 @@ class System (_ProcessContainer):
             It works on my machine, but your mileage may vary.
         """
         if win32.arch not in (win32.ARCH_I386, win32.ARCH_AMD64):
-            raise NotImplementedError(
-                "MSR reading is only supported on i386 or amd64 processors.")
-        msr         = win32.SYSDBG_MSR()
+            raise NotImplementedError("MSR reading is only supported on i386 or amd64 processors.")
+        msr = win32.SYSDBG_MSR()
         msr.Address = address
-        msr.Data    = 0
-        win32.NtSystemDebugControl(win32.SysDbgReadMsr,
-                                   InputBuffer  = msr,
-                                   OutputBuffer = msr)
+        msr.Data = 0
+        win32.NtSystemDebugControl(win32.SysDbgReadMsr, InputBuffer=msr, OutputBuffer=msr)
         return msr.Data
 
     @staticmethod
@@ -825,12 +785,11 @@ class System (_ProcessContainer):
             It works on my machine, but your mileage may vary.
         """
         if win32.arch not in (win32.ARCH_I386, win32.ARCH_AMD64):
-            raise NotImplementedError(
-                "MSR writing is only supported on i386 or amd64 processors.")
-        msr         = win32.SYSDBG_MSR()
+            raise NotImplementedError("MSR writing is only supported on i386 or amd64 processors.")
+        msr = win32.SYSDBG_MSR()
         msr.Address = address
-        msr.Data    = value
-        win32.NtSystemDebugControl(win32.SysDbgWriteMsr, InputBuffer = msr)
+        msr.Data = value
+        win32.NtSystemDebugControl(win32.SysDbgWriteMsr, InputBuffer=msr)
 
     @classmethod
     def enable_step_on_branch_mode(cls):
@@ -855,8 +814,7 @@ class System (_ProcessContainer):
             Maybe it fails in other virtualization/emulation environments,
             no extensive testing was made so far.
         """
-        cls.write_msr(DebugRegister.DebugCtlMSR,
-                DebugRegister.BranchTrapFlag | DebugRegister.LastBranchRecord)
+        cls.write_msr(DebugRegister.DebugCtlMSR, DebugRegister.BranchTrapFlag | DebugRegister.LastBranchRecord)
 
     @classmethod
     def get_last_branch_location(cls):
@@ -883,13 +841,13 @@ class System (_ProcessContainer):
             no extensive testing was made so far.
         """
         LastBranchFromIP = cls.read_msr(DebugRegister.LastBranchFromIP)
-        LastBranchToIP   = cls.read_msr(DebugRegister.LastBranchToIP)
-        return ( LastBranchFromIP, LastBranchToIP )
+        LastBranchToIP = cls.read_msr(DebugRegister.LastBranchToIP)
+        return (LastBranchFromIP, LastBranchToIP)
 
-#------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------
 
     @classmethod
-    def get_postmortem_debugger(cls, bits = None):
+    def get_postmortem_debugger(cls, bits=None):
         """
         Returns the postmortem debugging settings from the Registry.
 
@@ -915,15 +873,15 @@ class System (_ProcessContainer):
             raise NotImplementedError("Unknown architecture (%r bits)" % bits)
 
         if bits == 32 and cls.bits == 64:
-            keyname = 'HKLM\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows NT\\CurrentVersion\\AeDebug'
+            keyname = "HKLM\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows NT\\CurrentVersion\\AeDebug"
         else:
-            keyname = 'HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\AeDebug'
+            keyname = "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\AeDebug"
 
         key = cls.registry[keyname]
 
-        debugger = key.get('Debugger')
-        auto     = key.get('Auto')
-        hotkey   = key.get('UserDebuggerHotkey')
+        debugger = key.get("Debugger")
+        auto = key.get("Auto")
+        hotkey = key.get("UserDebuggerHotkey")
 
         if auto is not None:
             auto = bool(auto)
@@ -931,7 +889,7 @@ class System (_ProcessContainer):
         return (debugger, auto, hotkey)
 
     @classmethod
-    def get_postmortem_exclusion_list(cls, bits = None):
+    def get_postmortem_exclusion_list(cls, bits=None):
         """
         Returns the exclusion list for the postmortem debugger.
 
@@ -953,9 +911,9 @@ class System (_ProcessContainer):
             raise NotImplementedError("Unknown architecture (%r bits)" % bits)
 
         if bits == 32 and cls.bits == 64:
-            keyname = 'HKLM\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows NT\\CurrentVersion\\AeDebug\\AutoExclusionList'
+            keyname = "HKLM\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows NT\\CurrentVersion\\AeDebug\\AutoExclusionList"
         else:
-            keyname = 'HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\AeDebug\\AutoExclusionList'
+            keyname = "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\AeDebug\\AutoExclusionList"
 
         try:
             key = cls.registry[keyname]
@@ -965,8 +923,7 @@ class System (_ProcessContainer):
         return [name for (name, enabled) in key.items() if enabled]
 
     @classmethod
-    def set_postmortem_debugger(cls, cmdline,
-                                auto = None, hotkey = None, bits = None):
+    def set_postmortem_debugger(cls, cmdline, auto=None, hotkey=None, bits=None):
         """
         Sets the postmortem debugging settings in the Registry.
 
@@ -1007,21 +964,21 @@ class System (_ProcessContainer):
             raise NotImplementedError("Unknown architecture (%r bits)" % bits)
 
         if bits == 32 and cls.bits == 64:
-            keyname = 'HKLM\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows NT\\CurrentVersion\\AeDebug'
+            keyname = "HKLM\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows NT\\CurrentVersion\\AeDebug"
         else:
-            keyname = 'HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\AeDebug'
+            keyname = "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\AeDebug"
 
         key = cls.registry[keyname]
 
         if cmdline is not None:
-            key['Debugger'] = cmdline
+            key["Debugger"] = cmdline
         if auto is not None:
-            key['Auto'] = int(bool(auto))
+            key["Auto"] = int(bool(auto))
         if hotkey is not None:
-            key['UserDebuggerHotkey'] = int(hotkey)
+            key["UserDebuggerHotkey"] = int(hotkey)
 
     @classmethod
-    def add_to_postmortem_exclusion_list(cls, pathname, bits = None):
+    def add_to_postmortem_exclusion_list(cls, pathname, bits=None):
         """
         Adds the given filename to the exclusion list for postmortem debugging.
 
@@ -1046,9 +1003,9 @@ class System (_ProcessContainer):
             raise NotImplementedError("Unknown architecture (%r bits)" % bits)
 
         if bits == 32 and cls.bits == 64:
-            keyname = 'HKLM\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows NT\\CurrentVersion\\AeDebug\\AutoExclusionList'
+            keyname = "HKLM\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows NT\\CurrentVersion\\AeDebug\\AutoExclusionList"
         else:
-            keyname = 'HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\AeDebug\\AutoExclusionList'
+            keyname = "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\AeDebug\\AutoExclusionList"
 
         try:
             key = cls.registry[keyname]
@@ -1058,7 +1015,7 @@ class System (_ProcessContainer):
         key[pathname] = 1
 
     @classmethod
-    def remove_from_postmortem_exclusion_list(cls, pathname, bits = None):
+    def remove_from_postmortem_exclusion_list(cls, pathname, bits=None):
         """
         Removes the given filename to the exclusion list for postmortem
         debugging from the Registry.
@@ -1091,9 +1048,9 @@ class System (_ProcessContainer):
             raise NotImplementedError("Unknown architecture (%r bits)" % bits)
 
         if bits == 32 and cls.bits == 64:
-            keyname = 'HKLM\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows NT\\CurrentVersion\\AeDebug\\AutoExclusionList'
+            keyname = "HKLM\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows NT\\CurrentVersion\\AeDebug\\AutoExclusionList"
         else:
-            keyname = 'HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\AeDebug\\AutoExclusionList'
+            keyname = "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\AeDebug\\AutoExclusionList"
 
         try:
             key = cls.registry[keyname]
@@ -1105,7 +1062,7 @@ class System (_ProcessContainer):
         except KeyError:
             return
 
-#------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------
 
     @staticmethod
     def get_services():
@@ -1119,13 +1076,11 @@ class System (_ProcessContainer):
         @rtype:  list( L{win32.ServiceStatusProcessEntry} )
         @return: List of service status descriptors.
         """
-        with win32.OpenSCManager(
-            dwDesiredAccess = win32.SC_MANAGER_ENUMERATE_SERVICE
-            ) as hSCManager:
-                try:
-                    return win32.EnumServicesStatusEx(hSCManager)
-                except AttributeError:
-                    return win32.EnumServicesStatus(hSCManager)
+        with win32.OpenSCManager(dwDesiredAccess=win32.SC_MANAGER_ENUMERATE_SERVICE) as hSCManager:
+            try:
+                return win32.EnumServicesStatusEx(hSCManager)
+            except AttributeError:
+                return win32.EnumServicesStatus(hSCManager)
 
     @staticmethod
     def get_active_services():
@@ -1139,13 +1094,12 @@ class System (_ProcessContainer):
         @rtype:  list( L{win32.ServiceStatusProcessEntry} )
         @return: List of service status descriptors.
         """
-        with win32.OpenSCManager(
-            dwDesiredAccess = win32.SC_MANAGER_ENUMERATE_SERVICE
-        ) as hSCManager:
-            return [ entry for entry in win32.EnumServicesStatusEx(hSCManager,
-                        dwServiceType  = win32.SERVICE_WIN32,
-                        dwServiceState = win32.SERVICE_ACTIVE) \
-                    if entry.ProcessId ]
+        with win32.OpenSCManager(dwDesiredAccess=win32.SC_MANAGER_ENUMERATE_SERVICE) as hSCManager:
+            return [
+                entry
+                for entry in win32.EnumServicesStatusEx(hSCManager, dwServiceType=win32.SERVICE_WIN32, dwServiceState=win32.SERVICE_ACTIVE)
+                if entry.ProcessId
+            ]
 
     @staticmethod
     def get_service(name):
@@ -1163,12 +1117,8 @@ class System (_ProcessContainer):
         @rtype:  L{win32.ServiceStatusProcess}
         @return: Service status descriptor.
         """
-        with win32.OpenSCManager(
-            dwDesiredAccess = win32.SC_MANAGER_ENUMERATE_SERVICE
-        ) as hSCManager:
-            with win32.OpenService(hSCManager, name,
-                                   dwDesiredAccess = win32.SERVICE_QUERY_STATUS
-            ) as hService:
+        with win32.OpenSCManager(dwDesiredAccess=win32.SC_MANAGER_ENUMERATE_SERVICE) as hSCManager:
+            with win32.OpenService(hSCManager, name, dwDesiredAccess=win32.SERVICE_QUERY_STATUS) as hService:
                 try:
                     return win32.QueryServiceStatusEx(hService)
                 except AttributeError:
@@ -1189,9 +1139,7 @@ class System (_ProcessContainer):
         @rtype:  str
         @return: Service display name.
         """
-        with win32.OpenSCManager(
-            dwDesiredAccess = win32.SC_MANAGER_ENUMERATE_SERVICE
-        ) as hSCManager:
+        with win32.OpenSCManager(dwDesiredAccess=win32.SC_MANAGER_ENUMERATE_SERVICE) as hSCManager:
             return win32.GetServiceDisplayName(hSCManager, name)
 
     @staticmethod
@@ -1209,13 +1157,11 @@ class System (_ProcessContainer):
         @rtype:  str
         @return: Service unique name.
         """
-        with win32.OpenSCManager(
-            dwDesiredAccess = win32.SC_MANAGER_ENUMERATE_SERVICE
-        ) as hSCManager:
+        with win32.OpenSCManager(dwDesiredAccess=win32.SC_MANAGER_ENUMERATE_SERVICE) as hSCManager:
             return win32.GetServiceKeyName(hSCManager, displayName)
 
     @staticmethod
-    def start_service(name, argv = None):
+    def start_service(name, argv=None):
         """
         Start the service given by name.
 
@@ -1228,12 +1174,8 @@ class System (_ProcessContainer):
             C{ServiceName} member of the service descriptors returned by
             L{get_services} or L{get_active_services}.
         """
-        with win32.OpenSCManager(
-            dwDesiredAccess = win32.SC_MANAGER_CONNECT
-        ) as hSCManager:
-            with win32.OpenService(hSCManager, name,
-                                   dwDesiredAccess = win32.SERVICE_START
-            ) as hService:
+        with win32.OpenSCManager(dwDesiredAccess=win32.SC_MANAGER_CONNECT) as hSCManager:
+            with win32.OpenService(hSCManager, name, dwDesiredAccess=win32.SERVICE_START) as hService:
                 win32.StartService(hService)
 
     @staticmethod
@@ -1246,12 +1188,8 @@ class System (_ProcessContainer):
         @see: L{get_services}, L{get_active_services},
             L{start_service}, L{pause_service}, L{resume_service}
         """
-        with win32.OpenSCManager(
-            dwDesiredAccess = win32.SC_MANAGER_CONNECT
-        ) as hSCManager:
-            with win32.OpenService(hSCManager, name,
-                                   dwDesiredAccess = win32.SERVICE_STOP
-            ) as hService:
+        with win32.OpenSCManager(dwDesiredAccess=win32.SC_MANAGER_CONNECT) as hSCManager:
+            with win32.OpenService(hSCManager, name, dwDesiredAccess=win32.SERVICE_STOP) as hService:
                 win32.ControlService(hService, win32.SERVICE_CONTROL_STOP)
 
     @staticmethod
@@ -1266,12 +1204,8 @@ class System (_ProcessContainer):
         @see: L{get_services}, L{get_active_services},
             L{start_service}, L{stop_service}, L{resume_service}
         """
-        with win32.OpenSCManager(
-            dwDesiredAccess = win32.SC_MANAGER_CONNECT
-        ) as hSCManager:
-            with win32.OpenService(hSCManager, name,
-                                dwDesiredAccess = win32.SERVICE_PAUSE_CONTINUE
-            ) as hService:
+        with win32.OpenSCManager(dwDesiredAccess=win32.SC_MANAGER_CONNECT) as hSCManager:
+            with win32.OpenService(hSCManager, name, dwDesiredAccess=win32.SERVICE_PAUSE_CONTINUE) as hService:
                 win32.ControlService(hService, win32.SERVICE_CONTROL_PAUSE)
 
     @staticmethod
@@ -1286,12 +1220,8 @@ class System (_ProcessContainer):
         @see: L{get_services}, L{get_active_services},
             L{start_service}, L{stop_service}, L{pause_service}
         """
-        with win32.OpenSCManager(
-            dwDesiredAccess = win32.SC_MANAGER_CONNECT
-        ) as hSCManager:
-            with win32.OpenService(hSCManager, name,
-                                dwDesiredAccess = win32.SERVICE_PAUSE_CONTINUE
-            ) as hService:
+        with win32.OpenSCManager(dwDesiredAccess=win32.SC_MANAGER_CONNECT) as hSCManager:
+            with win32.OpenService(hSCManager, name, dwDesiredAccess=win32.SERVICE_PAUSE_CONTINUE) as hService:
                 win32.ControlService(hService, win32.SERVICE_CONTROL_CONTINUE)
 
     # TODO: create_service, delete_service

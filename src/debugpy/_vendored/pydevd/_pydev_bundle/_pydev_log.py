@@ -4,12 +4,11 @@ from io import StringIO
 
 
 class Log:
-
     def __init__(self):
         self._contents = []
 
     def add_content(self, *content):
-        self._contents.append(' '.join(content))
+        self._contents.append(" ".join(content))
 
     def add_exception(self):
         s = StringIO()
@@ -18,7 +17,7 @@ class Log:
         self._contents.append(s.getvalue())
 
     def get_contents(self):
-        return '\n'.join(self._contents)
+        return "\n".join(self._contents)
 
     def clear_log(self):
         del self._contents[:]

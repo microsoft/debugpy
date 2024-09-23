@@ -483,9 +483,6 @@ class CodeTransformer:
 
     def code_transformer(self, code, context):
         if sys.flags.verbose:
-            print(
-                "Optimize %s:%s: %s"
-                % (code.co_filename, code.co_firstlineno, code.co_name)
-            )
+            print("Optimize %s:%s: %s" % (code.co_filename, code.co_firstlineno, code.co_name))
         optimizer = PeepholeOptimizer()
         return optimizer.optimize(code)

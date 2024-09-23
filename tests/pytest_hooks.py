@@ -7,7 +7,7 @@ import pytest
 import pytest_timeout
 import sys
 
-from debugpy.common import log
+from debugpy.common import log # pyright: ignore[reportAttributeAccessIssue]
 import tests
 from tests import logs
 
@@ -56,9 +56,8 @@ def pytest_runtest_makereport(item, call):
 def pytest_make_parametrize_id(config, val):
     return getattr(val, "pytest_id", None)
 
-
 # If a test times out and pytest tries to print the stacks of where it was hanging,
 # we want to print the pydevd log as well. This is not a normal pytest hook - we
 # just detour pytest_timeout.dump_stacks directly.
 _dump_stacks = pytest_timeout.dump_stacks
-pytest_timeout.dump_stacks = lambda: (_dump_stacks(), logs.dump())
+pytest_timeout.dump_stacks = lambda terminal: (_dump_stacks(terminal), logs.dump())

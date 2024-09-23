@@ -34,7 +34,7 @@ def thread_func2(n):
     raise ValueError('in thread 2')
 
 
-th = threading.Thread(target=lambda: thread_func2(1))
+th = threading.Thread(target=lambda: thread_func2(1), name="Thread2")
 th.daemon = True
 th.start()
 

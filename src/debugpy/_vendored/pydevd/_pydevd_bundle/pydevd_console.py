@@ -1,5 +1,5 @@
-'''An helper file for the pydev debugger (REPL) console
-'''
+"""An helper file for the pydev debugger (REPL) console
+"""
 import sys
 import traceback
 from _pydevd_bundle.pydevconsole_code import InteractiveConsole, _EvalAwaitInNewEventLoop
@@ -18,12 +18,11 @@ CONSOLE_OUTPUT = "output"
 CONSOLE_ERROR = "error"
 
 
-#=======================================================================================================================
+# =======================================================================================================================
 # ConsoleMessage
-#=======================================================================================================================
+# =======================================================================================================================
 class ConsoleMessage:
-    """Console Messages
-    """
+    """Console Messages"""
 
     def __init__(self):
         self.more = False
@@ -31,8 +30,7 @@ class ConsoleMessage:
         self.console_messages = []
 
     def add_console_message(self, message_type, message):
-        """add messages in the console_messages list
-        """
+        """add messages in the console_messages list"""
         for m in message.split("\n"):
             if m.strip():
                 self.console_messages.append((message_type, m))
@@ -53,30 +51,29 @@ class ConsoleMessage:
         """
         makeValid = make_valid_xml_value
 
-        xml = '<xml><more>%s</more>' % (self.more)
+        xml = "<xml><more>%s</more>" % (self.more)
 
         for message_type, message in self.console_messages:
             xml += '<%s message="%s"></%s>' % (message_type, makeValid(message), message_type)
 
-        xml += '</xml>'
+        xml += "</xml>"
 
         return xml
 
 
-#=======================================================================================================================
+# =======================================================================================================================
 # _DebugConsoleStdIn
-#=======================================================================================================================
+# =======================================================================================================================
 class _DebugConsoleStdIn(BaseStdIn):
-
     @overrides(BaseStdIn.readline)
     def readline(self, *args, **kwargs):
-        sys.stderr.write('Warning: Reading from stdin is still not supported in this console.\n')
-        return '\n'
+        sys.stderr.write("Warning: Reading from stdin is still not supported in this console.\n")
+        return "\n"
 
 
-#=======================================================================================================================
+# =======================================================================================================================
 # DebugConsole
-#=======================================================================================================================
+# =======================================================================================================================
 class DebugConsole(InteractiveConsole, BaseInterpreterInterface):
     """Wrapper around code.InteractiveConsole, in order to send
     errors and outputs to the debug console
@@ -159,7 +156,7 @@ class DebugConsole(InteractiveConsole, BaseInterpreterInterface):
             updated_locals = None
 
             is_async = False
-            if hasattr(inspect, 'CO_COROUTINE'):
+            if hasattr(inspect, "CO_COROUTINE"):
                 is_async = inspect.CO_COROUTINE & code.co_flags == inspect.CO_COROUTINE
 
             if is_async:
@@ -194,11 +191,10 @@ class DebugConsole(InteractiveConsole, BaseInterpreterInterface):
         return dbg_namespace
 
 
-#=======================================================================================================================
+# =======================================================================================================================
 # InteractiveConsoleCache
-#=======================================================================================================================
+# =======================================================================================================================
 class InteractiveConsoleCache:
-
     thread_id = None
     frame_id = None
     interactive_console_instance = None
@@ -263,8 +259,7 @@ def get_description(frame, thread_id, frame_id, expression):
 
 
 def get_completions(frame, act_tok):
-    """ fetch all completions, create xml for the same
+    """fetch all completions, create xml for the same
     return the completions xml
     """
     return _pydev_completer.generate_completions_as_xml(frame, act_tok)
-

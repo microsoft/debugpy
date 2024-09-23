@@ -1,27 +1,20 @@
 import os.path
 import sys
 
-IS_JYTHON = sys.platform.find('java') != -1
+IS_JYTHON = sys.platform.find("java") != -1
 
-try:
-    this_file_name = __file__
-except NameError:
-    # stupid jython. plain old __file__ isnt working for some reason
-    import test_runfiles  # @UnresolvedImport - importing the module itself
-    this_file_name = test_runfiles.__file__
-
-desired_runfiles_path = os.path.normpath(os.path.dirname(this_file_name) + "/..")
-sys.path.insert(0, desired_runfiles_path)
+project_rootdir = os.path.abspath(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, project_rootdir)
 
 from _pydev_runfiles import pydev_runfiles_unittest
 from _pydev_runfiles import pydev_runfiles_xml_rpc
 from _pydevd_bundle import pydevd_io
 
 # remove existing pydev_runfiles from modules (if any), so that we can be sure we have the correct version
-if 'pydev_runfiles' in sys.modules:
-    del sys.modules['pydev_runfiles']
-if '_pydev_runfiles.pydev_runfiles' in sys.modules:
-    del sys.modules['_pydev_runfiles.pydev_runfiles']
+if "pydev_runfiles" in sys.modules:
+    del sys.modules["pydev_runfiles"]
+if "_pydev_runfiles.pydev_runfiles" in sys.modules:
+    del sys.modules["_pydev_runfiles.pydev_runfiles"]
 
 from _pydev_runfiles import pydev_runfiles
 import unittest
@@ -42,11 +35,10 @@ assert file_dir in sys.path
 sys.path = orig_syspath[:]
 
 # remove it so that we leave it ok for other tests
-sys.path.remove(desired_runfiles_path)
+sys.path.remove(project_rootdir)
 
 
 class RunfilesTest(unittest.TestCase):
-
     def _setup_scenario(
         self,
         path,
@@ -56,7 +48,7 @@ class RunfilesTest(unittest.TestCase):
         exclude_files=None,
         exclude_tests=None,
         include_files=None,
-        ):
+    ):
         self.MyTestRunner = pydev_runfiles.PydevTestRunner(
             pydev_runfiles.Configuration(
                 files_or_dirs=path,
@@ -75,7 +67,7 @@ class RunfilesTest(unittest.TestCase):
         self.filtered_tests = self.MyTestRunner.filter_tests(self.all_tests)
 
     def setUp(self):
-        self.file_dir = [os.path.abspath(os.path.join(desired_runfiles_path, 'tests_runfiles/samples'))]
+        self.file_dir = [os.path.abspath(os.path.join(project_rootdir, "tests_runfiles", "samples"))]
         self._setup_scenario(self.file_dir, None)
 
     def test_suite_used(self):
@@ -107,11 +99,13 @@ class RunfilesTest(unittest.TestCase):
         sys.argv = "pydev_runfiles.py --include_tests Abc.test_def,Mod.test_abc c:/junk/".split()
         configuration = pydev_runfiles.parse_cmdline()
         self.assertEqual([sys.argv[-1]], configuration.files_or_dirs)
-        self.assertEqual(sys.argv[2].split(','), configuration.include_tests)
+        self.assertEqual(sys.argv[2].split(","), configuration.include_tests)
 
-        sys.argv = ('C:\\eclipse-SDK-3.2-win32\\eclipse\\plugins\\org.python.pydev.debug_1.2.2\\pysrc\\pydev_runfiles.py ' +
-                    '--verbosity 1 ' +
-                    'C:\\workspace_eclipse\\fronttpa\\tests\\gui_tests\\calendar_popup_control_test.py ').split()
+        sys.argv = (
+            "C:\\eclipse-SDK-3.2-win32\\eclipse\\plugins\\org.python.pydev.debug_1.2.2\\pysrc\\pydev_runfiles.py "
+            + "--verbosity 1 "
+            + "C:\\workspace_eclipse\\fronttpa\\tests\\gui_tests\\calendar_popup_control_test.py "
+        ).split()
         configuration = pydev_runfiles.parse_cmdline()
         self.assertEqual([sys.argv[-1]], configuration.files_or_dirs)
         self.assertEqual(1, configuration.verbosity)
@@ -124,11 +118,11 @@ class RunfilesTest(unittest.TestCase):
 
         sys.argv = "pydev_runfiles.py --exclude_files=*.txt,a*.py".split()
         configuration = pydev_runfiles.parse_cmdline()
-        self.assertEqual(['*.txt', 'a*.py'], configuration.exclude_files)
+        self.assertEqual(["*.txt", "a*.py"], configuration.exclude_files)
 
         sys.argv = "pydev_runfiles.py --exclude_tests=*__todo,test*bar".split()
         configuration = pydev_runfiles.parse_cmdline()
-        self.assertEqual(['*__todo', 'test*bar'], configuration.exclude_tests)
+        self.assertEqual(["*__todo", "test*bar"], configuration.exclude_tests)
 
     def test___adjust_python_path_works_for_directories(self):
         orig_syspath = sys.path
@@ -147,7 +141,7 @@ class RunfilesTest(unittest.TestCase):
 
     def test___unixify(self):
         unixify = self.MyTestRunner._PydevTestRunner__unixify
-        self.assertEqual("c:/temp/junk/asdf.py", unixify("c:SEPtempSEPjunkSEPasdf.py".replace('SEP', os.sep)))
+        self.assertEqual("c:/temp/junk/asdf.py", unixify("c:SEPtempSEPjunkSEPasdf.py".replace("SEP", os.sep)))
 
     def test___importify(self):
         importify = self.MyTestRunner._PydevTestRunner__importify
@@ -172,9 +166,10 @@ class RunfilesTest(unittest.TestCase):
 
     def test___get_module_from_str(self):
         my_importer = self.MyTestRunner._PydevTestRunner__get_module_from_str
-        my_os_path = my_importer("os.path", True, 'unused')
+        my_os_path = my_importer("os.path", True, "unused")
         from os import path
         import os.path as path2
+
         self.assertEqual(path, my_os_path)
         self.assertEqual(path2, my_os_path)
         self.assertNotEqual(__import__("os.path"), my_os_path)
@@ -242,84 +237,88 @@ class RunfilesTest(unittest.TestCase):
         self.assertEqual(0, self.count_suite(filtered_tests))
 
     def test_matching_tests(self):
-        self._setup_scenario(self.file_dir, None, ['StillYetAnotherSampleTest'])
+        self._setup_scenario(self.file_dir, None, ["StillYetAnotherSampleTest"])
         filtered_tests = self.MyTestRunner.filter_tests(self.all_tests)
         self.assertEqual(1, self.count_suite(filtered_tests))
 
-        self._setup_scenario(self.file_dir, None, ['SampleTest.test_xxxxxx1'])
+        self._setup_scenario(self.file_dir, None, ["SampleTest.test_xxxxxx1"])
         filtered_tests = self.MyTestRunner.filter_tests(self.all_tests)
         self.assertEqual(1, self.count_suite(filtered_tests))
 
-        self._setup_scenario(self.file_dir, None, ['SampleTest'])
+        self._setup_scenario(self.file_dir, None, ["SampleTest"])
         filtered_tests = self.MyTestRunner.filter_tests(self.all_tests)
         self.assertEqual(8, self.count_suite(filtered_tests))
 
-        self._setup_scenario(self.file_dir, None, ['AnotherSampleTest.todo_not_tested'])
+        self._setup_scenario(self.file_dir, None, ["AnotherSampleTest.todo_not_tested"])
         filtered_tests = self.MyTestRunner.filter_tests(self.all_tests)
         self.assertEqual(1, self.count_suite(filtered_tests))
 
-        self._setup_scenario(self.file_dir, None, ['StillYetAnotherSampleTest', 'SampleTest.test_xxxxxx1'])
+        self._setup_scenario(self.file_dir, None, ["StillYetAnotherSampleTest", "SampleTest.test_xxxxxx1"])
         filtered_tests = self.MyTestRunner.filter_tests(self.all_tests)
         self.assertEqual(2, self.count_suite(filtered_tests))
 
-        self._setup_scenario(self.file_dir, None, exclude_tests=['*'])
+        self._setup_scenario(self.file_dir, None, exclude_tests=["*"])
         filtered_tests = self.MyTestRunner.filter_tests(self.all_tests)
         self.assertEqual(self.count_suite(filtered_tests), 0)
 
-        self._setup_scenario(self.file_dir, None, exclude_tests=['*a*'])
+        self._setup_scenario(self.file_dir, None, exclude_tests=["*a*"])
         filtered_tests = self.MyTestRunner.filter_tests(self.all_tests)
         self.assertEqual(self.count_suite(filtered_tests), 6)
 
         self.assertEqual(
             set(self.MyTestRunner.list_test_names(filtered_tests)),
-            set(['test_1', 'test_2', 'test_xxxxxx1', 'test_xxxxxx2', 'test_xxxxxx3', 'test_xxxxxx4'])
+            set(["test_1", "test_2", "test_xxxxxx1", "test_xxxxxx2", "test_xxxxxx3", "test_xxxxxx4"]),
         )
 
-        self._setup_scenario(self.file_dir, None, exclude_tests=['*a*', '*x*'])
+        self._setup_scenario(self.file_dir, None, exclude_tests=["*a*", "*x*"])
         filtered_tests = self.MyTestRunner.filter_tests(self.all_tests)
         self.assertEqual(self.count_suite(filtered_tests), 2)
 
-        self.assertEqual(
-            set(self.MyTestRunner.list_test_names(filtered_tests)),
-            set(['test_1', 'test_2'])
-        )
+        self.assertEqual(set(self.MyTestRunner.list_test_names(filtered_tests)), set(["test_1", "test_2"]))
 
-        self._setup_scenario(self.file_dir, None, exclude_files=['simple_test.py'])
+        self._setup_scenario(self.file_dir, None, exclude_files=["simple_test.py"])
         filtered_tests = self.MyTestRunner.filter_tests(self.all_tests)
         names = self.MyTestRunner.list_test_names(filtered_tests)
-        self.assertTrue('test_xxxxxx1' not in names, 'Found: %s' % (names,))
+        self.assertTrue("test_xxxxxx1" not in names, "Found: %s" % (names,))
 
         self.assertEqual(
-            set(['test_abc', 'test_non_unique_name', 'test_non_unique_name', 'test_asdf2', 'test_i_am_a_unique_test_name', 'test_non_unique_name', 'test_blank']),
-            set(names)
+            set(
+                [
+                    "test_abc",
+                    "test_non_unique_name",
+                    "test_non_unique_name",
+                    "test_asdf2",
+                    "test_i_am_a_unique_test_name",
+                    "test_non_unique_name",
+                    "test_blank",
+                ]
+            ),
+            set(names),
         )
 
-        self._setup_scenario(self.file_dir, None, include_files=['simple3_test.py'])
+        self._setup_scenario(self.file_dir, None, include_files=["simple3_test.py"])
         filtered_tests = self.MyTestRunner.filter_tests(self.all_tests)
         names = self.MyTestRunner.list_test_names(filtered_tests)
-        self.assertTrue('test_xxxxxx1' not in names, 'Found: %s' % (names,))
+        self.assertTrue("test_xxxxxx1" not in names, "Found: %s" % (names,))
 
-        self.assertEqual(
-            set(['test_non_unique_name']),
-            set(names)
-        )
+        self.assertEqual(set(["test_non_unique_name"]), set(names))
 
     def test_xml_rpc_communication(self):
         import sys
-        sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'samples'))
+
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), "samples"))
         notifications = []
 
         class Server:
-
             def __init__(self, notifications):
                 self.notifications = notifications
 
             def notifyConnected(self):
                 # This method is called at the very start (in runfiles.py), and we do not check this here
-                raise AssertionError('Should not be called from the run tests.')
+                raise AssertionError("Should not be called from the run tests.")
 
             def notifyTestsCollected(self, number_of_tests):
-                self.notifications.append(('notifyTestsCollected', number_of_tests))
+                self.notifications.append(("notifyTestsCollected", number_of_tests))
 
             def notifyStartTest(self, file, test):
                 pass
@@ -337,25 +336,25 @@ class RunfilesTest(unittest.TestCase):
                     pass
                 if error_contents:
                     error_contents = error_contents.splitlines()[-1].strip()
-                self.notifications.append(('notifyTest', cond, captured_output.strip(), error_contents, file, test))
+                self.notifications.append(("notifyTest", cond, captured_output.strip(), error_contents, file, test))
 
             def notifyTestRunFinished(self, total_time):
-                self.notifications.append(('notifyTestRunFinished',))
+                self.notifications.append(("notifyTestRunFinished",))
 
         server = Server(notifications)
         pydev_runfiles_xml_rpc.set_server(server)
-        simple_test = os.path.join(self.file_dir[0], 'simple_test.py')
-        simple_test2 = os.path.join(self.file_dir[0], 'simple2_test.py')
-        simpleClass_test = os.path.join(self.file_dir[0], 'simpleClass_test.py')
-        simpleModule_test = os.path.join(self.file_dir[0], 'simpleModule_test.py')
+        simple_test = os.path.join(self.file_dir[0], "simple_test.py")
+        simple_test2 = os.path.join(self.file_dir[0], "simple2_test.py")
+        simpleClass_test = os.path.join(self.file_dir[0], "simpleClass_test.py")
+        simpleModule_test = os.path.join(self.file_dir[0], "simpleModule_test.py")
 
         files_to_tests = {}
-        files_to_tests.setdefault(simple_test , []).append('SampleTest.test_xxxxxx1')
-        files_to_tests.setdefault(simple_test , []).append('SampleTest.test_xxxxxx2')
-        files_to_tests.setdefault(simple_test , []).append('SampleTest.test_non_unique_name')
-        files_to_tests.setdefault(simple_test2, []).append('YetAnotherSampleTest.test_abc')
-        files_to_tests.setdefault(simpleClass_test, []).append('SetUpClassTest.test_blank')
-        files_to_tests.setdefault(simpleModule_test, []).append('SetUpModuleTest.test_blank')
+        files_to_tests.setdefault(simple_test, []).append("SampleTest.test_xxxxxx1")
+        files_to_tests.setdefault(simple_test, []).append("SampleTest.test_xxxxxx2")
+        files_to_tests.setdefault(simple_test, []).append("SampleTest.test_non_unique_name")
+        files_to_tests.setdefault(simple_test2, []).append("YetAnotherSampleTest.test_abc")
+        files_to_tests.setdefault(simpleClass_test, []).append("SetUpClassTest.test_blank")
+        files_to_tests.setdefault(simpleModule_test, []).append("SetUpModuleTest.test_blank")
 
         self._setup_scenario(None, files_to_tests=files_to_tests)
         self.MyTestRunner.verbosity = 2
@@ -367,40 +366,72 @@ class RunfilesTest(unittest.TestCase):
             if sys.version_info[:2] <= (2, 6):
                 # The setUpClass is not supported in Python 2.6 (thus we have no collection error).
                 expected = [
-                    ('notifyTest', 'fail', '', 'AssertionError: Fail test 2', simple_test, 'SampleTest.test_xxxxxx1'),
-                    ('notifyTest', 'ok', '', '', simple_test2, 'YetAnotherSampleTest.test_abc'),
-                    ('notifyTest', 'ok', '', '', simpleClass_test, 'SetUpClassTest.test_blank'),
-                    ('notifyTest', 'ok', '', '', simpleModule_test, 'SetUpModuleTest.test_blank'),
-                    ('notifyTest', 'ok', '', '', simple_test, 'SampleTest.test_xxxxxx2'),
-                    ('notifyTest', 'ok', 'non unique name ran', '', simple_test, 'SampleTest.test_non_unique_name'),
-                    ('notifyTestRunFinished',),
-                    ('notifyTestsCollected', 6)
+                    ("notifyTest", "fail", "", "AssertionError: Fail test 2", simple_test, "SampleTest.test_xxxxxx1"),
+                    ("notifyTest", "ok", "", "", simple_test2, "YetAnotherSampleTest.test_abc"),
+                    ("notifyTest", "ok", "", "", simpleClass_test, "SetUpClassTest.test_blank"),
+                    ("notifyTest", "ok", "", "", simpleModule_test, "SetUpModuleTest.test_blank"),
+                    ("notifyTest", "ok", "", "", simple_test, "SampleTest.test_xxxxxx2"),
+                    ("notifyTest", "ok", "non unique name ran", "", simple_test, "SampleTest.test_non_unique_name"),
+                    ("notifyTestRunFinished",),
+                    ("notifyTestsCollected", 6),
                 ]
             else:
                 expected = [
-                        ('notifyTestsCollected', 6),
-                        ('notifyTest', 'ok', 'non unique name ran', '', simple_test, 'SampleTest.test_non_unique_name'),
-                        ('notifyTest', 'fail', '', 'AssertionError: Fail test 2', simple_test, 'SampleTest.test_xxxxxx1'),
-                        ('notifyTest', 'ok', '', '', simple_test, 'SampleTest.test_xxxxxx2'),
-                        ('notifyTest', 'ok', '', '', simple_test2, 'YetAnotherSampleTest.test_abc'),
-                    ]
+                    ("notifyTestsCollected", 6),
+                    ("notifyTest", "ok", "non unique name ran", "", simple_test, "SampleTest.test_non_unique_name"),
+                    ("notifyTest", "fail", "", "AssertionError: Fail test 2", simple_test, "SampleTest.test_xxxxxx1"),
+                    ("notifyTest", "ok", "", "", simple_test, "SampleTest.test_xxxxxx2"),
+                    ("notifyTest", "ok", "", "", simple_test2, "YetAnotherSampleTest.test_abc"),
+                ]
 
                 if not IS_JYTHON:
-                    if 'samples.simpleClass_test' in str(notifications):
-                        expected.append(('notifyTest', 'error', '', 'ValueError: This is an INTENTIONAL value error in setUpClass.',
-                                simpleClass_test.replace('/', os.path.sep), 'samples.simpleClass_test.SetUpClassTest <setUpClass>'))
-                        expected.append(('notifyTest', 'error', '', 'ValueError: This is an INTENTIONAL value error in setUpModule.',
-                                    simpleModule_test.replace('/', os.path.sep), 'samples.simpleModule_test <setUpModule>'))
+                    if "samples.simpleClass_test" in str(notifications):
+                        expected.append(
+                            (
+                                "notifyTest",
+                                "error",
+                                "",
+                                "ValueError: This is an INTENTIONAL value error in setUpClass.",
+                                simpleClass_test.replace("/", os.path.sep),
+                                "samples.simpleClass_test.SetUpClassTest <setUpClass>",
+                            )
+                        )
+                        expected.append(
+                            (
+                                "notifyTest",
+                                "error",
+                                "",
+                                "ValueError: This is an INTENTIONAL value error in setUpModule.",
+                                simpleModule_test.replace("/", os.path.sep),
+                                "samples.simpleModule_test <setUpModule>",
+                            )
+                        )
                     else:
-                        expected.append(('notifyTest', 'error', '', 'ValueError: This is an INTENTIONAL value error in setUpClass.',
-                                simpleClass_test.replace('/', os.path.sep), 'simpleClass_test.SetUpClassTest <setUpClass>'))
-                        expected.append(('notifyTest', 'error', '', 'ValueError: This is an INTENTIONAL value error in setUpModule.',
-                                    simpleModule_test.replace('/', os.path.sep), 'simpleModule_test <setUpModule>'))
+                        expected.append(
+                            (
+                                "notifyTest",
+                                "error",
+                                "",
+                                "ValueError: This is an INTENTIONAL value error in setUpClass.",
+                                simpleClass_test.replace("/", os.path.sep),
+                                "simpleClass_test.SetUpClassTest <setUpClass>",
+                            )
+                        )
+                        expected.append(
+                            (
+                                "notifyTest",
+                                "error",
+                                "",
+                                "ValueError: This is an INTENTIONAL value error in setUpModule.",
+                                simpleModule_test.replace("/", os.path.sep),
+                                "simpleModule_test <setUpModule>",
+                            )
+                        )
                 else:
-                    expected.append(('notifyTest', 'ok', '', '', simpleClass_test, 'SetUpClassTest.test_blank'))
-                    expected.append(('notifyTest', 'ok', '', '', simpleModule_test, 'SetUpModuleTest.test_blank'))
+                    expected.append(("notifyTest", "ok", "", "", simpleClass_test, "SetUpClassTest.test_blank"))
+                    expected.append(("notifyTest", "ok", "", "", simpleModule_test, "SetUpModuleTest.test_blank"))
 
-                expected.append(('notifyTestRunFinished',))
+                expected.append(("notifyTestRunFinished",))
 
             expected.sort()
             new_notifications = []
@@ -408,14 +439,16 @@ class RunfilesTest(unittest.TestCase):
                 try:
                     if len(notification) == 6:
                         # Some are binary on Py3.
-                        new_notifications.append((
-                            notification[0],
-                            notification[1],
-                            notification[2].encode('latin1'),
-                            notification[3].encode('latin1'),
-                            notification[4],
-                            notification[5],
-                        ))
+                        new_notifications.append(
+                            (
+                                notification[0],
+                                notification[1],
+                                notification[2].encode("latin1"),
+                                notification[3].encode("latin1"),
+                                notification[4],
+                                notification[5],
+                            )
+                        )
                     else:
                         new_notifications.append(notification)
                 except:
@@ -424,14 +457,11 @@ class RunfilesTest(unittest.TestCase):
 
             notifications.sort()
             if not IS_JYTHON:
-                self.assertEqual(
-                    expected,
-                    notifications
-                )
+                self.assertEqual(expected, notifications)
         finally:
             pydevd_io.end_redirect()
         b = buf.getvalue()
         if sys.version_info[:2] > (2, 6):
-            self.assertTrue(b.find('Ran 4 tests in ') != -1, 'Found: ' + b)
+            self.assertTrue(b.find("Ran 4 tests in ") != -1, "Found: " + b)
         else:
-            self.assertTrue(b.find('Ran 6 tests in ') != -1, 'Found: ' + b)
+            self.assertTrue(b.find("Ran 6 tests in ") != -1, "Found: " + b)

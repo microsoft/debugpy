@@ -85,7 +85,7 @@ celerybeat-schedule
 *.sage.py
 
 # virtualenv
-.venv
+.venv*
 venv/
 ENV/
 

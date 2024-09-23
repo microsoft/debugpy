@@ -62,22 +62,11 @@ def infer_flags(bytecode, is_async=None):
         bytecode,
         (_bytecode.Bytecode, _bytecode.ConcreteBytecode, _bytecode.ControlFlowGraph),
     ):
-        msg = (
-            "Expected a Bytecode, ConcreteBytecode or ControlFlowGraph "
-            "instance not %s"
-        )
+        msg = "Expected a Bytecode, ConcreteBytecode or ControlFlowGraph " "instance not %s"
         raise ValueError(msg % bytecode)
 
-    instructions = (
-        bytecode.get_instructions()
-        if isinstance(bytecode, _bytecode.ControlFlowGraph)
-        else bytecode
-    )
-    instr_names = {
-        i.name
-        for i in instructions
-        if not isinstance(i, (_bytecode.SetLineno, _bytecode.Label))
-    }
+    instructions = bytecode.get_instructions() if isinstance(bytecode, _bytecode.ControlFlowGraph) else bytecode
+    instr_names = {i.name for i in instructions if not isinstance(i, (_bytecode.SetLineno, _bytecode.Label))}
 
     # Identify optimized code
     if not (instr_names & {"STORE_NAME", "LOAD_NAME", "DELETE_NAME"}):
@@ -97,12 +86,7 @@ def infer_flags(bytecode, is_async=None):
         flags |= CompilerFlags.NOFREE
 
     # Copy flags for which we cannot infer the right value
-    flags |= bytecode.flags & (
-        CompilerFlags.NEWLOCALS
-        | CompilerFlags.VARARGS
-        | CompilerFlags.VARKEYWORDS
-        | CompilerFlags.NESTED
-    )
+    flags |= bytecode.flags & (CompilerFlags.NEWLOCALS | CompilerFlags.VARARGS | CompilerFlags.VARKEYWORDS | CompilerFlags.NESTED)
 
     sure_generator = instr_names & {"YIELD_VALUE"}
     maybe_generator = instr_names & {"YIELD_VALUE", "YIELD_FROM"}
@@ -119,7 +103,6 @@ def infer_flags(bytecode, is_async=None):
     # If performing inference or forcing an async behavior, first inspect
     # the flags since this is the only way to identify iterable coroutines
     if is_async in (None, True):
-
         if bytecode.flags & CompilerFlags.COROUTINE:
             if sure_generator:
                 flags |= CompilerFlags.ASYNC_GENERATOR
@@ -168,9 +151,7 @@ def infer_flags(bytecode, is_async=None):
     else:
         if sure_async:
             raise ValueError(
-                "The is_async argument is False but bytecodes "
-                "that can only be used in async functions have "
-                "been detected."
+                "The is_async argument is False but bytecodes " "that can only be used in async functions have " "been detected."
             )
 
         if maybe_generator:

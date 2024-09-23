@@ -2,8 +2,7 @@
     resolution/conversion to XML.
 """
 import pickle
-from _pydevd_bundle.pydevd_constants import get_frame, get_current_thread_id, \
-    iter_chars, silence_warnings_decorator, get_global_debugger
+from _pydevd_bundle.pydevd_constants import get_frame, get_current_thread_id, iter_chars, silence_warnings_decorator, get_global_debugger
 
 from _pydevd_bundle.pydevd_xml import ExceptionOnEvaluate, get_type, var_to_xml
 from _pydev_bundle import pydev_log
@@ -37,13 +36,13 @@ def iter_frames(frame):
 
 
 def dump_frames(thread_id):
-    sys.stdout.write('dumping frames\n')
+    sys.stdout.write("dumping frames\n")
     if thread_id != get_current_thread_id(threading.current_thread()):
         raise VariableError("find_frame: must execute on same thread")
 
     frame = get_frame()
     for frame in iter_frames(frame):
-        sys.stdout.write('%s\n' % pickle.dumps(frame))
+        sys.stdout.write("%s\n" % pickle.dumps(frame))
 
 
 @silence_warnings_decorator
@@ -61,12 +60,13 @@ def getVariable(dbg, thread_id, frame_id, scope, locator):
     :note: when BY_ID is used, the frame_id is considered the id of the object to find and
            not the frame (as we don't care about the frame in this case).
     """
-    if scope == 'BY_ID':
+    if scope == "BY_ID":
         if thread_id != get_current_thread_id(threading.current_thread()):
             raise VariableError("getVariable: must execute on same thread")
 
         try:
             import gc
+
             objects = gc.get_objects()
         except:
             pass  # Not all python variants have it.
@@ -75,7 +75,7 @@ def getVariable(dbg, thread_id, frame_id, scope, locator):
             for var in objects:
                 if id(var) == frame_id:
                     if locator is not None:
-                        locator_parts = locator.split('\t')
+                        locator_parts = locator.split("\t")
                         for k in locator_parts:
                             _type, _type_name, resolver = get_type(var)
                             var = resolver.resolve(var, k)
@@ -83,7 +83,7 @@ def getVariable(dbg, thread_id, frame_id, scope, locator):
                     return var
 
         # If it didn't return previously, we coudn't find it by id (i.e.: already garbage collected).
-        sys.stderr.write('Unable to find object with id: %s\n' % (frame_id,))
+        sys.stderr.write("Unable to find object with id: %s\n" % (frame_id,))
         return None
 
     frame = dbg.find_frame(thread_id, frame_id)
@@ -91,14 +91,14 @@ def getVariable(dbg, thread_id, frame_id, scope, locator):
         return {}
 
     if locator is not None:
-        locator_parts = locator.split('\t')
+        locator_parts = locator.split("\t")
     else:
         locator_parts = []
 
     for attr in locator_parts:
-        attr.replace("@_@TAB_CHAR@_@", '\t')
+        attr.replace("@_@TAB_CHAR@_@", "\t")
 
-    if scope == 'EXPRESSION':
+    if scope == "EXPRESSION":
         for count in range(len(locator_parts)):
             if count == 0:
                 # An Expression can be in any scope (globals/locals), therefore it needs to evaluated as an expression
@@ -141,8 +141,7 @@ def resolve_compound_variable_fields(dbg, thread_id, frame_id, scope, attrs):
         _type, type_name, resolver = get_type(var)
         return type_name, resolver.get_dictionary(var)
     except:
-        pydev_log.exception('Error evaluating: thread_id: %s\nframe_id: %s\nscope: %s\nattrs: %s.',
-            thread_id, frame_id, scope, attrs)
+        pydev_log.exception("Error evaluating: thread_id: %s\nframe_id: %s\nscope: %s\nattrs: %s.", thread_id, frame_id, scope, attrs)
 
 
 def resolve_var_object(var, attrs):
@@ -154,7 +153,7 @@ def resolve_var_object(var, attrs):
     :return: a value of resolved variable's attribute
     """
     if attrs is not None:
-        attr_list = attrs.split('\t')
+        attr_list = attrs.split("\t")
     else:
         attr_list = []
     for k in attr_list:
@@ -171,7 +170,7 @@ def resolve_compound_var_object_fields(var, attrs):
     :param attrs: a sequence of variable's attributes separated by \t (i.e.: obj\tattr1\tattr2)
     :return: a dictionary of variables's fields
     """
-    attr_list = attrs.split('\t')
+    attr_list = attrs.split("\t")
 
     for k in attr_list:
         type, _type_name, resolver = get_type(var)
@@ -194,12 +193,12 @@ def custom_operation(dbg, thread_id, frame_id, scope, attrs, style, code_or_file
     expressionValue = getVariable(dbg, thread_id, frame_id, scope, attrs)
 
     try:
-        namespace = {'__name__': '<custom_operation>'}
+        namespace = {"__name__": "<custom_operation>"}
         if style == "EXECFILE":
-            namespace['__file__'] = code_or_file
+            namespace["__file__"] = code_or_file
             execfile(code_or_file, namespace, namespace)
         else:  # style == EXEC
-            namespace['__file__'] = '<customOperationCode>'
+            namespace["__file__"] = "<customOperationCode>"
             Exec(code_or_file, namespace, namespace)
 
         return str(namespace[operation_fn_name](expressionValue))
@@ -238,9 +237,9 @@ def _expression_to_evaluate(expression):
 
         if proceed:
             if isinstance(expression, bytes):
-                expression = b''.join(new_lines)
+                expression = b"".join(new_lines)
             else:
-                expression = u''.join(new_lines)
+                expression = "".join(new_lines)
 
     return expression
 
@@ -255,7 +254,7 @@ def eval_in_context(expression, global_vars, local_vars, py_db=None):
             if py_db is None:
                 py_db = get_global_debugger()
                 if py_db is None:
-                    raise RuntimeError('Cannot evaluate async without py_db.')
+                    raise RuntimeError("Cannot evaluate async without py_db.")
             t = _EvalAwaitInNewEventLoop(py_db, compiled, global_vars, local_vars)
             t.start()
             t.join()
@@ -272,17 +271,17 @@ def eval_in_context(expression, global_vars, local_vars, py_db=None):
 
         # Ok, we have the initial error message, but let's see if we're dealing with a name mangling error...
         try:
-            if '.__' in expression:
+            if ".__" in expression:
                 # Try to handle '__' name mangling (for simple cases such as self.__variable.__another_var).
-                split = expression.split('.')
+                split = expression.split(".")
                 entry = split[0]
 
                 if local_vars is None:
                     local_vars = global_vars
                 curr = local_vars[entry]  # Note: we want the KeyError if it's not there.
                 for entry in split[1:]:
-                    if entry.startswith('__') and not hasattr(curr, entry):
-                        entry = '_%s%s' % (curr.__class__.__name__, entry)
+                    if entry.startswith("__") and not hasattr(curr, entry):
+                        entry = "_%s%s" % (curr.__class__.__name__, entry)
                     curr = getattr(curr, entry)
 
                 result = curr
@@ -299,7 +298,7 @@ def _run_with_interrupt_thread(original_func, py_db, curr_thread, frame, express
 
     if interrupt_thread_timeout > 0:
         on_interrupt_threads = pydevd_timeout.create_interrupt_this_thread_callback()
-        pydev_log.info('Doing evaluate with interrupt threads timeout: %s.', interrupt_thread_timeout)
+        pydev_log.info("Doing evaluate with interrupt threads timeout: %s.", interrupt_thread_timeout)
 
     if on_interrupt_threads is None:
         return original_func(py_db, frame, expression, is_exec)
@@ -318,13 +317,13 @@ def _run_with_unblock_threads(original_func, py_db, curr_thread, frame, expressi
         unblock_threads_timeout = -1  # Don't use this if threads are managed individually.
 
     if unblock_threads_timeout >= 0:
-        pydev_log.info('Doing evaluate with unblock threads timeout: %s.', unblock_threads_timeout)
+        pydev_log.info("Doing evaluate with unblock threads timeout: %s.", unblock_threads_timeout)
         tid = get_current_thread_id(curr_thread)
 
         def on_timeout_unblock_threads():
             on_timeout_unblock_threads.called = True
-            pydev_log.info('Resuming threads after evaluate timeout.')
-            resume_threads('*', except_thread=curr_thread)
+            pydev_log.info("Resuming threads after evaluate timeout.")
+            resume_threads("*", except_thread=curr_thread)
             py_db.threads_suspended_single_notification.on_thread_resume(tid, curr_thread)
 
         on_timeout_unblock_threads.called = False
@@ -345,25 +344,24 @@ def _run_with_unblock_threads(original_func, py_db, curr_thread, frame, expressi
 
 
 def _evaluate_with_timeouts(original_func):
-    '''
+    """
     Provides a decorator that wraps the original evaluate to deal with slow evaluates.
 
     If some evaluation is too slow, we may show a message, resume threads or interrupt them
     as needed (based on the related configurations).
-    '''
+    """
 
     @functools.wraps(original_func)
     def new_func(py_db, frame, expression, is_exec):
         if py_db is None:
             # Only for testing...
-            pydev_log.critical('_evaluate_with_timeouts called without py_db!')
+            pydev_log.critical("_evaluate_with_timeouts called without py_db!")
             return original_func(py_db, frame, expression, is_exec)
         warn_evaluation_timeout = pydevd_constants.PYDEVD_WARN_EVALUATION_TIMEOUT
         curr_thread = threading.current_thread()
 
         def on_warn_evaluation_timeout():
-            py_db.writer.add_command(py_db.cmd_factory.make_evaluation_timeout_msg(
-                py_db, expression, curr_thread))
+            py_db.writer.add_command(py_db.cmd_factory.make_evaluation_timeout_msg(py_db, expression, curr_thread))
 
         timeout_tracker = py_db.timeout_tracker  # : :type timeout_tracker: TimeoutTracker
         with timeout_tracker.call_on_timeout(warn_evaluation_timeout, on_warn_evaluation_timeout):
@@ -375,13 +373,14 @@ def _evaluate_with_timeouts(original_func):
 _ASYNC_COMPILE_FLAGS = None
 try:
     from ast import PyCF_ALLOW_TOP_LEVEL_AWAIT
+
     _ASYNC_COMPILE_FLAGS = PyCF_ALLOW_TOP_LEVEL_AWAIT
 except:
     pass
 
 
 def compile_as_eval(expression):
-    '''
+    """
 
     :param expression:
         The expression to be _compiled.
@@ -389,16 +388,16 @@ def compile_as_eval(expression):
     :return: code object
 
     :raises Exception if the expression cannot be evaluated.
-    '''
+    """
     expression_to_evaluate = _expression_to_evaluate(expression)
     if _ASYNC_COMPILE_FLAGS is not None:
-        return compile(expression_to_evaluate, '<string>', 'eval', _ASYNC_COMPILE_FLAGS)
+        return compile(expression_to_evaluate, "<string>", "eval", _ASYNC_COMPILE_FLAGS)
     else:
-        return compile(expression_to_evaluate, '<string>', 'eval')
+        return compile(expression_to_evaluate, "<string>", "eval")
 
 
 def _compile_as_exec(expression):
-    '''
+    """
 
     :param expression:
         The expression to be _compiled.
@@ -406,16 +405,15 @@ def _compile_as_exec(expression):
     :return: code object
 
     :raises Exception if the expression cannot be evaluated.
-    '''
+    """
     expression_to_evaluate = _expression_to_evaluate(expression)
     if _ASYNC_COMPILE_FLAGS is not None:
-        return compile(expression_to_evaluate, '<string>', 'exec', _ASYNC_COMPILE_FLAGS)
+        return compile(expression_to_evaluate, "<string>", "exec", _ASYNC_COMPILE_FLAGS)
     else:
-        return compile(expression_to_evaluate, '<string>', 'exec')
+        return compile(expression_to_evaluate, "<string>", "exec")
 
 
 class _EvalAwaitInNewEventLoop(PyDBDaemonThread):
-
     def __init__(self, py_db, compiled, updated_globals, updated_locals):
         PyDBDaemonThread.__init__(self, py_db)
         self._compiled = compiled
@@ -432,6 +430,7 @@ class _EvalAwaitInNewEventLoop(PyDBDaemonThread):
     def _on_run(self):
         try:
             import asyncio
+
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             self.evaluated_value = asyncio.run(self._async_func())
@@ -441,7 +440,7 @@ class _EvalAwaitInNewEventLoop(PyDBDaemonThread):
 
 @_evaluate_with_timeouts
 def evaluate_expression(py_db, frame, expression, is_exec):
-    '''
+    """
     :param str expression:
         The expression to be evaluated.
 
@@ -483,7 +482,7 @@ def evaluate_expression(py_db, frame, expression, is_exec):
     :param py_db:
         The debugger. Only needed if some top-level await is detected (for creating a
         PyDBDaemonThread).
-    '''
+    """
     if frame is None:
         return
 
@@ -523,17 +522,17 @@ def evaluate_expression(py_db, frame, expression, is_exec):
     updated_globals = {}
     updated_globals.update(frame.f_globals)
     updated_globals.update(frame.f_locals)
-    if 'globals' not in updated_globals:
+    if "globals" not in updated_globals:
         # If the user explicitly uses 'globals()' then we provide the
         # frame globals (unless he has shadowed it already).
-        updated_globals['globals'] = lambda: frame.f_globals
+        updated_globals["globals"] = lambda: frame.f_globals
 
     initial_globals = updated_globals.copy()
 
     updated_locals = None
 
     try:
-        expression = expression.replace('@LINE@', '\n')
+        expression = expression.replace("@LINE@", "\n")
 
         if is_exec:
             try:
@@ -573,7 +572,7 @@ def evaluate_expression(py_db, frame, expression, is_exec):
                 else:
                     result = eval(compiled, updated_globals, updated_locals)
                 if result is not None:  # Only print if it's not None (as python does)
-                    sys.stdout.write('%s\n' % (result,))
+                    sys.stdout.write("%s\n" % (result,))
             return
 
         else:
@@ -597,17 +596,16 @@ def evaluate_expression(py_db, frame, expression, is_exec):
 
 
 def change_attr_expression(frame, attr, expression, dbg, value=SENTINEL_VALUE):
-    '''Changes some attribute in a given frame.
-    '''
+    """Changes some attribute in a given frame."""
     if frame is None:
         return
 
     try:
-        expression = expression.replace('@LINE@', '\n')
+        expression = expression.replace("@LINE@", "\n")
 
         if dbg.plugin and value is SENTINEL_VALUE:
             result = dbg.plugin.change_variable(frame, attr, expression)
-            if result:
+            if result is not dbg.plugin.EMPTY_SENTINEL:
                 return result
 
         if attr[:7] == "Globals":
@@ -618,7 +616,7 @@ def change_attr_expression(frame, attr, expression, dbg, value=SENTINEL_VALUE):
                 frame.f_globals[attr] = value
                 return frame.f_globals[attr]
         else:
-            if '.' not in attr:  # i.e.: if we have a '.', we're changing some attribute of a local var.
+            if "." not in attr:  # i.e.: if we have a '.', we're changing some attribute of a local var.
                 if pydevd_save_locals.is_save_locals_available():
                     if value is SENTINEL_VALUE:
                         value = eval(expression, frame.f_globals, frame.f_locals)
@@ -630,7 +628,7 @@ def change_attr_expression(frame, attr, expression, dbg, value=SENTINEL_VALUE):
             if value is SENTINEL_VALUE:
                 value = eval(expression, frame.f_globals, frame.f_locals)
             result = value
-            Exec('%s=%s' % (attr, expression), frame.f_globals, frame.f_locals)
+            Exec("%s=%s" % (attr, expression), frame.f_globals, frame.f_locals)
             return result
 
     except Exception:
@@ -643,15 +641,15 @@ MAX_SLICE_SIZE = 1000
 
 def table_like_struct_to_xml(array, name, roffset, coffset, rows, cols, format):
     _, type_name, _ = get_type(array)
-    if type_name == 'ndarray':
+    if type_name == "ndarray":
         array, metaxml, r, c, f = array_to_meta_xml(array, name, format)
         xml = metaxml
-        format = '%' + f
+        format = "%" + f
         if rows == -1 and cols == -1:
             rows = r
             cols = c
         xml += array_to_xml(array, roffset, coffset, rows, cols, format)
-    elif type_name == 'DataFrame':
+    elif type_name == "DataFrame":
         xml = dataframe_to_xml(array, name, roffset, coffset, rows, cols, format)
     else:
         raise VariableError("Do not know how to convert type %s to table" % (type_name))
@@ -681,9 +679,9 @@ def array_to_xml(array, roffset, coffset, rows, cols, format):
             array = array[roffset:]
             rows = min(rows, len(array))
 
-    xml += "<arraydata rows=\"%s\" cols=\"%s\"/>" % (rows, cols)
+    xml += '<arraydata rows="%s" cols="%s"/>' % (rows, cols)
     for row in range(rows):
-        xml += "<row index=\"%s\"/>" % to_string(row)
+        xml += '<row index="%s"/>' % to_string(row)
         for col in range(cols):
             value = array
             if rows == 1 or cols == 1:
@@ -700,7 +698,7 @@ def array_to_xml(array, roffset, coffset, rows, cols, format):
             else:
                 value = array[row][col]
             value = format % value
-            xml += var_to_xml(value, '')
+            xml += var_to_xml(value, "")
     return xml
 
 
@@ -710,19 +708,19 @@ def array_to_meta_xml(array, name, format):
     l = len(array.shape)
 
     # initial load, compute slice
-    if format == '%':
+    if format == "%":
         if l > 2:
-            slice += '[0]' * (l - 2)
+            slice += "[0]" * (l - 2)
             for r in range(l - 2):
                 array = array[0]
-        if type == 'f':
-            format = '.5f'
-        elif type == 'i' or type == 'u':
-            format = 'd'
+        if type == "f":
+            format = ".5f"
+        elif type == "i" or type == "u":
+            format = "d"
         else:
-            format = 's'
+            format = "s"
     else:
-        format = format.replace('%', '')
+        format = format.replace("%", "")
 
     l = len(array.shape)
     reslice = ""
@@ -733,25 +731,25 @@ def array_to_meta_xml(array, name, format):
         # http://stackoverflow.com/questions/16837946/numpy-a-2-rows-1-column-file-loadtxt-returns-1row-2-columns
         # explanation: http://stackoverflow.com/questions/15165170/how-do-i-maintain-row-column-orientation-of-vectors-in-numpy?rq=1
         # we use kind of a hack - get information about memory from C_CONTIGUOUS
-        is_row = array.flags['C_CONTIGUOUS']
+        is_row = array.flags["C_CONTIGUOUS"]
 
         if is_row:
             rows = 1
             cols = min(len(array), MAX_SLICE_SIZE)
             if cols < len(array):
-                reslice = '[0:%s]' % (cols)
+                reslice = "[0:%s]" % (cols)
             array = array[0:cols]
         else:
             cols = 1
             rows = min(len(array), MAX_SLICE_SIZE)
             if rows < len(array):
-                reslice = '[0:%s]' % (rows)
+                reslice = "[0:%s]" % (rows)
             array = array[0:rows]
     elif l == 2:
         rows = min(array.shape[-2], MAX_SLICE_SIZE)
         cols = min(array.shape[-1], MAX_SLICE_SIZE)
         if cols < array.shape[-1] or rows < array.shape[-2]:
-            reslice = '[0:%s, 0:%s]' % (rows, cols)
+            reslice = "[0:%s, 0:%s]" % (rows, cols)
         array = array[0:rows, 0:cols]
 
     # avoid slice duplication
@@ -761,8 +759,15 @@ def array_to_meta_xml(array, name, format):
     bounds = (0, 0)
     if type in "biufc":
         bounds = (array.min(), array.max())
-    xml = '<array slice=\"%s\" rows=\"%s\" cols=\"%s\" format=\"%s\" type=\"%s\" max=\"%s\" min=\"%s\"/>' % \
-          (slice, rows, cols, format, type, bounds[1], bounds[0])
+    xml = '<array slice="%s" rows="%s" cols="%s" format="%s" type="%s" max="%s" min="%s"/>' % (
+        slice,
+        rows,
+        cols,
+        format,
+        type,
+        bounds[1],
+        bounds[0],
+    )
     return array, xml, rows, cols, format
 
 
@@ -781,13 +786,12 @@ def dataframe_to_xml(df, name, roffset, coffset, rows, cols, format):
     num_rows = min(df.shape[0], MAX_SLICE_SIZE)
     num_cols = min(df.shape[1], MAX_SLICE_SIZE)
     if (num_rows, num_cols) != df.shape:
-        df = df.iloc[0:num_rows, 0: num_cols]
-        slice = '.iloc[0:%s, 0:%s]' % (num_rows, num_cols)
+        df = df.iloc[0:num_rows, 0:num_cols]
+        slice = ".iloc[0:%s, 0:%s]" % (num_rows, num_cols)
     else:
-        slice = ''
+        slice = ""
     slice = name + slice
-    xml = '<array slice=\"%s\" rows=\"%s\" cols=\"%s\" format=\"\" type=\"\" max=\"0\" min=\"0\"/>\n' % \
-          (slice, num_rows, num_cols)
+    xml = '<array slice="%s" rows="%s" cols="%s" format="" type="" max="0" min="0"/>\n' % (slice, num_rows, num_cols)
 
     if (rows, cols) == (-1, -1):
         rows, cols = num_rows, num_cols
@@ -805,39 +809,44 @@ def dataframe_to_xml(df, name, roffset, coffset, rows, cols, format):
             bounds = (0, 0)
         col_bounds[col] = bounds
 
-    df = df.iloc[roffset: roffset + rows, coffset: coffset + cols]
+    df = df.iloc[roffset : roffset + rows, coffset : coffset + cols]
     rows, cols = df.shape
 
-    xml += "<headerdata rows=\"%s\" cols=\"%s\">\n" % (rows, cols)
-    format = format.replace('%', '')
+    xml += '<headerdata rows="%s" cols="%s">\n' % (rows, cols)
+    format = format.replace("%", "")
     col_formats = []
 
-    get_label = lambda label: str(label) if not isinstance(label, tuple) else '/'.join(map(str, label))
+    get_label = lambda label: str(label) if not isinstance(label, tuple) else "/".join(map(str, label))
 
     for col in range(cols):
         dtype = df.dtypes.iloc[col].kind
-        if dtype == 'f' and format:
+        if dtype == "f" and format:
             fmt = format
-        elif dtype == 'f':
-            fmt = '.5f'
-        elif dtype == 'i' or dtype == 'u':
-            fmt = 'd'
+        elif dtype == "f":
+            fmt = ".5f"
+        elif dtype == "i" or dtype == "u":
+            fmt = "d"
         else:
-            fmt = 's'
-        col_formats.append('%' + fmt)
+            fmt = "s"
+        col_formats.append("%" + fmt)
         bounds = col_bounds[col]
 
-        xml += '<colheader index=\"%s\" label=\"%s\" type=\"%s\" format=\"%s\" max=\"%s\" min=\"%s\" />\n' % \
-               (str(col), get_label(df.axes[1].values[col]), dtype, fmt, bounds[1], bounds[0])
+        xml += '<colheader index="%s" label="%s" type="%s" format="%s" max="%s" min="%s" />\n' % (
+            str(col),
+            get_label(df.axes[1].values[col]),
+            dtype,
+            fmt,
+            bounds[1],
+            bounds[0],
+        )
     for row, label in enumerate(iter(df.axes[0])):
-        xml += "<rowheader index=\"%s\" label = \"%s\"/>\n" % \
-               (str(row), get_label(label))
+        xml += '<rowheader index="%s" label = "%s"/>\n' % (str(row), get_label(label))
     xml += "</headerdata>\n"
-    xml += "<arraydata rows=\"%s\" cols=\"%s\"/>\n" % (rows, cols)
+    xml += '<arraydata rows="%s" cols="%s"/>\n' % (rows, cols)
     for row in range(rows):
-        xml += "<row index=\"%s\"/>\n" % str(row)
+        xml += '<row index="%s"/>\n' % str(row)
         for col in range(cols):
             value = df.iat[row, col]
             value = col_formats[col] % value
-            xml += var_to_xml(value, '')
+            xml += var_to_xml(value, "")
     return xml

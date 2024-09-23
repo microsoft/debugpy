@@ -5,17 +5,44 @@ import types
 from _pydev_bundle._pydev_saved_modules import threading
 from _pydevd_bundle import pydevd_utils, pydevd_source_mapping
 from _pydevd_bundle.pydevd_additional_thread_info import set_additional_thread_info
-from _pydevd_bundle.pydevd_comm import (InternalGetThreadStack, internal_get_completions,
-    InternalSetNextStatementThread, internal_reload_code,
-    InternalGetVariable, InternalGetArray, InternalLoadFullValue,
-    internal_get_description, internal_get_frame, internal_evaluate_expression, InternalConsoleExec,
-    internal_get_variable_json, internal_change_variable, internal_change_variable_json,
-    internal_evaluate_expression_json, internal_set_expression_json, internal_get_exception_details_json,
-    internal_step_in_thread, internal_smart_step_into)
-from _pydevd_bundle.pydevd_comm_constants import (CMD_THREAD_SUSPEND, file_system_encoding,
-    CMD_STEP_INTO_MY_CODE, CMD_STOP_ON_START, CMD_SMART_STEP_INTO)
-from _pydevd_bundle.pydevd_constants import (get_current_thread_id, set_protocol, get_protocol,
-    HTTP_JSON_PROTOCOL, JSON_PROTOCOL, DebugInfoHolder, IS_WINDOWS)
+from _pydevd_bundle.pydevd_comm import (
+    InternalGetThreadStack,
+    internal_get_completions,
+    InternalSetNextStatementThread,
+    internal_reload_code,
+    InternalGetVariable,
+    InternalGetArray,
+    InternalLoadFullValue,
+    internal_get_description,
+    internal_get_frame,
+    internal_evaluate_expression,
+    InternalConsoleExec,
+    internal_get_variable_json,
+    internal_change_variable,
+    internal_change_variable_json,
+    internal_evaluate_expression_json,
+    internal_set_expression_json,
+    internal_get_exception_details_json,
+    internal_step_in_thread,
+    internal_smart_step_into,
+)
+from _pydevd_bundle.pydevd_comm_constants import (
+    CMD_THREAD_SUSPEND,
+    file_system_encoding,
+    CMD_STEP_INTO_MY_CODE,
+    CMD_STOP_ON_START,
+    CMD_SMART_STEP_INTO,
+)
+from _pydevd_bundle.pydevd_constants import (
+    get_current_thread_id,
+    set_protocol,
+    get_protocol,
+    HTTP_JSON_PROTOCOL,
+    JSON_PROTOCOL,
+    DebugInfoHolder,
+    IS_WINDOWS,
+    PYDEVD_USE_SYS_MONITORING,
+)
 from _pydevd_bundle.pydevd_net_command_factory_json import NetCommandFactoryJson
 from _pydevd_bundle.pydevd_net_command_factory_xml import NetCommandFactory
 import pydevd_file_utils
@@ -32,6 +59,7 @@ from _pydevd_bundle.pydevd_utils import DAPGrouper, interrupt_main_thread
 from _pydevd_bundle.pydevd_daemon_thread import run_as_pydevd_daemon_thread
 from _pydevd_bundle.pydevd_thread_lifecycle import pydevd_find_thread_by_id, resume_threads
 import tokenize
+from _pydevd_sys_monitoring import pydevd_sys_monitoring
 
 try:
     import dis
@@ -47,7 +75,7 @@ else:
             path = code
             with tokenize.open(path) as f:
                 src = f.read()
-            code = compile(src, path, 'exec', 0, dont_inherit=True)
+            code = compile(src, path, "exec", 0, dont_inherit=True)
             return _get_code_lines(code)
 
         def iterate():
@@ -68,10 +96,8 @@ else:
 
 
 class PyDevdAPI(object):
-
     class VariablePresentation(object):
-
-        def __init__(self, special='group', function='group', class_='group', protected='inline'):
+        def __init__(self, special="group", function="group", class_="group", protected="inline"):
             self._presentation = {
                 DAPGrouper.SCOPE_SPECIAL_VARS: special,
                 DAPGrouper.SCOPE_FUNCTION_VARS: function,
@@ -107,11 +133,11 @@ class PyDevdAPI(object):
         return py_db.cmd_factory.make_protocol_set_message(seq)
 
     def set_ide_os_and_breakpoints_by(self, py_db, seq, ide_os, breakpoints_by):
-        '''
+        """
         :param ide_os: 'WINDOWS' or 'UNIX'
         :param breakpoints_by: 'ID' or 'LINE'
-        '''
-        if breakpoints_by == 'ID':
+        """
+        if breakpoints_by == "ID":
             py_db._set_breakpoints_with_id = True
         else:
             py_db._set_breakpoints_with_id = False
@@ -121,16 +147,16 @@ class PyDevdAPI(object):
         return py_db.cmd_factory.make_version_message(seq)
 
     def set_ide_os(self, ide_os):
-        '''
+        """
         :param ide_os: 'WINDOWS' or 'UNIX'
-        '''
+        """
         pydevd_file_utils.set_ide_os(ide_os)
 
     def set_gui_event_loop(self, py_db, gui_event_loop):
         py_db._gui_event_loop = gui_event_loop
 
     def send_error_message(self, py_db, msg):
-        cmd = py_db.cmd_factory.make_warning_message('pydevd: %s\n' % (msg,))
+        cmd = py_db.cmd_factory.make_warning_message("pydevd: %s\n" % (msg,))
         py_db.writer.add_command(cmd)
 
     def set_show_return_values(self, py_db, show_return_values):
@@ -147,14 +173,14 @@ class PyDevdAPI(object):
         # Response is the command with the list of threads to be added to the writer thread.
         return py_db.cmd_factory.make_list_threads_message(py_db, seq)
 
-    def request_suspend_thread(self, py_db, thread_id='*'):
+    def request_suspend_thread(self, py_db, thread_id="*"):
         # Yes, thread suspend is done at this point, not through an internal command.
         threads = []
-        suspend_all = thread_id.strip() == '*'
+        suspend_all = thread_id.strip() == "*"
         if suspend_all:
             threads = pydevd_utils.get_non_pydevd_threads()
 
-        elif thread_id.startswith('__frame__:'):
+        elif thread_id.startswith("__frame__:"):
             sys.stderr.write("Can't suspend tasklet: %s\n" % (thread_id,))
 
         else:
@@ -174,40 +200,42 @@ class PyDevdAPI(object):
             break
 
     def set_enable_thread_notifications(self, py_db, enable):
-        '''
+        """
         When disabled, no thread notifications (for creation/removal) will be
         issued until it's re-enabled.
 
         Note that when it's re-enabled, a creation notification will be sent for
         all existing threads even if it was previously sent (this is meant to
         be used on disconnect/reconnect).
-        '''
+        """
         py_db.set_enable_thread_notifications(enable)
 
     def request_disconnect(self, py_db, resume_threads):
         self.set_enable_thread_notifications(py_db, False)
-        self.remove_all_breakpoints(py_db, '*')
+        self.remove_all_breakpoints(py_db, "*")
         self.remove_all_exception_breakpoints(py_db)
         self.notify_disconnect(py_db)
 
         if resume_threads:
-            self.request_resume_thread(thread_id='*')
+            self.request_resume_thread(thread_id="*")
 
     def request_resume_thread(self, thread_id):
         resume_threads(thread_id)
 
     def request_completions(self, py_db, seq, thread_id, frame_id, act_tok, line=-1, column=-1):
         py_db.post_method_as_internal_command(
-            thread_id, internal_get_completions, seq, thread_id, frame_id, act_tok, line=line, column=column)
+            thread_id, internal_get_completions, seq, thread_id, frame_id, act_tok, line=line, column=column
+        )
 
-    def request_stack(self, py_db, seq, thread_id, fmt=None, timeout=.5, start_frame=0, levels=0):
+    def request_stack(self, py_db, seq, thread_id, fmt=None, timeout=0.5, start_frame=0, levels=0):
         # If it's already suspended, get it right away.
         internal_get_thread_stack = InternalGetThreadStack(
-            seq, thread_id, py_db, set_additional_thread_info, fmt=fmt, timeout=timeout, start_frame=start_frame, levels=levels)
+            seq, thread_id, py_db, set_additional_thread_info, fmt=fmt, timeout=timeout, start_frame=start_frame, levels=levels
+        )
         if internal_get_thread_stack.can_be_executed_by(get_current_thread_id(threading.current_thread())):
             internal_get_thread_stack.do_it(py_db)
         else:
-            py_db.post_internal_command(internal_get_thread_stack, '*')
+            py_db.post_internal_command(internal_get_thread_stack, "*")
 
     def request_exception_info_json(self, py_db, request, thread_id, thread, max_frames):
         py_db.post_method_as_internal_command(
@@ -231,15 +259,16 @@ class PyDevdAPI(object):
                 step_cmd_id,
                 set_additional_thread_info=set_additional_thread_info,
             )
-        elif thread_id.startswith('__frame__:'):
+        elif thread_id.startswith("__frame__:"):
             sys.stderr.write("Can't make tasklet step command: %s\n" % (thread_id,))
 
     def request_smart_step_into(self, py_db, seq, thread_id, offset, child_offset):
         t = pydevd_find_thread_by_id(thread_id)
         if t:
             py_db.post_method_as_internal_command(
-                thread_id, internal_smart_step_into, thread_id, offset, child_offset, set_additional_thread_info=set_additional_thread_info)
-        elif thread_id.startswith('__frame__:'):
+                thread_id, internal_smart_step_into, thread_id, offset, child_offset, set_additional_thread_info=set_additional_thread_info
+            )
+        elif thread_id.startswith("__frame__:"):
             sys.stderr.write("Can't set next statement in tasklet: %s\n" % (thread_id,))
 
     def request_smart_step_into_by_func_name(self, py_db, seq, thread_id, line, func_name):
@@ -247,7 +276,7 @@ class PyDevdAPI(object):
         self.request_set_next(py_db, seq, thread_id, CMD_SMART_STEP_INTO, None, line, func_name)
 
     def request_set_next(self, py_db, seq, thread_id, set_next_cmd_id, original_filename, line, func_name):
-        '''
+        """
         set_next_cmd_id may actually be one of:
 
         CMD_RUN_TO_LINE
@@ -261,52 +290,49 @@ class PyDevdAPI(object):
             place (the set next just needs the line afterwards as it executes locally, but for
             the Jupyter integration, the source mapping may change the actual lines and not only
             the filename).
-        '''
+        """
         t = pydevd_find_thread_by_id(thread_id)
         if t:
             if original_filename is not None:
                 translated_filename = self.filename_to_server(original_filename)  # Apply user path mapping.
-                pydev_log.debug('Set next (after path translation) in: %s line: %s', translated_filename, line)
+                pydev_log.debug("Set next (after path translation) in: %s line: %s", translated_filename, line)
                 func_name = self.to_str(func_name)
 
                 assert translated_filename.__class__ == str  # i.e.: bytes on py2 and str on py3
                 assert func_name.__class__ == str  # i.e.: bytes on py2 and str on py3
 
                 # Apply source mapping (i.e.: ipython).
-                _source_mapped_filename, new_line, multi_mapping_applied = py_db.source_mapping.map_to_server(
-                    translated_filename, line)
+                _source_mapped_filename, new_line, multi_mapping_applied = py_db.source_mapping.map_to_server(translated_filename, line)
                 if multi_mapping_applied:
-                    pydev_log.debug('Set next (after source mapping) in: %s line: %s', translated_filename, line)
+                    pydev_log.debug("Set next (after source mapping) in: %s line: %s", translated_filename, line)
                     line = new_line
 
             int_cmd = InternalSetNextStatementThread(thread_id, set_next_cmd_id, line, func_name, seq=seq)
             py_db.post_internal_command(int_cmd, thread_id)
-        elif thread_id.startswith('__frame__:'):
+        elif thread_id.startswith("__frame__:"):
             sys.stderr.write("Can't set next statement in tasklet: %s\n" % (thread_id,))
 
     def request_reload_code(self, py_db, seq, module_name, filename):
-        '''
+        """
         :param seq: if -1 no message will be sent back when the reload is done.
 
         Note: either module_name or filename may be None (but not both at the same time).
-        '''
-        thread_id = '*'  # Any thread
+        """
+        thread_id = "*"  # Any thread
         # Note: not going for the main thread because in this case it'd only do the load
         # when we stopped on a breakpoint.
-        py_db.post_method_as_internal_command(
-            thread_id, internal_reload_code, seq, module_name, filename)
+        py_db.post_method_as_internal_command(thread_id, internal_reload_code, seq, module_name, filename)
 
     def request_change_variable(self, py_db, seq, thread_id, frame_id, scope, attr, value):
-        '''
+        """
         :param scope: 'FRAME' or 'GLOBAL'
-        '''
-        py_db.post_method_as_internal_command(
-            thread_id, internal_change_variable, seq, thread_id, frame_id, scope, attr, value)
+        """
+        py_db.post_method_as_internal_command(thread_id, internal_change_variable, seq, thread_id, frame_id, scope, attr, value)
 
     def request_get_variable(self, py_db, seq, thread_id, frame_id, scope, attrs):
-        '''
+        """
         :param scope: 'FRAME' or 'GLOBAL'
-        '''
+        """
         int_cmd = InternalGetVariable(seq, thread_id, frame_id, scope, attrs)
         py_db.post_internal_command(int_cmd, thread_id)
 
@@ -319,27 +345,25 @@ class PyDevdAPI(object):
         py_db.post_internal_command(int_cmd, thread_id)
 
     def request_get_description(self, py_db, seq, thread_id, frame_id, expression):
-        py_db.post_method_as_internal_command(
-            thread_id, internal_get_description, seq, thread_id, frame_id, expression)
+        py_db.post_method_as_internal_command(thread_id, internal_get_description, seq, thread_id, frame_id, expression)
 
     def request_get_frame(self, py_db, seq, thread_id, frame_id):
-        py_db.post_method_as_internal_command(
-            thread_id, internal_get_frame, seq, thread_id, frame_id)
+        py_db.post_method_as_internal_command(thread_id, internal_get_frame, seq, thread_id, frame_id)
 
     def to_str(self, s):
-        '''
+        """
         -- in py3 raises an error if it's not str already.
-        '''
+        """
         if s.__class__ != str:
-            raise AssertionError('Expected to have str on Python 3. Found: %s (%s)' % (s, s.__class__))
+            raise AssertionError("Expected to have str on Python 3. Found: %s (%s)" % (s, s.__class__))
         return s
 
     def filename_to_str(self, filename):
-        '''
+        """
         -- in py3 raises an error if it's not str already.
-        '''
+        """
         if filename.__class__ != str:
-            raise AssertionError('Expected to have str on Python 3. Found: %s (%s)' % (filename, filename.__class__))
+            raise AssertionError("Expected to have str on Python 3. Found: %s (%s)" % (filename, filename.__class__))
         return filename
 
     def filename_to_server(self, filename):
@@ -348,17 +372,16 @@ class PyDevdAPI(object):
         return filename
 
     class _DummyFrame(object):
-        '''
+        """
         Dummy frame to be used with PyDB.apply_files_filter (as we don't really have the
         related frame as breakpoints are added before execution).
-        '''
+        """
 
         class _DummyCode(object):
-
             def __init__(self, filename):
                 self.co_firstlineno = 1
                 self.co_filename = filename
-                self.co_name = 'invalid func name '
+                self.co_name = "invalid func name "
 
         def __init__(self, filename):
             self.f_code = self._DummyCode(filename)
@@ -374,14 +397,13 @@ class PyDevdAPI(object):
     ADD_BREAKPOINT_INVALID_LINE = 4
 
     class _AddBreakpointResult(object):
-
         # :see: ADD_BREAKPOINT_NO_ERROR = 0
         # :see: ADD_BREAKPOINT_FILE_NOT_FOUND = 1
         # :see: ADD_BREAKPOINT_FILE_EXCLUDED_BY_FILTERS = 2
         # :see: ADD_BREAKPOINT_LAZY_VALIDATION = 3
         # :see: ADD_BREAKPOINT_INVALID_LINE = 4
 
-        __slots__ = ['error_code', 'breakpoint_id', 'translated_filename', 'translated_line', 'original_line']
+        __slots__ = ["error_code", "breakpoint_id", "translated_filename", "translated_line", "original_line"]
 
         def __init__(self, breakpoint_id, translated_filename, translated_line, original_line):
             self.error_code = PyDevdAPI.ADD_BREAKPOINT_NO_ERROR
@@ -391,9 +413,22 @@ class PyDevdAPI(object):
             self.original_line = original_line
 
     def add_breakpoint(
-            self, py_db, original_filename, breakpoint_type, breakpoint_id, line, condition, func_name,
-            expression, suspend_policy, hit_condition, is_logpoint, adjust_line=False, on_changed_breakpoint_state=None):
-        '''
+        self,
+        py_db,
+        original_filename,
+        breakpoint_type,
+        breakpoint_id,
+        line,
+        condition,
+        func_name,
+        expression,
+        suspend_policy,
+        hit_condition,
+        is_logpoint,
+        adjust_line=False,
+        on_changed_breakpoint_state=None,
+    ):
+        """
         :param str original_filename:
             Note: must be sent as it was received in the protocol. It may be translated in this
             function and its final value will be available in the returned _AddBreakpointResult.
@@ -446,30 +481,41 @@ class PyDevdAPI(object):
                 implementation may internally reuse the same instance multiple times).
 
         :return _AddBreakpointResult:
-        '''
-        assert original_filename.__class__ == str, 'Expected str, found: %s' % (original_filename.__class__,)  # i.e.: bytes on py2 and str on py3
+        """
+        assert original_filename.__class__ == str, "Expected str, found: %s" % (
+            original_filename.__class__,
+        )  # i.e.: bytes on py2 and str on py3
 
         original_filename_normalized = pydevd_file_utils.normcase_from_client(original_filename)
 
-        pydev_log.debug('Request for breakpoint in: %s line: %s', original_filename, line)
+        pydev_log.debug("Request for breakpoint in: %s line: %s", original_filename, line)
         original_line = line
         # Parameters to reapply breakpoint.
-        api_add_breakpoint_params = (original_filename, breakpoint_type, breakpoint_id, line, condition, func_name,
-            expression, suspend_policy, hit_condition, is_logpoint)
+        api_add_breakpoint_params = (
+            original_filename,
+            breakpoint_type,
+            breakpoint_id,
+            line,
+            condition,
+            func_name,
+            expression,
+            suspend_policy,
+            hit_condition,
+            is_logpoint,
+        )
 
         translated_filename = self.filename_to_server(original_filename)  # Apply user path mapping.
-        pydev_log.debug('Breakpoint (after path translation) in: %s line: %s', translated_filename, line)
+        pydev_log.debug("Breakpoint (after path translation) in: %s line: %s", translated_filename, line)
         func_name = self.to_str(func_name)
 
         assert translated_filename.__class__ == str  # i.e.: bytes on py2 and str on py3
         assert func_name.__class__ == str  # i.e.: bytes on py2 and str on py3
 
         # Apply source mapping (i.e.: ipython).
-        source_mapped_filename, new_line, multi_mapping_applied = py_db.source_mapping.map_to_server(
-            translated_filename, line)
+        source_mapped_filename, new_line, multi_mapping_applied = py_db.source_mapping.map_to_server(translated_filename, line)
 
         if multi_mapping_applied:
-            pydev_log.debug('Breakpoint (after source mapping) in: %s line: %s', source_mapped_filename, new_line)
+            pydev_log.debug("Breakpoint (after source mapping) in: %s line: %s", source_mapped_filename, new_line)
             # Note that source mapping is internal and does not change the resulting filename nor line
             # (we want the outside world to see the line in the original file and not in the ipython
             # cell, otherwise the editor wouldn't be correct as the returned line is the line to
@@ -485,7 +531,7 @@ class PyDevdAPI(object):
             translated_absolute_filename = pydevd_file_utils.absolute_path(translated_filename)
             canonical_normalized_filename = pydevd_file_utils.canonical_normalized_path(translated_filename)
 
-            if adjust_line and not translated_absolute_filename.startswith('<'):
+            if adjust_line and not translated_absolute_filename.startswith("<"):
                 # Validate file_to_line_to_breakpoints and adjust their positions.
                 try:
                     lines = sorted(_get_code_lines(translated_absolute_filename))
@@ -500,9 +546,12 @@ class PyDevdAPI(object):
 
             result = self._AddBreakpointResult(breakpoint_id, original_filename, line, original_line)
 
-        py_db.api_received_breakpoints[(original_filename_normalized, breakpoint_id)] = (canonical_normalized_filename, api_add_breakpoint_params)
+        py_db.api_received_breakpoints[(original_filename_normalized, breakpoint_id)] = (
+            canonical_normalized_filename,
+            api_add_breakpoint_params,
+        )
 
-        if not translated_absolute_filename.startswith('<'):
+        if not translated_absolute_filename.startswith("<"):
             # Note: if a mapping pointed to a file starting with '<', don't validate.
 
             if not pydevd_file_utils.exists(translated_absolute_filename):
@@ -510,10 +559,10 @@ class PyDevdAPI(object):
                 return result
 
             if (
-                    py_db.is_files_filter_enabled and
-                    not py_db.get_require_module_for_filters() and
-                    py_db.apply_files_filter(self._DummyFrame(translated_absolute_filename), translated_absolute_filename, False)
-                ):
+                py_db.is_files_filter_enabled
+                and not py_db.get_require_module_for_filters()
+                and py_db.apply_files_filter(self._DummyFrame(translated_absolute_filename), translated_absolute_filename, False)
+            ):
                 # Note that if `get_require_module_for_filters()` returns False, we don't do this check.
                 # This is because we don't have the module name given a file at this point (in
                 # runtime it's gotten from the frame.f_globals).
@@ -525,9 +574,10 @@ class PyDevdAPI(object):
                 # breakpoint even with the error code.
                 result.error_code = self.ADD_BREAKPOINT_FILE_EXCLUDED_BY_FILTERS
 
-        if breakpoint_type == 'python-line':
+        if breakpoint_type == "python-line":
             added_breakpoint = LineBreakpoint(
-                breakpoint_id, line, condition, func_name, expression, suspend_policy, hit_condition=hit_condition, is_logpoint=is_logpoint)
+                breakpoint_id, line, condition, func_name, expression, suspend_policy, hit_condition=hit_condition, is_logpoint=is_logpoint
+            )
 
             file_to_line_to_breakpoints = py_db.breakpoints
             file_to_id_to_breakpoint = py_db.file_to_id_to_line_breakpoint
@@ -538,9 +588,20 @@ class PyDevdAPI(object):
             plugin = py_db.get_plugin_lazy_init()
             if plugin is not None:
                 add_plugin_breakpoint_result = plugin.add_breakpoint(
-                    'add_line_breakpoint', py_db, breakpoint_type, canonical_normalized_filename,
-                    breakpoint_id, line, condition, expression, func_name, hit_condition=hit_condition, is_logpoint=is_logpoint,
-                    add_breakpoint_result=result, on_changed_breakpoint_state=on_changed_breakpoint_state)
+                    "add_line_breakpoint",
+                    py_db,
+                    breakpoint_type,
+                    canonical_normalized_filename,
+                    breakpoint_id,
+                    line,
+                    condition,
+                    expression,
+                    func_name,
+                    hit_condition=hit_condition,
+                    is_logpoint=is_logpoint,
+                    add_breakpoint_result=result,
+                    on_changed_breakpoint_state=on_changed_breakpoint_state,
+                )
 
             if add_plugin_breakpoint_result is not None:
                 supported_type = True
@@ -552,7 +613,7 @@ class PyDevdAPI(object):
         if not supported_type:
             raise NameError(breakpoint_type)
 
-        pydev_log.debug('Added breakpoint:%s - line:%s - func_name:%s\n', canonical_normalized_filename, line, func_name)
+        pydev_log.debug("Added breakpoint:%s - line:%s - func_name:%s\n", canonical_normalized_filename, line, func_name)
 
         if canonical_normalized_filename in file_to_id_to_breakpoint:
             id_to_pybreakpoint = file_to_id_to_breakpoint[canonical_normalized_filename]
@@ -562,46 +623,44 @@ class PyDevdAPI(object):
         id_to_pybreakpoint[breakpoint_id] = added_breakpoint
         py_db.consolidate_breakpoints(canonical_normalized_filename, id_to_pybreakpoint, file_to_line_to_breakpoints)
         if py_db.plugin is not None:
-            py_db.has_plugin_line_breaks = py_db.plugin.has_line_breaks()
-            py_db.plugin.after_breakpoints_consolidated(py_db, canonical_normalized_filename, id_to_pybreakpoint, file_to_line_to_breakpoints)
+            py_db.has_plugin_line_breaks = py_db.plugin.has_line_breaks(py_db)
+            py_db.plugin.after_breakpoints_consolidated(
+                py_db, canonical_normalized_filename, id_to_pybreakpoint, file_to_line_to_breakpoints
+            )
 
         py_db.on_breakpoints_changed()
         return result
 
     def reapply_breakpoints(self, py_db):
-        '''
+        """
         Reapplies all the received breakpoints as they were received by the API (so, new
         translations are applied).
-        '''
-        pydev_log.debug('Reapplying breakpoints.')
+        """
+        pydev_log.debug("Reapplying breakpoints.")
         values = list(py_db.api_received_breakpoints.values())  # Create a copy with items to reapply.
-        self.remove_all_breakpoints(py_db, '*')
+        self.remove_all_breakpoints(py_db, "*")
         for val in values:
             _new_filename, api_add_breakpoint_params = val
             self.add_breakpoint(py_db, *api_add_breakpoint_params)
 
     def remove_all_breakpoints(self, py_db, received_filename):
-        '''
+        """
         Removes all the breakpoints from a given file or from all files if received_filename == '*'.
 
         :param str received_filename:
             Note: must be sent as it was received in the protocol. It may be translated in this
             function.
-        '''
+        """
         assert received_filename.__class__ == str  # i.e.: bytes on py2 and str on py3
         changed = False
-        lst = [
-            py_db.file_to_id_to_line_breakpoint,
-            py_db.file_to_id_to_plugin_breakpoint,
-            py_db.breakpoints
-        ]
-        if hasattr(py_db, 'django_breakpoints'):
+        lst = [py_db.file_to_id_to_line_breakpoint, py_db.file_to_id_to_plugin_breakpoint, py_db.breakpoints]
+        if hasattr(py_db, "django_breakpoints"):
             lst.append(py_db.django_breakpoints)
 
-        if hasattr(py_db, 'jinja2_breakpoints'):
+        if hasattr(py_db, "jinja2_breakpoints"):
             lst.append(py_db.jinja2_breakpoints)
 
-        if received_filename == '*':
+        if received_filename == "*":
             py_db.api_received_breakpoints.clear()
 
             for file_to_id_to_breakpoint in lst:
@@ -631,7 +690,7 @@ class PyDevdAPI(object):
             py_db.on_breakpoints_changed(removed=True)
 
     def remove_breakpoint(self, py_db, received_filename, breakpoint_type, breakpoint_id):
-        '''
+        """
         :param str received_filename:
             Note: must be sent as it was received in the protocol. It may be translated in this
             function.
@@ -640,7 +699,7 @@ class PyDevdAPI(object):
             One of: 'python-line', 'django-line', 'jinja2-line'.
 
         :param int breakpoint_id:
-        '''
+        """
         received_filename_normalized = pydevd_file_utils.normcase_from_client(received_filename)
         for key, val in list(py_db.api_received_breakpoints.items()):
             original_filename_normalized, existing_breakpoint_id = key
@@ -649,14 +708,13 @@ class PyDevdAPI(object):
                 del py_db.api_received_breakpoints[key]
                 break
         else:
-            pydev_log.info(
-                'Did not find breakpoint to remove: %s (breakpoint id: %s)', received_filename, breakpoint_id)
+            pydev_log.info("Did not find breakpoint to remove: %s (breakpoint id: %s)", received_filename, breakpoint_id)
 
         file_to_id_to_breakpoint = None
         received_filename = self.filename_to_server(received_filename)
         canonical_normalized_filename = pydevd_file_utils.canonical_normalized_path(received_filename)
 
-        if breakpoint_type == 'python-line':
+        if breakpoint_type == "python-line":
             file_to_line_to_breakpoints = py_db.breakpoints
             file_to_id_to_breakpoint = py_db.file_to_id_to_line_breakpoint
 
@@ -667,25 +725,33 @@ class PyDevdAPI(object):
                 file_to_line_to_breakpoints = result
 
         if file_to_id_to_breakpoint is None:
-            pydev_log.critical('Error removing breakpoint. Cannot handle breakpoint of type %s', breakpoint_type)
+            pydev_log.critical("Error removing breakpoint. Cannot handle breakpoint of type %s", breakpoint_type)
 
         else:
             try:
                 id_to_pybreakpoint = file_to_id_to_breakpoint.get(canonical_normalized_filename, {})
                 if DebugInfoHolder.DEBUG_TRACE_LEVEL >= 1:
                     existing = id_to_pybreakpoint[breakpoint_id]
-                    pydev_log.info('Removed breakpoint:%s - line:%s - func_name:%s (id: %s)\n' % (
-                        canonical_normalized_filename, existing.line, existing.func_name, breakpoint_id))
+                    pydev_log.info(
+                        "Removed breakpoint:%s - line:%s - func_name:%s (id: %s)\n"
+                        % (canonical_normalized_filename, existing.line, existing.func_name, breakpoint_id)
+                    )
 
                 del id_to_pybreakpoint[breakpoint_id]
                 py_db.consolidate_breakpoints(canonical_normalized_filename, id_to_pybreakpoint, file_to_line_to_breakpoints)
                 if py_db.plugin is not None:
-                    py_db.has_plugin_line_breaks = py_db.plugin.has_line_breaks()
-                    py_db.plugin.after_breakpoints_consolidated(py_db, canonical_normalized_filename, id_to_pybreakpoint, file_to_line_to_breakpoints)
+                    py_db.has_plugin_line_breaks = py_db.plugin.has_line_breaks(py_db)
+                    py_db.plugin.after_breakpoints_consolidated(
+                        py_db, canonical_normalized_filename, id_to_pybreakpoint, file_to_line_to_breakpoints
+                    )
 
             except KeyError:
-                pydev_log.info("Error removing breakpoint: Breakpoint id not found: %s id: %s. Available ids: %s\n",
-                    canonical_normalized_filename, breakpoint_id, list(id_to_pybreakpoint))
+                pydev_log.info(
+                    "Error removing breakpoint: Breakpoint id not found: %s id: %s. Available ids: %s\n",
+                    canonical_normalized_filename,
+                    breakpoint_id,
+                    list(id_to_pybreakpoint),
+                )
 
         py_db.on_breakpoints_changed(removed=True)
 
@@ -697,31 +763,27 @@ class PyDevdAPI(object):
         py_db.function_breakpoint_name_to_breakpoint = function_breakpoint_name_to_breakpoint
         py_db.on_breakpoints_changed()
 
-    def request_exec_or_evaluate(
-            self, py_db, seq, thread_id, frame_id, expression, is_exec, trim_if_too_big, attr_to_set_result):
+    def request_exec_or_evaluate(self, py_db, seq, thread_id, frame_id, expression, is_exec, trim_if_too_big, attr_to_set_result):
         py_db.post_method_as_internal_command(
-            thread_id, internal_evaluate_expression,
-            seq, thread_id, frame_id, expression, is_exec, trim_if_too_big, attr_to_set_result)
+            thread_id, internal_evaluate_expression, seq, thread_id, frame_id, expression, is_exec, trim_if_too_big, attr_to_set_result
+        )
 
-    def request_exec_or_evaluate_json(
-            self, py_db, request, thread_id):
-        py_db.post_method_as_internal_command(
-            thread_id, internal_evaluate_expression_json, request, thread_id)
+    def request_exec_or_evaluate_json(self, py_db, request, thread_id):
+        py_db.post_method_as_internal_command(thread_id, internal_evaluate_expression_json, request, thread_id)
 
     def request_set_expression_json(self, py_db, request, thread_id):
-        py_db.post_method_as_internal_command(
-            thread_id, internal_set_expression_json, request, thread_id)
+        py_db.post_method_as_internal_command(thread_id, internal_set_expression_json, request, thread_id)
 
     def request_console_exec(self, py_db, seq, thread_id, frame_id, expression):
         int_cmd = InternalConsoleExec(seq, thread_id, frame_id, expression)
         py_db.post_internal_command(int_cmd, thread_id)
 
     def request_load_source(self, py_db, seq, filename):
-        '''
+        """
         :param str filename:
             Note: must be sent as it was received in the protocol. It may be translated in this
             function.
-        '''
+        """
         try:
             filename = self.filename_to_server(filename)
             assert filename.__class__ == str  # i.e.: bytes on py2 and str on py3
@@ -735,13 +797,13 @@ class PyDevdAPI(object):
         py_db.writer.add_command(cmd)
 
     def get_decompiled_source_from_frame_id(self, py_db, frame_id):
-        '''
+        """
         :param py_db:
         :param frame_id:
         :throws Exception:
             If unable to get the frame in the currently paused frames or if some error happened
             when decompiling.
-        '''
+        """
         variable = py_db.suspended_frames_manager.get_variable(int(frame_id))
         frame = variable.value
 
@@ -749,7 +811,7 @@ class PyDevdAPI(object):
         lines = (linecache.getline(frame.f_code.co_filename, i) for i in itertools.count(1))
         lines = itertools.takewhile(bool, lines)  # empty lines are '\n', EOF is ''
 
-        source = ''.join(lines)
+        source = "".join(lines)
         if not source:
             source = code_to_bytecode_representation(frame.f_code)
 
@@ -765,17 +827,17 @@ class PyDevdAPI(object):
         py_db.writer.add_command(cmd)
 
     def add_python_exception_breakpoint(
-            self,
-            py_db,
-            exception,
-            condition,
-            expression,
-            notify_on_handled_exceptions,
-            notify_on_unhandled_exceptions,
-            notify_on_user_unhandled_exceptions,
-            notify_on_first_raise_only,
-            ignore_libraries,
-        ):
+        self,
+        py_db,
+        exception,
+        condition,
+        expression,
+        notify_on_handled_exceptions,
+        notify_on_unhandled_exceptions,
+        notify_on_user_unhandled_exceptions,
+        notify_on_first_raise_only,
+        ignore_libraries,
+    ):
         exception_breakpoint = py_db.add_break_on_exception(
             exception,
             condition=condition,
@@ -794,10 +856,10 @@ class PyDevdAPI(object):
         supported_type = False
         plugin = py_db.get_plugin_lazy_init()
         if plugin is not None:
-            supported_type = plugin.add_breakpoint('add_exception_breakpoint', py_db, breakpoint_type, exception)
+            supported_type = plugin.add_breakpoint("add_exception_breakpoint", py_db, breakpoint_type, exception)
 
         if supported_type:
-            py_db.has_plugin_exception_breaks = py_db.plugin.has_exception_breaks()
+            py_db.has_plugin_exception_breaks = py_db.plugin.has_exception_breaks(py_db)
             py_db.on_breakpoints_changed()
         else:
             raise NameError(breakpoint_type)
@@ -830,9 +892,9 @@ class PyDevdAPI(object):
         supported_type = plugin.remove_exception_breakpoint(py_db, exception_type, exception)
 
         if supported_type:
-            py_db.has_plugin_exception_breaks = py_db.plugin.has_exception_breaks()
+            py_db.has_plugin_exception_breaks = py_db.plugin.has_exception_breaks(py_db)
         else:
-            pydev_log.info('No exception of type: %s was previously registered.', exception_type)
+            pydev_log.info("No exception of type: %s was previously registered.", exception_type)
 
         py_db.on_breakpoints_changed(removed=True)
 
@@ -847,9 +909,9 @@ class PyDevdAPI(object):
         py_db.on_breakpoints_changed(removed=True)
 
     def set_project_roots(self, py_db, project_roots):
-        '''
+        """
         :param str project_roots:
-        '''
+        """
         py_db.set_project_roots(project_roots)
 
     def set_stepping_resumes_all_threads(self, py_db, stepping_resumes_all_threads):
@@ -859,27 +921,25 @@ class PyDevdAPI(object):
     from _pydevd_bundle.pydevd_filtering import ExcludeFilter  # noqa
 
     def set_exclude_filters(self, py_db, exclude_filters):
-        '''
+        """
         :param list(PyDevdAPI.ExcludeFilter) exclude_filters:
-        '''
+        """
         py_db.set_exclude_filters(exclude_filters)
 
     def set_use_libraries_filter(self, py_db, use_libraries_filter):
         py_db.set_use_libraries_filter(use_libraries_filter)
 
     def request_get_variable_json(self, py_db, request, thread_id):
-        '''
+        """
         :param VariablesRequest request:
-        '''
-        py_db.post_method_as_internal_command(
-            thread_id, internal_get_variable_json, request)
+        """
+        py_db.post_method_as_internal_command(thread_id, internal_get_variable_json, request)
 
     def request_change_variable_json(self, py_db, request, thread_id):
-        '''
+        """
         :param SetVariableRequest request:
-        '''
-        py_db.post_method_as_internal_command(
-            thread_id, internal_change_variable_json, request)
+        """
+        py_db.post_method_as_internal_command(thread_id, internal_change_variable_json, request)
 
     def set_dont_trace_start_end_patterns(self, py_db, start_patterns, end_patterns):
         # Note: start/end patterns normalized internally.
@@ -889,8 +949,7 @@ class PyDevdAPI(object):
         # After it's set the first time, we can still change it, but we need to reset the
         # related caches.
         reset_caches = False
-        dont_trace_start_end_patterns_previously_set = \
-            py_db.dont_trace_external_files.__name__ == 'custom_dont_trace_external_files'
+        dont_trace_start_end_patterns_previously_set = py_db.dont_trace_external_files.__name__ == "custom_dont_trace_external_files"
 
         if not dont_trace_start_end_patterns_previously_set and not start_patterns and not end_patterns:
             # If it wasn't set previously and start and end patterns are empty we don't need to do anything.
@@ -899,8 +958,10 @@ class PyDevdAPI(object):
         if not py_db.is_cache_file_type_empty():
             # i.e.: custom function set in set_dont_trace_start_end_patterns.
             if dont_trace_start_end_patterns_previously_set:
-                reset_caches = py_db.dont_trace_external_files.start_patterns != start_patterns or \
-                    py_db.dont_trace_external_files.end_patterns != end_patterns
+                reset_caches = (
+                    py_db.dont_trace_external_files.start_patterns != start_patterns
+                    or py_db.dont_trace_external_files.end_patterns != end_patterns
+                )
 
             else:
                 reset_caches = True
@@ -919,11 +980,15 @@ class PyDevdAPI(object):
     def stop_on_entry(self):
         main_thread = pydevd_utils.get_main_thread()
         if main_thread is None:
-            pydev_log.critical('Could not find main thread while setting Stop on Entry.')
+            pydev_log.critical("Could not find main thread while setting Stop on Entry.")
         else:
             info = set_additional_thread_info(main_thread)
             info.pydev_original_step_cmd = CMD_STOP_ON_START
             info.pydev_step_cmd = CMD_STEP_INTO_MY_CODE
+            info.update_stepping_info()
+            if PYDEVD_USE_SYS_MONITORING:
+                pydevd_sys_monitoring.update_monitor_events(suspend_requested=True)
+                pydevd_sys_monitoring.restart_events()
 
     def set_ignore_system_exit_codes(self, py_db, ignore_system_exit_codes):
         py_db.set_ignore_system_exit_codes(ignore_system_exit_codes)
@@ -931,7 +996,7 @@ class PyDevdAPI(object):
     SourceMappingEntry = pydevd_source_mapping.SourceMappingEntry
 
     def set_source_mapping(self, py_db, source_filename, mapping):
-        '''
+        """
         :param str source_filename:
             The filename for the source mapping (bytes on py2 and str on py3).
             This filename will be made absolute in this function.
@@ -942,7 +1007,7 @@ class PyDevdAPI(object):
         :return str:
             An error message if it was not possible to set the mapping or an empty string if
             everything is ok.
-        '''
+        """
         source_filename = self.filename_to_server(source_filename)
         absolute_source_filename = pydevd_file_utils.absolute_path(source_filename)
         for map_entry in mapping:
@@ -952,16 +1017,16 @@ class PyDevdAPI(object):
             return error_msg
 
         self.reapply_breakpoints(py_db)
-        return ''
+        return ""
 
     def set_variable_presentation(self, py_db, variable_presentation):
         assert isinstance(variable_presentation, self.VariablePresentation)
         py_db.variable_presentation = variable_presentation
 
     def get_ppid(self):
-        '''
+        """
         Provides the parent pid (even for older versions of Python on Windows).
-        '''
+        """
         ppid = None
 
         try:
@@ -985,7 +1050,6 @@ class PyDevdAPI(object):
     def _terminate_child_processes_windows(self, dont_terminate_child_pids):
         this_pid = os.getpid()
         for _ in range(50):  # Try this at most 50 times before giving up.
-
             # Note: we can't kill the process itself with taskkill, so, we
             # list immediate children, kill that tree and then exit this process.
 
@@ -999,11 +1063,7 @@ class PyDevdAPI(object):
                 break
             else:
                 for pid in children_pids:
-                    self._call(
-                        ['taskkill', '/F', '/PID', str(pid), '/T'],
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE
-                    )
+                    self._call(["taskkill", "/F", "/PID", str(pid), "/T"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
                 del children_pids[:]
 
@@ -1014,22 +1074,14 @@ class PyDevdAPI(object):
             children_pids = []
             if stop:
                 # Ask to stop forking (shouldn't be called for this process, only subprocesses).
-                self._call(
-                    ['kill', '-STOP', str(initial_pid)],
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE
-                )
+                self._call(["kill", "-STOP", str(initial_pid)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-            list_popen = self._popen(
-                ['pgrep', '-P', str(initial_pid)],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
-            )
+            list_popen = self._popen(["pgrep", "-P", str(initial_pid)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
             if list_popen is not None:
                 stdout, _ = list_popen.communicate()
                 for line in stdout.splitlines():
-                    line = line.decode('ascii').strip()
+                    line = line.decode("ascii").strip()
                     if line:
                         pid = str(line)
                         if pid in dont_terminate_child_pids:
@@ -1042,7 +1094,6 @@ class PyDevdAPI(object):
         previously_found = set()
 
         for _ in range(50):  # Try this at most 50 times before giving up.
-
             children_pids = list_children_and_stop_forking(this_pid, stop=False)
             found_new = False
 
@@ -1050,11 +1101,7 @@ class PyDevdAPI(object):
                 if pid not in previously_found:
                     found_new = True
                     previously_found.add(pid)
-                    self._call(
-                        ['kill', '-KILL', str(pid)],
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE
-                    )
+                    self._call(["kill", "-KILL", str(pid)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
             if not found_new:
                 break
@@ -1064,7 +1111,7 @@ class PyDevdAPI(object):
             return subprocess.Popen(cmdline, **kwargs)
         except:
             if DebugInfoHolder.DEBUG_TRACE_LEVEL >= 1:
-                pydev_log.exception('Error running: %s' % (' '.join(cmdline)))
+                pydev_log.exception("Error running: %s" % (" ".join(cmdline)))
             return None
 
     def _call(self, cmdline, **kwargs):
@@ -1072,7 +1119,7 @@ class PyDevdAPI(object):
             subprocess.check_call(cmdline, **kwargs)
         except:
             if DebugInfoHolder.DEBUG_TRACE_LEVEL >= 1:
-                pydev_log.exception('Error running: %s' % (' '.join(cmdline)))
+                pydev_log.exception("Error running: %s" % (" ".join(cmdline)))
 
     def set_terminate_child_processes(self, py_db, terminate_child_processes):
         py_db.terminate_child_processes = terminate_child_processes
@@ -1081,19 +1128,19 @@ class PyDevdAPI(object):
         py_db.terminate_keyboard_interrupt = terminate_keyboard_interrupt
 
     def terminate_process(self, py_db):
-        '''
+        """
         Terminates the current process (and child processes if the option to also terminate
         child processes is enabled).
-        '''
+        """
         try:
             if py_db.terminate_child_processes:
-                pydev_log.debug('Terminating child processes.')
+                pydev_log.debug("Terminating child processes.")
                 if IS_WINDOWS:
                     self._terminate_child_processes_windows(py_db.dont_terminate_child_pids)
                 else:
                     self._terminate_child_processes_linux_and_mac(py_db.dont_terminate_child_pids)
         finally:
-            pydev_log.debug('Exiting process (os._exit(0)).')
+            pydev_log.debug("Exiting process (os._exit(0)).")
             os._exit(0)
 
     def _terminate_if_commands_processed(self, py_db):
@@ -1120,16 +1167,18 @@ def _list_ppid_and_pid():
     _TH32CS_SNAPPROCESS = 0x00000002
 
     class PROCESSENTRY32(ctypes.Structure):
-        _fields_ = [("dwSize", ctypes.c_uint32),
-                    ("cntUsage", ctypes.c_uint32),
-                    ("th32ProcessID", ctypes.c_uint32),
-                    ("th32DefaultHeapID", ctypes.c_size_t),
-                    ("th32ModuleID", ctypes.c_uint32),
-                    ("cntThreads", ctypes.c_uint32),
-                    ("th32ParentProcessID", ctypes.c_uint32),
-                    ("pcPriClassBase", ctypes.c_long),
-                    ("dwFlags", ctypes.c_uint32),
-                    ("szExeFile", ctypes.c_char * 260)]
+        _fields_ = [
+            ("dwSize", ctypes.c_uint32),
+            ("cntUsage", ctypes.c_uint32),
+            ("th32ProcessID", ctypes.c_uint32),
+            ("th32DefaultHeapID", ctypes.c_size_t),
+            ("th32ModuleID", ctypes.c_uint32),
+            ("cntThreads", ctypes.c_uint32),
+            ("th32ParentProcessID", ctypes.c_uint32),
+            ("pcPriClassBase", ctypes.c_long),
+            ("dwFlags", ctypes.c_uint32),
+            ("szExeFile", ctypes.c_char * 260),
+        ]
 
     kernel32 = ctypes.windll.kernel32
     snapshot = kernel32.CreateToolhelp32Snapshot(_TH32CS_SNAPPROCESS, 0)
@@ -1138,7 +1187,7 @@ def _list_ppid_and_pid():
         process_entry = PROCESSENTRY32()
         process_entry.dwSize = ctypes.sizeof(PROCESSENTRY32)
         if not kernel32.Process32First(ctypes.c_void_p(snapshot), ctypes.byref(process_entry)):
-            pydev_log.critical('Process32First failed (getting process from CreateToolhelp32Snapshot).')
+            pydev_log.critical("Process32First failed (getting process from CreateToolhelp32Snapshot).")
         else:
             while True:
                 ppid_and_pids.append((process_entry.th32ParentProcessID, process_entry.th32ProcessID))

@@ -8,7 +8,7 @@ def m2():  # @DontTrace
 
 
 def m3():
-    m2()
+    m2()  # break 2 on sys.monitoring here
     _a = 'm3'  # break 2 here
 
 

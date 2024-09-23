@@ -3,44 +3,50 @@
 
 __version_info__ in pydevd.py
 
+Update cython-generated files (must update cython and then run build_tools/build.py on python 3.10 and 3.12)
 
-2. Create conda envs
+Create tag:
+-----------
+git tag pydev_debugger_3_1_0 -a -m "PyDev.Debugger 3.1.0"
+git push --tags
+
+
+(pushing the tag does the release to PyPi now)
+
+
+
+
+
+
+
+
+
+Old release process (locally):
+=================================
+
+Create conda envs
 =====================
-
-conda create -y -f -n py36_64 python=3.6 cython numpy nose ipython pip
-activate py36_64
-pip install "django>=1.9"
-pip install -U "setuptools>=0.9"
-pip install -U "pip>=1.4" "wheel>=0.21" twine
-conda deactivate
-
-conda create -y -f -n py37_64 python=3.7 cython numpy nose ipython pip
-activate py37_64
-pip install "django>=1.9"
-pip install -U "setuptools>=0.9"
-pip install -U "pip>=1.4" "wheel>=0.21" twine
-conda deactivate
 
 conda create -y -f -n py38_64 python=3.8 cython numpy nose ipython pip
 activate py38_64
 pip install "django>=1.9"
 pip install -U "setuptools>=0.9"
 pip install -U "pip>=1.4" "wheel>=0.21" twine
-conda deactivate
+deactivate
 
 conda create -y -f -n py39_64 python=3.9 cython pip
 activate py39_64
 pip install "django>=1.9"
 pip install -U "setuptools>=0.9"
 pip install -U "pip>=1.4" "wheel>=0.21" twine
-conda deactivate
+deactivate
 
 conda create -y -f -n py310_64 python=3.10 cython pip
 activate py310_64
 pip install "django>=1.9"
 pip install -U "setuptools>=0.9"
 pip install -U "pip>=1.4" "wheel>=0.21" twine
-conda deactivate
+deactivate
 
 conda create -y -f -n py311_64 python=3.11 -c conda-forge
 activate py311_64
@@ -48,35 +54,39 @@ pip install cython
 pip install "django>=1.9"
 pip install -U "setuptools>=0.9"
 pip install -U "pip>=1.4" "wheel>=0.21" twine
-conda deactivate
+deactivate
+
+conda create -y -f -n py312_64 python=3.11 -c conda-forge
+activate py312_64
+pip install cython
+pip install "django>=1.9"
+pip install -U "setuptools>=0.9"
+pip install -U "pip>=1.4" "wheel>=0.21" twine
+deactivate
 
 ### UPDATE CYTHON
 
-activate py36_64
-pip install cython==0.29.32
-conda deactivate
-
-activate py37_64
-pip install cython==0.29.32
-conda deactivate
-
 activate py38_64
-pip install cython==0.29.32
-conda deactivate
+pip install cython==3.0.8
+deactivate
 
 activate py39_64
-pip install cython==0.29.32
-conda deactivate
+pip install cython==3.0.8
+deactivate
 
 activate py310_64
-pip install cython==0.29.32
-conda deactivate
+pip install cython==3.0.8
+deactivate
 
 activate py311_64
-pip install cython==0.29.32
-conda deactivate
+pip install cython==3.0.8
+deactivate
 
-4. Regenerate the .pyx and .c
+activate py312_64
+pip install cython==3.0.8
+deactivate
+
+Regenerate the .pyx and .c
 ===============================
 
 set FORCE_PYDEVD_VC_VARS=C:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\VC\Auxiliary\Build\vcvars64.bat
@@ -94,7 +104,7 @@ cd ~/Desktop/Pydev/plugins/org.python.pydev.core/pysrc
 export PYTHONPATH=~/Desktop/Pydev/plugins/org.python.pydev.core/pysrc
 python build_tools/build.py
 
-3. Generate new version
+Generate new version
 ======================
 
 cd /D x:\debugpyws\PyDev.Debugger
@@ -108,16 +118,6 @@ python build_tools\build_binaries_windows.py
 
 rm dist/pydevd*
 deactivate
-
-activate py36_64
-python setup.py sdist bdist_wheel
-deactivate
-dir dist
-
-activate py37_64
-python setup.py sdist bdist_wheel
-deactivate
-dir dist
 
 activate py38_64
 python setup.py sdist bdist_wheel

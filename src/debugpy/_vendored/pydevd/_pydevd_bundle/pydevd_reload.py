@@ -118,8 +118,8 @@ def write_err(*args):
         for a in args:
             new_lst.append(str(a))
 
-        msg = ' '.join(new_lst)
-        s = 'code reload: %s\n' % (msg,)
+        msg = " ".join(new_lst)
+        s = "code reload: %s\n" % (msg,)
         cmd = py_db.cmd_factory.make_io_message(s, 2)
         if py_db.writer is not None:
             py_db.writer.add_command(cmd)
@@ -143,21 +143,21 @@ def notify_error(*args):
     write_err(*args)
 
 
-#=======================================================================================================================
+# =======================================================================================================================
 # code_objects_equal
-#=======================================================================================================================
+# =======================================================================================================================
 def code_objects_equal(code0, code1):
     for d in dir(code0):
-        if d.startswith('_') or 'line' in d or d in ('replace', 'co_positions', 'co_qualname'):
+        if d.startswith("_") or "line" in d or d in ("replace", "co_positions", "co_qualname"):
             continue
         if getattr(code0, d) != getattr(code1, d):
             return False
     return True
 
 
-#=======================================================================================================================
+# =======================================================================================================================
 # xreload
-#=======================================================================================================================
+# =======================================================================================================================
 def xreload(mod):
     """Reload a module in place, updating classes, methods and functions.
 
@@ -171,6 +171,7 @@ def xreload(mod):
     r = None
     pydevd_dont_trace.clear_trace_filter_cache()
     return found_change
+
 
 # This isn't actually used... Initially I planned to reload variables which are immutable on the
 # namespace, but this can destroy places where we're saving state, which may not be what we want,
@@ -186,11 +187,10 @@ def xreload(mod):
 # immutable_types = tuple(immutable_types)
 
 
-#=======================================================================================================================
+# =======================================================================================================================
 # Reload
-#=======================================================================================================================
+# =======================================================================================================================
 class Reload:
-
     def __init__(self, mod, mod_name=None, mod_filename=None):
         self.mod = mod
         if mod_name:
@@ -229,11 +229,11 @@ class Reload:
 
             if self.mod_name:
                 new_namespace["__name__"] = self.mod_name
-                if new_namespace["__name__"] == '__main__':
+                if new_namespace["__name__"] == "__main__":
                     # We do this because usually the __main__ starts-up the program, guarded by
                     # the if __name__ == '__main__', but we don't want to start the program again
                     # on a reload.
-                    new_namespace["__name__"] = '__main_reloaded__'
+                    new_namespace["__name__"] = "__main_reloaded__"
 
             execfile(self.mod_filename, new_namespace, new_namespace)
             # Now we get to the hard part
@@ -242,7 +242,7 @@ class Reload:
 
             # Create new tokens (note: not deleting existing)
             for name in newnames - oldnames:
-                notify_info0('Added:', name, 'to namespace')
+                notify_info0("Added:", name, "to namespace")
                 self.found_change = True
                 modns[name] = new_namespace[name]
 
@@ -261,13 +261,13 @@ class Reload:
     def _handle_namespace(self, namespace, is_class_namespace=False):
         on_finish = None
         if is_class_namespace:
-            xreload_after_update = getattr(namespace, '__xreload_after_reload_update__', None)
+            xreload_after_update = getattr(namespace, "__xreload_after_reload_update__", None)
             if xreload_after_update is not None:
                 self.found_change = True
                 on_finish = lambda: xreload_after_update()
 
-        elif '__xreload_after_reload_update__' in namespace:
-            xreload_after_update = namespace['__xreload_after_reload_update__']
+        elif "__xreload_after_reload_update__" in namespace:
+            xreload_after_update = namespace["__xreload_after_reload_update__"]
             self.found_change = True
             on_finish = lambda: xreload_after_update(namespace)
 
@@ -285,15 +285,15 @@ class Reload:
           newobj: the object used as the source for the update
         """
         try:
-            notify_info2('Updating: ', oldobj)
+            notify_info2("Updating: ", oldobj)
             if oldobj is newobj:
                 # Probably something imported
                 return
 
             if type(oldobj) is not type(newobj):
                 # Cop-out: if the type changed, give up
-                if name not in ('__builtins__',):
-                    notify_error('Type of: %s (old: %s != new: %s) changed... Skipping.' % (name, type(oldobj), type(newobj)))
+                if name not in ("__builtins__",):
+                    notify_error("Type of: %s (old: %s != new: %s) changed... Skipping." % (name, type(oldobj), type(newobj)))
                 return
 
             if isinstance(newobj, types.FunctionType):
@@ -312,7 +312,7 @@ class Reload:
                 self._update_staticmethod(oldobj, newobj)
                 return
 
-            if hasattr(types, 'ClassType'):
+            if hasattr(types, "ClassType"):
                 classtype = (types.ClassType, type)  # object is not instance of types.ClassType.
             else:
                 classtype = type
@@ -322,7 +322,7 @@ class Reload:
                 return
 
             # New: dealing with metaclasses.
-            if hasattr(newobj, '__metaclass__') and hasattr(newobj, '__class__') and newobj.__metaclass__ == newobj.__class__:
+            if hasattr(newobj, "__metaclass__") and hasattr(newobj, "__class__") and newobj.__metaclass__ == newobj.__class__:
                 self._update_class(oldobj, newobj)
                 return
 
@@ -331,13 +331,13 @@ class Reload:
                 # as even doing a comparison may break things -- see: https://github.com/microsoft/debugpy/issues/615).
                 xreload_old_new = None
                 if is_class_namespace:
-                    xreload_old_new = getattr(namespace, '__xreload_old_new__', None)
+                    xreload_old_new = getattr(namespace, "__xreload_old_new__", None)
                     if xreload_old_new is not None:
                         self.found_change = True
                         xreload_old_new(name, oldobj, newobj)
 
-                elif '__xreload_old_new__' in namespace:
-                    xreload_old_new = namespace['__xreload_old_new__']
+                elif "__xreload_old_new__" in namespace:
+                    xreload_old_new = namespace["__xreload_old_new__"]
                     xreload_old_new(namespace, name, oldobj, newobj)
                     self.found_change = True
 
@@ -346,7 +346,7 @@ class Reload:
                 #     notify_info0('%s NOT updated. Create __xreload_old_new__(name, old, new) for custom reload' % (name,))
 
         except:
-            notify_error('Exception found when updating %s. Proceeding for other items.' % (name,))
+            notify_error("Exception found when updating %s. Proceeding for other items." % (name,))
             pydev_log.exception()
 
     # All of the following functions have the same signature as _update()
@@ -358,15 +358,15 @@ class Reload:
 
         try:
             newfunc.__code__
-            attr_name = '__code__'
+            attr_name = "__code__"
         except AttributeError:
             newfunc.func_code
-            attr_name = 'func_code'
+            attr_name = "func_code"
 
         old_code = getattr(oldfunc, attr_name)
         new_code = getattr(newfunc, attr_name)
         if not code_objects_equal(old_code, new_code):
-            notify_info0('Updated function code:', oldfunc)
+            notify_info0("Updated function code:", oldfunc)
             setattr(oldfunc, attr_name, new_code)
             self.found_change = True
 
@@ -380,9 +380,9 @@ class Reload:
     def _update_method(self, oldmeth, newmeth):
         """Update a method object."""
         # XXX What if im_func is not a function?
-        if hasattr(oldmeth, 'im_func') and hasattr(newmeth, 'im_func'):
+        if hasattr(oldmeth, "im_func") and hasattr(newmeth, "im_func"):
             self._update(None, None, oldmeth.im_func, newmeth.im_func)
-        elif hasattr(oldmeth, '__func__') and hasattr(newmeth, '__func__'):
+        elif hasattr(oldmeth, "__func__") and hasattr(newmeth, "__func__"):
             self._update(None, None, oldmeth.__func__, newmeth.__func__)
         return oldmeth
 
@@ -396,7 +396,7 @@ class Reload:
 
         for name in newnames - oldnames:
             setattr(oldclass, name, newdict[name])
-            notify_info0('Added:', name, 'to', oldclass)
+            notify_info0("Added:", name, "to", oldclass)
             self.found_change = True
 
         # Note: not removing old things...
@@ -404,13 +404,13 @@ class Reload:
         #    notify_info('Removed:', name, 'from', oldclass)
         #    delattr(oldclass, name)
 
-        for name in (oldnames & newnames) - set(['__dict__', '__doc__']):
+        for name in (oldnames & newnames) - set(["__dict__", "__doc__"]):
             self._update(oldclass, name, olddict[name], newdict[name], is_class_namespace=True)
 
-        old_bases = getattr(oldclass, '__bases__', None)
-        new_bases = getattr(newclass, '__bases__', None)
+        old_bases = getattr(oldclass, "__bases__", None)
+        new_bases = getattr(newclass, "__bases__", None)
         if str(old_bases) != str(new_bases):
-            notify_error('Changing the hierarchy of a class is not supported. %s may be inconsistent.' % (oldclass,))
+            notify_error("Changing the hierarchy of a class is not supported. %s may be inconsistent." % (oldclass,))
 
         self._handle_namespace(oldclass, is_class_namespace=True)
 

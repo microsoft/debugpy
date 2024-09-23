@@ -1,20 +1,13 @@
-from _pydevd_bundle.pydevd_constants import EXCEPTION_TYPE_USER_UNHANDLED, EXCEPTION_TYPE_UNHANDLED, \
-    IS_PY311_OR_GREATER
+from _pydevd_bundle.pydevd_constants import EXCEPTION_TYPE_USER_UNHANDLED, EXCEPTION_TYPE_UNHANDLED, IS_PY311_OR_GREATER
 from _pydev_bundle import pydev_log
 import itertools
 from typing import Any, Dict
+import threading
+from os.path import basename, splitext
 
 
 class Frame(object):
-
-    def __init__(
-            self,
-            f_back,
-            f_fileno,
-            f_code,
-            f_locals,
-            f_globals=None,
-            f_trace=None):
+    def __init__(self, f_back, f_fileno, f_code, f_locals, f_globals=None, f_trace=None):
         self.f_back = f_back
         self.f_lineno = f_fileno
         self.f_code = f_code
@@ -27,36 +20,61 @@ class Frame(object):
 
 
 class FCode(object):
-
     def __init__(self, name, filename):
         self.co_name = name
         self.co_filename = filename
         self.co_firstlineno = 1
         self.co_flags = 0
 
+    def co_lines(self):
+        return ()
+
 
 def add_exception_to_frame(frame, exception_info):
-    frame.f_locals['__exception__'] = exception_info
+    frame.f_locals["__exception__"] = exception_info
 
 
 def remove_exception_from_frame(frame):
-    frame.f_locals.pop('__exception__', None)
+    frame.f_locals.pop("__exception__", None)
 
 
-FILES_WITH_IMPORT_HOOKS = ['pydev_monkey_qt.py', 'pydev_import_hook.py']
+FILES_WITH_IMPORT_HOOKS = ["pydev_monkey_qt.py", "pydev_import_hook.py"]
 
+
+_thread_local_info = threading.local()
+def flag_as_unwinding(trace):
+    _thread_local_info._unwinding_trace = trace
 
 def just_raised(trace):
     if trace is None:
         return False
+    
+    if hasattr(_thread_local_info, "_unwinding_trace") and _thread_local_info._unwinding_trace is trace:
+        return False
+    
     return trace.tb_next is None
 
+def short_tb(exc_type, exc_value, exc_tb):
+    traceback = []
+    while exc_tb:
+        traceback.append('{%r, %r, %r}' % (exc_tb.tb_frame.f_code.co_filename,
+                                           exc_tb.tb_frame.f_code.co_name,
+                                           exc_tb.tb_lineno))
+        exc_tb = exc_tb.tb_next
+    return 'Traceback: %s\nError: %s %r\n' % (' -> '.join(traceback), exc_type.__name__, str(exc_value))
+
+def short_frame(frame):
+    if frame is None:
+        return 'None'
+    
+    filename = frame.f_code.co_filename
+    name = splitext(basename(filename))[0]
+    return '%s::%s %s' % (name, frame.f_code.co_name, frame.f_lineno)
 
 def ignore_exception_trace(trace):
     while trace is not None:
         filename = trace.tb_frame.f_code.co_filename
-        if filename in (
-            '<frozen importlib._bootstrap>', '<frozen importlib._bootstrap_external>'):
+        if filename in ("<frozen importlib._bootstrap>", "<frozen importlib._bootstrap_external>"):
             # Do not stop on inner exceptions in py3 while importing
             return True
 
@@ -71,7 +89,7 @@ def ignore_exception_trace(trace):
 
 
 def cached_call(obj, func, *args):
-    cached_name = '_cached_' + func.__name__
+    cached_name = "_cached_" + func.__name__
     if not hasattr(obj, cached_name):
         setattr(obj, cached_name, func(*args))
 
@@ -79,7 +97,6 @@ def cached_call(obj, func, *args):
 
 
 class _LineColInfo:
-
     def __init__(self, lineno, end_lineno, colno, end_colno):
         self.lineno = lineno
         self.end_lineno = end_lineno
@@ -87,7 +104,7 @@ class _LineColInfo:
         self.end_colno = end_colno
 
     def map_columns_to_line(self, original_line: str):
-        '''
+        """
         The columns internally are actually based on bytes.
 
         Also, the position isn't always the ideal one as the start may not be
@@ -97,19 +114,17 @@ class _LineColInfo:
         https://github.com/microsoft/debugpy/issues/1099#issuecomment-1303403995
 
         So, this function maps the start/end columns to the position to be shown in the editor.
-        '''
+        """
         colno = _utf8_byte_offset_to_character_offset(original_line, self.colno)
         end_colno = _utf8_byte_offset_to_character_offset(original_line, self.end_colno)
 
         if self.lineno == self.end_lineno:
             try:
-                ret = _extract_caret_anchors_in_bytes_from_line_segment(
-                    original_line[colno:end_colno]
-                )
+                ret = _extract_caret_anchors_in_bytes_from_line_segment(original_line[colno:end_colno])
                 if ret is not None:
                     return (
                         _utf8_byte_offset_to_character_offset(original_line, ret[0] + self.colno),
-                        _utf8_byte_offset_to_character_offset(original_line, ret[1] + self.colno)
+                        _utf8_byte_offset_to_character_offset(original_line, ret[1] + self.colno),
                     )
             except Exception:
                 pass  # Suppress exception
@@ -153,7 +168,7 @@ def _extract_caret_anchors_in_bytes_from_line_segment(segment: str):
     import ast
 
     try:
-        segment = segment.encode('utf-8')
+        segment = segment.encode("utf-8")
     except UnicodeEncodeError:
         return None
     try:
@@ -168,15 +183,12 @@ def _extract_caret_anchors_in_bytes_from_line_segment(segment: str):
     if isinstance(statement, ast.Expr):
         expr = statement.value
         if isinstance(expr, ast.BinOp):
-            operator_str = segment[expr.left.end_col_offset:expr.right.col_offset]
+            operator_str = segment[expr.left.end_col_offset : expr.right.col_offset]
             operator_offset = len(operator_str) - len(operator_str.lstrip())
 
             left_anchor = expr.left.end_col_offset + operator_offset
             right_anchor = left_anchor + 1
-            if (
-                operator_offset + 1 < len(operator_str)
-                and not operator_str[operator_offset + 1] == ord(b' ')
-            ):
+            if operator_offset + 1 < len(operator_str) and not operator_str[operator_offset + 1] == ord(b" "):
                 right_anchor += 1
             return left_anchor, right_anchor
         if isinstance(expr, ast.Subscript):
@@ -186,7 +198,6 @@ def _extract_caret_anchors_in_bytes_from_line_segment(segment: str):
 
 
 class FramesList(object):
-
     def __init__(self):
         self._frames = []
 
@@ -206,7 +217,7 @@ class FramesList(object):
         self.current_frame = None
 
         # This is to know whether an exception was extracted from a __cause__ or __context__.
-        self.exc_context_msg = ''
+        self.exc_context_msg = ""
 
         self.chained_frames_list = None
 
@@ -223,38 +234,37 @@ class FramesList(object):
         return iter(self._frames)
 
     def __repr__(self):
-        lst = ['FramesList(']
+        lst = ["FramesList("]
 
-        lst.append('\n    exc_type: ')
+        lst.append("\n    exc_type: ")
         lst.append(str(self.exc_type))
 
-        lst.append('\n    exc_desc: ')
+        lst.append("\n    exc_desc: ")
         lst.append(str(self.exc_desc))
 
-        lst.append('\n    trace_obj: ')
+        lst.append("\n    trace_obj: ")
         lst.append(str(self.trace_obj))
 
-        lst.append('\n    current_frame: ')
+        lst.append("\n    current_frame: ")
         lst.append(str(self.current_frame))
 
         for frame in self._frames:
-            lst.append('\n    ')
+            lst.append("\n    ")
             lst.append(repr(frame))
-            lst.append(',')
+            lst.append(",")
 
         if self.chained_frames_list is not None:
-            lst.append('\n--- Chained ---\n')
+            lst.append("\n--- Chained ---\n")
             lst.append(str(self.chained_frames_list))
 
-        lst.append('\n)')
+        lst.append("\n)")
 
-        return ''.join(lst)
+        return "".join(lst)
 
     __str__ = __repr__
 
 
 class _DummyFrameWrapper(object):
-
     def __init__(self, frame, f_lineno, f_back):
         self._base_frame = frame
         self.f_lineno = f_lineno
@@ -278,27 +288,23 @@ class _DummyFrameWrapper(object):
     __repr__ = __str__
 
 
-_cause_message = (
-    "\nThe above exception was the direct cause "
-    "of the following exception:\n\n")
+_cause_message = "\nThe above exception was the direct cause " "of the following exception:\n\n"
 
-_context_message = (
-    "\nDuring handling of the above exception, "
-    "another exception occurred:\n\n")
+_context_message = "\nDuring handling of the above exception, " "another exception occurred:\n\n"
 
 
 def create_frames_list_from_exception_cause(trace_obj, frame, exc_type, exc_desc, memo):
     lst = []
-    msg = '<Unknown context>'
+    msg = "<Unknown context>"
     try:
-        exc_cause = getattr(exc_desc, '__cause__', None)
+        exc_cause = getattr(exc_desc, "__cause__", None)
         msg = _cause_message
     except Exception:
         exc_cause = None
 
     if exc_cause is None:
         try:
-            exc_cause = getattr(exc_desc, '__context__', None)
+            exc_cause = getattr(exc_desc, "__context__", None)
             msg = _context_message
         except Exception:
             exc_cause = None
@@ -355,7 +361,7 @@ else:
 
 
 def create_frames_list_from_traceback(trace_obj, frame, exc_type, exc_desc, exception_type=None):
-    '''
+    """
     :param trace_obj:
         This is the traceback from which the list should be created.
 
@@ -366,7 +372,7 @@ def create_frames_list_from_traceback(trace_obj, frame, exc_type, exc_desc, exce
     :param exception_type:
         If this is an unhandled exception or user unhandled exception, we'll not trim the stack to create from the passed
         frame, rather, we'll just mark the frame in the frames list.
-    '''
+    """
     lst = []
 
     tb = trace_obj
@@ -383,11 +389,7 @@ def create_frames_list_from_traceback(trace_obj, frame, exc_type, exc_desc, exce
     frames_list = None
 
     for tb_frame, tb_lineno, line_col_info in reversed(lst):
-        if frames_list is None and (
-                (frame is tb_frame) or
-                (frame is None) or
-                (exception_type == EXCEPTION_TYPE_USER_UNHANDLED)
-            ):
+        if frames_list is None and ((frame is tb_frame) or (frame is None) or (exception_type == EXCEPTION_TYPE_USER_UNHANDLED)):
             frames_list = FramesList()
 
         if frames_list is not None:
@@ -397,7 +399,7 @@ def create_frames_list_from_traceback(trace_obj, frame, exc_type, exc_desc, exce
 
     if frames_list is None and frame is not None:
         # Fallback (shouldn't happen in practice).
-        pydev_log.info('create_frames_list_from_traceback did not find topmost frame in list.')
+        pydev_log.info("create_frames_list_from_traceback did not find topmost frame in list.")
         frames_list = create_frames_list_from_frame(frame)
 
     frames_list.exc_type = exc_type

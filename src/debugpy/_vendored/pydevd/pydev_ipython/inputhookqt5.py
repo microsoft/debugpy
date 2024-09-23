@@ -5,16 +5,16 @@ Qt5's inputhook support function
 Author: Christian Boos
 """
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 #  Copyright (C) 2011  The IPython Development Team
 #
 #  Distributed under the terms of the BSD License.  The full license is in
 #  the file COPYING, distributed as part of this software.
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Imports
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 import os
 import signal
@@ -41,17 +41,18 @@ class InteractiveShell:
         # KeyboardInterrupts to consider since we are running under PyDev
         pass
 
-#-----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
 # Module Globals
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 
 got_kbdint = False
 sigint_timer = None
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Code
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 
 def create_inputhook_qt5(mgr, app=None):
@@ -85,11 +86,12 @@ def create_inputhook_qt5(mgr, app=None):
         app = QtCore.QCoreApplication.instance()
         if app is None:
             from PyQt5 import QtWidgets
+
             app = QtWidgets.QApplication([" "])
 
     # Re-use previously created inputhook if any
     ip = InteractiveShell.instance()
-    if hasattr(ip, '_inputhook_qt5'):
+    if hasattr(ip, "_inputhook_qt5"):
         return app, ip._inputhook_qt5
 
     # Otherwise create the inputhook_qt5/preprompthook_qt5 pair of
@@ -158,11 +160,10 @@ def create_inputhook_qt5(mgr, app=None):
             #
             # Unfortunately this doesn't work on Windows (SIGINT kills
             # Python and CTRL_C_EVENT doesn't work).
-            if(os.name == 'posix'):
+            if os.name == "posix":
                 pid = os.getpid()
-                if(not sigint_timer):
-                    sigint_timer = threading.Timer(.01, os.kill,
-                                         args=[pid, signal.SIGINT])
+                if not sigint_timer:
+                    sigint_timer = threading.Timer(0.01, os.kill, args=[pid, signal.SIGINT])
                     sigint_timer.start()
             else:
                 print("\nKeyboardInterrupt - Ctrl-C again for new prompt")
@@ -170,6 +171,7 @@ def create_inputhook_qt5(mgr, app=None):
         except:  # NO exceptions are allowed to escape from a ctypes callback
             ignore_CTRL_C()
             from traceback import print_exc
+
             print_exc()
             print("Got exception from inputhook_qt5, unregistering.")
             mgr.clear_inputhook()
@@ -185,7 +187,7 @@ def create_inputhook_qt5(mgr, app=None):
         """
         global got_kbdint, sigint_timer
 
-        if(sigint_timer):
+        if sigint_timer:
             sigint_timer.cancel()
             sigint_timer = None
 
@@ -194,6 +196,6 @@ def create_inputhook_qt5(mgr, app=None):
         got_kbdint = False
 
     ip._inputhook_qt5 = inputhook_qt5
-    ip.set_hook('pre_prompt_hook', preprompthook_qt5)
+    ip.set_hook("pre_prompt_hook", preprompthook_qt5)
 
     return app, inputhook_qt5

@@ -1,8 +1,8 @@
-
 import pytest
 from tests_python.debugger_unittest import IS_PY36_OR_GREATER, IS_CPYTHON
 from tests_python.debug_constants import TEST_CYTHON
-pytestmark = pytest.mark.skipif(not IS_PY36_OR_GREATER or not IS_CPYTHON or not TEST_CYTHON, reason='Requires CPython >= 3.6')
+
+pytestmark = pytest.mark.skipif(not IS_PY36_OR_GREATER or not IS_CPYTHON or not TEST_CYTHON, reason="Requires CPython >= 3.6")
 import sys
 import unittest
 from _pydevd_frame_eval.vendored.bytecode import Label, Instr, Compare, Bytecode, ControlFlowGraph
@@ -12,7 +12,6 @@ from unittest import mock
 
 
 class Tests(TestCase):
-
     maxDiff = 80 * 100
 
     def optimize_blocks(self, code):
@@ -51,9 +50,7 @@ class Tests(TestCase):
 
     def test_unary_op(self):
         def check_unary_op(op, value, result):
-            code = Bytecode(
-                [Instr("LOAD_CONST", value), Instr(op), Instr("STORE_NAME", "x")]
-            )
+            code = Bytecode([Instr("LOAD_CONST", value), Instr(op), Instr("STORE_NAME", "x")])
             self.check(code, Instr("LOAD_CONST", result), Instr("STORE_NAME", "x"))
 
         check_unary_op("UNARY_POSITIVE", 2, 2)
@@ -520,9 +517,7 @@ class Tests(TestCase):
             ]
         )
         code = ControlFlowGraph.from_bytecode(code)
-        self.check(
-            code, Instr("LOAD_CONST", 4, lineno=2), Instr("RETURN_VALUE", lineno=2)
-        )
+        self.check(code, Instr("LOAD_CONST", 4, lineno=2), Instr("RETURN_VALUE", lineno=2))
 
         # return+return + return+return: remove second and fourth return
         #
@@ -544,9 +539,7 @@ class Tests(TestCase):
             ]
         )
         code = ControlFlowGraph.from_bytecode(code)
-        self.check(
-            code, Instr("LOAD_CONST", 4, lineno=2), Instr("RETURN_VALUE", lineno=2)
-        )
+        self.check(code, Instr("LOAD_CONST", 4, lineno=2), Instr("RETURN_VALUE", lineno=2))
 
         # return + JUMP_ABSOLUTE: remove JUMP_ABSOLUTE
         # while 1:
@@ -594,9 +587,7 @@ class Tests(TestCase):
             )
             code = ControlFlowGraph.from_bytecode(code)
 
-            self.check(
-                code, Instr("LOAD_CONST", 7, lineno=3), Instr("RETURN_VALUE", lineno=3)
-            )
+            self.check(code, Instr("LOAD_CONST", 7, lineno=3), Instr("RETURN_VALUE", lineno=3))
 
     def test_not_jump_if_false(self):
         # Replace UNARY_NOT+POP_JUMP_IF_FALSE with POP_JUMP_IF_TRUE
@@ -905,9 +896,7 @@ class Tests(TestCase):
             )
 
     def test_nop(self):
-        code = Bytecode(
-            [Instr("LOAD_NAME", "x"), Instr("NOP"), Instr("STORE_NAME", "test")]
-        )
+        code = Bytecode([Instr("LOAD_NAME", "x"), Instr("NOP"), Instr("STORE_NAME", "test")])
 
         self.check(code, Instr("LOAD_NAME", "x"), Instr("STORE_NAME", "test"))
 

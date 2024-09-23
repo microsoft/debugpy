@@ -1,12 +1,13 @@
 def overrides(method):
-    '''
+    """
     Meant to be used as
-    
+
     class B:
         @overrides(A.m1)
         def m1(self):
             pass
-    '''
+    """
+
     def wrapper(func):
         if func.__name__ != method.__name__:
             msg = "Wrong @override: %r expected, but overwriting %r."
@@ -19,6 +20,7 @@ def overrides(method):
         return func
 
     return wrapper
+
 
 def implements(method):
     def wrapper(func):

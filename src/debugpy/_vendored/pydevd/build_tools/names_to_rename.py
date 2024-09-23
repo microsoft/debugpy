@@ -1,7 +1,7 @@
-'''
+"""
 Helper module to hold the names to rename while doing refactoring to convert to pep8.
-'''
-NAMES = '''
+"""
+NAMES = """
 # sendCaughtExceptionStack
 # sendBreakpointConditionException
 # setSuspend
@@ -315,4 +315,4 @@ NAMES = '''
 # setUpModule -- skip
 # tearDown -- skip
 
-'''
+"""

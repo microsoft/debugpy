@@ -4,6 +4,7 @@ import re
 
 def do_find(f, mod):
     import linecache
+
     if inspect.ismodule(mod):
         return f, 0, 0
 
@@ -11,7 +12,7 @@ def do_find(f, mod):
 
     if inspect.isclass(mod):
         name = mod.__name__
-        pat = re.compile(r'^\s*class\s*' + name + r'\b')
+        pat = re.compile(r"^\s*class\s*" + name + r"\b")
         for i in range(len(lines)):
             if pat.match(lines[i]):
                 return f, i, 0
@@ -34,14 +35,14 @@ def do_find(f, mod):
         mod = mod.f_code
 
     if inspect.iscode(mod):
-        if not hasattr(mod, 'co_filename'):
+        if not hasattr(mod, "co_filename"):
             return None, 0, 0
 
-        if not hasattr(mod, 'co_firstlineno'):
+        if not hasattr(mod, "co_firstlineno"):
             return mod.co_filename, 0, 0
 
         lnum = mod.co_firstlineno
-        pat = re.compile(r'^(\s*def\s)|(.*(?<!\w)lambda(:|\s))|^(\s*@)')
+        pat = re.compile(r"^(\s*def\s)|(.*(?<!\w)lambda(:|\s))|^(\s*@)")
         while lnum > 0:
             if pat.match(lines[lnum]):
                 break
@@ -49,4 +50,4 @@ def do_find(f, mod):
 
         return f, lnum, 0
 
-    raise RuntimeError('Do not know about: ' + f + ' ' + str(mod))
+    raise RuntimeError("Do not know about: " + f + " " + str(mod))

@@ -8,9 +8,9 @@ import threading
 import sys
 
 
-#=======================================================================================================================
+# =======================================================================================================================
 # flatten_test_suite
-#=======================================================================================================================
+# =======================================================================================================================
 def flatten_test_suite(test_suite, ret):
     if isinstance(test_suite, unittest.TestSuite):
         for t in test_suite._tests:
@@ -20,11 +20,11 @@ def flatten_test_suite(test_suite, ret):
         ret.append(test_suite)
 
 
-#=======================================================================================================================
+# =======================================================================================================================
 # execute_tests_in_parallel
-#=======================================================================================================================
+# =======================================================================================================================
 def execute_tests_in_parallel(tests, jobs, split, verbosity, coverage_files, coverage_include):
-    '''
+    """
     @param tests: list(PydevTestSuite)
         A list with the suites to be run
 
@@ -44,9 +44,10 @@ def execute_tests_in_parallel(tests, jobs, split, verbosity, coverage_files, cov
         run.
 
         It may also return False if in debug mode (in which case, multi-processes are not accepted)
-    '''
+    """
     try:
         from _pydevd_bundle.pydevd_comm import get_global_debugger
+
         if get_global_debugger() is not None:
             return False
     except:
@@ -58,7 +59,7 @@ def execute_tests_in_parallel(tests, jobs, split, verbosity, coverage_files, cov
     tests_queue = []
 
     queue_elements = []
-    if split == 'module':
+    if split == "module":
         module_to_tests = {}
         for test in tests:
             lst = []
@@ -74,7 +75,7 @@ def execute_tests_in_parallel(tests, jobs, split, verbosity, coverage_files, cov
             # Don't create jobs we will never use.
             jobs = len(queue_elements)
 
-    elif split == 'tests':
+    elif split == "tests":
         for test in tests:
             lst = []
             flatten_test_suite(test, lst)
@@ -86,7 +87,7 @@ def execute_tests_in_parallel(tests, jobs, split, verbosity, coverage_files, cov
             jobs = len(queue_elements)
 
     else:
-        raise AssertionError('Do not know how to handle: %s' % (split,))
+        raise AssertionError("Do not know how to handle: %s" % (split,))
 
     for test_cases in queue_elements:
         test_queue_elements = []
@@ -97,14 +98,14 @@ def execute_tests_in_parallel(tests, jobs, split, verbosity, coverage_files, cov
                 # Support for jython 2.1 (__testMethodName is pseudo-private in the test case)
                 test_name = test_case.__class__.__name__ + "." + test_case._TestCase__testMethodName
 
-            test_queue_elements.append(test_case.__pydev_pyfile__ + '|' + test_name)
+            test_queue_elements.append(test_case.__pydev_pyfile__ + "|" + test_name)
 
         tests_queue.append(test_queue_elements)
 
     if jobs < 2:
         return False
 
-    sys.stdout.write('Running tests in parallel with: %s jobs.\n' % (jobs,))
+    sys.stdout.write("Running tests in parallel with: %s jobs.\n" % (jobs,))
 
     queue = Queue.Queue()
     for item in tests_queue:
@@ -134,7 +135,7 @@ def execute_tests_in_parallel(tests, jobs, split, verbosity, coverage_files, cov
             # Wait for all the clients to exit.
             if not client.finished:
                 client_alive = True
-                time.sleep(.2)
+                time.sleep(0.2)
                 break
 
     for provider in providers:
@@ -143,11 +144,10 @@ def execute_tests_in_parallel(tests, jobs, split, verbosity, coverage_files, cov
     return True
 
 
-#=======================================================================================================================
+# =======================================================================================================================
 # CommunicationThread
-#=======================================================================================================================
+# =======================================================================================================================
 class CommunicationThread(threading.Thread):
-
     def __init__(self, tests_queue):
         threading.Thread.__init__(self)
         self.daemon = True
@@ -166,12 +166,12 @@ class CommunicationThread(threading.Thread):
         self.server = server
 
     def GetTestsToRun(self, job_id):
-        '''
+        """
         @param job_id:
 
         @return: list(str)
             Each entry is a string in the format: filename|Test.testName
-        '''
+        """
         try:
             ret = self.queue.get(block=False)
             return ret
@@ -195,13 +195,13 @@ class CommunicationThread(threading.Thread):
         return True
 
     def shutdown(self):
-        if hasattr(self.server, 'shutdown'):
+        if hasattr(self.server, "shutdown"):
             self.server.shutdown()
         else:
             self._shutdown = True
 
     def run(self):
-        if hasattr(self.server, 'shutdown'):
+        if hasattr(self.server, "shutdown"):
             self.server.serve_forever()
         else:
             self._shutdown = False
@@ -209,11 +209,10 @@ class CommunicationThread(threading.Thread):
                 self.server.handle_request()
 
 
-#=======================================================================================================================
+# =======================================================================================================================
 # Client
-#=======================================================================================================================
+# =======================================================================================================================
 class ClientThread(threading.Thread):
-
     def __init__(self, job_id, port, verbosity, coverage_output_file=None, coverage_include=None):
         threading.Thread.__init__(self)
         self.daemon = True
@@ -252,6 +251,7 @@ class ClientThread(threading.Thread):
                 args.append(self.coverage_include)
 
             import subprocess
+
             if False:
                 proc = subprocess.Popen(args, env=os.environ, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
@@ -264,4 +264,3 @@ class ClientThread(threading.Thread):
 
         finally:
             self.finished = True
-

@@ -3,8 +3,16 @@ import os
 import re
 import sys
 from _pydev_bundle._pydev_saved_modules import threading
-from _pydevd_bundle.pydevd_constants import get_global_debugger, IS_WINDOWS, IS_JYTHON, get_current_thread_id, \
-    sorted_dict_repr, set_global_debugger, DebugInfoHolder
+from _pydevd_bundle.pydevd_constants import (
+    get_global_debugger,
+    IS_WINDOWS,
+    IS_JYTHON,
+    get_current_thread_id,
+    sorted_dict_repr,
+    set_global_debugger,
+    DebugInfoHolder,
+    PYDEVD_USE_SYS_MONITORING,
+)
 from _pydev_bundle import pydev_log
 from contextlib import contextmanager
 from _pydevd_bundle import pydevd_constants, pydevd_defaults
@@ -16,9 +24,9 @@ try:
 except ImportError:
     Path = None
 
-#===============================================================================
+# ===============================================================================
 # Things that are dependent on having the pydevd debugger
-#===============================================================================
+# ===============================================================================
 
 pydev_src_dir = os.path.dirname(os.path.dirname(__file__))
 
@@ -35,7 +43,7 @@ def skip_subprocess_arg_patch():
 
 
 def _get_apply_arg_patching():
-    return getattr(_arg_patch, 'apply_arg_patching', True)
+    return getattr(_arg_patch, "apply_arg_patching", True)
 
 
 def _get_setup_updated_with_protocol_and_ppid(setup, is_exec=False):
@@ -67,32 +75,31 @@ def _get_setup_updated_with_protocol_and_ppid(setup, is_exec=False):
         setup[pydevd_constants.ARGUMENT_HTTP_PROTOCOL] = True
 
     else:
-        pydev_log.debug('Unexpected protocol: %s', protocol)
+        pydev_log.debug("Unexpected protocol: %s", protocol)
 
     mode = pydevd_defaults.PydevdCustomization.DEBUG_MODE
     if mode:
-        setup['debug-mode'] = mode
+        setup["debug-mode"] = mode
 
     preimport = pydevd_defaults.PydevdCustomization.PREIMPORT
     if preimport:
-        setup['preimport'] = preimport
+        setup["preimport"] = preimport
 
     if DebugInfoHolder.PYDEVD_DEBUG_FILE:
-        setup['log-file'] = DebugInfoHolder.PYDEVD_DEBUG_FILE
+        setup["log-file"] = DebugInfoHolder.PYDEVD_DEBUG_FILE
 
     if DebugInfoHolder.DEBUG_TRACE_LEVEL:
-        setup['log-level'] = DebugInfoHolder.DEBUG_TRACE_LEVEL
+        setup["log-level"] = DebugInfoHolder.DEBUG_TRACE_LEVEL
 
     return setup
 
 
 class _LastFutureImportFinder(ast.NodeVisitor):
-
     def __init__(self):
         self.last_future_import_found = None
 
     def visit_ImportFrom(self, node):
-        if node.module == '__future__':
+        if node.module == "__future__":
             self.last_future_import_found = node
 
 
@@ -109,7 +116,7 @@ def _get_offset_from_line_col(code, line, col):
 
 
 def _separate_future_imports(code):
-    '''
+    """
     :param code:
         The code from where we want to get the __future__ imports (note that it's possible that
         there's no such entry).
@@ -120,18 +127,18 @@ def _separate_future_imports(code):
         If the future import is not available a return such as ('', code) is given, otherwise, the
         future import will end with a ';' (so that it can be put right before the pydevd attach
         code).
-    '''
+    """
     try:
-        node = ast.parse(code, '<string>', 'exec')
+        node = ast.parse(code, "<string>", "exec")
         visitor = _LastFutureImportFinder()
         visitor.visit(node)
 
         if visitor.last_future_import_found is None:
-            return '', code
+            return "", code
 
         node = visitor.last_future_import_found
         offset = -1
-        if hasattr(node, 'end_lineno') and hasattr(node, 'end_col_offset'):
+        if hasattr(node, "end_lineno") and hasattr(node, "end_col_offset"):
             # Python 3.8 onwards has these (so, use when possible).
             line, col = node.end_lineno, node.end_col_offset
             offset = _get_offset_from_line_col(code, line - 1, col)  # ast lines are 1-based, make it 0-based.
@@ -151,7 +158,7 @@ def _separate_future_imports(code):
 
         if offset >= 0:
             for i in range(offset, len(code)):
-                if code[i] in (' ', '\t', ';', ')', '\n'):
+                if code[i] in (" ", "\t", ";", ")", "\n"):
                     offset += 1
                 else:
                     break
@@ -162,21 +169,21 @@ def _separate_future_imports(code):
             # Now, put '\n' lines back into the code remainder (we had to search for
             # `\n)`, but in case we just got the `\n`, it should be at the remainder,
             # not at the future import.
-            while future_import.endswith('\n'):
+            while future_import.endswith("\n"):
                 future_import = future_import[:-1]
-                code_remainder = '\n' + code_remainder
+                code_remainder = "\n" + code_remainder
 
-            if not future_import.endswith(';'):
-                future_import += ';'
+            if not future_import.endswith(";"):
+                future_import += ";"
             return future_import, code_remainder
 
         # This shouldn't happen...
-        pydev_log.info('Unable to find line %s in code:\n%r', line, code)
-        return '', code
+        pydev_log.info("Unable to find line %s in code:\n%r", line, code)
+        return "", code
 
     except:
-        pydev_log.exception('Error getting from __future__ imports from: %r', code)
-        return '', code
+        pydev_log.exception("Error getting from __future__ imports from: %r", code)
+        return "", code
 
 
 def _get_python_c_args(host, port, code, args, setup):
@@ -185,36 +192,39 @@ def _get_python_c_args(host, port, code, args, setup):
     # i.e.: We want to make the repr sorted so that it works in tests.
     setup_repr = setup if setup is None else (sorted_dict_repr(setup))
 
-    future_imports = ''
-    if '__future__' in code:
+    future_imports = ""
+    if "__future__" in code:
         # If the code has a __future__ import, we need to be able to strip the __future__
         # imports from the code and add them to the start of our code snippet.
         future_imports, code = _separate_future_imports(code)
 
-    return ("%simport sys; sys.path.insert(0, r'%s'); import pydevd; pydevd.config(%r, %r); "
-            "pydevd.settrace(host=%r, port=%s, suspend=False, trace_only_current_thread=False, patch_multiprocessing=True, access_token=%r, client_access_token=%r, __setup_holder__=%s); "
-            "%s"
-            ) % (
-               future_imports,
-               pydev_src_dir,
-               pydevd_constants.get_protocol(),
-               PydevdCustomization.DEBUG_MODE,
-               host,
-               port,
-               setup.get('access-token'),
-               setup.get('client-access-token'),
-               setup_repr,
-               code)
+    return (
+        "%simport sys; sys.path.insert(0, r'%s'); import pydevd; pydevd.config(%r, %r); "
+        "pydevd.settrace(host=%r, port=%s, suspend=False, trace_only_current_thread=False, patch_multiprocessing=True, access_token=%r, client_access_token=%r, __setup_holder__=%s); "
+        "%s"
+    ) % (
+        future_imports,
+        pydev_src_dir,
+        pydevd_constants.get_protocol(),
+        PydevdCustomization.DEBUG_MODE,
+        host,
+        port,
+        setup.get("access-token"),
+        setup.get("client-access-token"),
+        setup_repr,
+        code,
+    )
 
 
 def _get_host_port():
     import pydevd
+
     host, port = pydevd.dispatch()
     return host, port
 
 
 def _is_managed_arg(arg):
-    pydevd_py = _get_str_type_compatible(arg, 'pydevd.py')
+    pydevd_py = _get_str_type_compatible(arg, "pydevd.py")
     if arg.endswith(pydevd_py):
         return True
     return False
@@ -225,22 +235,24 @@ def _on_forked_process(setup_tracing=True):
     pydev_log.initialize_debug_stream(reinitialize=True)
 
     if setup_tracing:
-        pydev_log.debug('pydevd on forked process: %s', os.getpid())
+        pydev_log.debug("pydevd on forked process: %s", os.getpid())
 
     import pydevd
+
     pydevd.threadingCurrentThread().__pydevd_main_thread = True
     pydevd.settrace_forked(setup_tracing=setup_tracing)
 
 
 def _on_set_trace_for_new_thread(global_debugger):
     if global_debugger is not None:
-        global_debugger.enable_tracing()
+        if not PYDEVD_USE_SYS_MONITORING:
+            global_debugger.enable_tracing()
 
 
 def _get_str_type_compatible(s, args):
-    '''
+    """
     This method converts `args` to byte/unicode based on the `s' type.
-    '''
+    """
     if isinstance(args, (list, tuple)):
         ret = []
         for arg in args:
@@ -248,30 +260,30 @@ def _get_str_type_compatible(s, args):
                 ret.append(arg)
             else:
                 if isinstance(s, bytes):
-                    ret.append(arg.encode('utf-8'))
+                    ret.append(arg.encode("utf-8"))
                 else:
-                    ret.append(arg.decode('utf-8'))
+                    ret.append(arg.decode("utf-8"))
         return ret
     else:
         if type(s) == type(args):
             return args
         else:
             if isinstance(s, bytes):
-                return args.encode('utf-8')
+                return args.encode("utf-8")
             else:
-                return args.decode('utf-8')
+                return args.decode("utf-8")
 
 
-#===============================================================================
+# ===============================================================================
 # Things related to monkey-patching
-#===============================================================================
+# ===============================================================================
 def is_python(path):
     single_quote, double_quote = _get_str_type_compatible(path, ["'", '"'])
 
     if path.endswith(single_quote) or path.endswith(double_quote):
-        path = path[1:len(path) - 1]
+        path = path[1 : len(path) - 1]
     filename = os.path.basename(path).lower()
-    for name in _get_str_type_compatible(filename, ['python', 'jython', 'pypy']):
+    for name in _get_str_type_compatible(filename, ["python", "jython", "pypy"]):
         if filename.find(name) != -1:
             return True
 
@@ -342,8 +354,8 @@ def quote_arg_win32(arg):
     #
     #       N backslashes in any other position remain as is.
 
-    arg = re.sub(fix_type(r'(\\*)\"'), fix_type(r'\1\1\\"'), arg)
-    arg = re.sub(fix_type(r'(\\*)$'), fix_type(r'\1\1'), arg)
+    arg = re.sub(fix_type(r"(\\*)\""), fix_type(r'\1\1\\"'), arg)
+    arg = re.sub(fix_type(r"(\\*)$"), fix_type(r"\1\1"), arg)
     return fix_type('"') + arg + fix_type('"')
 
 
@@ -355,21 +367,21 @@ def quote_args(args):
 
 
 def patch_args(args, is_exec=False):
-    '''
+    """
     :param list args:
         Arguments to patch.
 
     :param bool is_exec:
         If it's an exec, the current process will be replaced (this means we have
         to keep the same ppid).
-    '''
+    """
     try:
         pydev_log.debug("Patching args: %s", args)
         original_args = args
         try:
             unquoted_args = remove_quotes_from_args(args)
         except InvalidTypeInArgsException as e:
-            pydev_log.info('Unable to monkey-patch subprocess arguments because a type found in the args is invalid: %s', e)
+            pydev_log.info("Unable to monkey-patch subprocess arguments because a type found in the args is invalid: %s", e)
             return original_args
 
         # Internally we should reference original_args (if we want to return them) or unquoted_args
@@ -377,6 +389,7 @@ def patch_args(args, is_exec=False):
         del args
 
         from pydevd import SetupHolder
+
         if not unquoted_args:
             return original_args
 
@@ -386,11 +399,11 @@ def patch_args(args, is_exec=False):
 
         # Note: we create a copy as string to help with analyzing the arguments, but
         # the final list should have items from the unquoted_args as they were initially.
-        args_as_str = _get_str_type_compatible('', unquoted_args)
+        args_as_str = _get_str_type_compatible("", unquoted_args)
 
         params_with_value_in_separate_arg = (
-            '--check-hash-based-pycs',
-            '--jit'  # pypy option
+            "--check-hash-based-pycs",
+            "--jit",  # pypy option
         )
 
         # All short switches may be combined together. The ones below require a value and the
@@ -412,17 +425,17 @@ def patch_args(args, is_exec=False):
         #
         # python -O -Q old -v -c "import sys;print(sys)"
 
-        params_with_combinable_arg = set(('W', 'X', 'Q', 'c', 'm'))
+        params_with_combinable_arg = set(("W", "X", "Q", "c", "m"))
 
         module_name = None
-        before_module_flag = ''
+        before_module_flag = ""
         module_name_i_start = -1
         module_name_i_end = -1
 
         code = None
         code_i = -1
         code_i_end = -1
-        code_flag = ''
+        code_flag = ""
 
         filename = None
         filename_i = -1
@@ -433,8 +446,8 @@ def patch_args(args, is_exec=False):
                 ignore_next = False
                 continue
 
-            if arg_as_str.startswith('-'):
-                if arg_as_str == '-':
+            if arg_as_str.startswith("-"):
+                if arg_as_str == "-":
                     # Contents will be read from the stdin. This is not currently handled.
                     pydev_log.debug('Unable to fix arguments to attach debugger on subprocess when reading from stdin ("python ... -").')
                     return original_args
@@ -446,40 +459,39 @@ def patch_args(args, is_exec=False):
 
                 break_out = False
                 for j, c in enumerate(arg_as_str):
-
                     # i.e.: Python supports -X faulthandler as well as -Xfaulthandler
                     # (in one case we have to ignore the next and in the other we don't
                     # have to ignore it).
                     if c in params_with_combinable_arg:
-                        remainder = arg_as_str[j + 1:]
+                        remainder = arg_as_str[j + 1 :]
                         if not remainder:
                             ignore_next = True
 
-                        if c == 'm':
+                        if c == "m":
                             # i.e.: Something as
                             # python -qm test
                             # python -m test
                             # python -qmtest
                             before_module_flag = arg_as_str[:j]  # before_module_flag would then be "-q"
-                            if before_module_flag == '-':
-                                before_module_flag = ''
+                            if before_module_flag == "-":
+                                before_module_flag = ""
                             module_name_i_start = i
                             if not remainder:
                                 module_name = unquoted_args[i + 1]
                                 module_name_i_end = i + 1
                             else:
                                 # i.e.: python -qmtest should provide 'test' as the module_name
-                                module_name = unquoted_args[i][j + 1:]
+                                module_name = unquoted_args[i][j + 1 :]
                                 module_name_i_end = module_name_i_start
                             break_out = True
                             break
 
-                        elif c == 'c':
+                        elif c == "c":
                             # i.e.: Something as
                             # python -qc "import sys"
                             # python -c "import sys"
                             # python "-qcimport sys"
-                            code_flag = arg_as_str[:j + 1]  # code_flag would then be "-qc"
+                            code_flag = arg_as_str[: j + 1]  # code_flag would then be "-qc"
 
                             if not remainder:
                                 # arg_as_str is something as "-qc", "import sys"
@@ -513,13 +525,13 @@ def patch_args(args, is_exec=False):
                 filename_i = i
 
                 if _is_managed_arg(filename):  # no need to add pydevd twice
-                    pydev_log.debug('Skipped monkey-patching as pydevd.py is in args already.')
+                    pydev_log.debug("Skipped monkey-patching as pydevd.py is in args already.")
                     return original_args
 
                 break
         else:
             # We didn't find the filename (something is unexpected).
-            pydev_log.debug('Unable to fix arguments to attach debugger on subprocess (filename not found).')
+            pydev_log.debug("Unable to fix arguments to attach debugger on subprocess (filename not found).")
             return original_args
 
         if code_i != -1:
@@ -536,13 +548,14 @@ def patch_args(args, is_exec=False):
 
         first_non_vm_index = max(filename_i, module_name_i_start)
         if first_non_vm_index == -1:
-            pydev_log.debug('Unable to fix arguments to attach debugger on subprocess (could not resolve filename nor module name).')
+            pydev_log.debug("Unable to fix arguments to attach debugger on subprocess (could not resolve filename nor module name).")
             return original_args
 
         # Original args should be something as:
         # ['X:\\pysrc\\pydevd.py', '--multiprocess', '--print-in-debugger-startup',
         #  '--vm_type', 'python', '--client', '127.0.0.1', '--port', '56352', '--file', 'x:\\snippet1.py']
         from _pydevd_bundle.pydevd_command_line_handling import setup_to_argv
+
         new_args = []
         new_args.extend(unquoted_args[:first_non_vm_index])
         if before_module_flag:
@@ -550,31 +563,32 @@ def patch_args(args, is_exec=False):
 
         add_module_at = len(new_args) + 1
 
-        new_args.extend(setup_to_argv(
-            _get_setup_updated_with_protocol_and_ppid(SetupHolder.setup, is_exec=is_exec),
-            skip_names=set(('module', 'cmd-line'))
-        ))
-        new_args.append('--file')
+        new_args.extend(
+            setup_to_argv(
+                _get_setup_updated_with_protocol_and_ppid(SetupHolder.setup, is_exec=is_exec), skip_names=set(("module", "cmd-line"))
+            )
+        )
+        new_args.append("--file")
 
         if module_name is not None:
             assert module_name_i_start != -1
             assert module_name_i_end != -1
             # Always after 'pydevd' (i.e.: pydevd "--module" --multiprocess ...)
-            new_args.insert(add_module_at, '--module')
+            new_args.insert(add_module_at, "--module")
             new_args.append(module_name)
-            new_args.extend(unquoted_args[module_name_i_end + 1:])
+            new_args.extend(unquoted_args[module_name_i_end + 1 :])
 
         elif filename is not None:
             assert filename_i != -1
             new_args.append(filename)
-            new_args.extend(unquoted_args[filename_i + 1:])
+            new_args.extend(unquoted_args[filename_i + 1 :])
 
         else:
-            raise AssertionError('Internal error (unexpected condition)')
+            raise AssertionError("Internal error (unexpected condition)")
 
         return quote_args(new_args)
     except:
-        pydev_log.exception('Error patching args (debugger not attached to subprocess).')
+        pydev_log.exception("Error patching args (debugger not attached to subprocess).")
         return original_args
 
 
@@ -592,21 +606,21 @@ def str_to_args_windows(args):
 
     state = DEFAULT
     backslashes = 0
-    buf = ''
+    buf = ""
 
     args_len = len(args)
     for i in range(args_len):
         ch = args[i]
-        if (ch == '\\'):
+        if ch == "\\":
             backslashes += 1
             continue
-        elif (backslashes != 0):
+        elif backslashes != 0:
             if ch == '"':
                 while backslashes >= 2:
                     backslashes -= 2
-                    buf += '\\'
-                if (backslashes == 1):
-                    if (state == DEFAULT):
+                    buf += "\\"
+                if backslashes == 1:
+                    if state == DEFAULT:
                         state = ARG
 
                     buf += '"'
@@ -615,21 +629,21 @@ def str_to_args_windows(args):
                 # else fall through to switch
             else:
                 # false alarm, treat passed backslashes literally...
-                if (state == DEFAULT):
+                if state == DEFAULT:
                     state = ARG
 
                 while backslashes > 0:
                     backslashes -= 1
-                    buf += '\\'
+                    buf += "\\"
                 # fall through to switch
-        if ch in (' ', '\t'):
-            if (state == DEFAULT):
+        if ch in (" ", "\t"):
+            if state == DEFAULT:
                 # skip
                 continue
-            elif (state == ARG):
+            elif state == ARG:
                 state = DEFAULT
                 result.append(buf)
-                buf = ''
+                buf = ""
                 continue
 
         if state in (DEFAULT, ARG):
@@ -641,7 +655,7 @@ def str_to_args_windows(args):
 
         elif state == IN_DOUBLE_QUOTE:
             if ch == '"':
-                if (i + 1 < args_len and args[i + 1] == '"'):
+                if i + 1 < args_len and args[i + 1] == '"':
                     # Undocumented feature in Windows:
                     # Two consecutive double quotes inside a double-quoted argument are interpreted as
                     # a single double quote.
@@ -653,7 +667,7 @@ def str_to_args_windows(args):
                 buf += ch
 
         else:
-            raise RuntimeError('Illegal condition')
+            raise RuntimeError("Illegal condition")
 
     if len(buf) > 0 or state != DEFAULT:
         result.append(buf)
@@ -666,14 +680,14 @@ def patch_arg_str_win(arg_str):
     # Fix https://youtrack.jetbrains.com/issue/PY-9767 (args may be empty)
     if not args or not is_python(args[0]):
         return arg_str
-    arg_str = ' '.join(patch_args(args))
+    arg_str = " ".join(patch_args(args))
     pydev_log.debug("New args: %s", arg_str)
     return arg_str
 
 
 def monkey_patch_module(module, funcname, create_func):
     if hasattr(module, funcname):
-        original_name = 'original_' + funcname
+        original_name = "original_" + funcname
         if not hasattr(module, original_name):
             setattr(module, original_name, getattr(module, funcname))
             setattr(module, funcname, create_func(original_name))
@@ -692,7 +706,6 @@ def warn_multiproc():
 
 
 def create_warn_multiproc(original_name):
-
     def new_warn_multiproc(*args, **kwargs):
         import os
 
@@ -704,7 +717,6 @@ def create_warn_multiproc(original_name):
 
 
 def create_execl(original_name):
-
     def new_execl(path, *args):
         """
         os.execl(path, arg0, arg1, ...)
@@ -723,7 +735,6 @@ def create_execl(original_name):
 
 
 def create_execv(original_name):
-
     def new_execv(path, args):
         """
         os.execv(path, args)
@@ -757,7 +768,6 @@ def create_execve(original_name):
 
 
 def create_spawnl(original_name):
-
     def new_spawnl(mode, path, *args):
         """
         os.spawnl(mode, path, arg0, arg1, ...)
@@ -773,7 +783,6 @@ def create_spawnl(original_name):
 
 
 def create_spawnv(original_name):
-
     def new_spawnv(mode, path, args):
         """
         os.spawnv(mode, path, args)
@@ -826,6 +835,7 @@ def create_fork_exec(original_name):
 
     def new_fork_exec(args, *other_args):
         import _posixsubprocess  # @UnresolvedImport
+
         if _get_apply_arg_patching():
             args = patch_args(args)
             send_process_created_message()
@@ -843,6 +853,7 @@ def create_warn_fork_exec(original_name):
     def new_warn_fork_exec(*args):
         try:
             import _posixsubprocess
+
             warn_multiproc()
             return getattr(_posixsubprocess, original_name)(*args)
         except:
@@ -858,6 +869,7 @@ def create_subprocess_fork_exec(original_name):
 
     def new_fork_exec(args, *other_args):
         import subprocess
+
         if _get_apply_arg_patching():
             args = patch_args(args)
             send_process_created_message()
@@ -875,6 +887,7 @@ def create_subprocess_warn_fork_exec(original_name):
     def new_warn_fork_exec(*args):
         try:
             import subprocess
+
             warn_multiproc()
             return getattr(subprocess, original_name)(*args)
         except:
@@ -920,7 +933,6 @@ def create_CreateProcessWarnMultiproc(original_name):
 
 
 def create_fork(original_name):
-
     def new_fork():
         # A simple fork will result in a new python process
         is_new_python_process = True
@@ -930,12 +942,12 @@ def create_fork(original_name):
 
         is_subprocess_fork = False
         while frame is not None:
-            if frame.f_code.co_name == '_execute_child' and 'subprocess' in frame.f_code.co_filename:
+            if frame.f_code.co_name == "_execute_child" and "subprocess" in frame.f_code.co_filename:
                 is_subprocess_fork = True
                 # If we're actually in subprocess.Popen creating a child, it may
                 # result in something which is not a Python process, (so, we
                 # don't want to connect with it in the forked version).
-                executable = frame.f_locals.get('executable')
+                executable = frame.f_locals.get("executable")
                 if executable is not None:
                     is_new_python_process = False
                     if is_python(executable):
@@ -985,14 +997,14 @@ def patch_new_process_functions():
     # os.execve(path, args, env)
     # os.execvp(file, args)
     # os.execvpe(file, args, env)
-    monkey_patch_os('execl', create_execl)
-    monkey_patch_os('execle', create_execl)
-    monkey_patch_os('execlp', create_execl)
-    monkey_patch_os('execlpe', create_execl)
-    monkey_patch_os('execv', create_execv)
-    monkey_patch_os('execve', create_execve)
-    monkey_patch_os('execvp', create_execv)
-    monkey_patch_os('execvpe', create_execve)
+    monkey_patch_os("execl", create_execl)
+    monkey_patch_os("execle", create_execl)
+    monkey_patch_os("execlp", create_execl)
+    monkey_patch_os("execlpe", create_execl)
+    monkey_patch_os("execv", create_execv)
+    monkey_patch_os("execve", create_execve)
+    monkey_patch_os("execvp", create_execv)
+    monkey_patch_os("execvpe", create_execve)
 
     # os.spawnl(mode, path, ...)
     # os.spawnle(mode, path, ..., env)
@@ -1003,28 +1015,30 @@ def patch_new_process_functions():
     # os.spawnvp(mode, file, args)
     # os.spawnvpe(mode, file, args, env)
 
-    monkey_patch_os('spawnl', create_spawnl)
-    monkey_patch_os('spawnle', create_spawnl)
-    monkey_patch_os('spawnlp', create_spawnl)
-    monkey_patch_os('spawnlpe', create_spawnl)
-    monkey_patch_os('spawnv', create_spawnv)
-    monkey_patch_os('spawnve', create_spawnve)
-    monkey_patch_os('spawnvp', create_spawnv)
-    monkey_patch_os('spawnvpe', create_spawnve)
-    monkey_patch_os('posix_spawn', create_posix_spawn)
+    monkey_patch_os("spawnl", create_spawnl)
+    monkey_patch_os("spawnle", create_spawnl)
+    monkey_patch_os("spawnlp", create_spawnl)
+    monkey_patch_os("spawnlpe", create_spawnl)
+    monkey_patch_os("spawnv", create_spawnv)
+    monkey_patch_os("spawnve", create_spawnve)
+    monkey_patch_os("spawnvp", create_spawnv)
+    monkey_patch_os("spawnvpe", create_spawnve)
+    monkey_patch_os("posix_spawn", create_posix_spawn)
 
     if not IS_JYTHON:
         if not IS_WINDOWS:
-            monkey_patch_os('fork', create_fork)
+            monkey_patch_os("fork", create_fork)
             try:
                 import _posixsubprocess
-                monkey_patch_module(_posixsubprocess, 'fork_exec', create_fork_exec)
+
+                monkey_patch_module(_posixsubprocess, "fork_exec", create_fork_exec)
             except ImportError:
                 pass
 
             try:
                 import subprocess
-                monkey_patch_module(subprocess, '_fork_exec', create_subprocess_fork_exec)
+
+                monkey_patch_module(subprocess, "_fork_exec", create_subprocess_fork_exec)
             except AttributeError:
                 pass
         else:
@@ -1033,40 +1047,42 @@ def patch_new_process_functions():
                 import _subprocess
             except ImportError:
                 import _winapi as _subprocess
-            monkey_patch_module(_subprocess, 'CreateProcess', create_CreateProcess)
+            monkey_patch_module(_subprocess, "CreateProcess", create_CreateProcess)
 
 
 def patch_new_process_functions_with_warning():
-    monkey_patch_os('execl', create_warn_multiproc)
-    monkey_patch_os('execle', create_warn_multiproc)
-    monkey_patch_os('execlp', create_warn_multiproc)
-    monkey_patch_os('execlpe', create_warn_multiproc)
-    monkey_patch_os('execv', create_warn_multiproc)
-    monkey_patch_os('execve', create_warn_multiproc)
-    monkey_patch_os('execvp', create_warn_multiproc)
-    monkey_patch_os('execvpe', create_warn_multiproc)
-    monkey_patch_os('spawnl', create_warn_multiproc)
-    monkey_patch_os('spawnle', create_warn_multiproc)
-    monkey_patch_os('spawnlp', create_warn_multiproc)
-    monkey_patch_os('spawnlpe', create_warn_multiproc)
-    monkey_patch_os('spawnv', create_warn_multiproc)
-    monkey_patch_os('spawnve', create_warn_multiproc)
-    monkey_patch_os('spawnvp', create_warn_multiproc)
-    monkey_patch_os('spawnvpe', create_warn_multiproc)
-    monkey_patch_os('posix_spawn', create_warn_multiproc)
+    monkey_patch_os("execl", create_warn_multiproc)
+    monkey_patch_os("execle", create_warn_multiproc)
+    monkey_patch_os("execlp", create_warn_multiproc)
+    monkey_patch_os("execlpe", create_warn_multiproc)
+    monkey_patch_os("execv", create_warn_multiproc)
+    monkey_patch_os("execve", create_warn_multiproc)
+    monkey_patch_os("execvp", create_warn_multiproc)
+    monkey_patch_os("execvpe", create_warn_multiproc)
+    monkey_patch_os("spawnl", create_warn_multiproc)
+    monkey_patch_os("spawnle", create_warn_multiproc)
+    monkey_patch_os("spawnlp", create_warn_multiproc)
+    monkey_patch_os("spawnlpe", create_warn_multiproc)
+    monkey_patch_os("spawnv", create_warn_multiproc)
+    monkey_patch_os("spawnve", create_warn_multiproc)
+    monkey_patch_os("spawnvp", create_warn_multiproc)
+    monkey_patch_os("spawnvpe", create_warn_multiproc)
+    monkey_patch_os("posix_spawn", create_warn_multiproc)
 
     if not IS_JYTHON:
         if not IS_WINDOWS:
-            monkey_patch_os('fork', create_warn_multiproc)
+            monkey_patch_os("fork", create_warn_multiproc)
             try:
                 import _posixsubprocess
-                monkey_patch_module(_posixsubprocess, 'fork_exec', create_warn_fork_exec)
+
+                monkey_patch_module(_posixsubprocess, "fork_exec", create_warn_fork_exec)
             except ImportError:
                 pass
 
             try:
                 import subprocess
-                monkey_patch_module(subprocess, '_fork_exec', create_subprocess_warn_fork_exec)
+
+                monkey_patch_module(subprocess, "_fork_exec", create_subprocess_warn_fork_exec)
             except AttributeError:
                 pass
 
@@ -1076,11 +1092,10 @@ def patch_new_process_functions_with_warning():
                 import _subprocess
             except ImportError:
                 import _winapi as _subprocess
-            monkey_patch_module(_subprocess, 'CreateProcess', create_CreateProcessWarnMultiproc)
+            monkey_patch_module(_subprocess, "CreateProcess", create_CreateProcessWarnMultiproc)
 
 
 class _NewThreadStartupWithTrace:
-
     def __init__(self, original_func, args, kwargs):
         self.original_func = original_func
         self.args = args
@@ -1097,20 +1112,21 @@ class _NewThreadStartupWithTrace:
             # the start_new_thread internal machinery and thread._bootstrap has not finished), so, the code below needs
             # to make sure that we use the current thread bound to the original function and not use
             # threading.current_thread() unless we're sure it's a dummy thread.
-            t = getattr(self.original_func, '__self__', getattr(self.original_func, 'im_self', None))
+            t = getattr(self.original_func, "__self__", getattr(self.original_func, "im_self", None))
             if not isinstance(t, threading.Thread):
                 # This is not a threading.Thread but a Dummy thread (so, get it as a dummy thread using
                 # currentThread).
                 t = threading.current_thread()
 
-            if not getattr(t, 'is_pydev_daemon_thread', False):
+            if not getattr(t, "is_pydev_daemon_thread", False):
                 thread_id = get_current_thread_id(t)
                 py_db.notify_thread_created(thread_id, t)
                 _on_set_trace_for_new_thread(py_db)
 
-            if getattr(py_db, 'thread_analyser', None) is not None:
+            if getattr(py_db, "thread_analyser", None) is not None:
                 try:
                     from _pydevd_bundle.pydevd_concurrency_analyser.pydevd_concurrency_logger import log_new_thread
+
                     log_new_thread(py_db, t)
                 except:
                     sys.stderr.write("Failed to detect new thread for visualization")
@@ -1128,7 +1144,6 @@ class _NewThreadStartupWithTrace:
 
 
 class _NewThreadStartupWithoutTrace:
-
     def __init__(self, original_func, args, kwargs):
         self.original_func = original_func
         self.args = args
@@ -1158,10 +1173,9 @@ threading_modules_to_patch = _get_threading_modules_to_patch()
 
 
 def patch_thread_module(thread_module):
-
-    if getattr(thread_module, '_original_start_new_thread', None) is None:
+    if getattr(thread_module, "_original_start_new_thread", None) is None:
         if thread_module is threading:
-            if not hasattr(thread_module, '_start_new_thread'):
+            if not hasattr(thread_module, "_start_new_thread"):
                 return  # Jython doesn't have it.
             _original_start_new_thread = thread_module._original_start_new_thread = thread_module._start_new_thread
         else:
@@ -1170,12 +1184,11 @@ def patch_thread_module(thread_module):
         _original_start_new_thread = thread_module._original_start_new_thread
 
     class ClassWithPydevStartNewThread:
-
         def pydev_start_new_thread(self, function, args=(), kwargs={}):
-            '''
+            """
             We need to replace the original thread_module.start_new_thread with this function so that threads started
             through it and not through the threading module are properly traced.
-            '''
+            """
             return _original_start_new_thread(_UseNewThreadStartup(function, args, kwargs), ())
 
     # This is a hack for the situation where the thread_module.start_new_thread is declared inside a class, such as the one below
@@ -1224,17 +1237,17 @@ def undo_patch_thread_modules():
 
 
 def disable_trace_thread_modules():
-    '''
+    """
     Can be used to temporarily stop tracing threads created with thread.start_new_thread.
-    '''
+    """
     global _UseNewThreadStartup
     _UseNewThreadStartup = _NewThreadStartupWithoutTrace
 
 
 def enable_trace_thread_modules():
-    '''
+    """
     Can be used to start tracing threads created with thread.start_new_thread again.
-    '''
+    """
     global _UseNewThreadStartup
     _UseNewThreadStartup = _NewThreadStartupWithTrace
 

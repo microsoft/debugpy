@@ -4,11 +4,25 @@
 
 import io
 import os
-import pytest_timeout
+import shutil
 import sys
 
 from debugpy.common import json, log
 
+
+def write_title(title, stream=None, sep="~"):
+    """Write a section title.
+    If *stream* is None sys.stderr will be used, *sep* is used to
+    draw the line.
+    """
+    if stream is None:
+        stream = sys.stderr
+    width, height = shutil.get_terminal_size()
+    fill = int((width - len(title) - 2) / 2)
+    line = " ".join([sep * fill, title, sep * fill])
+    if len(line) < width:
+        line += sep * (width - len(line))
+    stream.write("\n" + line + "\n")
 
 def dump():
     if log.log_dir is None:
@@ -27,5 +41,5 @@ def dump():
                 pass
             else:
                 path = os.path.relpath(path, log.log_dir)
-                pytest_timeout.write_title(path)
+                write_title(path)
                 print(s, file=sys.stderr)

@@ -1,4 +1,4 @@
-r'''
+r"""
     This module provides utilities to get the absolute filenames so that we can be sure that:
         - The case of a file will match the actual file in the filesystem (otherwise breakpoints won't be hit).
         - Providing means for the user to make path conversions when doing a remote debugging session in
@@ -39,11 +39,10 @@ r'''
     @note: for doing a remote debugging session, all the pydevd_ files must be on the server accessible
         through the PYTHONPATH (and the PATHS_FROM_ECLIPSE_TO_PYTHON only needs to be set on the target
         machine for the paths that'll actually have breakpoints).
-'''
+"""
 
 from _pydev_bundle import pydev_log
-from _pydevd_bundle.pydevd_constants import DebugInfoHolder, IS_WINDOWS, IS_JYTHON, \
-    DISABLE_FILE_VALIDATION, is_true_in_env, IS_MAC
+from _pydevd_bundle.pydevd_constants import DebugInfoHolder, IS_WINDOWS, IS_JYTHON, DISABLE_FILE_VALIDATION, is_true_in_env, IS_MAC
 from _pydev_bundle._pydev_filesystem_encoding import getfilesystemencoding
 from _pydevd_bundle.pydevd_comm_constants import file_system_encoding, filesystem_encoding_is_utf8
 from _pydev_bundle.pydev_log import error_once
@@ -77,13 +76,14 @@ def _get_library_dir():
     library_dir = None
     try:
         import sysconfig
-        library_dir = sysconfig.get_path('purelib')
+
+        library_dir = sysconfig.get_path("purelib")
     except ImportError:
         pass  # i.e.: Only 2.7 onwards
 
     if library_dir is None or not os_path_exists(library_dir):
         for path in sys.path:
-            if os_path_exists(path) and os.path.basename(path) == 'site-packages':
+            if os_path_exists(path) and os.path.basename(path) == "site-packages":
                 library_dir = path
                 break
 
@@ -101,14 +101,14 @@ _library_dir = _get_library_dir()
 # and the 2nd element is the path in the server machine.
 # see module docstring for more details.
 try:
-    PATHS_FROM_ECLIPSE_TO_PYTHON = json.loads(os.environ.get('PATHS_FROM_ECLIPSE_TO_PYTHON', '[]'))
+    PATHS_FROM_ECLIPSE_TO_PYTHON = json.loads(os.environ.get("PATHS_FROM_ECLIPSE_TO_PYTHON", "[]"))
 except Exception:
-    pydev_log.critical('Error loading PATHS_FROM_ECLIPSE_TO_PYTHON from environment variable.')
+    pydev_log.critical("Error loading PATHS_FROM_ECLIPSE_TO_PYTHON from environment variable.")
     pydev_log.exception()
     PATHS_FROM_ECLIPSE_TO_PYTHON = []
 else:
     if not isinstance(PATHS_FROM_ECLIPSE_TO_PYTHON, list):
-        pydev_log.critical('Expected PATHS_FROM_ECLIPSE_TO_PYTHON loaded from environment variable to be a list.')
+        pydev_log.critical("Expected PATHS_FROM_ECLIPSE_TO_PYTHON loaded from environment variable to be a list.")
         PATHS_FROM_ECLIPSE_TO_PYTHON = []
     else:
         # Converting json lists to tuple
@@ -120,9 +120,9 @@ else:
 #   r'd:\temp\temp_workspace_2\test_python\src\hhh\xxx')
 # ]
 
-convert_to_long_pathname = lambda filename:filename
-convert_to_short_pathname = lambda filename:filename
-get_path_with_real_case = lambda filename:filename
+convert_to_long_pathname = lambda filename: filename
+convert_to_short_pathname = lambda filename: filename
+get_path_with_real_case = lambda filename: filename
 
 # Note that we have a cache for previous list dirs... the only case where this may be an
 # issue is if the user actually changes the case of an existing file on while
@@ -155,15 +155,14 @@ def _resolve_listing(resolved, iter_parts_lowercase, cache=_listdir_cache):
                     cache[(resolved_lower, resolve_lowercase)] = resolved_joined
                     break
             else:
-                raise FileNotFoundError('Unable to find: %s in %s. Dir Contents: %s' % (
-                    resolve_lowercase, resolved, dir_contents))
+                raise FileNotFoundError("Unable to find: %s in %s. Dir Contents: %s" % (resolve_lowercase, resolved, dir_contents))
 
         resolved = resolved_joined
 
 
 def _resolve_listing_parts(resolved, parts_in_lowercase, filename):
     try:
-        if parts_in_lowercase == ['']:
+        if parts_in_lowercase == [""]:
             return resolved
         return _resolve_listing(resolved, iter(parts_in_lowercase))
     except FileNotFoundError:
@@ -175,10 +174,12 @@ def _resolve_listing_parts(resolved, parts_in_lowercase, filename):
             if os_path_exists(filename):
                 # This is really strange, ask the user to report as error.
                 pydev_log.critical(
-                    'pydev debugger: critical: unable to get real case for file. Details:\n'
-                    'filename: %s\ndrive: %s\nparts: %s\n'
-                    '(please create a ticket in the tracker to address this).',
-                    filename, resolved, parts_in_lowercase
+                    "pydev debugger: critical: unable to get real case for file. Details:\n"
+                    "filename: %s\ndrive: %s\nparts: %s\n"
+                    "(please create a ticket in the tracker to address this).",
+                    filename,
+                    resolved,
+                    parts_in_lowercase,
                 )
                 pydev_log.exception()
             # Don't fail, just return the original file passed.
@@ -189,15 +190,16 @@ def _resolve_listing_parts(resolved, parts_in_lowercase, filename):
         # Don't fail nor log unless the trace level is at least info. Just return the original file passed.
         if DebugInfoHolder.DEBUG_TRACE_LEVEL >= 1:
             pydev_log.info(
-                'pydev debugger: OSError: Unable to get real case for file. Details:\n'
-                'filename: %s\ndrive: %s\nparts: %s\n',
-                filename, resolved, parts_in_lowercase
+                "pydev debugger: OSError: Unable to get real case for file. Details:\n" "filename: %s\ndrive: %s\nparts: %s\n",
+                filename,
+                resolved,
+                parts_in_lowercase,
             )
             pydev_log.exception()
         return filename
 
 
-if sys.platform == 'win32':
+if sys.platform == "win32":
     try:
         import ctypes
         from ctypes.wintypes import MAX_PATH, LPCWSTR, LPWSTR, DWORD
@@ -235,10 +237,10 @@ if sys.platform == 'win32':
             # consistently (there are settings to disable it on Windows).
             # So, using approach which resolves by listing the dir.
 
-            if '~' in filename:
+            if "~" in filename:
                 filename = convert_to_long_pathname(filename)
 
-            if filename.startswith('<') or not os_path_exists(filename):
+            if filename.startswith("<") or not os_path_exists(filename):
                 return filename  # Not much we can do.
 
             drive, parts = os.path.splitdrive(os.path.normpath(filename))
@@ -263,10 +265,11 @@ if sys.platform == 'win32':
 elif IS_JYTHON and IS_WINDOWS:
 
     def get_path_with_real_case(filename):
-        if filename.startswith('<'):
+        if filename.startswith("<"):
             return filename
 
         from java.io import File  # noqa
+
         f = File(filename)
         ret = f.getCanonicalPath()
         return ret
@@ -274,17 +277,18 @@ elif IS_JYTHON and IS_WINDOWS:
 elif IS_MAC:
 
     def get_path_with_real_case(filename):
-        if filename.startswith('<') or not os_path_exists(filename):
+        if filename.startswith("<") or not os_path_exists(filename):
             return filename  # Not much we can do.
 
-        parts = filename.lower().split('/')
+        parts = filename.lower().split("/")
 
-        found = ''
-        while parts and parts[0] == '':
-            found += '/'
+        found = ""
+        while parts and parts[0] == "":
+            found += "/"
             parts = parts[1:]
 
         return _resolve_listing_parts(found, parts, filename)
+
 
 if IS_JYTHON:
 
@@ -295,7 +299,7 @@ else:
 
     def _normcase_windows(filename):
         # `normcase` doesn't lower case on Python 2 for non-English locale, so we should do it manually.
-        if '~' in filename:
+        if "~" in filename:
             filename = convert_to_long_pathname(filename)
 
         filename = _nt_os_normcase(filename)
@@ -306,8 +310,8 @@ def _normcase_linux(filename):
     return filename  # no-op
 
 
-_filename_normalization = os.environ.get('PYDEVD_FILENAME_NORMALIZATION', '').lower()
-if _filename_normalization == 'lower':
+_filename_normalization = os.environ.get("PYDEVD_FILENAME_NORMALIZATION", "").lower()
+if _filename_normalization == "lower":
     # Note: this is mostly for testing (forcing to always lower-case all contents
     # internally -- used to mimick Windows normalization on Linux).
 
@@ -316,7 +320,7 @@ if _filename_normalization == 'lower':
 
     _default_normcase = _normcase_lower
 
-elif _filename_normalization == 'none':
+elif _filename_normalization == "none":
     # Disable any filename normalization may be an option on Windows if the
     # user is having issues under some circumstances.
     _default_normcase = _normcase_linux
@@ -343,7 +347,7 @@ def normcase(s, NORMCASE_CACHE={}):
         return normalized
 
 
-_ide_os = 'WINDOWS' if IS_WINDOWS else 'UNIX'
+_ide_os = "WINDOWS" if IS_WINDOWS else "UNIX"
 
 _normcase_from_client = normcase
 
@@ -352,32 +356,31 @@ def normcase_from_client(s):
     return _normcase_from_client(s)
 
 
-DEBUG_CLIENT_SERVER_TRANSLATION = os.environ.get('DEBUG_PYDEVD_PATHS_TRANSLATION', 'False').lower() in ('1', 'true')
+DEBUG_CLIENT_SERVER_TRANSLATION = os.environ.get("DEBUG_PYDEVD_PATHS_TRANSLATION", "False").lower() in ("1", "true")
 
 
 def set_ide_os(os):
-    '''
+    """
     We need to set the IDE os because the host where the code is running may be
     actually different from the client (and the point is that we want the proper
     paths to translate from the client to the server).
 
     :param os:
         'UNIX' or 'WINDOWS'
-    '''
+    """
     global _ide_os
     global _normcase_from_client
     prev = _ide_os
-    if os == 'WIN':  # Apparently PyCharm uses 'WIN' (https://github.com/fabioz/PyDev.Debugger/issues/116)
-        os = 'WINDOWS'
+    if os == "WIN":  # Apparently PyCharm uses 'WIN' (https://github.com/fabioz/PyDev.Debugger/issues/116)
+        os = "WINDOWS"
 
-    assert os in ('WINDOWS', 'UNIX')
+    assert os in ("WINDOWS", "UNIX")
 
     if DEBUG_CLIENT_SERVER_TRANSLATION:
-        print('pydev debugger: client OS: %s' % (os,))
+        print("pydev debugger: client OS: %s" % (os,))
 
     _normcase_from_client = normcase
-    if os == 'WINDOWS':
-
+    if os == "WINDOWS":
         # Client in Windows and server in Unix, we need to normalize the case.
         if not IS_WINDOWS:
             _normcase_from_client = _normcase_windows
@@ -399,28 +402,28 @@ NORM_PATHS_AND_BASE_CONTAINER = {}
 
 
 def canonical_normalized_path(filename):
-    '''
+    """
     This returns a filename that is canonical and it's meant to be used internally
     to store information on breakpoints and see if there's any hit on it.
 
     Note that this version is only internal as it may not match the case and
     may have symlinks resolved (and thus may not match what the user expects
     in the editor).
-    '''
+    """
     return get_abs_path_real_path_and_base_from_file(filename)[1]
 
 
 def absolute_path(filename):
-    '''
+    """
     Provides a version of the filename that's absolute (and NOT normalized).
-    '''
+    """
     return get_abs_path_real_path_and_base_from_file(filename)[0]
 
 
 def basename(filename):
-    '''
+    """
     Provides the basename for a file.
-    '''
+    """
     return get_abs_path_real_path_and_base_from_file(filename)[2]
 
 
@@ -430,7 +433,7 @@ def _abs_and_canonical_path(filename, NORM_PATHS_CONTAINER=NORM_PATHS_CONTAINER)
         return NORM_PATHS_CONTAINER[filename]
     except:
         if filename.__class__ != str:
-            raise AssertionError('Paths passed to _abs_and_canonical_path must be str. Found: %s (%s)' % (filename, type(filename)))
+            raise AssertionError("Paths passed to _abs_and_canonical_path must be str. Found: %s (%s)" % (filename, type(filename)))
         if os is None:  # Interpreter shutdown
             return filename, filename
 
@@ -475,7 +478,7 @@ def _get_relative_filename_abs_path(filename, func, os_path_exists=os_path_exist
 
 
 def _apply_func_and_normalize_case(filename, func, isabs, normalize_case, os_path_exists=os_path_exists, join=join):
-    if filename.startswith('<'):
+    if filename.startswith("<"):
         # Not really a file, rather a synthetic name like <string> or <ipython-...>;
         # shouldn't be normalized.
         return filename
@@ -486,23 +489,23 @@ def _apply_func_and_normalize_case(filename, func, isabs, normalize_case, os_pat
         if not os_path_exists(r):
             r = _get_relative_filename_abs_path(filename, func)
 
-    ind = r.find('.zip')
+    ind = r.find(".zip")
     if ind == -1:
-        ind = r.find('.egg')
+        ind = r.find(".egg")
     if ind != -1:
         ind += 4
         zip_path = r[:ind]
         inner_path = r[ind:]
-        if inner_path.startswith('!'):
+        if inner_path.startswith("!"):
             # Note (fabioz): although I can replicate this by creating a file ending as
             # .zip! or .egg!, I don't really know what's the real-world case for this
             # (still kept as it was added by @jetbrains, but it should probably be reviewed
             # later on).
             # Note 2: it goes hand-in-hand with 'exists'.
             inner_path = inner_path[1:]
-            zip_path = zip_path + '!'
+            zip_path = zip_path + "!"
 
-        if inner_path.startswith('/') or inner_path.startswith('\\'):
+        if inner_path.startswith("/") or inner_path.startswith("\\"):
             inner_path = inner_path[1:]
         if inner_path:
             if normalize_case:
@@ -529,9 +532,9 @@ def exists(filename):
         if os_path_exists(filename):
             return True
 
-    ind = filename.find('.zip')
+    ind = filename.find(".zip")
     if ind == -1:
-        ind = filename.find('.egg')
+        ind = filename.find(".egg")
 
     if ind != -1:
         ind += 4
@@ -544,7 +547,7 @@ def exists(filename):
             # later on).
             # Note 2: it goes hand-in-hand with '_apply_func_and_normalize_case'.
             inner_path = inner_path[1:]
-            zip_path = zip_path + '!'
+            zip_path = zip_path + "!"
 
         zip_file_obj = _ZIP_SEARCH_CACHE.get(zip_path, _NOT_FOUND_SENTINEL)
         if zip_file_obj is None:
@@ -552,24 +555,25 @@ def exists(filename):
         elif zip_file_obj is _NOT_FOUND_SENTINEL:
             try:
                 import zipfile
-                zip_file_obj = zipfile.ZipFile(zip_path, 'r')
+
+                zip_file_obj = zipfile.ZipFile(zip_path, "r")
                 _ZIP_SEARCH_CACHE[zip_path] = zip_file_obj
             except:
                 _ZIP_SEARCH_CACHE[zip_path] = _NOT_FOUND_SENTINEL
                 return False
 
         try:
-            if inner_path.startswith('/') or inner_path.startswith('\\'):
+            if inner_path.startswith("/") or inner_path.startswith("\\"):
                 inner_path = inner_path[1:]
 
-            _info = zip_file_obj.getinfo(inner_path.replace('\\', '/'))
+            _info = zip_file_obj.getinfo(inner_path.replace("\\", "/"))
 
             return join(zip_path, inner_path)
         except KeyError:
             return False
 
     else:
-        pydev_log.debug('os.path.exists(%r) returned False.', filename)
+        pydev_log.debug("os.path.exists(%r) returned False.", filename)
 
     return False
 
@@ -584,22 +588,22 @@ try:
     except AttributeError:
         code = os_path_real_path.__code__
 
-    if code.co_filename.startswith('<frozen'):
+    if code.co_filename.startswith("<frozen"):
         # See: https://github.com/fabioz/PyDev.Debugger/issues/213
-        report('Debugger warning: It seems that frozen modules are being used, which may')
-        report('make the debugger miss breakpoints. Please pass -Xfrozen_modules=off')
-        report('to python to disable frozen modules.')
-        report('Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.')
+        report("Debugger warning: It seems that frozen modules are being used, which may")
+        report("make the debugger miss breakpoints. Please pass -Xfrozen_modules=off")
+        report("to python to disable frozen modules.")
+        report("Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.")
 
     elif not os.path.isabs(code.co_filename):
-        report('Debugger warning: The os.path.realpath.__code__.co_filename (%s)', code.co_filename)
-        report('is not absolute, which may make the debugger miss breakpoints.')
-        report('Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.')
+        report("Debugger warning: The os.path.realpath.__code__.co_filename (%s)", code.co_filename)
+        report("is not absolute, which may make the debugger miss breakpoints.")
+        report("Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.")
 
     elif not exists(code.co_filename):  # Note: checks for files inside .zip containers.
-        report('Debugger warning: It seems the debugger cannot find os.path.realpath.__code__.co_filename (%s).', code.co_filename)
-        report('This may make the debugger miss breakpoints in the standard library.')
-        report('Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.')
+        report("Debugger warning: It seems the debugger cannot find os.path.realpath.__code__.co_filename (%s).", code.co_filename)
+        report("This may make the debugger miss breakpoints in the standard library.")
+        report("Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.")
 except:
     # Don't fail if there's something not correct here -- but at least print it to the user so that we can correct that
     pydev_log.exception()
@@ -641,14 +645,14 @@ map_file_to_server = _original_map_file_to_server
 
 def _fix_path(path, sep, add_end_sep=False):
     if add_end_sep:
-        if not path.endswith('/') and not path.endswith('\\'):
-            path += '/'
+        if not path.endswith("/") and not path.endswith("\\"):
+            path += "/"
     else:
-        if path.endswith('/') or path.endswith('\\'):
+        if path.endswith("/") or path.endswith("\\"):
             path = path[:-1]
 
-    if sep != '/':
-        path = path.replace('/', sep)
+    if sep != "/":
+        path = path.replace("/", sep)
     return path
 
 
@@ -666,12 +670,12 @@ def get_client_filename_source_reference(client_filename):
 
 
 def get_server_filename_from_source_reference(source_reference):
-    return _source_reference_to_server_filename.get(source_reference, '')
+    return _source_reference_to_server_filename.get(source_reference, "")
 
 
 def create_source_reference_for_linecache(server_filename):
     source_reference = _next_source_reference()
-    pydev_log.debug('Created linecache id source reference: %s for server filename: %s', source_reference, server_filename)
+    pydev_log.debug("Created linecache id source reference: %s for server filename: %s", source_reference, server_filename)
     _line_cache_source_reference_to_server_filename[source_reference] = server_filename
     return source_reference
 
@@ -682,7 +686,7 @@ def get_source_reference_filename_from_linecache(source_reference):
 
 def create_source_reference_for_frame_id(frame_id, original_filename):
     source_reference = _next_source_reference()
-    pydev_log.debug('Created frame id source reference: %s for frame id: %s (%s)', source_reference, frame_id, original_filename)
+    pydev_log.debug("Created frame id source reference: %s for frame id: %s (%s)", source_reference, frame_id, original_filename)
     _source_reference_to_frame_id[source_reference] = frame_id
     return source_reference
 
@@ -691,7 +695,7 @@ def get_frame_id_from_source_reference(source_reference):
     return _source_reference_to_frame_id.get(source_reference)
 
 
-_global_resolve_symlinks = is_true_in_env('PYDEVD_RESOLVE_SYMLINKS')
+_global_resolve_symlinks = is_true_in_env("PYDEVD_RESOLVE_SYMLINKS")
 
 
 def set_resolve_symlinks(resolve_symlinks):
@@ -700,7 +704,7 @@ def set_resolve_symlinks(resolve_symlinks):
 
 
 def setup_client_server_paths(paths):
-    '''paths is the same format as PATHS_FROM_ECLIPSE_TO_PYTHON'''
+    """paths is the same format as PATHS_FROM_ECLIPSE_TO_PYTHON"""
 
     global map_file_to_client
     global map_file_to_server
@@ -714,8 +718,8 @@ def setup_client_server_paths(paths):
     _next_source_reference = partial(next, itertools.count(1))
 
     # Work on the client and server slashes.
-    python_sep = '\\' if IS_WINDOWS else '/'
-    eclipse_sep = '\\' if _ide_os == 'WINDOWS' else '/'
+    python_sep = "\\" if IS_WINDOWS else "/"
+    eclipse_sep = "\\" if _ide_os == "WINDOWS" else "/"
 
     norm_filename_to_server_container = {}
     norm_filename_to_client_container = {}
@@ -729,7 +733,7 @@ def setup_client_server_paths(paths):
     # Apply normcase to the existing paths to follow the os preferences.
 
     for i, (path0, path1) in enumerate(paths):
-        force_only_slash = path0.endswith(('/', '\\')) and path1.endswith(('/', '\\'))
+        force_only_slash = path0.endswith(("/", "\\")) and path1.endswith(("/", "\\"))
 
         if not force_only_slash:
             path0 = _fix_path(path0, eclipse_sep, False)
@@ -771,10 +775,10 @@ def setup_client_server_paths(paths):
                 if translated_normalized.startswith(eclipse_prefix):
                     found_translation = True
                     if DEBUG_CLIENT_SERVER_TRANSLATION:
-                        pydev_log.critical('pydev debugger: replacing to server: %s', filename)
-                    translated = server_prefix + filename[len(eclipse_prefix):]
+                        pydev_log.critical("pydev debugger: replacing to server: %s", filename)
+                    translated = server_prefix + filename[len(eclipse_prefix) :]
                     if DEBUG_CLIENT_SERVER_TRANSLATION:
-                        pydev_log.critical('pydev debugger: sent to server: %s - matched prefix: %s', translated, eclipse_prefix)
+                        pydev_log.critical("pydev debugger: sent to server: %s - matched prefix: %s", translated, eclipse_prefix)
                     break
             else:
                 found_translation = False
@@ -789,11 +793,14 @@ def setup_client_server_paths(paths):
                 translated = absolute_path(translated)
             else:
                 if not os_path_exists(translated):
-                    if not translated.startswith('<'):
+                    if not translated.startswith("<"):
                         # This is a configuration error, so, write it always so
                         # that the user can fix it.
-                        error_once('pydev debugger: unable to find translation for: "%s" in [%s] (please revise your path mappings).\n',
-                            filename, ', '.join(['"%s"' % (x[0],) for x in paths_from_eclipse_to_python]))
+                        error_once(
+                            'pydev debugger: unable to find translation for: "%s" in [%s] (please revise your path mappings).\n',
+                            filename,
+                            ", ".join(['"%s"' % (x[0],) for x in paths_from_eclipse_to_python]),
+                        )
                 else:
                     # It's possible that we had some round trip (say, we sent /usr/lib and received
                     # it back, so, having no translation is ok too).
@@ -820,25 +827,28 @@ def setup_client_server_paths(paths):
             if translated_normalized.lower() != translated_proper_case.lower():
                 if DEBUG_CLIENT_SERVER_TRANSLATION:
                     pydev_log.critical(
-                        'pydev debugger: translated_normalized changed path (from: %s to %s)',
-                            translated_proper_case, translated_normalized)
+                        "pydev debugger: translated_normalized changed path (from: %s to %s)", translated_proper_case, translated_normalized
+                    )
 
             for i, (eclipse_prefix, python_prefix) in enumerate(paths_from_eclipse_to_python):
                 if translated_normalized.startswith(python_prefix):
                     if DEBUG_CLIENT_SERVER_TRANSLATION:
-                        pydev_log.critical('pydev debugger: replacing to client: %s', translated_normalized)
+                        pydev_log.critical("pydev debugger: replacing to client: %s", translated_normalized)
 
                     # Note: use the non-normalized version.
                     eclipse_prefix = initial_paths[i][0]
-                    translated = eclipse_prefix + translated_proper_case[len(python_prefix):]
+                    translated = eclipse_prefix + translated_proper_case[len(python_prefix) :]
                     if DEBUG_CLIENT_SERVER_TRANSLATION:
-                        pydev_log.critical('pydev debugger: sent to client: %s - matched prefix: %s', translated, python_prefix)
+                        pydev_log.critical("pydev debugger: sent to client: %s - matched prefix: %s", translated, python_prefix)
                     path_mapping_applied = True
                     break
             else:
                 if DEBUG_CLIENT_SERVER_TRANSLATION:
-                    pydev_log.critical('pydev debugger: to client: unable to find matching prefix for: %s in %s',
-                        translated_normalized, [x[1] for x in paths_from_eclipse_to_python])
+                    pydev_log.critical(
+                        "pydev debugger: to client: unable to find matching prefix for: %s in %s",
+                        translated_normalized,
+                        [x[1] for x in paths_from_eclipse_to_python],
+                    )
                 translated = translated_proper_case
 
             if eclipse_sep != python_sep:
@@ -855,7 +865,7 @@ def setup_client_server_paths(paths):
                     source_reference = 0
                 else:
                     source_reference = _next_source_reference()
-                    pydev_log.debug('Created source reference: %s for untranslated path: %s', source_reference, filename)
+                    pydev_log.debug("Created source reference: %s for untranslated path: %s", source_reference, filename)
 
                 _client_filename_in_utf8_to_source_reference[translated] = source_reference
                 _source_reference_to_server_filename[source_reference] = filename
@@ -870,8 +880,7 @@ setup_client_server_paths(PATHS_FROM_ECLIPSE_TO_PYTHON)
 
 
 # For given file f returns tuple of its absolute path, real path and base name
-def get_abs_path_real_path_and_base_from_file(
-        filename, NORM_PATHS_AND_BASE_CONTAINER=NORM_PATHS_AND_BASE_CONTAINER):
+def get_abs_path_real_path_and_base_from_file(filename, NORM_PATHS_AND_BASE_CONTAINER=NORM_PATHS_AND_BASE_CONTAINER):
     try:
         return NORM_PATHS_AND_BASE_CONTAINER[filename]
     except:
@@ -879,20 +888,20 @@ def get_abs_path_real_path_and_base_from_file(
         if not f:
             # i.e.: it's possible that the user compiled code with an empty string (consider
             # it as <string> in this case).
-            f = '<string>'
+            f = "<string>"
 
-        if f.startswith('<'):
+        if f.startswith("<"):
             return f, normcase(f), f
 
         if _abs_and_canonical_path is None:  # Interpreter shutdown
-            i = max(f.rfind('/'), f.rfind('\\'))
-            return (f, f, f[i + 1:])
+            i = max(f.rfind("/"), f.rfind("\\"))
+            return (f, f, f[i + 1 :])
 
         if f is not None:
-            if f.endswith('.pyc'):
+            if f.endswith(".pyc"):
                 f = f[:-1]
-            elif f.endswith('$py.class'):
-                f = f[:-len('$py.class')] + '.py'
+            elif f.endswith("$py.class"):
+                f = f[: -len("$py.class")] + ".py"
 
         abs_path, canonical_normalized_filename = _abs_and_canonical_path(f)
 
@@ -900,8 +909,8 @@ def get_abs_path_real_path_and_base_from_file(
             base = os_path_basename(canonical_normalized_filename)
         except AttributeError:
             # Error during shutdown.
-            i = max(f.rfind('/'), f.rfind('\\'))
-            base = f[i + 1:]
+            i = max(f.rfind("/"), f.rfind("\\"))
+            base = f[i + 1 :]
         ret = abs_path, canonical_normalized_filename, base
         NORM_PATHS_AND_BASE_CONTAINER[filename] = ret
         return ret
@@ -914,18 +923,18 @@ def get_abs_path_real_path_and_base_from_frame(frame, NORM_PATHS_AND_BASE_CONTAI
         # This one is just internal (so, does not need any kind of client-server translation)
         f = frame.f_code.co_filename
 
-        if f is not None and f.startswith (('build/bdist.', 'build\\bdist.')):
+        if f is not None and f.startswith(("build/bdist.", "build\\bdist.")):
             # files from eggs in Python 2.7 have paths like build/bdist.linux-x86_64/egg/<path-inside-egg>
-            f = frame.f_globals['__file__']
+            f = frame.f_globals["__file__"]
 
         if get_abs_path_real_path_and_base_from_file is None:
             # Interpreter shutdown
             if not f:
                 # i.e.: it's possible that the user compiled code with an empty string (consider
                 # it as <string> in this case).
-                f = '<string>'
-            i = max(f.rfind('/'), f.rfind('\\'))
-            return f, f, f[i + 1:]
+                f = "<string>"
+            i = max(f.rfind("/"), f.rfind("\\"))
+            return f, f, f[i + 1 :]
 
         ret = get_abs_path_real_path_and_base_from_file(f)
         # Also cache based on the frame.f_code.co_filename (if we had it inside build/bdist it can make a difference).
@@ -935,6 +944,7 @@ def get_abs_path_real_path_and_base_from_frame(frame, NORM_PATHS_AND_BASE_CONTAI
 
 def get_fullname(mod_name):
     import pkgutil
+
     try:
         loader = pkgutil.get_loader(mod_name)
     except:
@@ -949,8 +959,19 @@ def get_fullname(mod_name):
 
 def get_package_dir(mod_name):
     for path in sys.path:
-        mod_path = join(path, mod_name.replace('.', '/'))
+        mod_path = join(path, mod_name.replace(".", "/"))
         if os.path.isdir(mod_path):
             return mod_path
     return None
 
+def contains_dir(path, dir_name):
+    try:
+        while path:
+            path, tail = os.path.split(path)
+            if tail == dir_name:
+                return True
+            if tail is None and path == dir_name:
+                return True
+    except:
+        pass
+    return False

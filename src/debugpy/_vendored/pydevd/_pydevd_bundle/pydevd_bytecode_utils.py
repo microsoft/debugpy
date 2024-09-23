@@ -6,7 +6,7 @@ Note: not importable from Python 2.
 
 from _pydev_bundle import pydev_log
 from types import CodeType
-from _pydevd_frame_eval.vendored.bytecode.instr import _Variable
+from _pydevd_frame_eval.vendored.bytecode.instr import _Variable, Label
 from _pydevd_frame_eval.vendored import bytecode
 from _pydevd_frame_eval.vendored.bytecode import cfg as bytecode_cfg
 import dis
@@ -15,69 +15,85 @@ import opcode as _opcode
 from _pydevd_bundle.pydevd_constants import KeyifyList, DebugInfoHolder, IS_PY311_OR_GREATER
 from bisect import bisect
 from collections import deque
+import traceback
 
 # When True, throws errors on unknown bytecodes, when False, ignore those as if they didn't change the stack.
 STRICT_MODE = False
 
+GO_INTO_INNER_CODES = True
+
 DEBUG = False
 
-_BINARY_OPS = set([opname for opname in dis.opname if opname.startswith('BINARY_')])
+_BINARY_OPS = set([opname for opname in dis.opname if opname.startswith("BINARY_")])
 
 _BINARY_OP_MAP = {
-    'BINARY_POWER': '__pow__',
-    'BINARY_MULTIPLY': '__mul__',
-    'BINARY_MATRIX_MULTIPLY': '__matmul__',
-    'BINARY_FLOOR_DIVIDE': '__floordiv__',
-    'BINARY_TRUE_DIVIDE': '__div__',
-    'BINARY_MODULO': '__mod__',
-    'BINARY_ADD': '__add__',
-    'BINARY_SUBTRACT': '__sub__',
-    'BINARY_LSHIFT': '__lshift__',
-    'BINARY_RSHIFT': '__rshift__',
-    'BINARY_AND': '__and__',
-    'BINARY_OR': '__or__',
-    'BINARY_XOR': '__xor__',
-    'BINARY_SUBSCR': '__getitem__',
-    'BINARY_DIVIDE': '__div__'
+    "BINARY_POWER": "__pow__",
+    "BINARY_MULTIPLY": "__mul__",
+    "BINARY_MATRIX_MULTIPLY": "__matmul__",
+    "BINARY_FLOOR_DIVIDE": "__floordiv__",
+    "BINARY_TRUE_DIVIDE": "__div__",
+    "BINARY_MODULO": "__mod__",
+    "BINARY_ADD": "__add__",
+    "BINARY_SUBTRACT": "__sub__",
+    "BINARY_LSHIFT": "__lshift__",
+    "BINARY_RSHIFT": "__rshift__",
+    "BINARY_AND": "__and__",
+    "BINARY_OR": "__or__",
+    "BINARY_XOR": "__xor__",
+    "BINARY_SUBSCR": "__getitem__",
+    "BINARY_DIVIDE": "__div__",
 }
 
 _COMP_OP_MAP = {
-    '<': '__lt__',
-    '<=': '__le__',
-    '==': '__eq__',
-    '!=': '__ne__',
-    '>': '__gt__',
-    '>=': '__ge__',
-    'in': '__contains__',
-    'not in': '__contains__',
+    "<": "__lt__",
+    "<=": "__le__",
+    "==": "__eq__",
+    "!=": "__ne__",
+    ">": "__gt__",
+    ">=": "__ge__",
+    "in": "__contains__",
+    "not in": "__contains__",
 }
 
 
 class Target(object):
-    __slots__ = ['arg', 'lineno', 'offset', 'children_targets']
+    __slots__ = ["arg", "lineno", "endlineno", "startcol", "endcol", "offset", "children_targets"]
 
-    def __init__(self, arg, lineno, offset, children_targets=()):
+    def __init__(
+        self,
+        arg,
+        lineno,
+        offset,
+        children_targets=(),
+        # These are optional (only Python 3.11 onwards).
+        endlineno=-1,
+        startcol=-1,
+        endcol=-1,
+    ):
         self.arg = arg
         self.lineno = lineno
+        self.endlineno = endlineno
+        self.startcol = startcol
+        self.endcol = endcol
+
         self.offset = offset
         self.children_targets = children_targets
 
     def __repr__(self):
         ret = []
         for s in self.__slots__:
-            ret.append('%s: %s' % (s, getattr(self, s)))
-        return 'Target(%s)' % ', '.join(ret)
+            ret.append("%s: %s" % (s, getattr(self, s)))
+        return "Target(%s)" % ", ".join(ret)
 
     __str__ = __repr__
 
 
 class _TargetIdHashable(object):
-
     def __init__(self, target):
         self.target = target
 
     def __eq__(self, other):
-        if not hasattr(other, 'target'):
+        if not hasattr(other, "target"):
             return
         return other.target is self.target
 
@@ -89,9 +105,9 @@ class _TargetIdHashable(object):
 
 
 class _StackInterpreter(object):
-    '''
+    """
     Good reference: https://github.com/python/cpython/blob/fcb55c0037baab6f98f91ee38ce84b6f874f034a/Python/ceval.c
-    '''
+    """
 
     def __init__(self, bytecode):
         self.bytecode = bytecode
@@ -102,38 +118,42 @@ class _StackInterpreter(object):
         self.func_name_id_to_code_object = {}
 
     def __str__(self):
-        return 'Stack:\nFunction calls:\n%s\nLoad attrs:\n%s\n' % (self.function_calls, list(self.load_attrs.values()))
+        return "Stack:\nFunction calls:\n%s\nLoad attrs:\n%s\n" % (self.function_calls, list(self.load_attrs.values()))
 
     def _getname(self, instr):
         if instr.opcode in _opcode.hascompare:
             cmp_op = dis.cmp_op[instr.arg]
-            if cmp_op not in ('exception match', 'BAD'):
+            if cmp_op not in ("exception match", "BAD"):
                 return _COMP_OP_MAP.get(cmp_op, cmp_op)
         return instr.arg
 
     def _getcallname(self, instr):
-        if instr.name == 'BINARY_SUBSCR':
-            return '__getitem__().__call__'
-        if instr.name == 'CALL_FUNCTION':
+        if instr.name == "BINARY_SUBSCR":
+            return "__getitem__().__call__"
+        if instr.name == "CALL_FUNCTION":
             # Note: previously a '__call__().__call__' was returned, but this was a bit weird
             # and on Python 3.9 this construct could appear for some internal things where
             # it wouldn't be expected.
             # Note: it'd be what we had in func()().
             return None
-        if instr.name == 'MAKE_FUNCTION':
-            return '__func__().__call__'
-        if instr.name == 'LOAD_ASSERTION_ERROR':
-            return 'AssertionError'
+        if instr.name == "MAKE_FUNCTION":
+            return "__func__().__call__"
+        if instr.name == "LOAD_ASSERTION_ERROR":
+            return "AssertionError"
         name = self._getname(instr)
         if isinstance(name, CodeType):
             name = name.co_qualname  # Note: only available for Python 3.11
         if isinstance(name, _Variable):
             name = name.name
+        if isinstance(name, tuple):
+            # Load attr in Python 3.12 comes with (bool, name)
+            if len(name) == 2 and isinstance(name[0], bool) and isinstance(name[1], str):
+                name = name[1]
 
         if not isinstance(name, str):
             return None
-        if name.endswith('>'):  # xxx.<listcomp>, xxx.<lambda>, ...
-            return name.split('.')[-1]
+        if name.endswith(">"):  # xxx.<listcomp>, xxx.<lambda>, ...
+            return name.split(".")[-1]
         return name
 
     def _no_stack_change(self, instr):
@@ -203,17 +223,16 @@ class _StackInterpreter(object):
         target = None
         if not call_name:
             pass  # Ignore if we can't identify a name
-        elif call_name in ('<listcomp>', '<genexpr>', '<setcomp>', '<dictcomp>'):
+        elif call_name in ("<listcomp>", "<genexpr>", "<setcomp>", "<dictcomp>"):
             code_obj = self.func_name_id_to_code_object[_TargetIdHashable(func_name_instr)]
-            if code_obj is not None:
+            if code_obj is not None and GO_INTO_INNER_CODES:
                 children_targets = _get_smart_step_into_targets(code_obj)
                 if children_targets:
                     # i.e.: we have targets inside of a <listcomp> or <genexpr>.
                     # Note that to actually match this in the debugger we need to do matches on 2 frames,
                     # the one with the <listcomp> and then the actual target inside the <listcomp>.
                     target = Target(call_name, func_name_instr.lineno, func_call_instr.offset, children_targets)
-                    self.function_calls.append(
-                        target)
+                    self.function_calls.append(target)
 
         else:
             # Ok, regular call
@@ -221,7 +240,7 @@ class _StackInterpreter(object):
             self.function_calls.append(target)
 
         if DEBUG and target is not None:
-            print('Created target', target)
+            print("Created target", target)
         self._stack.append(func_call_instr)  # Keep the func call as the result
 
     def on_COMPARE_OP(self, instr):
@@ -235,7 +254,7 @@ class _StackInterpreter(object):
             return
 
         cmp_op = dis.cmp_op[instr.arg]
-        if cmp_op not in ('exception match', 'BAD'):
+        if cmp_op not in ("exception match", "BAD"):
             self.function_calls.append(Target(self._getname(instr), instr.lineno, instr.offset))
 
         self._stack.append(instr)
@@ -300,13 +319,16 @@ class _StackInterpreter(object):
             _func_defaults = self._stack.pop()
 
         call_name = self._getcallname(qualname)
-        if call_name in ('<genexpr>', '<listcomp>', '<setcomp>', '<dictcomp>'):
+        if call_name in ("<genexpr>", "<listcomp>", "<setcomp>", "<dictcomp>"):
             if isinstance(code_obj_instr.arg, CodeType):
                 self.func_name_id_to_code_object[_TargetIdHashable(qualname)] = code_obj_instr.arg
         self._stack.append(qualname)
 
     def on_LOAD_FAST(self, instr):
         self._stack.append(instr)
+
+    on_LOAD_FAST_AND_CLEAR = on_LOAD_FAST
+    on_LOAD_FAST_CHECK = on_LOAD_FAST
 
     def on_LOAD_ASSERTION_ERROR(self, instr):
         self._stack.append(instr)
@@ -321,14 +343,49 @@ class _StackInterpreter(object):
         func_name_instr = self._stack.pop()
         self._handle_call_from_instr(func_name_instr, instr)
 
+    def on_CALL(self, instr):
+        # pop the actual args
+        for _ in range(instr.arg):
+            self._stack.pop()
+
+        func_name_instr = self._stack.pop()
+        if self._getcallname(func_name_instr) is None:
+            func_name_instr = self._stack.pop()
+
+        if self._stack:
+            peeked = self._stack[-1]
+            if peeked.name == "PUSH_NULL":
+                self._stack.pop()
+
+        self._handle_call_from_instr(func_name_instr, instr)
+
+    def on_CALL_INTRINSIC_1(self, instr):
+        try:
+            func_name_instr = self._stack.pop()
+        except IndexError:
+            return
+
+        if self._stack:
+            peeked = self._stack[-1]
+            if peeked.name == "PUSH_NULL":
+                self._stack.pop()
+
+        self._handle_call_from_instr(func_name_instr, instr)
+
     def on_PUSH_NULL(self, instr):
         self._stack.append(instr)
+
+    def on_KW_NAMES(self, instr):
+        return
+
+    def on_RETURN_CONST(self, instr):
+        return
 
     def on_CALL_FUNCTION(self, instr):
         arg = instr.arg
 
-        argc = arg & 0xff  # positional args
-        argc += ((arg >> 8) * 2)  # keyword args
+        argc = arg & 0xFF  # positional args
+        argc += (arg >> 8) * 2  # keyword args
 
         # pop the actual args
         for _ in range(argc):
@@ -350,8 +407,8 @@ class _StackInterpreter(object):
         # pop the actual args
         arg = instr.arg
 
-        argc = arg & 0xff  # positional args
-        argc += ((arg >> 8) * 2)  # keyword args
+        argc = arg & 0xFF  # positional args
+        argc += (arg >> 8) * 2  # keyword args
 
         for _ in range(argc):
             self._stack.pop()
@@ -366,8 +423,8 @@ class _StackInterpreter(object):
         # pop the actual args
         arg = instr.arg
 
-        argc = arg & 0xff  # positional args
-        argc += ((arg >> 8) * 2)  # keyword args
+        argc = arg & 0xFF  # positional args
+        argc += (arg >> 8) * 2  # keyword args
 
         for _ in range(argc):
             self._stack.pop()
@@ -381,8 +438,8 @@ class _StackInterpreter(object):
 
         arg = instr.arg
 
-        argc = arg & 0xff  # positional args
-        argc += ((arg >> 8) * 2)  # keyword args
+        argc = arg & 0xFF  # positional args
+        argc += (arg >> 8) * 2  # keyword args
 
         # also pop **kwargs
         self._stack.pop()
@@ -401,9 +458,9 @@ class _StackInterpreter(object):
         func_name_instr = self._stack.pop()
         self._handle_call_from_instr(func_name_instr, instr)
 
-    on_YIELD_VALUE = _no_stack_change
     on_GET_AITER = _no_stack_change
     on_GET_ANEXT = _no_stack_change
+    on_END_FOR = _no_stack_change
     on_END_ASYNC_FOR = _no_stack_change
     on_BEFORE_ASYNC_WITH = _no_stack_change
     on_SETUP_ASYNC_WITH = _no_stack_change
@@ -434,6 +491,13 @@ class _StackInterpreter(object):
             self._stack.pop()
         except IndexError:
             return
+
+    def on_SWAP(self, instr):
+        i = instr.arg
+        try:
+            self._stack[-i], self._stack[-1] = self._stack[-1], self._stack[-i]
+        except:
+            pass
 
     def on_ROT_TWO(self, instr):
         try:
@@ -520,6 +584,7 @@ class _StackInterpreter(object):
             self.on_POP_TOP(instr)  # value
         self._stack.append(instr)
 
+    on_YIELD_VALUE = on_POP_TOP
     on_RETURN_VALUE = on_POP_TOP
     on_POP_JUMP_IF_FALSE = on_POP_TOP
     on_POP_JUMP_IF_TRUE = on_POP_TOP
@@ -575,6 +640,8 @@ class _StackInterpreter(object):
 
     on_POP_BLOCK = _no_stack_change
     on_JUMP_FORWARD = _no_stack_change
+    on_JUMP_BACKWARD = _no_stack_change
+    on_JUMP_BACKWARD_NO_INTERRUPT = _no_stack_change
     on_POP_EXCEPT = _no_stack_change
     on_SETUP_EXCEPT = _no_stack_change
     on_WITH_EXCEPT_START = _no_stack_change
@@ -662,6 +729,7 @@ class _StackInterpreter(object):
     # some evaluation.
     on_PRINT_EXPR = on_POP_TOP
 
+    on_LABEL = _no_stack_change
     on_UNARY_POSITIVE = _no_stack_change
     on_UNARY_NEGATIVE = _no_stack_change
     on_UNARY_NOT = _no_stack_change
@@ -672,9 +740,9 @@ class _StackInterpreter(object):
 
 
 def _get_smart_step_into_targets(code):
-    '''
+    """
     :return list(Target)
-    '''
+    """
     b = bytecode.Bytecode.from_code(code)
     cfg = bytecode_cfg.ControlFlowGraph.from_bytecode(b)
 
@@ -682,33 +750,39 @@ def _get_smart_step_into_targets(code):
 
     for block in cfg:
         if DEBUG:
-            print('\nStart block----')
+            print("\nStart block----")
         stack = _StackInterpreter(block)
         for instr in block:
+            if isinstance(instr, (Label,)):
+                # No name for these
+                continue
             try:
-                func_name = 'on_%s' % (instr.name,)
+                func_name = "on_%s" % (instr.name,)
                 func = getattr(stack, func_name, None)
-
-                if DEBUG:
-                    if instr.name != 'CACHE':  # Filter the ones we don't want to see.
-                        print('\nWill handle: ', instr, '>>', stack._getname(instr), '<<')
-                        print('Current stack:')
-                        for entry in stack._stack:
-                            print('    arg:', stack._getname(entry), '(', entry, ')')
 
                 if func is None:
                     if STRICT_MODE:
-                        raise AssertionError('%s not found.' % (func_name,))
+                        raise AssertionError("%s not found." % (func_name,))
                     else:
+                        if DEBUG:
+                            print("Skipping: %s." % (func_name,))
+
                         continue
                 func(instr)
+
+                if DEBUG:
+                    if instr.name != "CACHE":  # Filter the ones we don't want to see.
+                        print("\nHandled: ", instr, ">>", stack._getname(instr), "<<")
+                        print("New stack:")
+                        for entry in stack._stack:
+                            print("    arg:", stack._getname(entry), "(", entry, ")")
             except:
                 if STRICT_MODE:
                     raise  # Error in strict mode.
                 else:
                     # In non-strict mode, log it (if in verbose mode) and keep on going.
                     if DebugInfoHolder.DEBUG_TRACE_LEVEL >= 2:
-                        pydev_log.exception('Exception computing step into targets (handled).')
+                        pydev_log.exception("Exception computing step into targets (handled).")
 
         ret.extend(stack.function_calls)
         # No longer considering attr loads as calls (while in theory sometimes it's possible
@@ -717,6 +791,8 @@ def _get_smart_step_into_targets(code):
         # step into from stepping into properties).
         # ret.extend(stack.load_attrs.values())
 
+        if DEBUG:
+            print("\nEnd block----")
     return ret
 
 
@@ -725,12 +801,15 @@ def _get_smart_step_into_targets(code):
 # to inspect the parent frame for frame.f_lasti to know where we actually are (as the
 # caller name may not always match the new frame name).
 class Variant(object):
-    __slots__ = ['name', 'is_visited', 'line', 'offset', 'call_order', 'children_variants', 'parent']
+    __slots__ = ["name", "is_visited", "line", "offset", "call_order", "children_variants", "parent", "endlineno", "startcol", "endcol"]
 
-    def __init__(self, name, is_visited, line, offset, call_order, children_variants=None):
+    def __init__(self, name, is_visited, line, offset, call_order, children_variants=None, endlineno=-1, startcol=-1, endcol=-1):
         self.name = name
         self.is_visited = is_visited
         self.line = line
+        self.endlineno = endlineno
+        self.startcol = startcol
+        self.endcol = endcol
         self.offset = offset
         self.call_order = call_order
         self.children_variants = children_variants
@@ -742,32 +821,32 @@ class Variant(object):
     def __repr__(self):
         ret = []
         for s in self.__slots__:
-            if s == 'parent':
+            if s == "parent":
                 try:
                     parent = self.parent
                 except AttributeError:
-                    ret.append('%s: <not set>' % (s,))
+                    ret.append("%s: <not set>" % (s,))
                 else:
                     if parent is None:
-                        ret.append('parent: None')
+                        ret.append("parent: None")
                     else:
-                        ret.append('parent: %s (%s)' % (parent.name, parent.offset))
+                        ret.append("parent: %s (%s)" % (parent.name, parent.offset))
                 continue
 
-            if s == 'children_variants':
-                ret.append('children_variants: %s' % (len(self.children_variants) if self.children_variants else 0))
+            if s == "children_variants":
+                ret.append("children_variants: %s" % (len(self.children_variants) if self.children_variants else 0))
                 continue
 
             try:
-                ret.append('%s: %s' % (s, getattr(self, s)))
+                ret.append("%s= %s" % (s, getattr(self, s)))
             except AttributeError:
-                ret.append('%s: <not set>' % (s,))
-        return 'Variant(%s)' % ', '.join(ret)
+                ret.append("%s: <not set>" % (s,))
+        return "Variant(%s)" % ", ".join(ret)
 
     __str__ = __repr__
 
 
-def _convert_target_to_variant(target, start_line, end_line, call_order_cache, lasti, base):
+def _convert_target_to_variant(target, start_line, end_line, call_order_cache: dict, lasti: int, base: int):
     name = target.arg
     if not isinstance(name, str):
         return
@@ -784,10 +863,21 @@ def _convert_target_to_variant(target, start_line, end_line, call_order_cache, l
     children_variants = None
     if children_targets:
         children_variants = [
-            _convert_target_to_variant(child, start_line, end_line, call_order_cache, lasti, base)
-            for child in target.children_targets]
+            _convert_target_to_variant(child, start_line, end_line, call_order_cache, lasti, base) for child in target.children_targets
+        ]
 
-    return Variant(name, is_visited, target.lineno - base, target.offset, call_order, children_variants)
+    return Variant(
+        name,
+        is_visited,
+        target.lineno - base,
+        target.offset,
+        call_order,
+        children_variants,
+        # Only really matter in Python 3.11
+        target.endlineno - base if target.endlineno >= 0 else -1,
+        target.startcol,
+        target.endcol,
+    )
 
 
 def calculate_smart_step_into_variants(frame, start_line, end_line, base=0):
@@ -801,13 +891,18 @@ def calculate_smart_step_into_variants(frame, start_line, end_line, base=0):
     :note: it's guaranteed that the offsets appear in order.
     :raise: :py:class:`RuntimeError` if failed to parse the bytecode or if dis cannot be used.
     """
+    if IS_PY311_OR_GREATER:
+        from . import pydevd_bytecode_utils_py311
+
+        return pydevd_bytecode_utils_py311.calculate_smart_step_into_variants(frame, start_line, end_line, base)
+
     variants = []
     code = frame.f_code
     lasti = frame.f_lasti
 
     call_order_cache = {}
     if DEBUG:
-        print('dis.dis:')
+        print("dis.dis:")
         if IS_PY311_OR_GREATER:
             dis.dis(code, show_caches=False)
         else:
@@ -834,7 +929,7 @@ def get_smart_step_into_variant_from_frame_offset(frame_f_lasti, variants):
     if not variants:
         return None
 
-    i = bisect(KeyifyList(variants, lambda entry:entry.offset), frame_f_lasti)
+    i = bisect(KeyifyList(variants, lambda entry: entry.offset), frame_f_lasti)
 
     if i == 0:
         return None

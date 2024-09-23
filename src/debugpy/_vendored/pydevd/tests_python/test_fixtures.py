@@ -6,13 +6,12 @@ import socket
 from _pydev_bundle import pydev_localhost
 from _pydevd_bundle.pydevd_comm import start_client
 
-ABORT_CONNECTION = 'ABORT_CONNECTION'
+ABORT_CONNECTION = "ABORT_CONNECTION"
 
-pytestmark = pytest.mark.skipif(IS_JYTHON, reason='Getting the actual port does not work when the port is == 0.')
+pytestmark = pytest.mark.skipif(IS_JYTHON, reason="Getting the actual port does not work when the port is == 0.")
 
 
 class _DummySocket(object):
-
     def __init__(self):
         self._sock_for_reader_thread = None
         self._sock_for_fixture_test = None
@@ -29,7 +28,7 @@ class _DummySocket(object):
 
     def put(self, msg):
         if not isinstance(msg, bytes):
-            msg = msg.encode('utf-8')
+            msg = msg.encode("utf-8")
 
         if self._sock_for_fixture_test is None:
             self._sock_for_fixture_test = start_client(*self._socket_server.getsockname())
@@ -59,17 +58,17 @@ def test_fixture_reader_thread1(_dummy_socket):
     reader_thread = ReaderThread(sock)
     reader_thread.start()
 
-    json_part = json.dumps({'key': 'val'})
-    json_part = json_part.replace(':', ':\n')
+    json_part = json.dumps({"key": "val"})
+    json_part = json_part.replace(":", ":\n")
     msg = json_part
 
-    msg = ('Content-Length: %s\r\n\r\n%s' % (len(msg), msg)).encode('utf-8')
+    msg = ("Content-Length: %s\r\n\r\n%s" % (len(msg), msg)).encode("utf-8")
     # Check that receiving 2 messages at a time we're able to properly deal
     # with each one.
     sock.put(msg + msg)
 
-    assert reader_thread.get_next_message('check 1') == json_part
-    assert reader_thread.get_next_message('check 2') == json_part
+    assert reader_thread.get_next_message("check 1") == json_part
+    assert reader_thread.get_next_message("check 2") == json_part
 
 
 def test_fixture_reader_thread2(_dummy_socket):
@@ -78,18 +77,18 @@ def test_fixture_reader_thread2(_dummy_socket):
     reader_thread = ReaderThread(sock)
     reader_thread.start()
 
-    json_part = json.dumps({'key': 'val'})
-    json_part = json_part.replace(':', ':\n')
+    json_part = json.dumps({"key": "val"})
+    json_part = json_part.replace(":", ":\n")
     msg = json_part
 
-    http = ('Content-Length: %s\r\n\r\n%s' % (len(msg), msg))
-    sock.put('msg1\nmsg2\nmsg3\n' + http + http)
+    http = "Content-Length: %s\r\n\r\n%s" % (len(msg), msg)
+    sock.put("msg1\nmsg2\nmsg3\n" + http + http)
 
-    assert reader_thread.get_next_message('check 1') == 'msg1'
-    assert reader_thread.get_next_message('check 2') == 'msg2'
-    assert reader_thread.get_next_message('check 3') == 'msg3'
-    assert reader_thread.get_next_message('check 4') == json_part
-    assert reader_thread.get_next_message('check 5') == json_part
+    assert reader_thread.get_next_message("check 1") == "msg1"
+    assert reader_thread.get_next_message("check 2") == "msg2"
+    assert reader_thread.get_next_message("check 3") == "msg3"
+    assert reader_thread.get_next_message("check 4") == json_part
+    assert reader_thread.get_next_message("check 5") == json_part
 
 
 def test_fixture_reader_thread3(_dummy_socket):
@@ -98,8 +97,8 @@ def test_fixture_reader_thread3(_dummy_socket):
     reader_thread = ReaderThread(sock)
     reader_thread.start()
 
-    msg = 'aaaaaaabbbbbbbccccccc'
-    http = ('Content-Length: %s\r\n\r\n%s' % (len(msg), msg))
+    msg = "aaaaaaabbbbbbbccccccc"
+    http = "Content-Length: %s\r\n\r\n%s" % (len(msg), msg)
     http *= 2
     initial = http
     for i in range(1, len(http)):
@@ -107,7 +106,6 @@ def test_fixture_reader_thread3(_dummy_socket):
             sock.put(http[:i])
             http = http[i:]
 
-        assert reader_thread.get_next_message('check 1: %s' % i) == msg
-        assert reader_thread.get_next_message('check 2: %s' % i) == msg
+        assert reader_thread.get_next_message("check 1: %s" % i) == msg
+        assert reader_thread.get_next_message("check 2: %s" % i) == msg
         http = initial
-

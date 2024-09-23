@@ -2,13 +2,15 @@ from pydevd import PyDB
 import pytest
 from tests_python.debugger_unittest import IS_CPYTHON
 import threading
+from _pydevd_bundle.pydevd_constants import PYDEVD_USE_SYS_MONITORING
 
 DEBUG = False
 
+pytestmark = pytest.mark.skipif(PYDEVD_USE_SYS_MONITORING, reason="The tests in this module requires tracing.")
+
 
 class DummyTopLevelFrame(object):
-
-    __slots__ = ['f_code', 'f_back', 'f_lineno', 'f_trace']
+    __slots__ = ["f_code", "f_back", "f_lineno", "f_trace"]
 
     def __init__(self, method):
         self.f_code = method.__code__
@@ -17,8 +19,7 @@ class DummyTopLevelFrame(object):
 
 
 class DummyWriter(object):
-
-    __slots__ = ['commands', 'command_meanings']
+    __slots__ = ["commands", "command_meanings"]
 
     def __init__(self):
         self.commands = []
@@ -26,23 +27,23 @@ class DummyWriter(object):
 
     def add_command(self, cmd):
         from _pydevd_bundle.pydevd_comm import ID_TO_MEANING
+
         meaning = ID_TO_MEANING[str(cmd.id)]
         if DEBUG:
             print(meaning)
         self.command_meanings.append(meaning)
         if DEBUG:
-            print(cmd._as_bytes.decode('utf-8'))
+            print(cmd._as_bytes.decode("utf-8"))
         self.commands.append(cmd)
 
 
 class DummyPyDb(PyDB):
-
     def __init__(self):
         PyDB.__init__(self, set_as_global=False)
 
-    def do_wait_suspend(
-            self, thread, frame, event, arg, *args, **kwargs):
+    def do_wait_suspend(self, thread, frame, event, arg, *args, **kwargs):
         from _pydevd_bundle.pydevd_constants import STATE_RUN
+
         info = thread.additional_info
         info.pydev_original_step_cmd = -1
         info.pydev_step_cmd = -1
@@ -53,7 +54,6 @@ class DummyPyDb(PyDB):
 
 
 class _TraceTopLevel(object):
-
     def __init__(self):
         self.py_db = DummyPyDb()
         self.py_db.writer = DummyWriter()
@@ -64,6 +64,7 @@ class _TraceTopLevel(object):
 
     def get_exception_arg(self):
         import sys
+
         try:
             raise AssertionError()
         except:
@@ -71,23 +72,24 @@ class _TraceTopLevel(object):
             return arg
 
     def create_add_exception_breakpoint_with_policy(
-            self, exception, notify_on_handled_exceptions, notify_on_unhandled_exceptions, ignore_libraries):
-        return '\t'.join(str(x) for x in [
-            exception, notify_on_handled_exceptions, notify_on_unhandled_exceptions, ignore_libraries])
+        self, exception, notify_on_handled_exceptions, notify_on_unhandled_exceptions, ignore_libraries
+    ):
+        return "\t".join(str(x) for x in [exception, notify_on_handled_exceptions, notify_on_unhandled_exceptions, ignore_libraries])
 
     def add_unhandled_exception_breakpoint(self):
         from _pydevd_bundle.pydevd_process_net_command import process_net_command
         from tests_python.debugger_unittest import CMD_ADD_EXCEPTION_BREAK
-        for exc_name in ('AssertionError', 'RuntimeError'):
+
+        for exc_name in ("AssertionError", "RuntimeError"):
             process_net_command(
                 self.py_db,
                 CMD_ADD_EXCEPTION_BREAK,
                 1,
-                self.create_add_exception_breakpoint_with_policy(exc_name, '0', '1', '0'),
+                self.create_add_exception_breakpoint_with_policy(exc_name, "0", "1", "0"),
             )
 
     def assert_last_commands(self, *commands):
-        assert self.py_db.writer.command_meanings[-len(commands):] == list(commands)
+        assert self.py_db.writer.command_meanings[-len(commands) :] == list(commands)
 
     def assert_no_commands(self, *commands):
         for command in commands:
@@ -101,24 +103,24 @@ class _TraceTopLevel(object):
 
     def call_trace_dispatch(self, line):
         self.frame.f_lineno = line
-        return self.trace_dispatch('call', None)
+        return self.trace_dispatch("call", None)
 
     def exception_trace_dispatch(self, line, arg):
         self.frame.f_lineno = line
-        self.new_trace_func = self.new_trace_func(self.frame, 'exception', arg)
+        self.new_trace_func = self.new_trace_func(self.frame, "exception", arg)
 
     def return_trace_dispatch(self, line):
         self.frame.f_lineno = line
-        self.new_trace_func = self.new_trace_func(self.frame, 'return', None)
+        self.new_trace_func = self.new_trace_func(self.frame, "return", None)
 
     def assert_paused(self):
-        self.assert_last_commands('CMD_THREAD_SUSPEND', 'CMD_THREAD_RUN')
+        self.assert_last_commands("CMD_THREAD_SUSPEND", "CMD_THREAD_RUN")
 
     def assert_not_paused(self):
-        self.assert_no_commands('CMD_THREAD_SUSPEND', 'CMD_THREAD_RUN')
+        self.assert_no_commands("CMD_THREAD_SUSPEND", "CMD_THREAD_RUN")
 
 
-@pytest.yield_fixture
+@pytest.fixture
 def trace_top_level():
     # Note: we trace with a dummy frame with no f_back to simulate the issue in a remote attach.
     yield _TraceTopLevel()
@@ -148,7 +150,7 @@ def mark_unhandled(func):
     return func
 
 
-#------------------------------------------------------------------------------------------- Handled
+# ------------------------------------------------------------------------------------------- Handled
 @mark_handled
 def raise_handled_exception():
     try:
@@ -194,9 +196,7 @@ def raise_handled_exception4():
             raise AssertionError()
         except RuntimeError:
             pass
-    except (
-        RuntimeError,
-        AssertionError):
+    except (RuntimeError, AssertionError):
         pass
 
 
@@ -207,9 +207,7 @@ def raise_handled():
             raise AssertionError()
         except RuntimeError:
             pass
-    except (
-        RuntimeError,
-        AssertionError):
+    except (RuntimeError, AssertionError):
         pass
 
 
@@ -217,16 +215,12 @@ def raise_handled():
 def raise_handled2():
     try:
         raise AssertionError()
-    except (
-        RuntimeError,
-        AssertionError):
+    except (RuntimeError, AssertionError):
         pass
 
     try:
         raise RuntimeError()
-    except (
-        RuntimeError,
-        AssertionError):
+    except (RuntimeError, AssertionError):
         pass
 
 
@@ -257,7 +251,8 @@ def raise_handled10():
 
     _foo = 10
 
-#----------------------------------------------------------------------------------------- Unhandled
+
+# ----------------------------------------------------------------------------------------- Unhandled
 
 
 @mark_unhandled
@@ -280,9 +275,7 @@ def raise_unhandled():
             raise AssertionError()
         except RuntimeError:
             pass
-    except (
-        RuntimeError,
-        AssertionError):
+    except (RuntimeError, AssertionError):
         raise
 
 
@@ -325,10 +318,7 @@ def raise_unhandled6():
     try:
         raise AssertionError()
     finally:
-        raise RuntimeError(
-            'in another'
-            'line'
-        )
+        raise RuntimeError("in another" "line")
 
 
 @mark_unhandled
@@ -427,11 +417,14 @@ def _collect_events(func):
         return events_collector
 
     import sys
+
     sys.settrace(events_collector)
     try:
         func()
     except:
-        import traceback;traceback.print_exc()
+        import traceback
+
+        traceback.print_exc()
     finally:
         sys.settrace(None)
     return collected
@@ -439,38 +432,38 @@ def _collect_events(func):
 
 def _replay_events(collected, trace_top_level_unhandled):
     for event, lineno, arg in collected:
-        if event == 'call':
+        if event == "call":
             # Notify only unhandled
             new_trace_func = trace_top_level_unhandled.call_trace_dispatch(lineno)
             # Check that it's dealing with the top-level event.
-            if hasattr(new_trace_func, 'get_method_object'):
+            if hasattr(new_trace_func, "get_method_object"):
                 new_trace_func = new_trace_func.get_method_object()
-            assert new_trace_func.__name__ == 'trace_dispatch_and_unhandled_exceptions'
-        elif event == 'exception':
+            assert new_trace_func.__name__ == "trace_dispatch_and_unhandled_exceptions"
+        elif event == "exception":
             trace_top_level_unhandled.exception_trace_dispatch(lineno, arg)
 
-        elif event == 'return':
+        elif event == "return":
             trace_top_level_unhandled.return_trace_dispatch(lineno)
 
-        elif event == 'line':
+        elif event == "line":
             pass
 
         else:
-            raise AssertionError('Unexpected: %s' % (event,))
+            raise AssertionError("Unexpected: %s" % (event,))
 
 
 def _collect_target_functions():
-#     return [raise_unhandled10]
+    #     return [raise_unhandled10]
     ret = []
     for _key, method in sorted(dict(globals()).items()):
-        if hasattr(method, '__handled__'):
+        if hasattr(method, "__handled__"):
             ret.append(method)
 
     assert len(ret) == _expected_functions_to_test
     return ret
 
 
-@pytest.mark.skipif(not IS_CPYTHON, reason='try..except info only available on CPython')
+@pytest.mark.skipif(not IS_CPYTHON, reason="try..except info only available on CPython")
 @pytest.mark.parametrize("func", _collect_target_functions())
 def test_tracing_on_top_level_unhandled(trace_top_level_unhandled, func):
     trace_top_level_unhandled.set_target_func(func)

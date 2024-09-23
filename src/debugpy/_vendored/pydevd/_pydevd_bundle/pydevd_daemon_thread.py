@@ -2,26 +2,30 @@ from _pydev_bundle._pydev_saved_modules import threading
 from _pydev_bundle import _pydev_saved_modules
 from _pydevd_bundle.pydevd_utils import notify_about_gevent_if_needed
 import weakref
-from _pydevd_bundle.pydevd_constants import IS_JYTHON, IS_IRONPYTHON, \
-    PYDEVD_APPLY_PATCHING_TO_HIDE_PYDEVD_THREADS
+from _pydevd_bundle.pydevd_constants import (
+    IS_JYTHON,
+    IS_IRONPYTHON,
+    PYDEVD_APPLY_PATCHING_TO_HIDE_PYDEVD_THREADS,
+    PYDEVD_USE_SYS_MONITORING,
+)
 from _pydev_bundle.pydev_log import exception as pydev_log_exception
 import sys
 from _pydev_bundle import pydev_log
 import pydevd_tracing
 from _pydevd_bundle.pydevd_collect_bytecode_info import iter_instructions
+from _pydevd_sys_monitoring import pydevd_sys_monitoring
 
 if IS_JYTHON:
     import org.python.core as JyCore  # @UnresolvedImport
 
 
 class PyDBDaemonThread(threading.Thread):
-
     def __init__(self, py_db, target_and_args=None):
-        '''
+        """
         :param target_and_args:
             tuple(func, args, kwargs) if this should be a function and args to run.
             -- Note: use through run_as_pydevd_daemon_thread().
-        '''
+        """
         threading.Thread.__init__(self)
         notify_about_gevent_if_needed()
         self._py_db = weakref.ref(py_db)
@@ -58,61 +62,65 @@ class PyDBDaemonThread(threading.Thread):
             target, args, kwargs = self._target_and_args
             target(*args, **kwargs)
         else:
-            raise NotImplementedError('Should be reimplemented by: %s' % self.__class__)
+            raise NotImplementedError("Should be reimplemented by: %s" % self.__class__)
 
     def do_kill_pydev_thread(self):
         if not self._kill_received:
-            pydev_log.debug('%s received kill signal', self.name)
+            pydev_log.debug("%s received kill signal", self.name)
             self._kill_received = True
 
     def _stop_trace(self):
         if self.pydev_do_not_trace:
+            if PYDEVD_USE_SYS_MONITORING:
+                pydevd_sys_monitoring.stop_monitoring(all_threads=False)
+                return
             pydevd_tracing.SetTrace(None)  # no debugging on this thread
 
 
 def _collect_load_names(func):
     found_load_names = set()
     for instruction in iter_instructions(func.__code__):
-        if instruction.opname in ('LOAD_GLOBAL', 'LOAD_ATTR', 'LOAD_METHOD'):
+        if instruction.opname in ("LOAD_GLOBAL", "LOAD_ATTR", "LOAD_METHOD"):
             found_load_names.add(instruction.argrepr)
     return found_load_names
 
 
 def _patch_threading_to_hide_pydevd_threads():
-    '''
+    """
     Patches the needed functions on the `threading` module so that the pydevd threads are hidden.
 
     Note that we patch the functions __code__ to avoid issues if some code had already imported those
     variables prior to the patching.
-    '''
+    """
     found_load_names = _collect_load_names(threading.enumerate)
     # i.e.: we'll only apply the patching if the function seems to be what we expect.
 
     new_threading_enumerate = None
 
     if found_load_names in (
-        {'_active_limbo_lock', '_limbo', '_active', 'values', 'list'},
-        {'_active_limbo_lock', '_limbo', '_active', 'values', 'NULL + list'}
-        ):
-        pydev_log.debug('Applying patching to hide pydevd threads (Py3 version).')
+        {"_active_limbo_lock", "_limbo", "_active", "values", "list"},
+        {"_active_limbo_lock", "_limbo", "_active", "values", "NULL + list"},
+        {"NULL + list", "_active", "_active_limbo_lock", "NULL|self + values", "_limbo"},
+    ):
+        pydev_log.debug("Applying patching to hide pydevd threads (Py3 version).")
 
         def new_threading_enumerate():
             with _active_limbo_lock:
                 ret = list(_active.values()) + list(_limbo.values())
 
-            return [t for t in ret if not getattr(t, 'is_pydev_daemon_thread', False)]
+            return [t for t in ret if not getattr(t, "is_pydev_daemon_thread", False)]
 
-    elif found_load_names == set(('_active_limbo_lock', '_limbo', '_active', 'values')):
-        pydev_log.debug('Applying patching to hide pydevd threads (Py2 version).')
+    elif found_load_names == set(("_active_limbo_lock", "_limbo", "_active", "values")):
+        pydev_log.debug("Applying patching to hide pydevd threads (Py2 version).")
 
         def new_threading_enumerate():
             with _active_limbo_lock:
                 ret = _active.values() + _limbo.values()
 
-            return [t for t in ret if not getattr(t, 'is_pydev_daemon_thread', False)]
+            return [t for t in ret if not getattr(t, "is_pydev_daemon_thread", False)]
 
     else:
-        pydev_log.info('Unable to hide pydevd threads. Found names in threading.enumerate: %s', found_load_names)
+        pydev_log.info("Unable to hide pydevd threads. Found names in threading.enumerate: %s", found_load_names)
 
     if new_threading_enumerate is not None:
 
@@ -143,7 +151,7 @@ def _patch_threading_to_hide_pydevd_threads():
         # But in this particular case, we do want threads with `is_pydev_daemon_thread` to appear
         # explicitly due to the pydevd `CheckAliveThread` (because we want the shutdown to wait on it).
         # So, it can't rely on the `enumerate` for that anymore as it's patched to not return pydevd threads.
-        if hasattr(threading, '_pickSomeNonDaemonThread'):
+        if hasattr(threading, "_pickSomeNonDaemonThread"):
 
             def new_pick_some_non_daemon_thread():
                 with _active_limbo_lock:
@@ -176,7 +184,7 @@ def mark_as_pydevd_daemon_thread(thread):
             try:
                 _patch_threading_to_hide_pydevd_threads()
             except:
-                pydev_log.exception('Error applying patching to hide pydevd threads.')
+                pydev_log.exception("Error applying patching to hide pydevd threads.")
 
     thread.pydev_do_not_trace = True
     thread.is_pydev_daemon_thread = True
@@ -184,10 +192,10 @@ def mark_as_pydevd_daemon_thread(thread):
 
 
 def run_as_pydevd_daemon_thread(py_db, func, *args, **kwargs):
-    '''
+    """
     Runs a function as a pydevd daemon thread (without any tracing in place).
-    '''
+    """
     t = PyDBDaemonThread(py_db, target_and_args=(func, args, kwargs))
-    t.name = '%s (pydevd daemon thread)' % (func.__name__,)
+    t.name = "%s (pydevd daemon thread)" % (func.__name__,)
     t.start()
     return t

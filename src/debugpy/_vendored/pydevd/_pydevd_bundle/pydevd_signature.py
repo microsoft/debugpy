@@ -14,7 +14,6 @@ from _pydevd_bundle.pydevd_utils import get_clsname_for_code
 
 
 class Signature(object):
-
     def __init__(self, file, name):
         self.file = file
         self.name = name
@@ -42,37 +41,36 @@ class Signature(object):
         return "%s %s(%s)" % (self.file, self.name, ", ".join(self.args_str))
 
 
-def get_type_of_value(value, ignore_module_name=('__main__', '__builtin__', 'builtins'), recursive=False):
+def get_type_of_value(value, ignore_module_name=("__main__", "__builtin__", "builtins"), recursive=False):
     tp = type(value)
     class_name = tp.__name__
-    if class_name == 'instance':  # old-style classes
+    if class_name == "instance":  # old-style classes
         tp = value.__class__
         class_name = tp.__name__
 
-    if hasattr(tp, '__module__') and tp.__module__ and tp.__module__ not in ignore_module_name:
+    if hasattr(tp, "__module__") and tp.__module__ and tp.__module__ not in ignore_module_name:
         class_name = "%s.%s" % (tp.__module__, class_name)
 
-    if class_name == 'list':
-        class_name = 'List'
+    if class_name == "list":
+        class_name = "List"
         if len(value) > 0 and recursive:
-            class_name += '[%s]' % get_type_of_value(value[0], recursive=recursive)
+            class_name += "[%s]" % get_type_of_value(value[0], recursive=recursive)
         return class_name
 
-    if class_name == 'dict':
-        class_name = 'Dict'
+    if class_name == "dict":
+        class_name = "Dict"
         if len(value) > 0 and recursive:
-            for (k, v) in value.items():
-                class_name += '[%s, %s]' % (get_type_of_value(k, recursive=recursive),
-                                            get_type_of_value(v, recursive=recursive))
+            for k, v in value.items():
+                class_name += "[%s, %s]" % (get_type_of_value(k, recursive=recursive), get_type_of_value(v, recursive=recursive))
                 break
         return class_name
 
-    if class_name == 'tuple':
-        class_name = 'Tuple'
+    if class_name == "tuple":
+        class_name = "Tuple"
         if len(value) > 0 and recursive:
-            class_name += '['
-            class_name += ', '.join(get_type_of_value(v, recursive=recursive) for v in value)
-            class_name += ']'
+            class_name += "["
+            class_name += ", ".join(get_type_of_value(v, recursive=recursive) for v in value)
+            class_name += "]"
 
     return class_name
 
@@ -85,7 +83,6 @@ def _modname(path):
 
 
 class SignatureFactory(object):
-
     def __init__(self):
         self._caller_cache = {}
         self.cache = CallSignatureCache()
@@ -130,7 +127,7 @@ class SignatureFactory(object):
 
 
 def get_signature_info(signature):
-    return signature.file, signature.name, ' '.join([arg[1] for arg in signature.args])
+    return signature.file, signature.name, " ".join([arg[1] for arg in signature.args])
 
 
 def get_frame_info(frame):
@@ -139,7 +136,6 @@ def get_frame_info(frame):
 
 
 class CallSignatureCache(object):
-
     def __init__(self):
         self.cache = {}
 
@@ -159,16 +155,21 @@ class CallSignatureCache(object):
 def create_signature_message(signature):
     cmdTextList = ["<xml>"]
 
-    cmdTextList.append('<call_signature file="%s" name="%s">' % (pydevd_xml.make_valid_xml_value(signature.file), pydevd_xml.make_valid_xml_value(signature.name)))
+    cmdTextList.append(
+        '<call_signature file="%s" name="%s">'
+        % (pydevd_xml.make_valid_xml_value(signature.file), pydevd_xml.make_valid_xml_value(signature.name))
+    )
 
     for arg in signature.args:
-        cmdTextList.append('<arg name="%s" type="%s"></arg>' % (pydevd_xml.make_valid_xml_value(arg[0]), pydevd_xml.make_valid_xml_value(arg[1])))
+        cmdTextList.append(
+            '<arg name="%s" type="%s"></arg>' % (pydevd_xml.make_valid_xml_value(arg[0]), pydevd_xml.make_valid_xml_value(arg[1]))
+        )
 
     if signature.return_type is not None:
         cmdTextList.append('<return type="%s"></return>' % (pydevd_xml.make_valid_xml_value(signature.return_type)))
 
     cmdTextList.append("</call_signature></xml>")
-    cmdText = ''.join(cmdTextList)
+    cmdText = "".join(cmdTextList)
     return NetCommand(CMD_SIGNATURE_CALL_TRACE, 0, cmdText)
 
 
@@ -198,4 +199,3 @@ def send_signature_return_trace(dbg, frame, filename, return_value):
         return True
 
     return False
-

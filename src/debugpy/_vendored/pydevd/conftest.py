@@ -9,33 +9,33 @@ from _pydev_bundle import pydev_log
 
 
 def pytest_report_header(config):
-    print('PYDEVD_USE_CYTHON: %s' % (TEST_CYTHON,))
-    print('PYDEVD_TEST_VM: %s' % (PYDEVD_TEST_VM,))
+    print("PYDEVD_USE_CYTHON: %s" % (TEST_CYTHON,))
+    print("PYDEVD_TEST_VM: %s" % (PYDEVD_TEST_VM,))
     try:
         import multiprocessing
     except ImportError:
         pass
     else:
-        print('Number of processors: %s' % (multiprocessing.cpu_count(),))
+        print("Number of processors: %s" % (multiprocessing.cpu_count(),))
 
-    print('Relevant system paths:')
-    print('sys.executable: %s' % (sys.executable,))
-    print('sys.prefix: %s' % (sys.prefix,))
+    print("Relevant system paths:")
+    print("sys.executable: %s" % (sys.executable,))
+    print("sys.prefix: %s" % (sys.prefix,))
 
-    if hasattr(sys, 'base_prefix'):
-        print('sys.base_prefix: %s' % (sys.base_prefix,))
+    if hasattr(sys, "base_prefix"):
+        print("sys.base_prefix: %s" % (sys.base_prefix,))
 
-    if hasattr(sys, 'real_prefix'):
-        print('sys.real_prefix: %s' % (sys.real_prefix,))
+    if hasattr(sys, "real_prefix"):
+        print("sys.real_prefix: %s" % (sys.real_prefix,))
 
-    if hasattr(site, 'getusersitepackages'):
-        print('site.getusersitepackages(): %s' % (site.getusersitepackages(),))
+    if hasattr(site, "getusersitepackages"):
+        print("site.getusersitepackages(): %s" % (site.getusersitepackages(),))
 
-    if hasattr(site, 'getsitepackages'):
-        print('site.getsitepackages(): %s' % (site.getsitepackages(),))
+    if hasattr(site, "getsitepackages"):
+        print("site.getsitepackages(): %s" % (site.getsitepackages(),))
 
     for path in sys.path:
-        if os.path.exists(path) and os.path.basename(path) == 'site-packages':
+        if os.path.exists(path) and os.path.basename(path) == "site-packages":
             print('Folder with "site-packages" in sys.path: %s' % (path,))
 
 
@@ -51,44 +51,46 @@ def _start_monitoring_threads():
 
     _started_monitoring_threads = True
     import threading
-    if hasattr(sys, '_current_frames') and hasattr(threading, 'enumerate'):
+
+    if hasattr(sys, "_current_frames") and hasattr(threading, "enumerate"):
         import time
         import traceback
 
         class DumpThreads(threading.Thread):
-
             def run(self):
                 time.sleep(20)
 
                 thread_id_to_name = {}
                 try:
                     for t in threading.enumerate():
-                        thread_id_to_name[t.ident] = '%s  (daemon: %s)' % (t.name, t.daemon)
+                        thread_id_to_name[t.ident] = "%s  (daemon: %s)" % (t.name, t.daemon)
                 except:
                     pass
 
                 stack_trace = [
-                    '===============================================================================',
-                    'pydev pyunit runner: Threads still found running after tests finished',
-                    '================================= Thread Dump =================================']
+                    "===============================================================================",
+                    "pydev pyunit runner: Threads still found running after tests finished",
+                    "================================= Thread Dump =================================",
+                ]
 
                 for thread_id, stack in sys._current_frames().items():
-                    stack_trace.append('\n-------------------------------------------------------------------------------')
+                    stack_trace.append("\n-------------------------------------------------------------------------------")
                     stack_trace.append(" Thread %s" % thread_id_to_name.get(thread_id, thread_id))
-                    stack_trace.append('')
+                    stack_trace.append("")
 
-                    if 'self' in stack.f_locals:
-                        sys.stderr.write(str(stack.f_locals['self']) + '\n')
+                    if "self" in stack.f_locals:
+                        sys.stderr.write(str(stack.f_locals["self"]) + "\n")
 
                     for filename, lineno, name, line in traceback.extract_stack(stack):
                         stack_trace.append(' File "%s", line %d, in %s' % (filename, lineno, name))
                         if line:
                             stack_trace.append("   %s" % (line.strip()))
-                stack_trace.append('\n=============================== END Thread Dump ===============================')
-                sys.stderr.write('\n'.join(stack_trace))
+                stack_trace.append("\n=============================== END Thread Dump ===============================")
+                sys.stderr.write("\n".join(stack_trace))
 
                 # Force thread run to finish
                 import os
+
                 os._exit(123)
 
         dump_current_frames_thread = DumpThreads()
@@ -108,16 +110,14 @@ def check_no_threads():
 
 # see: http://goo.gl/kTQMs
 SYMBOLS = {
-    'customary': ('B', 'K', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y'),
-    'customary_ext': ('byte', 'kilo', 'mega', 'giga', 'tera', 'peta', 'exa',
-                       'zetta', 'iotta'),
-    'iec': ('Bi', 'Ki', 'Mi', 'Gi', 'Ti', 'Pi', 'Ei', 'Zi', 'Yi'),
-    'iec_ext': ('byte', 'kibi', 'mebi', 'gibi', 'tebi', 'pebi', 'exbi',
-                       'zebi', 'yobi'),
+    "customary": ("B", "K", "M", "G", "T", "P", "E", "Z", "Y"),
+    "customary_ext": ("byte", "kilo", "mega", "giga", "tera", "peta", "exa", "zetta", "iotta"),
+    "iec": ("Bi", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi", "Yi"),
+    "iec_ext": ("byte", "kibi", "mebi", "gibi", "tebi", "pebi", "exbi", "zebi", "yobi"),
 }
 
 
-def bytes2human(n, format='%(value).1f %(symbol)s', symbols='customary'):
+def bytes2human(n, format="%(value).1f %(symbol)s", symbols="customary"):
     """
     Bytes-to-human / human-to-bytes converter.
     Based on: http://goo.gl/kTQMs
@@ -178,8 +178,12 @@ def bytes2human(n, format='%(value).1f %(symbol)s', symbols='customary'):
 
 
 def format_memory_info(memory_info, curr_proc_memory_info):
-    return 'Total: %s, Available: %s, Used: %s %%, Curr process: %s' % (
-        bytes2human(memory_info.total), bytes2human(memory_info.available), memory_info.percent, format_process_memory_info(curr_proc_memory_info))
+    return "Total: %s, Available: %s, Used: %s %%, Curr process: %s" % (
+        bytes2human(memory_info.total),
+        bytes2human(memory_info.available),
+        memory_info.percent,
+        format_process_memory_info(curr_proc_memory_info),
+    )
 
 
 def format_process_memory_info(proc_memory_info):
@@ -209,17 +213,20 @@ def before_after_each_function(request):
     if _global_collect_info and DEBUG_MEMORY_INFO:
         try:
             from pympler import summary, muppy
+
             sum1 = summary.summarize(muppy.get_objects())
         except:
             pydev_log.exception()
 
     sys.stdout.write(
-'''
+        """
 ===============================================================================
 Memory before: %s
 %s
 ===============================================================================
-''' % (request.function, format_memory_info(psutil.virtual_memory(), before_curr_proc_memory_info)))
+"""
+        % (request.function, format_memory_info(psutil.virtual_memory(), before_curr_proc_memory_info))
+    )
     yield
 
     processes_info = []
@@ -229,14 +236,9 @@ Memory before: %s
                 try:
                     cmdline = proc.cmdline()
                 except:
-                    cmdline = '<unable to get>'
+                    cmdline = "<unable to get>"
                 processes_info.append(
-                    'New Process: %s(%s - %s) - %s' % (
-                        proc.name(),
-                        proc.pid,
-                        cmdline,
-                        format_process_memory_info(proc.memory_info())
-                    )
+                    "New Process: %s(%s - %s) - %s" % (proc.name(), proc.pid, cmdline, format_process_memory_info(proc.memory_info()))
                 )
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 pass  # The process could've died in the meanwhile
@@ -250,11 +252,11 @@ Memory before: %s
                 if _global_collect_info:
                     sum2 = summary.summarize(muppy.get_objects())
                     diff = summary.get_diff(sum1, sum2)
-                    sys.stdout.write('===============================================================================\n')
-                    sys.stdout.write('Leak info:\n')
-                    sys.stdout.write('===============================================================================\n')
+                    sys.stdout.write("===============================================================================\n")
+                    sys.stdout.write("Leak info:\n")
+                    sys.stdout.write("===============================================================================\n")
                     summary.print_(diff)
-                    sys.stdout.write('===============================================================================\n')
+                    sys.stdout.write("===============================================================================\n")
 
                 _global_collect_info = True
                 # We'll only really collect the info on the next test (i.e.: if at one test
@@ -265,17 +267,19 @@ Memory before: %s
             pydev_log.exception()
 
     sys.stdout.write(
-'''
+        """
 ===============================================================================
 Memory after: %s
 %s%s
 ===============================================================================
 
 
-''' % (
-    request.function,
-    format_memory_info(psutil.virtual_memory(), after_curr_proc_memory_info),
-    '' if not processes_info else '\nLeaked processes:\n' + '\n'.join(processes_info)),
+"""
+        % (
+            request.function,
+            format_memory_info(psutil.virtual_memory(), after_curr_proc_memory_info),
+            "" if not processes_info else "\nLeaked processes:\n" + "\n".join(processes_info),
+        ),
     )
 
 
@@ -337,7 +341,7 @@ def pyfile(request, tmpdir):
             raise ValueError("Failed to locate function header.")
 
         # Remove everything up to and including "def".
-        source = source[def_lineno + 1:]
+        source = source[def_lineno + 1 :]
         assert source
 
         # Now we need to adjust indentation. Compute how much the first line of
@@ -353,8 +357,8 @@ def pyfile(request, tmpdir):
 
         # Write it to file.
         tmpfile = os.path.join(str(tmpdir), name + ".py")
-        assert not os.path.exists(tmpfile), '%s already exists.' % (tmpfile,)
-        with open(tmpfile, 'w') as stream:
+        assert not os.path.exists(tmpfile), "%s already exists." % (tmpfile,)
+        with open(tmpfile, "w") as stream:
             stream.write(source)
 
         return tmpfile
@@ -363,7 +367,6 @@ def pyfile(request, tmpdir):
 
 
 if IS_JYTHON or IS_IRONPYTHON:
-
     # On Jython and IronPython, it's a no-op.
     def before_after_each_function():
         pass
