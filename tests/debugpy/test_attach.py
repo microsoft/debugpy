@@ -12,10 +12,7 @@ from tests.patterns import some
 
 @pytest.mark.parametrize("stop_method", ["breakpoint", "pause"])
 @pytest.mark.parametrize("is_client_connected", ["is_client_connected", ""])
-@pytest.mark.parametrize("wait_for_client", ["wait_for_client", ""])
-@pytest.mark.skipif(
-    sys.platform.startswith("darwin") and wait_for_client == "",
-    reason="Flakey test on Mac")
+@pytest.mark.parametrize("wait_for_client", ["wait_for_client", pytest.param("", marks=pytest.mark.skipif(sys.platform.startswith("darwin"), reason="Flakey test on Mac"))])
 def test_attach_api(pyfile, wait_for_client, is_client_connected, stop_method):
     @pyfile
     def code_to_debug():
