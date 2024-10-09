@@ -161,7 +161,7 @@ CYTHON_SUPPORTED = False
 python_implementation = platform.python_implementation()
 if python_implementation == "CPython":
     # Only available for CPython!
-    CYTHON_SUPPORTED = True
+    CYTHON_SUPPORTED = False
 
 # =======================================================================================================================
 # Python 3?
@@ -173,9 +173,11 @@ IS_PY39_OR_GREATER = sys.version_info >= (3, 9)
 IS_PY310_OR_GREATER = sys.version_info >= (3, 10)
 IS_PY311_OR_GREATER = sys.version_info >= (3, 11)
 IS_PY312_OR_GREATER = sys.version_info >= (3, 12)
+IS_PY313_OR_GREATER = sys.version_info >= (3, 13)
+IS_PY314_OR_GREATER = sys.version_info >= (3, 13)
 
-# Not currently supported in Python 3.12.
-SUPPORT_ATTACH_TO_PID = not IS_PY312_OR_GREATER
+# Not currently supported in Python 3.14.
+SUPPORT_ATTACH_TO_PID = not IS_PY314_OR_GREATER
 
 
 def version_str(v):
