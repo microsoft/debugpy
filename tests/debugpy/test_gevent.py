@@ -5,9 +5,9 @@
 import pytest
 from tests import debug
 from tests.patterns import some
-from tests_python.debugger_unittest import IS_PY313_OR_GREATER
+from _pydevd_bundle.pydevd_constants import IS_PY313_OR_GREATER
 
-pytest.mark.skipif(IS_PY313_OR_GREATER, reason="gevent is not up to date with 3.13 (_tstate_lock is not part of thread anymore)")
+@pytest.mark.skipif(IS_PY313_OR_GREATER, reason="gevent is not up to date with 3.13 (_tstate_lock is not part of thread anymore)")
 def test_gevent(pyfile, target, run):
     @pyfile
     def code_to_debug():
