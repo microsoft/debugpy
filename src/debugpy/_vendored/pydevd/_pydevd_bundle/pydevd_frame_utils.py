@@ -35,7 +35,7 @@ def add_exception_to_frame(frame, exception_info):
 
 
 def remove_exception_from_frame(frame):
-    # In 3.13 frame.f_locals became a proxy for a dict, so we need to copy it to avoid
+    # In 3.13 frame.f_locals became a proxy for a dict, so we need to copy it to a real dict
     # so we can call the defined update method. Just deleting the entry throws in 3.13.
     items = {key: value for key, value in frame.f_locals.items()}
     if "__exception__" in items:
