@@ -131,6 +131,7 @@ Follow these steps to get pydevd testable:
 - copy all of your changes from src/debugpy/_vendored/pydevd to the root of your PyDev.Debugger clone
 - remove the pdb files (pydevd doesn't ship those) if you rebuilt the attach dlls
 - create an environment to test. The list of stuff in your environment is outlined [here](https://github.com/fabioz/PyDev.Debugger/blob/6cd4d431e6a794448f33a73857d479149041500a/.github/workflows/pydevd-tests-python.yml#L83).
+- set PYTHONPATH=. (make sure you don't forget this part, otherwise a lot of tests will fail)
 
 ### Testing pydevd and fixing test failures
 
