@@ -117,8 +117,116 @@ You might need to regenerate the Cython modules after any changes. This can be d
 - pip install cython, django>=1.9, setuptools>=0.9, wheel>0.21, twine
 - On a windows machine:
   - set FORCE_PYDEVD_VC_VARS=C:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\VC\Auxiliary\Build\vcvars64.bat
-  - set PYDEVD_FORCE_BUILD_ALL=True
   - in the pydevd folder: python .\build_tools\build.py
+
+## Pushing pydevd back to PyDev.Debugger
+
+If you've made changes to pydevd (at src/debugpy/_vendored/pydevd), you'll want to push back changes to pydevd so as Fabio makes changes to pydevd we can continue to share updates. 
+
+### Setting up pydevd to be testable
+
+Follow these steps to get pydevd testable:
+
+- git clone https://github.com/fabioz/PyDev.Debugger (or using your own fork)
+- copy all of your changes from src/debugpy/_vendored/pydevd to the root of your PyDev.Debugger clone
+- remove the pdb files (pydevd doesn't ship those) if you rebuilt the attach dlls
+- create an environment to test. The list of stuff in your environment is outlined [here](https://github.com/fabioz/PyDev.Debugger/blob/6cd4d431e6a794448f33a73857d479149041500a/.github/workflows/pydevd-tests-python.yml#L83).
+
+### Testing pydevd and fixing test failures
+
+Pydevd has a lot more tests on execution than debugpy. They reside in all of the `test` folders under the root. The majority of the execution tests are in the `tests_python` folder.
+
+You run all of the tests with (from the root folder):
+
+- python -m pytest -n auto -rfE
+
+That will run all of the tests in parallel and output any failures. 
+
+If you want to just see failures you can do this:
+
+- python -m pytest -n auto -q
+
+That should generate output that just lists the tests which failed. 
+
+```
+=============================================== short test summary info ===============================================
+FAILED tests_python/test_debugger.py::test_path_translation[True] - AssertionError: TimeoutError (note: error trying to dump threads on timeout).
+FAILED tests_python/test_debugger.py::test_remote_debugger_multi_proc[False] - AssertionError: TimeoutError
+FAILED tests_python/test_debugger.py::test_path_translation[False] - AssertionError: TimeoutError (note: error trying to dump threads on timeout).
+======================== 3 failed, 661 passed, 169 skipped, 77 warnings in 319.05s (0:05:19) =========================
+```
+With that you can then run individual tests like so:
+
+- python -m pytest -n auto tests_python/test_debugger.py::test_path_translation[False]
+
+That will generate a log from the test run. 
+
+Logging the test output can be tricky so here's some information on how to debug the tests.
+
+#### How to add more logging
+
+The pydevd tests log everything to the console and to a text file during the test. If you scroll up in the console, it should show the log file it read the logs from:
+
+```
+Log on failure:
+-------------------- C:\Users\rchiodo\AppData\Local\Temp\pytest-of-rchiodo\pytest-77\popen-gw3\test_path_translation_and_sour0\pydevd_debug_file_23524.32540.txt ------------------
+```
+
+If you want to add more logging in order to investigate something that isn't working, you simply add a line like so in the code:
+
+```python
+    pydevd_log.debug("Some test logging", frame, etc)
+```
+
+Make sure if you add this in a module that gets `cythonized`, that you turn off `Cython` support as listed above. Otherwise you'll have to regen the C code or you won't actually see your new log output.
+
+#### How to use logs to debug failures
+
+Investigating log failures can be done in multiple ways. 
+
+If you have an existing test failing, you can investigate it by running the test with the main branch and comparing the results. To do so you would:
+
+- Clone the repo a second time
+- Change the code in `tests_python/debugger_unittest.py` so that the test prints out logs on success too (by default it only logs the output on a failure)
+- Run the failing test in the second clone
+- Run the failing test in your original clone
+- Diff the results by finding the log file name in the output and diffing those two files
+- Add more logging around where the differences first appear
+- Repeat running and diffing
+
+If you're adding a new test or just trying to figure out what the expected log output is, you would look at the failing test to see what steps are expected in the output. Here's an example:
+
+```python
+def test_case_double_remove_breakpoint(case_setup):
+    with case_setup.test_file("_debugger_case_remove_breakpoint.py") as writer:
+        breakpoint_id = writer.write_add_breakpoint(writer.get_line_index_with_content("break here"))
+        writer.write_make_initial_run()
+
+        hit = writer.wait_for_breakpoint_hit()
+        writer.write_remove_breakpoint(breakpoint_id)
+        writer.write_remove_breakpoint(breakpoint_id)  # Double-remove (just check that we don't have an error).
+        writer.write_run_thread(hit.thread_id)
+
+        writer.finished_ok = True
+```
+
+That test would have events correlating to:
+
+- Initialization (all debug sessions have this)
+- Setting breakpoints on a specific line
+- Breakpoint event being hit
+- Setting breakpoints to empty
+- Setting breakpoints to empty
+- Continue event
+
+Those would show up in the log like so:
+
+Breakpoint command
+```
+0.00s - Received command: CMD_SET_BREAK 111     3       1       python-line     C:\Users\rchiodo\source\repos\PyDev.Debugger\tests_python\resources\_debugger_case_remove_breakpoint.py 7       None    None    None
+```
+
+In order to investigate a failure you'd look for the CMDs you expect and then see where the CMDs deviate. At that point you'd add logging around what might have happened next. 
 
 ## Using modified debugpy in Visual Studio Code
 To test integration between debugpy and Visual Studio Code, the latter can be directed to use a custom version of debugpy in lieu of the one bundled with the Python extension. This is done by specifying `"debugAdapterPath"` in `launch.json` - it must point at the root directory of the *package*, which is `src/debugpy` inside the repository:
