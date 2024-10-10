@@ -172,7 +172,7 @@ Log on failure:
 -------------------- C:\Users\rchiodo\AppData\Local\Temp\pytest-of-rchiodo\pytest-77\popen-gw3\test_path_translation_and_sour0\pydevd_debug_file_23524.32540.txt ------------------
 ```
 
-If you want to add more logging in order to debug something that isn't working, you simply add a line like so in the code:
+If you want to add more logging in order to investigate something that isn't working, you simply add a line like so in the code:
 
 ```python
     pydevd_log.debug("Some test logging", frame, etc)
@@ -182,9 +182,9 @@ Make sure if you add this in a module that gets `cythonized`, that you turn off 
 
 #### How to use logs to debug failures
 
-Debugging log failures can be done in multiple ways. 
+Investigating log failures can be done in multiple ways. 
 
-If you have an existing test failing, you can debug it by running the test with the main branch and comparing the results. To do so you would:
+If you have an existing test failing, you can investigate it by running the test with the main branch and comparing the results. To do so you would:
 
 - Clone the repo a second time
 - Change the code in `tests_python/debugger_unittest.py` so that the test prints out logs on success too (by default it only logs the output on a failure)
@@ -226,7 +226,7 @@ Breakpoint command
 0.00s - Received command: CMD_SET_BREAK 111     3       1       python-line     C:\Users\rchiodo\source\repos\PyDev.Debugger\tests_python\resources\_debugger_case_remove_breakpoint.py 7       None    None    None
 ```
 
-In order to debug a failure you'd look for the CMDs you expect and then see where the CMDs deviate. At that point you'd add logging around what might have happened next. 
+In order to investigate a failure you'd look for the CMDs you expect and then see where the CMDs deviate. At that point you'd add logging around what might have happened next. 
 
 ## Using modified debugpy in Visual Studio Code
 To test integration between debugpy and Visual Studio Code, the latter can be directed to use a custom version of debugpy in lieu of the one bundled with the Python extension. This is done by specifying `"debugAdapterPath"` in `launch.json` - it must point at the root directory of the *package*, which is `src/debugpy` inside the repository:
