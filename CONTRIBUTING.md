@@ -243,3 +243,24 @@ To test integration between debugpy and Visual Studio Code, the latter can be di
 ## Enabling logging in VS code
 See the directions here:
 https://github.com/microsoft/debugpy/wiki/Enable-debugger-logs
+
+## Debugging native code (Windows)
+
+To debug the native components of `debugpy`, such as `attach.cpp`, you can use Visual Studio's native debugging feature. 
+
+Follow these steps to set up native debugging in Visual Studio:
+
+1. Open Visual Studio and go to `Debug` > `Options` > `Symbols`.
+2. Check the option **Search for all module symbols unless excluded**. This ensures that Visual Studio loads the necessary symbols (PDB files) for all modules, including dynamically loaded ones.
+3. Click **OK** to close the options dialog.
+4. Run your Python script from the command line, for example: `python ./main.py`
+5. In Visual Studio, go to `Debug` > `Attach to Process`.
+6. From the list of processes, select the appropriate Python process. Be sure to choose the correct process, especially if you're using a virtual environment. You can verify this by checking the command line associated with each process in the **Task Manager**.
+7. Under **Attach to**, choose either **Automatic: Native code** or explicitly select **Native** to attach as a native debugger.
+8. Click **Attach**.
+9. Open the native source file you want to debug, such as `attach.cpp`, and set breakpoints where necessary (e.g., at `DoAttach`).
+10. Trigger the loading of the DLL, such as by attaching `debugpy` to the Python process (refer to `Attach: PID` in `debugpy`'s `launch.json` for more details on attaching to the process).
+11. Once the DLL is loaded, Visual Studio will automatically load the associated PDB files, and your breakpoints should become active.
+12. When the breakpoint is hit, you can debug the native code as you would in any debug session.
+
+If you need to step into the Python code during the debug session, you can download the Python source code from [python.org](https://www.python.org/downloads/source/). Unzip it to a folder, and when Visual Studio prompts for the source location, point it to the folder where you extracted the Python source. Ensure that the Python version matches the interpreter used to run your script (e.g., `python ./main.py`).
