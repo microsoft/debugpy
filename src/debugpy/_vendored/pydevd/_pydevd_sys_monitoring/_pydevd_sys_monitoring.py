@@ -13,6 +13,7 @@ from typing import Dict, Optional, Tuple, Any
 from os.path import basename, splitext
 
 from _pydev_bundle import pydev_log
+from _pydev_bundle.pydev_is_thread_alive import is_thread_alive
 from _pydevd_bundle import pydevd_dont_trace
 from _pydevd_bundle.pydevd_constants import (
     GlobalDebuggerHolder,
@@ -459,9 +460,10 @@ def _get_code_line_info(code_obj, _cache={}):
         last_line = None
 
         for offset, line in dis.findlinestarts(code_obj):
-            line_to_offset[line] = offset
+            if offset is not None and line is not None:
+                line_to_offset[line] = offset
 
-        if line_to_offset:
+        if len(line_to_offset):
             first_line = min(line_to_offset)
             last_line = max(line_to_offset)
         ret = _CodeLineInfo(line_to_offset, first_line, last_line)
@@ -837,7 +839,7 @@ def _unwind_event(code, instruction, exc):
     if py_db is None or py_db.pydb_disposed:
         return
 
-    if not thread_info.trace or thread_info.thread._is_stopped:
+    if not thread_info.trace or not is_thread_alive(thread_info.thread):
         # For thread-related stuff we can't disable the code tracing because other
         # threads may still want it...
         return
@@ -911,7 +913,7 @@ def _raise_event(code, instruction, exc):
     if py_db is None or py_db.pydb_disposed:
         return
 
-    if not thread_info.trace or thread_info.thread._is_stopped:
+    if not thread_info.trace or not is_thread_alive(thread_info.thread):
         # For thread-related stuff we can't disable the code tracing because other
         # threads may still want it...
         return
@@ -1029,7 +1031,7 @@ def _return_event(code, instruction, retval):
     if py_db is None or py_db.pydb_disposed:
         return monitor.DISABLE
 
-    if not thread_info.trace or thread_info.thread._is_stopped:
+    if not thread_info.trace or not is_thread_alive(thread_info.thread):
         # For thread-related stuff we can't disable the code tracing because other
         # threads may still want it...
         return
@@ -1340,7 +1342,7 @@ def _jump_event(code, from_offset, to_offset):
     if py_db is None or py_db.pydb_disposed:
         return monitor.DISABLE
 
-    if not thread_info.trace or thread_info.thread._is_stopped:
+    if not thread_info.trace or not is_thread_alive(thread_info.thread):
         # For thread-related stuff we can't disable the code tracing because other
         # threads may still want it...
         return
@@ -1397,7 +1399,7 @@ def _line_event(code, line):
     if py_db is None or py_db.pydb_disposed:
         return monitor.DISABLE
 
-    if not thread_info.trace or thread_info.thread._is_stopped:
+    if not thread_info.trace or not is_thread_alive(thread_info.thread):
         # For thread-related stuff we can't disable the code tracing because other
         # threads may still want it...
         return
@@ -1644,7 +1646,7 @@ def _start_method_event(code, instruction_offset):
     if py_db is None or py_db.pydb_disposed:
         return monitor.DISABLE
 
-    if not thread_info.trace or thread_info.thread._is_stopped:
+    if not thread_info.trace or not is_thread_alive(thread_info.thread):
         # For thread-related stuff we can't disable the code tracing because other
         # threads may still want it...
         return

@@ -16,6 +16,7 @@ from _pydevd_bundle.pydevd_constants import (
 )
 from _pydev_bundle import pydev_log
 from _pydev_bundle._pydev_saved_modules import threading
+from _pydev_bundle.pydev_is_thread_alive import is_thread_alive
 import weakref
 
 version = 11
@@ -141,7 +142,7 @@ cdef class PyDBAdditionalThreadInfo:
         if thread is None:
             return False
 
-        if thread._is_stopped:
+        if not is_thread_alive(thread):
             return None
 
         if thread._ident is None:  # Can this happen?

@@ -65,6 +65,8 @@ jobs:
           python.version: "3.11"
         py312:
           python.version: "3.12"
+        py313:
+          python.version: "3.13"
 
     steps:
 
@@ -93,6 +95,8 @@ jobs:
           python.version: "3.11"
         py312:
           python.version: "3.12"
+        py313:
+          python.version: "3.13"
 
     steps:
 
@@ -124,6 +128,8 @@ jobs:
           python.version: "3.11"
         py312:
           python.version: "3.12"
+        py313:
+          python.version: "3.13"
 
     steps:
 
