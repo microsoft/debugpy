@@ -103,11 +103,11 @@ def listen(
 
     `in_process_debug_adapter`: by default a separate python process is
     spawned and used to communicate with the client as the debug adapter.
-    By setting the value of `in_process_debug_adapter` to True a new 
-    python process is not spawned. Note: the con of setting 
-    `in_process_debug_adapter` to True is that subprocesses won't be 
+    By setting the value of `in_process_debug_adapter` to True a new
+    python process is not spawned. Note: the con of setting
+    `in_process_debug_adapter` to True is that subprocesses won't be
     automatically debugged.
-        
+
     Returns the interface and the port on which the debug adapter is
     actually listening, in the same format as `__endpoint`. This may be
     different from address if port was 0 in the latter, in which case
@@ -189,6 +189,28 @@ def trace_this_thread(__should_trace: bool):
 
     Tracing is automatically disabled for all threads when there is no
     client connected to the debug adapter.
+    """
+
+
+@_api()
+def listening_endpoint() -> (
+    typing.Tuple[typing.Optional[Endpoint], typing.Optional[str]]
+):
+    """When process is operating as a server,
+    this api exposes the Endpoint and access_token that one would use to connect to this server
+
+    When not operating as a server, these values are None
+    """
+
+
+@_api()
+def connected_endpoint() -> (
+    typing.Tuple[typing.Optional[Endpoint], typing.Optional[str]]
+):
+    """When process is operating as a client and has connected to a server
+    this api exposes the Endpoint and access_token used to connect to the server
+
+    When not connected as a client, these values are None
     """
 
 
