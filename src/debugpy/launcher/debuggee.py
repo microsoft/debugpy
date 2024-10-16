@@ -58,7 +58,8 @@ def spawn(process_name, cmdline, env, redirect_output):
         else:
             kwargs = {}
 
-        if sys.platform != "win32":
+        if sys.platform != "win32" and sys.implementation.name != 'graalpy':
+            # GraalPy does not support running code between fork and exec
 
             def preexec_fn():
                 try:
