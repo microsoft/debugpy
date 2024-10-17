@@ -178,23 +178,19 @@ cdef _get_bootstrap_frame(depth):
 
 # fmt: off
 # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
-cdef _get_unhandled_exception_frame(int depth):
+cdef _get_unhandled_exception_frame(exc, int depth):
 # ELSE
-# def _get_unhandled_exception_frame(depth: int) -> Optional[FrameType]:
+# def _get_unhandled_exception_frame(exc, depth: int) -> Optional[FrameType]:
 # ENDIF
 # fmt: on
     try:
-        result = _thread_local_info.f_unhandled
-
-        # Make sure the result is from the same exception. That means the result is in the stack somewhere.
-        if result is not None:
-            orig = frame = _getframe(depth)
-            while result != frame and frame is not None:
-                frame = frame.f_back
-            if frame is not None:
-                return result
-            del _thread_local_info.f_unhandled
-            raise AttributeError("Unhandled frame from different exception")
+        # Unhandled frame has to be from the same exception.
+        if _thread_local_info.f_unhandled_exc is exc:
+            return _thread_local_info.f_unhandled_frame
+        else:
+            del _thread_local_info.f_unhandled_frame
+            del _thread_local_info.f_unhandled_exc
+            raise AttributeError('Not the same exception')
     except:
         f_unhandled = _getframe(depth)
 
@@ -232,8 +228,9 @@ cdef _get_unhandled_exception_frame(int depth):
             f_unhandled = f_back
 
         if f_unhandled is not None:
-            _thread_local_info.f_unhandled = f_unhandled
-            return _thread_local_info.f_unhandled
+            _thread_local_info.f_unhandled_frame = f_unhandled
+            _thread_local_info.f_unhandled_exc = exc
+            return _thread_local_info.f_unhandled_frame
 
         return f_unhandled
 
@@ -852,7 +849,7 @@ cdef _unwind_event(code, instruction, exc):
     if func_code_info.always_skip_code:
         return
     
-    # print('_unwind_event', code, exc)
+    # pydev_log.debug('_unwind_event', code, exc)
     frame = _getframe(1)
     arg = (type(exc), exc, exc.__traceback__)
 
@@ -883,7 +880,7 @@ cdef _unwind_event(code, instruction, exc):
 
     break_on_uncaught_exceptions = py_db.break_on_uncaught_exceptions
     if break_on_uncaught_exceptions:
-        if frame is _get_unhandled_exception_frame(1):
+        if frame is _get_unhandled_exception_frame(exc, 1):
             stop_on_unhandled_exception(py_db, thread_info.thread, thread_info.additional_info, arg)
             return
 
@@ -929,6 +926,7 @@ cdef _raise_event(code, instruction, exc):
 
     frame = _getframe(1)
     arg = (type(exc), exc, exc.__traceback__)
+    # pydev_log.debug('_raise_event', code, exc)
 
     # Compute the previous exception info (if any). We use it to check if the exception
     # should be stopped
