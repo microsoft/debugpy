@@ -249,7 +249,7 @@ pydev_log.debug("Using PYDEVD_IPYTHON_COMPATIBLE_DEBUGGING: %s", pydevd_constant
 if pydevd_constants.PYDEVD_IPYTHON_COMPATIBLE_DEBUGGING:
     pydev_log.debug("PYDEVD_IPYTHON_CONTEXT: %s", pydevd_constants.PYDEVD_IPYTHON_CONTEXT)
 
-TIMEOUT_SLOW = 0.2
+TIMEOUT_SLOW = 1.0
 TIMEOUT_FAST = 1.0 / 50
 
 

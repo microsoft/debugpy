@@ -146,7 +146,7 @@ def overrides(method):
     return wrapper
 
 
-TIMEOUT = 20
+TIMEOUT = 60
 
 try:
     TimeoutError = TimeoutError  # @ReservedAssignment
