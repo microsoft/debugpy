@@ -5745,13 +5745,14 @@ def test_stop_on_entry2(case_setup_dap):
 def test_stop_on_entry_verify_strings(case_setup_dap):
     with case_setup_dap.test_file("not_my_code/main_on_entry3.py") as writer:
         json_facade = JsonFacade(writer)
-        json_facade.write_set_debugger_property([], ["main_on_entry3.py"])
+        json_facade.write_set_debugger_property([], ["main_on_entry3.py", "_pydevd_string_breakpoint.py"])
         json_facade.write_launch(
             justMyCode=True,
             stopOnEntry=True,
             showReturnValue=True,
             rules=[
                 {"path": "**/main_on_entry3.py", "include": False},
+                {"path": "**/_pydevd_string_breakpoint.py", "include": False},
             ],
         )
 
