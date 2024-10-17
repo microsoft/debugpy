@@ -100,7 +100,7 @@ from _pydevd_bundle.pydevd_defaults import PydevdCustomization  # Note: import a
 from _pydevd_bundle.pydevd_custom_frames import CustomFramesContainer, custom_frames_container_init
 from _pydevd_bundle.pydevd_dont_trace_files import DONT_TRACE, PYDEV_FILE, LIB_FILE, DONT_TRACE_DIRS
 from _pydevd_bundle.pydevd_extension_api import DebuggerEventHandler
-from _pydevd_bundle.pydevd_frame_utils import add_exception_to_frame, remove_exception_from_frame
+from _pydevd_bundle.pydevd_frame_utils import add_exception_to_frame, remove_exception_from_frame, short_stack
 from _pydevd_bundle.pydevd_net_command_factory_xml import NetCommandFactory
 from _pydevd_bundle.pydevd_trace_dispatch import (
     trace_dispatch as _trace_dispatch,
@@ -1077,18 +1077,11 @@ class PyDB(object):
             if abs_real_path_and_basename[0] == "<string>":
                 # Consider it an untraceable file unless there's no back frame (ignoring
                 # internal files and runpy.py).
-                if frame.f_back is None:
-                    _cache_file_type[cache_key] = None
-                    return None
-                
-                back_basename = pydevd_file_utils.basename(frame.f_back.f_code.co_filename)
-                if "sys_monitoring" in back_basename or "pydevd" in back_basename:
-                    # Special case, this is a string coming from pydevd itself
-                    _cache_file_type[cache_key] = PYDEV_FILE
-                    return PYDEV_FILE
+                if frame.f_back is not None and self.get_file_type(frame.f_back) == self.PYDEV_FILE:
+                    # Special case, this is a string coming from pydevd itself (or another internal file)
+                    return self.PYDEV_FILE
 
                 f = frame.f_back
-                back_frames = ""
                 while f is not None:
                     if self.get_file_type(f) != self.PYDEV_FILE and pydevd_file_utils.basename(f.f_code.co_filename) not in (
                         "runpy.py",
@@ -1106,7 +1099,6 @@ class PyDB(object):
                         _cache_file_type[cache_key] = LIB_FILE
                         return LIB_FILE
                     
-                    back_frames += " -> %s" % (pydevd_file_utils.basename(f.f_code.co_filename))
                     f = f.f_back
                 else:
                     # This is a top-level file (used in python -c), so, trace it as usual... we
@@ -2399,7 +2391,6 @@ class PyDB(object):
         while frame is not None:
             if not isinstance(frame, FrameType):
                 # This is the case for django/jinja frames.
-                pydev_log.debug("Not a frame: %s", frame)
                 frame = frame.f_back
                 continue
 

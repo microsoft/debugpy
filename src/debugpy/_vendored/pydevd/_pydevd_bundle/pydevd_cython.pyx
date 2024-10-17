@@ -1375,12 +1375,12 @@ cdef class PyDBFrame:
 
 
 # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
-def should_stop_on_exception(py_db, PyDBAdditionalThreadInfo info, frame, thread, arg, prev_user_uncaught_exc_info):
+def should_stop_on_exception(py_db, PyDBAdditionalThreadInfo info, frame, thread, arg, prev_user_uncaught_exc_info, is_unwind=False):
     cdef bint should_stop;
     cdef bint was_just_raised;
     cdef list check_excs;
 # ELSE
-# def should_stop_on_exception(py_db, info, frame, thread, arg, prev_user_uncaught_exc_info):
+# def should_stop_on_exception(py_db, info, frame, thread, arg, prev_user_uncaught_exc_info, is_unwind=False):
     # ENDIF
 
     should_stop = False
@@ -1397,7 +1397,7 @@ def should_stop_on_exception(py_db, PyDBAdditionalThreadInfo info, frame, thread
             exception_breakpoint = None
             try:
                 if py_db.plugin is not None:
-                    result = py_db.plugin.exception_break(py_db, frame, thread, arg)
+                    result = py_db.plugin.exception_break(py_db, frame, thread, arg, is_unwind)
                     if result:
                         should_stop, frame = result
             except:
@@ -1417,7 +1417,7 @@ def should_stop_on_exception(py_db, PyDBAdditionalThreadInfo info, frame, thread
                     pass
 
                 else:
-                    was_just_raised = just_raised(trace)
+                    was_just_raised = trace.tb_next is None
 
                     # It was not handled by any plugin, lets check exception breakpoints.
                     check_excs = []

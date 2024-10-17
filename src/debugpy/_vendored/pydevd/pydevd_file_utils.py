@@ -963,15 +963,3 @@ def get_package_dir(mod_name):
         if os.path.isdir(mod_path):
             return mod_path
     return None
-
-def contains_dir(path, dir_name):
-    try:
-        while path:
-            path, tail = os.path.split(path)
-            if tail == dir_name:
-                return True
-            if tail is None and path == dir_name:
-                return True
-    except:
-        pass
-    return False
