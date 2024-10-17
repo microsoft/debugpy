@@ -1077,7 +1077,7 @@ class PyDB(object):
             if abs_real_path_and_basename[0] == "<string>":
                 # Consider it an untraceable file unless there's no back frame (ignoring
                 # internal files and runpy.py).
-                if frame.f_back is not None and self.get_file_type(frame.f_back) == self.PYDEV_FILE and "_pydev" in frame.f_back.f_code.co_filename:
+                if frame.f_back is not None and self.get_file_type(frame.f_back) == self.PYDEV_FILE and "pydev" in frame.f_back.f_code.co_filename:
                     # Special case, this is a string coming from pydevd itself. However we have to skip this logic for other
                     # files that are also marked as PYDEV_FILE (like external files marked this way)
                     return self.PYDEV_FILE
