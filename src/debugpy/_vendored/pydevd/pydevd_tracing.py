@@ -165,7 +165,10 @@ def get_python_helper_lib_filename():
     # debugger -- the only situation where it's imported is if the user actually does an attach to
     # process, through `attach_pydevd.py`, but this should usually be called from the IDE directly
     # and not from the debugger).
-    libdir = os.path.join(os.path.dirname(__file__), "pydevd_attach_to_process")
+    libdir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pydevd_attach_to_process")
+
+    if not os.path.exists(libdir):
+        pydev_log.critical("Expected the directory: %s to exist!", libdir)
 
     arch = ""
     if IS_WINDOWS:

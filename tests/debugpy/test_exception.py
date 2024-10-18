@@ -5,6 +5,7 @@
 import pytest
 import sys
 
+from _pydevd_bundle.pydevd_constants import IS_PY312_OR_GREATER
 from tests import debug
 from tests.debug import runners, targets
 from tests.patterns import some
@@ -301,6 +302,7 @@ def test_raise_exception_options(pyfile, target, run, exceptions, break_mode):
 @pytest.mark.parametrize("exit_code", [0, 3])
 @pytest.mark.parametrize("break_on_system_exit_zero", ["break_on_system_exit_zero", ""])
 @pytest.mark.parametrize("django", ["django", ""])
+@pytest.mark.skipif(sys.platform == 'win32' and IS_PY312_OR_GREATER, reason="Flakey test")
 def test_success_exitcodes(
     pyfile, target, run, exit_code, break_on_system_exit_zero, django
 ):

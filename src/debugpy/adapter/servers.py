@@ -371,7 +371,7 @@ class Server(components.Component):
             session = self.session
             if not session.client or not session.client.is_connected:
                 wait_for_connection(
-                    session, lambda conn: conn.pid == self.pid, timeout=30
+                    session, lambda conn: conn.pid == self.pid, timeout=60
                 )
             else:
                 self.wait_for(
@@ -383,7 +383,7 @@ class Server(components.Component):
                             for conn in session.client.known_subprocesses
                         )
                     ),
-                    timeout=30,
+                    timeout=60,
                 )
         with _lock:
             _connections.remove(self.connection)

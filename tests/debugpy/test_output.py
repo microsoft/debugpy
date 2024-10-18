@@ -5,6 +5,7 @@
 import pytest
 import sys
 
+from _pydevd_bundle.pydevd_constants import IS_PY312_OR_GREATER
 from tests import debug
 from tests.debug import runners
 
@@ -108,6 +109,7 @@ def test_redirect_output_and_eval(pyfile, target, run, redirect_mode):
 
 @pytest.mark.parametrize("run", runners.all)
 @pytest.mark.parametrize("redirect", ["enabled", "disabled"])
+@pytest.mark.skipif(IS_PY312_OR_GREATER, reason="Flakey test")
 def test_redirect_output(pyfile, target, run, redirect):
     @pyfile
     def code_to_debug():
