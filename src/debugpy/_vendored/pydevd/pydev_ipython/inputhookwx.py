@@ -5,16 +5,16 @@ Enable wxPython to be used interacive by setting PyOS_InputHook.
 Authors:  Robin Dunn, Brian Granger, Ondrej Certik
 """
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 #  Copyright (C) 2008-2011  The IPython Development Team
 #
 #  Distributed under the terms of the BSD License.  The full license is in
 #  the file COPYING, distributed as part of this software.
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Imports
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 import sys
 import signal
@@ -25,9 +25,10 @@ import wx
 from pydev_ipython.inputhook import stdin_ready
 
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Code
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+
 
 def inputhook_wx1():
     """Run the wx event loop by processing pending events only.
@@ -53,8 +54,8 @@ def inputhook_wx1():
         pass
     return 0
 
-class EventLoopTimer(wx.Timer):  # @UndefinedVariable
 
+class EventLoopTimer(wx.Timer):  # @UndefinedVariable
     def __init__(self, func):
         self.func = func
         wx.Timer.__init__(self)  # @UndefinedVariable
@@ -62,8 +63,8 @@ class EventLoopTimer(wx.Timer):  # @UndefinedVariable
     def Notify(self):
         self.func()
 
-class EventLoopRunner(object):
 
+class EventLoopRunner(object):
     def Run(self, time):
         self.evtloop = wx.EventLoop()  # @UndefinedVariable
         self.timer = EventLoopTimer(self.check_stdin)
@@ -74,6 +75,7 @@ class EventLoopRunner(object):
         if stdin_ready():
             self.timer.Stop()
             self.evtloop.Exit()
+
 
 def inputhook_wx2():
     """Run the wx event loop, polling for stdin.
@@ -101,6 +103,7 @@ def inputhook_wx2():
         pass
     return 0
 
+
 def inputhook_wx3():
     """Run the wx event loop by processing pending events only.
 
@@ -114,7 +117,7 @@ def inputhook_wx3():
     try:
         app = wx.GetApp()  # @UndefinedVariable
         if app is not None:
-            if hasattr(wx, 'IsMainThread'):
+            if hasattr(wx, "IsMainThread"):
                 assert wx.IsMainThread()  # @UndefinedVariable
             else:
                 assert wx.Thread_IsMain()  # @UndefinedVariable
@@ -159,7 +162,8 @@ def inputhook_wx3():
         pass
     return 0
 
-if sys.platform == 'darwin':
+
+if sys.platform == "darwin":
     # On OSX, evtloop.Pending() always returns True, regardless of there being
     # any events pending. As such we can't use implementations 1 or 3 of the
     # inputhook as those depend on a pending/dispatch loop.

@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"path": "3.12-64/tests/debugpy/test_django.py/test_django_template_exception_no_multiproc[launch]"
+		},
+		{
+			"path": "../../../debugpy-2/tests/_logs/3.11-64/tests/debugpy/test_django.py/test_django_template_exception_no_multiproc[launch]"
+		},
+		{
+			"path": "3.12-64/tests/debugpy/test_exception.py/test_systemexit[0-zero-uncaught-raised-launch(console=internalConsole)-program]"
+		},
+		{
+			"path": "3.12-64/tests/debugpy/test_exception.py/test_systemexit[1-zero-uncaught--launch(console=externalTerminal)-module]"
+		}
+	],
+	"settings": {}
+}

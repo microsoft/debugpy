@@ -16,9 +16,7 @@ def _enable_debug_msgs():
 
 
 def test_timeout():
-
     class _DummyPyDb(object):
-
         def __init__(self):
             self.created_pydb_daemon_threads = {}
 
@@ -35,16 +33,14 @@ def test_timeout():
             timeout = 2
         else:
             timeout = 20
-        with timeout_tracker.call_on_timeout(1, on_timeout, kwargs={'arg': 1}):
+        with timeout_tracker.call_on_timeout(1, on_timeout, kwargs={"arg": 1}):
             time.sleep(timeout)
     except KeyboardInterrupt:
         pass
 
 
 def test_timeout_0_time():
-
     class _DummyPyDb(object):
-
         def __init__(self):
             self.created_pydb_daemon_threads = {}
 
@@ -57,17 +53,15 @@ def test_timeout_0_time():
     py_db = _DummyPyDb()
     timeout_tracker = pydevd_timeout.TimeoutTracker(py_db)
     try:
-        with timeout_tracker.call_on_timeout(0, on_timeout, kwargs={'arg': 1}):
+        with timeout_tracker.call_on_timeout(0, on_timeout, kwargs={"arg": 1}):
             time.sleep(1)
     except KeyboardInterrupt:
         pass
 
 
-@pytest.mark.skipif(not IS_CPYTHON, reason='This only works in CPython.')
+@pytest.mark.skipif(not IS_CPYTHON, reason="This only works in CPython.")
 def test_create_interrupt_this_thread_callback():
-
     class MyThread(threading.Thread):
-
         def __init__(self):
             threading.Thread.__init__(self)
             self.finished = False
@@ -79,7 +73,7 @@ def test_create_interrupt_this_thread_callback():
             try:
                 self.interrupt_thread = create_interrupt_this_thread_callback()
                 while True:
-                    time.sleep(.2)
+                    time.sleep(0.2)
             except KeyboardInterrupt:
                 self.interrupted = True
             finally:
@@ -96,19 +90,17 @@ def test_create_interrupt_this_thread_callback():
     assert t.interrupted
 
 
-@pytest.mark.skipif(True, reason='Skipping because running this test can interrupt the test suite execution.')
+@pytest.mark.skipif(True, reason="Skipping because running this test can interrupt the test suite execution.")
 def test_interrupt_main_thread():
-
     from _pydevd_bundle.pydevd_constants import IS_PY39_OR_GREATER
 
     class MyThread(threading.Thread):
-
         def __init__(self, interrupt_thread_callback):
             threading.Thread.__init__(self)
             self.interrupt_thread_callback = interrupt_thread_callback
 
         def run(self):
-            time.sleep(.5)
+            time.sleep(0.5)
             self.interrupt_thread_callback()
 
     initial_time = time.time()
@@ -125,4 +117,4 @@ def test_interrupt_main_thread():
         if not interrupt_only_on_callback:
             assert time.time() - initial_time < timeout
     else:
-        raise AssertionError('Expected main thread to be interrupted.')
+        raise AssertionError("Expected main thread to be interrupted.")

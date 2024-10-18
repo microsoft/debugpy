@@ -1,9 +1,13 @@
+:: This script compiles the attach and inject DLLs for x86 and x64 architectures.
+:: It runs as part of the PR checks in the debugpy repo, AND the artifacts are uploaded to github,
+:: so you don't have to run it locally.
+
 setlocal
 @cd /d %~dp0
 
 @set VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe
 @echo Using vswhere at %VSWHERE%
-@for /f "usebackq tokens=*" %%i in (`"%VSWHERE%" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set VSDIR=%%i
+@for /f "usebackq tokens=*" %%i in (`"%VSWHERE%" -prerelease -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set VSDIR=%%i
 @echo Using Visual C++ at %VSDIR%
                                  
 call "%VSDIR%\VC\Auxiliary\Build\vcvarsall.bat" x86 -vcvars_spectre_libs=spectre
@@ -16,7 +20,7 @@ cl -DUNICODE -D_UNICODE /EHsc /Zi /O1 /W3 /LD /MD /D BITS_32 /Qspectre run_code_
 copy run_code_on_dllmain_x86.dll ..\run_code_on_dllmain_x86.dll /Y
 copy run_code_on_dllmain_x86.pdb ..\run_code_on_dllmain_x86.pdb /Y
 
-cl /EHsc /Zi /O1 /W3 /Qspectre inject_dll.cpp /link /DEBUG /OPT:REF /OPT:ICF /GUARD:CF /out:inject_dll_x86.exe
+cl /EHsc /Zi /O1 /W3 /Qspectre inject_dll.cpp /link /PROFILE /GUARD:CF /out:inject_dll_x86.exe
 copy inject_dll_x86.exe ..\inject_dll_x86.exe /Y
 copy inject_dll_x86.pdb ..\inject_dll_x86.pdb /Y
 
@@ -30,7 +34,7 @@ cl -DUNICODE -D_UNICODE /EHsc /Zi /O1 /W3 /LD /MD /D BITS_64 /Qspectre run_code_
 copy run_code_on_dllmain_amd64.dll ..\run_code_on_dllmain_amd64.dll /Y
 copy run_code_on_dllmain_amd64.pdb ..\run_code_on_dllmain_amd64.pdb /Y
 
-cl /EHsc /Zi /O1 /W3 /Qspectre inject_dll.cpp /link /DEBUG /OPT:REF /OPT:ICF /GUARD:CF /out:inject_dll_amd64.exe
+cl /EHsc /Zi /O1 /W3 /Qspectre inject_dll.cpp /link /PROFILE /GUARD:CF /out:inject_dll_amd64.exe
 copy inject_dll_amd64.exe ..\inject_dll_amd64.exe /Y
 copy inject_dll_amd64.pdb ..\inject_dll_amd64.pdb /Y
 

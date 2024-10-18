@@ -40,7 +40,7 @@ Debugging.
 
 __revision__ = "$Id$"
 
-__all__ = [ 'Debug', 'MixedBitsWarning' ]
+__all__ = ["Debug", "MixedBitsWarning"]
 
 import sys
 from winappdbg import win32
@@ -56,17 +56,19 @@ from winappdbg.interactive import ConsoleDebugger
 import warnings
 ##import traceback
 
-#==============================================================================
+# ==============================================================================
+
 
 # If you set this warning to be considered as an error, you can stop the
 # debugger from attaching to 64-bit processes from a 32-bit Python VM and
 # visceversa.
-class MixedBitsWarning (RuntimeWarning):
+class MixedBitsWarning(RuntimeWarning):
     """
     This warning is issued when mixing 32 and 64 bit processes.
     """
 
-#==============================================================================
+
+# ==============================================================================
 
 # TODO
 # * Add memory read and write operations, similar to those in the Process
@@ -81,7 +83,8 @@ class MixedBitsWarning (RuntimeWarning):
 #   not such a great idea to use the snapshot to store data that really belongs
 #   to the Debug class.
 
-class Debug (EventDispatcher, _BreakpointContainer):
+
+class Debug(EventDispatcher, _BreakpointContainer):
     """
     The main debugger class.
 
@@ -107,8 +110,7 @@ class Debug (EventDispatcher, _BreakpointContainer):
     # Automatically set to True the first time a Debug object is instanced.
     _debug_static_init = False
 
-    def __init__(self, eventHandler = None,               bKillOnExit = False,
-                                                         bHostileCode = False):
+    def __init__(self, eventHandler=None, bKillOnExit=False, bHostileCode=False):
         """
         Debugger object.
 
@@ -141,14 +143,14 @@ class Debug (EventDispatcher, _BreakpointContainer):
         EventDispatcher.__init__(self, eventHandler)
         _BreakpointContainer.__init__(self)
 
-        self.system                         = System()
-        self.lastEvent                      = None
-        self.__firstDebugee                 = True
-        self.__bKillOnExit                  = bKillOnExit
-        self.__bHostileCode                 = bHostileCode
-        self.__breakOnEP                    = set()     # set of pids
-        self.__attachedDebugees             = set()     # set of pids
-        self.__startedDebugees              = set()     # set of pids
+        self.system = System()
+        self.lastEvent = None
+        self.__firstDebugee = True
+        self.__bKillOnExit = bKillOnExit
+        self.__bHostileCode = bHostileCode
+        self.__breakOnEP = set()  # set of pids
+        self.__attachedDebugees = set()  # set of pids
+        self.__startedDebugees = set()  # set of pids
 
         if not self._debug_static_init:
             self._debug_static_init = True
@@ -156,19 +158,19 @@ class Debug (EventDispatcher, _BreakpointContainer):
             # Request debug privileges for the current process.
             # Only do this once, and only after instancing a Debug object,
             # so passive debuggers don't get detected because of this.
-            self.system.request_debug_privileges(bIgnoreExceptions = False)
+            self.system.request_debug_privileges(bIgnoreExceptions=False)
 
             # Try to fix the symbol store path if it wasn't set.
             # But don't enable symbol downloading by default, since it may
             # degrade performance severely.
-            self.system.fix_symbol_store_path(remote = False, force = False)
+            self.system.fix_symbol_store_path(remote=False, force=False)
 
-##    # It's hard not to create circular references,
-##    # and if we have a destructor, we can end up leaking everything.
-##    # It's best to code the debugging loop properly to always
-##    # stop the debugger before going out of scope.
-##    def __del__(self):
-##        self.stop()
+    ##    # It's hard not to create circular references,
+    ##    # and if we have a destructor, we can end up leaking everything.
+    ##    # It's best to code the debugging loop properly to always
+    ##    # stop the debugger before going out of scope.
+    ##    def __del__(self):
+    ##        self.stop()
 
     def __enter__(self):
         """
@@ -193,7 +195,7 @@ class Debug (EventDispatcher, _BreakpointContainer):
     # it already does work (because of __len__) but it'd be
     # useful to do it from the event handler anyway
 
-#------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------
 
     def __setSystemKillOnExitMode(self):
         # Make sure the default system behavior on detaching from processes
@@ -237,8 +239,7 @@ class Debug (EventDispatcher, _BreakpointContainer):
         # This also allows the user to stop attaching altogether,
         # depending on how the warnings are configured.
         if System.bits != aProcess.get_bits():
-            msg = "Mixture of 32 and 64 bits is considered experimental." \
-                  " Use at your own risk!"
+            msg = "Mixture of 32 and 64 bits is considered experimental." " Use at your own risk!"
             warnings.warn(msg, MixedBitsWarning)
 
         # Attach to the process.
@@ -434,55 +435,46 @@ class Debug (EventDispatcher, _BreakpointContainer):
             warnings.warn("Debug.execl expects a string")
 
         # Set the "debug" flag to True.
-        kwargs['bDebug'] = True
+        kwargs["bDebug"] = True
 
         # Pop the "break on entry point" flag.
-        bBreakOnEntryPoint = kwargs.pop('bBreakOnEntryPoint', False)
+        bBreakOnEntryPoint = kwargs.pop("bBreakOnEntryPoint", False)
 
         # Set the default trust level if requested.
-        if 'iTrustLevel' not in kwargs:
+        if "iTrustLevel" not in kwargs:
             if self.__bHostileCode:
-                kwargs['iTrustLevel'] = 0
+                kwargs["iTrustLevel"] = 0
             else:
-                kwargs['iTrustLevel'] = 2
+                kwargs["iTrustLevel"] = 2
 
         # Set the default UAC elevation flag if requested.
-        if 'bAllowElevation' not in kwargs:
-            kwargs['bAllowElevation'] = not self.__bHostileCode
+        if "bAllowElevation" not in kwargs:
+            kwargs["bAllowElevation"] = not self.__bHostileCode
 
         # In hostile mode the default parent process is explorer.exe.
         # Only supported for Windows Vista and above.
-        if self.__bHostileCode and not kwargs.get('dwParentProcessId', None):
+        if self.__bHostileCode and not kwargs.get("dwParentProcessId", None):
             try:
                 vista_and_above = self.__vista_and_above
             except AttributeError:
                 osi = win32.OSVERSIONINFOEXW()
                 osi.dwMajorVersion = 6
                 osi.dwMinorVersion = 0
-                osi.dwPlatformId   = win32.VER_PLATFORM_WIN32_NT
+                osi.dwPlatformId = win32.VER_PLATFORM_WIN32_NT
                 mask = 0
-                mask = win32.VerSetConditionMask(mask,
-                                          win32.VER_MAJORVERSION,
-                                          win32.VER_GREATER_EQUAL)
-                mask = win32.VerSetConditionMask(mask,
-                                          win32.VER_MAJORVERSION,
-                                          win32.VER_GREATER_EQUAL)
-                mask = win32.VerSetConditionMask(mask,
-                                          win32.VER_PLATFORMID,
-                                          win32.VER_EQUAL)
-                vista_and_above = win32.VerifyVersionInfoW(osi,
-                                          win32.VER_MAJORVERSION | \
-                                          win32.VER_MINORVERSION | \
-                                          win32.VER_PLATFORMID,
-                                          mask)
+                mask = win32.VerSetConditionMask(mask, win32.VER_MAJORVERSION, win32.VER_GREATER_EQUAL)
+                mask = win32.VerSetConditionMask(mask, win32.VER_MAJORVERSION, win32.VER_GREATER_EQUAL)
+                mask = win32.VerSetConditionMask(mask, win32.VER_PLATFORMID, win32.VER_EQUAL)
+                vista_and_above = win32.VerifyVersionInfoW(
+                    osi, win32.VER_MAJORVERSION | win32.VER_MINORVERSION | win32.VER_PLATFORMID, mask
+                )
                 self.__vista_and_above = vista_and_above
             if vista_and_above:
                 dwParentProcessId = self.system.get_explorer_pid()
                 if dwParentProcessId:
-                    kwargs['dwParentProcessId'] = dwParentProcessId
+                    kwargs["dwParentProcessId"] = dwParentProcessId
                 else:
-                    msg = ("Failed to find \"explorer.exe\"!"
-                           " Using the debugger as parent process.")
+                    msg = 'Failed to find "explorer.exe"!' " Using the debugger as parent process."
                     warnings.warn(msg, RuntimeWarning)
 
         # Start the new process.
@@ -498,8 +490,7 @@ class Debug (EventDispatcher, _BreakpointContainer):
             # This also allows the user to stop attaching altogether,
             # depending on how the warnings are configured.
             if System.bits != aProcess.get_bits():
-                msg = "Mixture of 32 and 64 bits is considered experimental." \
-                      " Use at your own risk!"
+                msg = "Mixture of 32 and 64 bits is considered experimental." " Use at your own risk!"
                 warnings.warn(msg, MixedBitsWarning)
 
             # Add the new PID to the set of debugees.
@@ -533,7 +524,7 @@ class Debug (EventDispatcher, _BreakpointContainer):
                             pass
             raise
 
-    def add_existing_session(self, dwProcessId, bStarted = False):
+    def add_existing_session(self, dwProcessId, bStarted=False):
         """
         Use this method only when for some reason the debugger's been attached
         to the target outside of WinAppDbg (for example when integrating with
@@ -579,7 +570,7 @@ class Debug (EventDispatcher, _BreakpointContainer):
         aProcess.scan_threads()
         aProcess.scan_modules()
 
-    def __cleanup_process(self, dwProcessId, bIgnoreExceptions = False):
+    def __cleanup_process(self, dwProcessId, bIgnoreExceptions=False):
         """
         Perform the necessary cleanup of a process about to be killed or
         detached from.
@@ -598,14 +589,13 @@ class Debug (EventDispatcher, _BreakpointContainer):
         """
         # If the process is being debugged...
         if self.is_debugee(dwProcessId):
-
             # Make sure a Process object exists or the following calls fail.
             if not self.system.has_process(dwProcessId):
                 aProcess = Process(dwProcessId)
                 try:
                     aProcess.get_handle()
                 except WindowsError:
-                    pass    # fails later on with more specific reason
+                    pass  # fails later on with more specific reason
                 self.system._add_process(aProcess)
 
             # Erase all breakpoints in the process.
@@ -663,7 +653,7 @@ class Debug (EventDispatcher, _BreakpointContainer):
             e = sys.exc_info()[1]
             warnings.warn(str(e), RuntimeWarning)
 
-    def kill(self, dwProcessId, bIgnoreExceptions = False):
+    def kill(self, dwProcessId, bIgnoreExceptions=False):
         """
         Kills a process currently being debugged.
 
@@ -687,8 +677,7 @@ class Debug (EventDispatcher, _BreakpointContainer):
             aProcess = Process(dwProcessId)
 
         # Cleanup all data referring to the process.
-        self.__cleanup_process(dwProcessId,
-                               bIgnoreExceptions = bIgnoreExceptions)
+        self.__cleanup_process(dwProcessId, bIgnoreExceptions=bIgnoreExceptions)
 
         # Kill the process.
         try:
@@ -698,8 +687,7 @@ class Debug (EventDispatcher, _BreakpointContainer):
                         if aProcess.is_alive():
                             aProcess.suspend()
                     finally:
-                        self.detach(dwProcessId,
-                                    bIgnoreExceptions = bIgnoreExceptions)
+                        self.detach(dwProcessId, bIgnoreExceptions=bIgnoreExceptions)
             finally:
                 aProcess.kill()
         except Exception:
@@ -717,7 +705,7 @@ class Debug (EventDispatcher, _BreakpointContainer):
             e = sys.exc_info()[1]
             warnings.warn(str(e), RuntimeWarning)
 
-    def kill_all(self, bIgnoreExceptions = False):
+    def kill_all(self, bIgnoreExceptions=False):
         """
         Kills from all processes currently being debugged.
 
@@ -730,9 +718,9 @@ class Debug (EventDispatcher, _BreakpointContainer):
             C{bIgnoreExceptions} is C{True}.
         """
         for pid in self.get_debugee_pids():
-            self.kill(pid, bIgnoreExceptions = bIgnoreExceptions)
+            self.kill(pid, bIgnoreExceptions=bIgnoreExceptions)
 
-    def detach(self, dwProcessId, bIgnoreExceptions = False):
+    def detach(self, dwProcessId, bIgnoreExceptions=False):
         """
         Detaches from a process currently being debugged.
 
@@ -769,8 +757,7 @@ class Debug (EventDispatcher, _BreakpointContainer):
         # Continue the last event before detaching.
         # XXX not sure about this...
         try:
-            if can_detach and self.lastEvent and \
-                                    self.lastEvent.get_pid() == dwProcessId:
+            if can_detach and self.lastEvent and self.lastEvent.get_pid() == dwProcessId:
                 self.cont(self.lastEvent)
         except Exception:
             if not bIgnoreExceptions:
@@ -779,8 +766,7 @@ class Debug (EventDispatcher, _BreakpointContainer):
             warnings.warn(str(e), RuntimeWarning)
 
         # Cleanup all data referring to the process.
-        self.__cleanup_process(dwProcessId,
-                               bIgnoreExceptions = bIgnoreExceptions)
+        self.__cleanup_process(dwProcessId, bIgnoreExceptions=bIgnoreExceptions)
 
         try:
             # Detach from the process.
@@ -803,11 +789,10 @@ class Debug (EventDispatcher, _BreakpointContainer):
                     warnings.warn(str(e), RuntimeWarning)
 
         finally:
-
             # Cleanup what remains of the process data.
             aProcess.clear()
 
-    def detach_from_all(self, bIgnoreExceptions = False):
+    def detach_from_all(self, bIgnoreExceptions=False):
         """
         Detaches from all processes currently being debugged.
 
@@ -821,11 +806,11 @@ class Debug (EventDispatcher, _BreakpointContainer):
             C{bIgnoreExceptions} is C{True}.
         """
         for pid in self.get_debugee_pids():
-            self.detach(pid, bIgnoreExceptions = bIgnoreExceptions)
+            self.detach(pid, bIgnoreExceptions=bIgnoreExceptions)
 
-#------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------
 
-    def wait(self, dwMilliseconds = None):
+    def wait(self, dwMilliseconds=None):
         """
         Waits for the next debug event.
 
@@ -844,7 +829,7 @@ class Debug (EventDispatcher, _BreakpointContainer):
         """
 
         # Wait for the next debug event.
-        raw   = win32.WaitForDebugEvent(dwMilliseconds)
+        raw = win32.WaitForDebugEvent(dwMilliseconds)
         event = EventFactory.get(self, raw)
 
         # Remember it.
@@ -853,7 +838,7 @@ class Debug (EventDispatcher, _BreakpointContainer):
         # Return it.
         return event
 
-    def dispatch(self, event = None):
+    def dispatch(self, event=None):
         """
         Calls the debug event notify callbacks.
 
@@ -881,7 +866,6 @@ class Debug (EventDispatcher, _BreakpointContainer):
 
         code = event.get_event_code()
         if code == win32.EXCEPTION_DEBUG_EVENT:
-
             # At this point, by default some exception types are swallowed by
             # the debugger, because we don't know yet if it was caused by the
             # debugger itself or the debugged process.
@@ -899,11 +883,11 @@ class Debug (EventDispatcher, _BreakpointContainer):
 
             exc_code = event.get_exception_code()
             if exc_code in (
-                    win32.EXCEPTION_BREAKPOINT,
-                    win32.EXCEPTION_WX86_BREAKPOINT,
-                    win32.EXCEPTION_SINGLE_STEP,
-                    win32.EXCEPTION_GUARD_PAGE,
-                ):
+                win32.EXCEPTION_BREAKPOINT,
+                win32.EXCEPTION_WX86_BREAKPOINT,
+                win32.EXCEPTION_SINGLE_STEP,
+                win32.EXCEPTION_GUARD_PAGE,
+            ):
                 event.continueStatus = win32.DBG_CONTINUE
             elif exc_code == win32.EXCEPTION_INVALID_HANDLE:
                 if self.__bHostileCode:
@@ -913,14 +897,11 @@ class Debug (EventDispatcher, _BreakpointContainer):
             else:
                 event.continueStatus = win32.DBG_EXCEPTION_NOT_HANDLED
 
-        elif code == win32.RIP_EVENT and \
-                   event.get_rip_type() == win32.SLE_ERROR:
-
+        elif code == win32.RIP_EVENT and event.get_rip_type() == win32.SLE_ERROR:
             # RIP events that signal fatal events should kill the process.
             event.continueStatus = win32.DBG_TERMINATE_PROCESS
 
         else:
-
             # Other events need this continue code.
             # Sometimes other codes can be used and are ignored, sometimes not.
             # For example, when using the DBG_EXCEPTION_NOT_HANDLED code,
@@ -930,7 +911,7 @@ class Debug (EventDispatcher, _BreakpointContainer):
         # Dispatch the debug event.
         return EventDispatcher.dispatch(self, event)
 
-    def cont(self, event = None):
+    def cont(self, event=None):
         """
         Resumes execution after processing a debug event.
 
@@ -951,13 +932,12 @@ class Debug (EventDispatcher, _BreakpointContainer):
             return
 
         # Get the event continue status information.
-        dwProcessId      = event.get_pid()
-        dwThreadId       = event.get_tid()
+        dwProcessId = event.get_pid()
+        dwThreadId = event.get_tid()
         dwContinueStatus = event.continueStatus
 
         # Check if the process is still being debugged.
         if self.is_debugee(dwProcessId):
-
             # Try to flush the instruction cache.
             try:
                 if self.system.has_process(dwProcessId):
@@ -986,7 +966,7 @@ class Debug (EventDispatcher, _BreakpointContainer):
         if event == self.lastEvent:
             self.lastEvent = None
 
-    def stop(self, bIgnoreExceptions = True):
+    def stop(self, bIgnoreExceptions=True):
         """
         Stops debugging all processes.
 
@@ -1016,7 +996,6 @@ class Debug (EventDispatcher, _BreakpointContainer):
 
         # If we do...
         if has_event:
-
             # Disable all breakpoints in the process before resuming execution.
             try:
                 pid = event.get_pid()
@@ -1156,8 +1135,7 @@ class Debug (EventDispatcher, _BreakpointContainer):
         @return: C{True} if the given process is being debugged
             by this L{Debug} instance.
         """
-        return self.is_debugee_attached(dwProcessId) or \
-               self.is_debugee_started(dwProcessId)
+        return self.is_debugee_attached(dwProcessId) or self.is_debugee_started(dwProcessId)
 
     def is_debugee_started(self, dwProcessId):
         """
@@ -1199,9 +1177,9 @@ class Debug (EventDispatcher, _BreakpointContainer):
         """
         return self.__bHostileCode
 
-#------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------
 
-    def interactive(self, bConfirmQuit = True, bShowBanner = True):
+    def interactive(self, bConfirmQuit=True, bShowBanner=True):
         """
         Start an interactive debugging session.
 
@@ -1217,14 +1195,14 @@ class Debug (EventDispatcher, _BreakpointContainer):
 
         This method returns when the user closes the session.
         """
-        print('')
+        print("")
         print("-" * 79)
         print("Interactive debugging session started.")
-        print("Use the \"help\" command to list all available commands.")
-        print("Use the \"quit\" command to close this session.")
+        print('Use the "help" command to list all available commands.')
+        print('Use the "quit" command to close this session.')
         print("-" * 79)
         if self.lastEvent is None:
-            print('')
+            print("")
         console = ConsoleDebugger()
         console.confirm_quit = bConfirmQuit
         console.load_history()
@@ -1234,16 +1212,16 @@ class Debug (EventDispatcher, _BreakpointContainer):
         finally:
             console.stop_using_debugger()
             console.save_history()
-        print('')
+        print("")
         print("-" * 79)
         print("Interactive debugging session closed.")
         print("-" * 79)
-        print('')
+        print("")
 
-#------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------
 
     @staticmethod
-    def force_garbage_collection(bIgnoreExceptions = True):
+    def force_garbage_collection(bIgnoreExceptions=True):
         """
         Close all Win32 handles the Python garbage collector failed to close.
 
@@ -1253,6 +1231,7 @@ class Debug (EventDispatcher, _BreakpointContainer):
         """
         try:
             import gc
+
             gc.collect()
             bRecollect = False
             for obj in list(gc.garbage):
@@ -1288,7 +1267,7 @@ class Debug (EventDispatcher, _BreakpointContainer):
             e = sys.exc_info()[1]
             warnings.warn(str(e), RuntimeWarning)
 
-#------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------
 
     def _notify_create_process(self, event):
         """
@@ -1333,15 +1312,13 @@ class Debug (EventDispatcher, _BreakpointContainer):
             aProcess = event.get_process()
             try:
                 hProcess = aProcess.get_handle(win32.PROCESS_QUERY_INFORMATION)
-                pbi = win32.NtQueryInformationProcess(
-                                       hProcess, win32.ProcessBasicInformation)
+                pbi = win32.NtQueryInformationProcess(hProcess, win32.ProcessBasicInformation)
                 ptr = pbi.PebBaseAddress + 2
-                if aProcess.peek(ptr, 1) == '\x01':
-                    aProcess.poke(ptr, '\x00')
+                if aProcess.peek(ptr, 1) == "\x01":
+                    aProcess.poke(ptr, "\x00")
             except WindowsError:
                 e = sys.exc_info()[1]
-                warnings.warn(
-                    "Cannot patch PEB->BeingDebugged, reason: %s" % e.strerror)
+                warnings.warn("Cannot patch PEB->BeingDebugged, reason: %s" % e.strerror)
 
         return retval
 
@@ -1384,8 +1361,7 @@ class Debug (EventDispatcher, _BreakpointContainer):
         # Anti-anti-debugging tricks on ntdll.dll.
         if self.__bHostileCode:
             aModule = event.get_module()
-            if aModule.match_name('ntdll.dll'):
-
+            if aModule.match_name("ntdll.dll"):
                 # Since we've overwritten the PEB to hide
                 # ourselves, we no longer have the system
                 # breakpoint when attaching to the process.
@@ -1395,8 +1371,7 @@ class Debug (EventDispatcher, _BreakpointContainer):
                 # a simple anti-debugging trick: the hostile
                 # process could have overwritten the int3
                 # instruction at the system breakpoint.
-                self.break_at(aProcess.get_pid(),
-                        aProcess.resolve_label('ntdll!DbgUiRemoteBreakin'))
+                self.break_at(aProcess.get_pid(), aProcess.resolve_label("ntdll!DbgUiRemoteBreakin"))
 
         return bCallHandler
 
@@ -1416,18 +1391,14 @@ class Debug (EventDispatcher, _BreakpointContainer):
         bCallHandler2 = self.system._notify_exit_process(event)
 
         try:
-            self.detach( event.get_pid() )
+            self.detach(event.get_pid())
         except WindowsError:
             e = sys.exc_info()[1]
             if e.winerror != win32.ERROR_INVALID_PARAMETER:
-                warnings.warn(
-                    "Failed to detach from dead process, reason: %s" % str(e),
-                    RuntimeWarning)
+                warnings.warn("Failed to detach from dead process, reason: %s" % str(e), RuntimeWarning)
         except Exception:
             e = sys.exc_info()[1]
-            warnings.warn(
-                "Failed to detach from dead process, reason: %s" % str(e),
-                RuntimeWarning)
+            warnings.warn("Failed to detach from dead process, reason: %s" % str(e), RuntimeWarning)
 
         return bCallHandler1 and bCallHandler2
 
@@ -1475,7 +1446,7 @@ class Debug (EventDispatcher, _BreakpointContainer):
         @rtype:  bool
         @return: C{True} to call the user-defined handle, C{False} otherwise.
         """
-        event.debug.detach( event.get_pid() )
+        event.debug.detach(event.get_pid())
         return True
 
     def _notify_debug_control_c(self, event):
@@ -1519,14 +1490,13 @@ class Debug (EventDispatcher, _BreakpointContainer):
         """
         dwType = event.get_exception_information(0)
         if dwType == 0x1000:
-            pszName     = event.get_exception_information(1)
-            dwThreadId  = event.get_exception_information(2)
-            dwFlags     = event.get_exception_information(3)
+            pszName = event.get_exception_information(1)
+            dwThreadId = event.get_exception_information(2)
+            dwFlags = event.get_exception_information(3)
 
             aProcess = event.get_process()
-            szName   = aProcess.peek_string(pszName, fUnicode = False)
+            szName = aProcess.peek_string(pszName, fUnicode=False)
             if szName:
-
                 if dwThreadId == -1:
                     dwThreadId = event.get_tid()
 
@@ -1536,8 +1506,8 @@ class Debug (EventDispatcher, _BreakpointContainer):
                     aThread = Thread(dwThreadId)
                     aProcess._add_thread(aThread)
 
-##                if aThread.get_name() is None:
-##                    aThread.set_name(szName)
+                ##                if aThread.get_name() is None:
+                ##                    aThread.set_name(szName)
                 aThread.set_name(szName)
 
         return True

@@ -26,9 +26,8 @@ class C:
 from _pydevd_bundle.pydevd_constants import IS_JYTHON, IS_IRONPYTHON
 
 
-@pytest.mark.skipif(IS_JYTHON or IS_IRONPYTHON, reason='CPython related test')
+@pytest.mark.skipif(IS_JYTHON or IS_IRONPYTHON, reason="CPython related test")
 class Test(unittest.TestCase):
-
     def setUp(self):
         unittest.TestCase.setUp(self)
         self.tempdir = None
@@ -37,7 +36,7 @@ class Test(unittest.TestCase):
         self.save_path = list(sys.path)
         sys.path.append(self.tempdir)
         try:
-            del sys.modules['x']
+            del sys.modules["x"]
         except:
             pass
 
@@ -45,14 +44,14 @@ class Test(unittest.TestCase):
         unittest.TestCase.tearDown(self)
         sys.path = self.save_path
         try:
-            del sys.modules['x']
+            del sys.modules["x"]
         except:
             pass
 
     def make_mod(self, name="x", repl=None, subst=None, sample=SAMPLE_CODE):
         basedir = self.tempdir
-        if '.' in name:
-            splitted = name.split('.')
+        if "." in name:
+            splitted = name.split(".")
             basedir = os.path.join(self.tempdir, *splitted[:-1])
             name = splitted[-1]
             try:
@@ -70,7 +69,6 @@ class Test(unittest.TestCase):
             f.close()
 
     def test_pydevd_reload(self):
-
         self.make_mod()
         import x  # @UnresolvedImport
 
@@ -112,7 +110,6 @@ class Test(unittest.TestCase):
             check(count)
 
     def test_pydevd_reload2(self):
-
         self.make_mod()
         import x  # @UnresolvedImport
 
@@ -121,20 +118,17 @@ class Test(unittest.TestCase):
         self.assertEqual(0, c.foo())
         self.assertEqual(0, cfoo())
 
-        self.make_mod(repl="0", subst='1')
+        self.make_mod(repl="0", subst="1")
         pydevd_reload.xreload(x)
         self.assertEqual(1, c.foo())
         self.assertEqual(1, cfoo())
 
     def test_pydevd_reload3(self):
-
         class F:
-
             def m1(self):
                 return 1
 
         class G:
-
             def m1(self):
                 return 2
 
@@ -143,39 +137,34 @@ class Test(unittest.TestCase):
         self.assertEqual(F().m1(), 2)
 
     def test_pydevd_reload4(self):
-
         class F:
             pass
 
-        F.m1 = lambda a:None
+        F.m1 = lambda a: None
 
         class G:
             pass
 
-        G.m1 = lambda a:10
+        G.m1 = lambda a: 10
 
         self.assertEqual(F().m1(), None)
         pydevd_reload.Reload(None)._update(None, None, F, G)
         self.assertEqual(F().m1(), 10)
 
     def test_if_code_obj_equals(self):
-
         class F:
-
             def m1(self):
                 return 1
 
         class G:
-
             def m1(self):
                 return 1
 
         class H:
-
             def m1(self):
                 return 2
 
-        if hasattr(F.m1, 'func_code'):
+        if hasattr(F.m1, "func_code"):
             self.assertTrue(pydevd_reload.code_objects_equal(F.m1.func_code, G.m1.func_code))
             self.assertFalse(pydevd_reload.code_objects_equal(F.m1.func_code, H.m1.func_code))
         else:
@@ -183,9 +172,7 @@ class Test(unittest.TestCase):
             self.assertFalse(pydevd_reload.code_objects_equal(F.m1.__code__, H.m1.__code__))
 
     def test_metaclass(self):
-
         class Meta(type):
-
             def __init__(cls, name, bases, attrs):
                 super(Meta, cls).__init__(name, bases, attrs)
 
@@ -206,19 +193,15 @@ class Test(unittest.TestCase):
         self.assertEqual(F().m1(), 2)
 
     def test_change_hierarchy(self):
-
         class F(object):
-
             def m1(self):
                 return 1
 
         class B(object):
-
             def super_call(self):
                 return 2
 
         class G(B):
-
             def m1(self):
                 return self.super_call()
 
@@ -237,19 +220,15 @@ class Test(unittest.TestCase):
             pydevd_reload.notify_error = old
 
     def test_change_hierarchy_old_style(self):
-
         class F:
-
             def m1(self):
                 return 1
 
         class B:
-
             def super_call(self):
                 return 2
 
         class G(B):
-
             def m1(self):
                 return self.super_call()
 
@@ -285,11 +264,12 @@ class C:
 
         self.make_mod(sample=SAMPLE_CODE1)
         import x  # @UnresolvedImport
+
         foo = x.C().foo
         self.assertEqual(foo(), 0)
         self.make_mod(sample=SAMPLE_CODE2)
         pydevd_reload.xreload(x)
-        self.assertEqual(foo().__name__, 'B')
+        self.assertEqual(foo().__name__, "B")
 
     def test_create_class2(self):
         SAMPLE_CODE1 = """
@@ -309,11 +289,12 @@ class C(object):
 
         self.make_mod(sample=SAMPLE_CODE1)
         import x  # @UnresolvedImport
+
         foo = x.C().foo
         self.assertEqual(foo(), 0)
         self.make_mod(sample=SAMPLE_CODE2)
         pydevd_reload.xreload(x)
-        self.assertEqual(foo().__name__, 'B')
+        self.assertEqual(foo().__name__, "B")
 
     def test_parent_function(self):
         SAMPLE_CODE1 = """
@@ -340,11 +321,12 @@ class C(B):
 
         self.make_mod(sample=SAMPLE_CODE1)
         import x  # @UnresolvedImport
+
         call = x.C().call
         self.assertEqual(call(), 0)
         self.make_mod(sample=SAMPLE_CODE2)
         pydevd_reload.xreload(x)
-        self.assertEqual(call(), 'bar')
+        self.assertEqual(call(), "bar")
 
     def test_update_constant(self):
         SAMPLE_CODE1 = """
@@ -364,6 +346,7 @@ class B(object):
 
         self.make_mod(sample=SAMPLE_CODE1)
         import x  # @UnresolvedImport
+
         foo = x.B().foo
         self.assertEqual(foo(), 1)
         self.make_mod(sample=SAMPLE_CODE2)
@@ -392,6 +375,7 @@ class B(object):
 
         self.make_mod(sample=SAMPLE_CODE1)
         import x  # @UnresolvedImport
+
         foo = x.B().foo
         self.assertEqual(foo(), 1)
         self.make_mod(sample=SAMPLE_CODE2)
@@ -419,6 +403,7 @@ class B(object):
 
         self.make_mod(sample=SAMPLE_CODE1)
         import x  # @UnresolvedImport
+
         foo = x.B().foo
         self.assertEqual(foo(), 1)
         self.make_mod(sample=SAMPLE_CODE2)
@@ -450,6 +435,7 @@ class B(object):
 
         self.make_mod(sample=SAMPLE_CODE1)
         import x  # @UnresolvedImport
+
         foo = x.B().foo
         self.assertEqual(foo(), 1)
         self.make_mod(sample=SAMPLE_CODE2)
@@ -483,6 +469,7 @@ class B(object):
 
         self.make_mod(sample=SAMPLE_CODE1)
         import x  # @UnresolvedImport
+
         foo = x.B().foo
         self.assertEqual(foo(), 1)
         self.make_mod(sample=SAMPLE_CODE2)
@@ -509,13 +496,14 @@ class B(object):
 
         self.make_mod(sample=SAMPLE_CODE1)
         import x  # @UnresolvedImport
+
         B = x.B
         self.make_mod(sample=SAMPLE_CODE2)
         pydevd_reload.xreload(x)
         b = B()
         self.assertEqual(1, b.m1())
         self.assertEqual(10, b.bar)
-        self.assertRaises(Exception, setattr, b, 'foo', 20)  # __slots__ can't be updated
+        self.assertRaises(Exception, setattr, b, "foo", 20)  # __slots__ can't be updated
 
     def test_reload_numpy(self):
         SAMPLE_CODE1 = """
@@ -533,13 +521,14 @@ def method():
 
         self.make_mod(sample=SAMPLE_CODE1)
         import x  # @UnresolvedImport
-        assert str(x.global_numpy) == '[1 2 3]'
+
+        assert str(x.global_numpy) == "[1 2 3]"
         self.make_mod(sample=SAMPLE_CODE2)
         pydevd_reload.xreload(x)
         # Note that we don't patch globals (the user could do that in a module,
         # but he'd have to create a custom `__xreload_old_new__` method to
         # do it).
-        assert str(x.global_numpy) == '[1 2 3]'
+        assert str(x.global_numpy) == "[1 2 3]"
 
     def test_reload_relative(self):
         MODULE_CODE = """
@@ -562,12 +551,13 @@ def add_more_text(s):
     return s + ' module1V2'
 """
 
-        self.make_mod(sample='', name='package.__init__')
-        self.make_mod(sample=MODULE_CODE, name='package.module')
-        self.make_mod(sample=MODULE1_CODE, name='package.module1')
+        self.make_mod(sample="", name="package.__init__")
+        self.make_mod(sample=MODULE_CODE, name="package.module")
+        self.make_mod(sample=MODULE1_CODE, name="package.module1")
         from package import module1  # @UnresolvedImport
-        assert module1.add_more_text('1') == '1 module module1'
 
-        self.make_mod(sample=MODULE1_CODE_V2, name='package.module1')
+        assert module1.add_more_text("1") == "1 module module1"
+
+        self.make_mod(sample=MODULE1_CODE_V2, name="package.module1")
         pydevd_reload.xreload(module1)
-        assert module1.add_more_text('1') == '1 module module1V2'
+        assert module1.add_more_text("1") == "1 module module1V2"

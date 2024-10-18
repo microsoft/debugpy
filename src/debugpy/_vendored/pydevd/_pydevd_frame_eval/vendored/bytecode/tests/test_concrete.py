@@ -1,8 +1,8 @@
-
 import pytest
 from tests_python.debugger_unittest import IS_PY36_OR_GREATER, IS_CPYTHON
 from tests_python.debug_constants import TEST_CYTHON
-pytestmark = pytest.mark.skipif(not IS_PY36_OR_GREATER or not IS_CPYTHON or not TEST_CYTHON, reason='Requires CPython >= 3.6')
+
+pytestmark = pytest.mark.skipif(not IS_PY36_OR_GREATER or not IS_CPYTHON or not TEST_CYTHON, reason="Requires CPython >= 3.6")
 #!/usr/bin/env python3
 import opcode
 import sys
@@ -167,9 +167,7 @@ class ConcreteInstrTests(TestCase):
         self.assertEqual(jump_abs.get_jump_target(100), 3)
 
         jump_forward = ConcreteInstr("JUMP_FORWARD", 5)
-        self.assertEqual(
-            jump_forward.get_jump_target(10), 16 if OFFSET_AS_INSTRUCTION else 17
-        )
+        self.assertEqual(jump_forward.get_jump_target(10), 16 if OFFSET_AS_INSTRUCTION else 17)
 
 
 class ConcreteBytecodeTests(TestCase):
@@ -241,7 +239,6 @@ class ConcreteBytecodeTests(TestCase):
             ConcreteBytecode([Label()])
 
     def test_to_code_lnotab(self):
-
         # We use an actual function for the simple case to
         # ensure we get lnotab right
         def f():
@@ -454,9 +451,7 @@ class ConcreteBytecodeTests(TestCase):
         concrete = ConcreteBytecode()
         concrete.cellvars = ["__class__"]
         concrete.freevars = ["__class__"]
-        concrete.extend(
-            [ConcreteInstr("LOAD_CLASSDEREF", 1), ConcreteInstr("STORE_DEREF", 1)]
-        )
+        concrete.extend([ConcreteInstr("LOAD_CLASSDEREF", 1), ConcreteInstr("STORE_DEREF", 1)])
 
         bytecode = concrete.to_bytecode()
         self.assertEqual(bytecode.freevars, ["__class__"])
@@ -582,11 +577,7 @@ class ConcreteFromCodeTests(TestCase):
         # Create a code object from arbitrary bytecode
         co_code = b"\x90\x12\x904\x90\xabd\xcd"
         code = get_code("x=1")
-        args = (
-            (code.co_argcount,)
-            if sys.version_info < (3, 8)
-            else (code.co_argcount, code.co_posonlyargcount)
-        )
+        args = (code.co_argcount,) if sys.version_info < (3, 8) else (code.co_argcount, code.co_posonlyargcount)
         args += (
             code.co_kwonlyargcount,
             code.co_nlocals,
@@ -608,9 +599,7 @@ class ConcreteFromCodeTests(TestCase):
 
         # without EXTENDED_ARG opcode
         bytecode = ConcreteBytecode.from_code(code)
-        self.assertListEqual(
-            list(bytecode), [ConcreteInstr("LOAD_CONST", 0x1234ABCD, lineno=1)]
-        )
+        self.assertListEqual(list(bytecode), [ConcreteInstr("LOAD_CONST", 0x1234ABCD, lineno=1)])
 
         # with EXTENDED_ARG opcode
         bytecode = ConcreteBytecode.from_code(code, extended_arg=True)
@@ -655,10 +644,7 @@ class ConcreteFromCodeTests(TestCase):
                 ConcreteInstr("LOAD_NAME", 0, lineno=1),
                 ConcreteInstr("BUILD_TUPLE", 4, lineno=1),
             ]
-        elif (
-            sys.version_info >= (3, 7)
-            and concrete.flags & CompilerFlags.FUTURE_ANNOTATIONS
-        ):
+        elif sys.version_info >= (3, 7) and concrete.flags & CompilerFlags.FUTURE_ANNOTATIONS:
             func_code = concrete.consts[2]
             names = ["foo"]
             consts = ["int", ("x", "y"), func_code, "foo", None]
@@ -726,9 +712,7 @@ class ConcreteFromCodeTests(TestCase):
             return q, r, s, t
 
         cpython_stacksize = test.__code__.co_stacksize
-        test.__code__ = ConcreteBytecode.from_code(
-            test.__code__, extended_arg=True
-        ).to_code()
+        test.__code__ = ConcreteBytecode.from_code(test.__code__, extended_arg=True).to_code()
         self.assertEqual(test.__code__.co_stacksize, cpython_stacksize)
         self.assertEqual(test(), (1, 2, [3, 4, 5], 6))
 
@@ -997,9 +981,7 @@ class ConcreteFromCodeTests(TestCase):
 
             return var
 
-        test.__code__ = ConcreteBytecode.from_code(
-            test.__code__, extended_arg=True
-        ).to_code()
+        test.__code__ = ConcreteBytecode.from_code(test.__code__, extended_arg=True).to_code()
         self.assertEqual(test.__code__.co_stacksize, 1)
         self.assertEqual(test(), 259)
 
@@ -1130,9 +1112,7 @@ class BytecodeToConcreteTests(TestCase):
         concrete = bytecode.to_concrete_bytecode()
         expected = [
             ConcreteInstr("LOAD_NAME", 0, lineno=1),
-            ConcreteInstr(
-                "POP_JUMP_IF_FALSE", 7 if OFFSET_AS_INSTRUCTION else 14, lineno=1
-            ),
+            ConcreteInstr("POP_JUMP_IF_FALSE", 7 if OFFSET_AS_INSTRUCTION else 14, lineno=1),
             ConcreteInstr("LOAD_CONST", 0, lineno=2),
             ConcreteInstr("STORE_NAME", 1, lineno=2),
             ConcreteInstr("JUMP_FORWARD", 2 if OFFSET_AS_INSTRUCTION else 4, lineno=2),
@@ -1205,9 +1185,7 @@ class BytecodeToConcreteTests(TestCase):
         self.assertEqual(func(18), -1)
 
         # Ensure that we properly round trip in such cases
-        self.assertEqual(
-            ConcreteBytecode.from_code(code).to_code().co_code, code.co_code
-        )
+        self.assertEqual(ConcreteBytecode.from_code(code).to_code().co_code, code.co_code)
 
     def test_setlineno(self):
         # x = 7
@@ -1259,7 +1237,7 @@ class BytecodeToConcreteTests(TestCase):
 
         # (invalid) code using jumps > 0xffff to test extended arg
         label = Label()
-        nb_nop = 2 ** 16
+        nb_nop = 2**16
         code = Bytecode(
             [
                 Instr("JUMP_ABSOLUTE", label),
@@ -1304,9 +1282,7 @@ class BytecodeToConcreteTests(TestCase):
         code = code.to_concrete_bytecode()
         expected = [
             ConcreteInstr("LOAD_NAME", 0, lineno=1),
-            ConcreteInstr(
-                "POP_JUMP_IF_FALSE", 5 if OFFSET_AS_INSTRUCTION else 10, lineno=1
-            ),
+            ConcreteInstr("POP_JUMP_IF_FALSE", 5 if OFFSET_AS_INSTRUCTION else 10, lineno=1),
             ConcreteInstr("LOAD_CONST", 0, lineno=2),
             ConcreteInstr("STORE_NAME", 1, lineno=2),
             ConcreteInstr("JUMP_FORWARD", 2 if OFFSET_AS_INSTRUCTION else 4, lineno=2),
@@ -1448,10 +1424,7 @@ class BytecodeToConcreteTests(TestCase):
         labels = [Label() for x in range(0, 3 * N)]
 
         code = Bytecode()
-        code.extend(
-            Instr("JUMP_FORWARD", labels[len(labels) - x - 1])
-            for x in range(0, len(labels))
-        )
+        code.extend(Instr("JUMP_FORWARD", labels[len(labels) - x - 1]) for x in range(0, len(labels)))
         end_of_jumps = len(code)
         code.extend(Instr(nop) for x in range(0, N))
 

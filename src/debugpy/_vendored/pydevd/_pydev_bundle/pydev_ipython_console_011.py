@@ -27,6 +27,7 @@ from IPython.core.usage import default_banner_parts
 from IPython.utils.strdispatch import StrDispatch
 import IPython.core.release as IPythonRelease
 from IPython.terminal.interactiveshell import TerminalInteractiveShell
+
 try:
     from traitlets import CBool, Unicode
 except ImportError:
@@ -37,24 +38,23 @@ from _pydev_bundle.pydev_imports import xmlrpclib
 
 default_pydev_banner_parts = default_banner_parts
 
-default_pydev_banner = ''.join(default_pydev_banner_parts)
+default_pydev_banner = "".join(default_pydev_banner_parts)
 
 
 def show_in_pager(self, strng, *args, **kwargs):
-    """ Run a string through pager """
+    """Run a string through pager"""
     # On PyDev we just output the string, there are scroll bars in the console
     # to handle "paging". This is the same behaviour as when TERM==dump (see
     # page.py)
     # for compatibility with mime-bundle form:
     if isinstance(strng, dict):
-        strng = strng.get('text/plain', strng)
+        strng = strng.get("text/plain", strng)
     print(strng)
 
 
 def create_editor_hook(pydev_host, pydev_client_port):
-
     def call_editor(filename, line=0, wait=True):
-        """ Open an editor in PyDev """
+        """Open an editor in PyDev"""
         if line is None:
             line = 0
 
@@ -66,7 +66,7 @@ def create_editor_hook(pydev_host, pydev_client_port):
         # sys.__stderr__.write('Calling editor at: %s:%s\n' % (pydev_host, pydev_client_port))
 
         # Tell PyDev to open the editor
-        server = xmlrpclib.Server('http://%s:%s' % (pydev_host, pydev_client_port))
+        server = xmlrpclib.Server("http://%s:%s" % (pydev_host, pydev_client_port))
         server.IPythonEditor(filename, str(line))
 
         if wait:
@@ -76,10 +76,9 @@ def create_editor_hook(pydev_host, pydev_client_port):
 
 
 class PyDevIPCompleter(IPCompleter):
-
     def __init__(self, *args, **kwargs):
-        """ Create a Completer that reuses the advanced completion support of PyDev
-            in addition to the completion support provided by IPython """
+        """Create a Completer that reuses the advanced completion support of PyDev
+        in addition to the completion support provided by IPython"""
         IPCompleter.__init__(self, *args, **kwargs)
         # Use PyDev for python matches, see getCompletions below
         if self.python_matches in self.matchers:
@@ -88,10 +87,9 @@ class PyDevIPCompleter(IPCompleter):
 
 
 class PyDevIPCompleter6(IPCompleter):
-
     def __init__(self, *args, **kwargs):
-        """ Create a Completer that reuses the advanced completion support of PyDev
-            in addition to the completion support provided by IPython """
+        """Create a Completer that reuses the advanced completion support of PyDev
+        in addition to the completion support provided by IPython"""
         IPCompleter.__init__(self, *args, **kwargs)
 
     @property
@@ -112,9 +110,7 @@ class PyDevIPCompleter6(IPCompleter):
 
 
 class PyDevTerminalInteractiveShell(TerminalInteractiveShell):
-    banner1 = Unicode(default_pydev_banner, config=True,
-        help="""The part of the banner to be printed before the profile"""
-    )
+    banner1 = Unicode(default_pydev_banner, config=True, help="""The part of the banner to be printed before the profile""")
 
     # TODO term_title: (can PyDev's title be changed???, see terminal.py for where to inject code, in particular set_term_title as used by %cd)
     # for now, just disable term_title
@@ -145,18 +141,18 @@ class PyDevTerminalInteractiveShell(TerminalInteractiveShell):
     # In the PyDev Console, GUI control is done via hookable XML-RPC server
     @staticmethod
     def enable_gui(gui=None, app=None):
-        """Switch amongst GUI input hooks by name.
-        """
+        """Switch amongst GUI input hooks by name."""
         # Deferred import
         from pydev_ipython.inputhook import enable_gui as real_enable_gui
+
         try:
             return real_enable_gui(gui, app)
         except ValueError as e:
             raise UsageError("%s" % e)
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Things related to hooks
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def init_history(self):
         # Disable history so that we don't have an additional thread for that
@@ -166,11 +162,11 @@ class PyDevTerminalInteractiveShell(TerminalInteractiveShell):
 
     def init_hooks(self):
         super(PyDevTerminalInteractiveShell, self).init_hooks()
-        self.set_hook('show_in_pager', show_in_pager)
+        self.set_hook("show_in_pager", show_in_pager)
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Things related to exceptions
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def showtraceback(self, exc_tuple=None, *args, **kwargs):
         # IPython does a lot of clever stuff with Exceptions. However mostly
@@ -190,53 +186,50 @@ class PyDevTerminalInteractiveShell(TerminalInteractiveShell):
         if tb is not None:
             traceback.print_exception(etype, value, tb)
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Things related to text completion
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     # The way to construct an IPCompleter changed in most versions,
     # so we have a custom, per version implementation of the construction
 
     def _new_completer_100(self):
-        completer = PyDevIPCompleter(shell=self,
-                             namespace=self.user_ns,
-                             global_namespace=self.user_global_ns,
-                             alias_table=self.alias_manager.alias_table,
-                             use_readline=self.has_readline,
-                             parent=self,
-                             )
+        completer = PyDevIPCompleter(
+            shell=self,
+            namespace=self.user_ns,
+            global_namespace=self.user_global_ns,
+            alias_table=self.alias_manager.alias_table,
+            use_readline=self.has_readline,
+            parent=self,
+        )
         return completer
 
     def _new_completer_234(self):
         # correct for IPython versions 2.x, 3.x, 4.x
-        completer = PyDevIPCompleter(shell=self,
-                             namespace=self.user_ns,
-                             global_namespace=self.user_global_ns,
-                             use_readline=self.has_readline,
-                             parent=self,
-                             )
+        completer = PyDevIPCompleter(
+            shell=self,
+            namespace=self.user_ns,
+            global_namespace=self.user_global_ns,
+            use_readline=self.has_readline,
+            parent=self,
+        )
         return completer
 
     def _new_completer_500(self):
-        completer = PyDevIPCompleter(shell=self,
-                                     namespace=self.user_ns,
-                                     global_namespace=self.user_global_ns,
-                                     use_readline=False,
-                                     parent=self
-                                     )
+        completer = PyDevIPCompleter(
+            shell=self, namespace=self.user_ns, global_namespace=self.user_global_ns, use_readline=False, parent=self
+        )
         return completer
 
     def _new_completer_600(self):
-        completer = PyDevIPCompleter6(shell=self,
-                                     namespace=self.user_ns,
-                                     global_namespace=self.user_global_ns,
-                                     use_readline=False,
-                                     parent=self
-                                     )
+        completer = PyDevIPCompleter6(
+            shell=self, namespace=self.user_ns, global_namespace=self.user_global_ns, use_readline=False, parent=self
+        )
         return completer
 
     def add_completer_hooks(self):
         from IPython.core.completerlib import module_completer, magic_run_completer, cd_completer
+
         try:
             from IPython.core.completerlib import reset_completer
         except ImportError:
@@ -245,16 +238,16 @@ class PyDevTerminalInteractiveShell(TerminalInteractiveShell):
         self.configurables.append(self.Completer)
 
         # Add custom completers to the basic ones built into IPCompleter
-        sdisp = self.strdispatchers.get('complete_command', StrDispatch())
-        self.strdispatchers['complete_command'] = sdisp
+        sdisp = self.strdispatchers.get("complete_command", StrDispatch())
+        self.strdispatchers["complete_command"] = sdisp
         self.Completer.custom_completers = sdisp
 
-        self.set_hook('complete_command', module_completer, str_key='import')
-        self.set_hook('complete_command', module_completer, str_key='from')
-        self.set_hook('complete_command', magic_run_completer, str_key='%run')
-        self.set_hook('complete_command', cd_completer, str_key='%cd')
+        self.set_hook("complete_command", module_completer, str_key="import")
+        self.set_hook("complete_command", module_completer, str_key="from")
+        self.set_hook("complete_command", magic_run_completer, str_key="%run")
+        self.set_hook("complete_command", cd_completer, str_key="%cd")
         if reset_completer:
-            self.set_hook('complete_command', reset_completer, str_key='%reset')
+            self.set_hook("complete_command", reset_completer, str_key="%reset")
 
     def init_completer(self):
         """Initialize the completion machinery.
@@ -277,7 +270,7 @@ class PyDevTerminalInteractiveShell(TerminalInteractiveShell):
         elif IPythonRelease._version_major >= 1:
             self.Completer = self._new_completer_100()
 
-        if hasattr(self.Completer, 'use_jedi'):
+        if hasattr(self.Completer, "use_jedi"):
             self.Completer.use_jedi = False
 
         self.add_completer_hooks()
@@ -289,20 +282,20 @@ class PyDevTerminalInteractiveShell(TerminalInteractiveShell):
             if self.has_readline:
                 self.set_readline_completer()
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Things related to aliases
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def init_alias(self):
         # InteractiveShell defines alias's we want, but TerminalInteractiveShell defines
         # ones we don't. So don't use super and instead go right to InteractiveShell
         InteractiveShell.init_alias(self)
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Things related to exiting
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def ask_exit(self):
-        """ Ask the shell to exit. Can be overiden and used as a callback. """
+        """Ask the shell to exit. Can be overiden and used as a callback."""
         # TODO PyDev's console does not have support from the Python side to exit
         # the console. If user forces the exit (with sys.exit()) then the console
         # simply reports errors. e.g.:
@@ -323,11 +316,11 @@ class PyDevTerminalInteractiveShell(TerminalInteractiveShell):
         # >>>
         #
         super(PyDevTerminalInteractiveShell, self).ask_exit()
-        print('To exit the PyDev Console, terminate the console within IDE.')
+        print("To exit the PyDev Console, terminate the console within IDE.")
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Things related to magics
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def init_magics(self):
         super(PyDevTerminalInteractiveShell, self).init_magics()
@@ -337,16 +330,15 @@ class PyDevTerminalInteractiveShell(TerminalInteractiveShell):
 InteractiveShellABC.register(PyDevTerminalInteractiveShell)  # @UndefinedVariable
 
 
-#=======================================================================================================================
+# =======================================================================================================================
 # _PyDevFrontEnd
-#=======================================================================================================================
+# =======================================================================================================================
 class _PyDevFrontEnd:
-
     version = release.__version__
 
     def __init__(self):
         # Create and initialize our IPython instance.
-        if hasattr(PyDevTerminalInteractiveShell, '_instance') and PyDevTerminalInteractiveShell._instance is not None:
+        if hasattr(PyDevTerminalInteractiveShell, "_instance") and PyDevTerminalInteractiveShell._instance is not None:
             self.ipython = PyDevTerminalInteractiveShell._instance
         else:
             self.ipython = PyDevTerminalInteractiveShell.instance()
@@ -368,7 +360,7 @@ class _PyDevFrontEnd:
         self.ipython.user_global_ns.update(globals)
         self.ipython.user_ns = locals
 
-        if hasattr(self.ipython, 'history_manager') and hasattr(self.ipython.history_manager, 'save_thread'):
+        if hasattr(self.ipython, "history_manager") and hasattr(self.ipython.history_manager, "save_thread"):
             self.ipython.history_manager.save_thread.pydev_do_not_trace = True  # don't trace ipython history saving thread
 
     def complete(self, string):
@@ -384,7 +376,7 @@ class _PyDevFrontEnd:
     def is_complete(self, string):
         # Based on IPython 0.10.1
 
-        if string in ('', '\n'):
+        if string in ("", "\n"):
             # Prefiltering, eg through ipython0, may return an empty
             # string although some operations have been accomplished. We
             # thus want to consider an empty string as a complete
@@ -396,15 +388,11 @@ class _PyDevFrontEnd:
                 # complete (except if '\' was used).
                 # This should probably be done in a different place (like
                 # maybe 'prefilter_input' method? For now, this works.
-                clean_string = string.rstrip('\n')
-                if not clean_string.endswith('\\'):
-                    clean_string += '\n\n'
+                clean_string = string.rstrip("\n")
+                if not clean_string.endswith("\\"):
+                    clean_string += "\n\n"
 
-                is_complete = codeop.compile_command(
-                    clean_string,
-                    "<string>",
-                    "exec"
-                )
+                is_complete = codeop.compile_command(clean_string, "<string>", "exec")
             except Exception:
                 # XXX: Hack: return True so that the
                 # code gets executed and the error captured.
@@ -416,18 +404,18 @@ class _PyDevFrontEnd:
         # IPython only gives context free list of completions, while PyDev
         # gives detailed information about completions.
         try:
-            TYPE_IPYTHON = '11'
-            TYPE_IPYTHON_MAGIC = '12'
+            TYPE_IPYTHON = "11"
+            TYPE_IPYTHON_MAGIC = "12"
             _line, ipython_completions = self.complete(text)
 
             from _pydev_bundle._pydev_completer import Completer
+
             completer = Completer(self.get_namespace(), None)
             ret = completer.complete(act_tok)
             append = ret.append
             ip = self.ipython
             pydev_completions = set([f[0] for f in ret])
             for ipython_completion in ipython_completions:
-
                 # PyCharm was not expecting completions with '%'...
                 # Could be fixed in the backend, but it's probably better
                 # fixing it at PyCharm.
@@ -437,17 +425,19 @@ class _PyDevFrontEnd:
                 if ipython_completion not in pydev_completions:
                     pydev_completions.add(ipython_completion)
                     inf = ip.object_inspect(ipython_completion)
-                    if inf['type_name'] == 'Magic function':
+                    if inf["type_name"] == "Magic function":
                         pydev_type = TYPE_IPYTHON_MAGIC
                     else:
                         pydev_type = TYPE_IPYTHON
-                    pydev_doc = inf['docstring']
+                    pydev_doc = inf["docstring"]
                     if pydev_doc is None:
-                        pydev_doc = ''
-                    append((ipython_completion, pydev_doc, '', pydev_type))
+                        pydev_doc = ""
+                    append((ipython_completion, pydev_doc, "", pydev_type))
             return ret
         except:
-            import traceback;traceback.print_exc()
+            import traceback
+
+            traceback.print_exc()
             return []
 
     def get_namespace(self):
@@ -460,7 +450,7 @@ class _PyDevFrontEnd:
         if self._curr_exec_lines:
             self._curr_exec_lines.append(line)
 
-            buf = '\n'.join(self._curr_exec_lines)
+            buf = "\n".join(self._curr_exec_lines)
 
             if self.is_complete(buf):
                 self._curr_exec_line += 1
@@ -470,7 +460,6 @@ class _PyDevFrontEnd:
 
             return True  # needs more
         else:
-
             if not self.is_complete(line):
                 # Did not execute
                 self._curr_exec_lines.append(line)
@@ -488,7 +477,7 @@ class _PyDevFrontEnd:
         return self.ipython.automagic
 
     def get_greeting_msg(self):
-        return 'PyDev console: using IPython %s\n' % self.version
+        return "PyDev console: using IPython %s\n" % self.version
 
 
 class _PyDevFrontEndContainer:
@@ -506,11 +495,10 @@ def get_pydev_frontend(pydev_host, pydev_client_port):
         # Back channel to PyDev to open editors (in the future other
         # info may go back this way. This is the same channel that is
         # used to get stdin, see StdIn in pydev_console_utils)
-        _PyDevFrontEndContainer._instance.ipython.hooks['editor'] = create_editor_hook(pydev_host, pydev_client_port)
+        _PyDevFrontEndContainer._instance.ipython.hooks["editor"] = create_editor_hook(pydev_host, pydev_client_port)
 
         # Note: setting the callback directly because setting it with set_hook would actually create a chain instead
         # of ovewriting at each new call).
         # _PyDevFrontEndContainer._instance.ipython.set_hook('editor', create_editor_hook(pydev_host, pydev_client_port))
 
     return _PyDevFrontEndContainer._instance
-

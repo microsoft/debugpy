@@ -13,9 +13,15 @@ from urllib.parse import quote  # @UnresolvedImport
 import time
 import inspect
 import sys
-from _pydevd_bundle.pydevd_constants import USE_CUSTOM_SYS_CURRENT_FRAMES, IS_PYPY, SUPPORT_GEVENT, \
-    GEVENT_SUPPORT_NOT_SET_MSG, GENERATED_LEN_ATTR_NAME, PYDEVD_WARN_SLOW_RESOLVE_TIMEOUT, \
-    get_global_debugger
+from _pydevd_bundle.pydevd_constants import (
+    USE_CUSTOM_SYS_CURRENT_FRAMES,
+    IS_PYPY,
+    SUPPORT_GEVENT,
+    GEVENT_SUPPORT_NOT_SET_MSG,
+    GENERATED_LEN_ATTR_NAME,
+    PYDEVD_WARN_SLOW_RESOLVE_TIMEOUT,
+    get_global_debugger,
+)
 
 
 def save_main_module(file, module_name):
@@ -24,24 +30,24 @@ def save_main_module(file, module_name):
     # This will prevent the pydevd script from contaminating the namespace for the script to be debugged
     # pretend pydevd is not the main module, and
     # convince the file to be debugged that it was loaded as main
-    m = sys.modules[module_name] = sys.modules['__main__']
+    m = sys.modules[module_name] = sys.modules["__main__"]
     m.__name__ = module_name
-    loader = m.__loader__ if hasattr(m, '__loader__') else None
-    spec = spec_from_file_location('__main__', file, loader=loader)
+    loader = m.__loader__ if hasattr(m, "__loader__") else None
+    spec = spec_from_file_location("__main__", file, loader=loader)
     m = module_from_spec(spec)
-    sys.modules['__main__'] = m
+    sys.modules["__main__"] = m
     return m
 
 
 def is_current_thread_main_thread():
-    if hasattr(threading, 'main_thread'):
+    if hasattr(threading, "main_thread"):
         return threading.current_thread() is threading.main_thread()
     else:
         return isinstance(threading.current_thread(), threading._MainThread)
 
 
 def get_main_thread():
-    if hasattr(threading, 'main_thread'):
+    if hasattr(threading, "main_thread"):
         return threading.main_thread()
     else:
         for t in threading.enumerate():
@@ -58,9 +64,9 @@ def to_number(x):
         except ValueError:
             pass
 
-        l = x.find('(')
+        l = x.find("(")
         if l != -1:
-            y = x[0:l - 1]
+            y = x[0 : l - 1]
             # print y
             try:
                 n = float(y)
@@ -97,7 +103,7 @@ def print_exc():
         traceback.print_exc()
 
 
-def quote_smart(s, safe='/'):
+def quote_smart(s, safe="/"):
     return quote(s, safe)
 
 
@@ -120,9 +126,9 @@ def get_clsname_for_code(code, frame):
             if hasattr(first_arg_class, func_name):
                 method = getattr(first_arg_class, func_name)
                 func_code = None
-                if hasattr(method, 'func_code'):  # Python2
+                if hasattr(method, "func_code"):  # Python2
                     func_code = method.func_code
-                elif hasattr(method, '__code__'):  # Python3
+                elif hasattr(method, "__code__"):  # Python3
                     func_code = method.__code__
                 if func_code and func_code == code:
                     clsname = first_arg_class.__name__
@@ -132,7 +138,7 @@ def get_clsname_for_code(code, frame):
 
 def get_non_pydevd_threads():
     threads = threading.enumerate()
-    return [t for t in threads if t and not getattr(t, 'is_pydev_daemon_thread', False)]
+    return [t for t in threads if t and not getattr(t, "is_pydev_daemon_thread", False)]
 
 
 if USE_CUSTOM_SYS_CURRENT_FRAMES and IS_PYPY:
@@ -144,9 +150,9 @@ else:
 
 
 def dump_threads(stream=None, show_pydevd_threads=True):
-    '''
+    """
     Helper to dump thread info.
-    '''
+    """
     if stream is None:
         stream = sys.stderr
     thread_id_to_name_and_is_pydevd_thread = {}
@@ -156,17 +162,17 @@ def dump_threads(stream=None, show_pydevd_threads=True):
             threading_enumerate = threading.enumerate
 
         for t in threading_enumerate():
-            is_pydevd_thread = getattr(t, 'is_pydev_daemon_thread', False)
+            is_pydevd_thread = getattr(t, "is_pydev_daemon_thread", False)
             thread_id_to_name_and_is_pydevd_thread[t.ident] = (
-                '%s  (daemon: %s, pydevd thread: %s)' % (t.name, t.daemon, is_pydevd_thread),
-                is_pydevd_thread
+                "%s  (daemon: %s, pydevd thread: %s)" % (t.name, t.daemon, is_pydevd_thread),
+                is_pydevd_thread,
             )
     except:
         pass
 
-    stream.write('===============================================================================\n')
-    stream.write('Threads running\n')
-    stream.write('================================= Thread Dump =================================\n')
+    stream.write("===============================================================================\n")
+    stream.write("Threads running\n")
+    stream.write("================================= Thread Dump =================================\n")
     stream.flush()
 
     for thread_id, frame in _tid_to_frame_for_dump_threads().items():
@@ -174,26 +180,25 @@ def dump_threads(stream=None, show_pydevd_threads=True):
         if not show_pydevd_threads and is_pydevd_thread:
             continue
 
-        stream.write('\n-------------------------------------------------------------------------------\n')
+        stream.write("\n-------------------------------------------------------------------------------\n")
         stream.write(" Thread %s" % (name,))
-        stream.write('\n\n')
+        stream.write("\n\n")
 
         for i, (filename, lineno, name, line) in enumerate(traceback.extract_stack(frame)):
-
             stream.write(' File "%s", line %d, in %s\n' % (filename, lineno, name))
             if line:
                 stream.write("   %s\n" % (line.strip()))
 
-            if i == 0 and 'self' in frame.f_locals:
-                stream.write('   self: ')
+            if i == 0 and "self" in frame.f_locals:
+                stream.write("   self: ")
                 try:
-                    stream.write(str(frame.f_locals['self']))
+                    stream.write(str(frame.f_locals["self"]))
                 except:
-                    stream.write('Unable to get str of: %s' % (type(frame.f_locals['self']),))
-                stream.write('\n')
+                    stream.write("Unable to get str of: %s" % (type(frame.f_locals["self"]),))
+                stream.write("\n")
         stream.flush()
 
-    stream.write('\n=============================== END Thread Dump ===============================')
+    stream.write("\n=============================== END Thread Dump ===============================")
     stream.flush()
 
 
@@ -201,14 +206,14 @@ def _extract_variable_nested_braces(char_iter):
     expression = []
     level = 0
     for c in char_iter:
-        if c == '{':
+        if c == "{":
             level += 1
-        if c == '}':
+        if c == "}":
             level -= 1
         if level == -1:
-            return ''.join(expression).strip()
+            return "".join(expression).strip()
         expression.append(c)
-    raise SyntaxError('Unbalanced braces in expression.')
+    raise SyntaxError("Unbalanced braces in expression.")
 
 
 def _extract_expression_list(log_message):
@@ -217,15 +222,15 @@ def _extract_expression_list(log_message):
     expression_vars = []
     char_iter = iter(log_message)
     for c in char_iter:
-        if c == '{':
+        if c == "{":
             expression_var = _extract_variable_nested_braces(char_iter)
             if expression_var:
-                expression.append('%s')
+                expression.append("%s")
                 expression_vars.append(expression_var)
         else:
             expression.append(c)
 
-    expression = ''.join(expression)
+    expression = "".join(expression)
     return expression, expression_vars
 
 
@@ -233,34 +238,34 @@ def convert_dap_log_message_to_expression(log_message):
     try:
         expression, expression_vars = _extract_expression_list(log_message)
     except SyntaxError:
-        return repr('Unbalanced braces in: %s' % (log_message))
+        return repr("Unbalanced braces in: %s" % (log_message))
     if not expression_vars:
         return repr(expression)
     # Note: use '%' to be compatible with Python 2.6.
-    return repr(expression) + ' % (' + ', '.join(str(x) for x in expression_vars) + ',)'
+    return repr(expression) + " % (" + ", ".join(str(x) for x in expression_vars) + ",)"
 
 
 def notify_about_gevent_if_needed(stream=None):
-    '''
+    """
     When debugging with gevent check that the gevent flag is used if the user uses the gevent
     monkey-patching.
 
     :return bool:
         Returns True if a message had to be shown to the user and False otherwise.
-    '''
+    """
     stream = stream if stream is not None else sys.stderr
     if not SUPPORT_GEVENT:
-        gevent_monkey = sys.modules.get('gevent.monkey')
+        gevent_monkey = sys.modules.get("gevent.monkey")
         if gevent_monkey is not None:
             try:
                 saved = gevent_monkey.saved
             except AttributeError:
-                pydev_log.exception_once('Error checking for gevent monkey-patching.')
+                pydev_log.exception_once("Error checking for gevent monkey-patching.")
                 return False
 
             if saved:
                 # Note: print to stderr as it may deadlock the debugger.
-                sys.stderr.write('%s\n' % (GEVENT_SUPPORT_NOT_SET_MSG,))
+                sys.stderr.write("%s\n" % (GEVENT_SUPPORT_NOT_SET_MSG,))
                 return True
 
     return False
@@ -299,11 +304,10 @@ def isinstance_checked(obj, cls):
 
 
 class ScopeRequest(object):
-
-    __slots__ = ['variable_reference', 'scope']
+    __slots__ = ["variable_reference", "scope"]
 
     def __init__(self, variable_reference, scope):
-        assert scope in ('globals', 'locals')
+        assert scope in ("globals", "locals")
         self.variable_reference = variable_reference
         self.scope = scope
 
@@ -321,15 +325,15 @@ class ScopeRequest(object):
 
 
 class DAPGrouper(object):
-    '''
+    """
     Note: this is a helper class to group variables on the debug adapter protocol (DAP). For
     the xml protocol the type is just added to each variable and the UI can group/hide it as needed.
-    '''
+    """
 
-    SCOPE_SPECIAL_VARS = 'special variables'
-    SCOPE_PROTECTED_VARS = 'protected variables'
-    SCOPE_FUNCTION_VARS = 'function variables'
-    SCOPE_CLASS_VARS = 'class variables'
+    SCOPE_SPECIAL_VARS = "special variables"
+    SCOPE_PROTECTED_VARS = "protected variables"
+    SCOPE_FUNCTION_VARS = "function variables"
+    SCOPE_CLASS_VARS = "class variables"
 
     SCOPES_SORTED = [
         SCOPE_SPECIAL_VARS,
@@ -338,7 +342,7 @@ class DAPGrouper(object):
         SCOPE_CLASS_VARS,
     ]
 
-    __slots__ = ['variable_reference', 'scope', 'contents_debug_adapter_protocol']
+    __slots__ = ["variable_reference", "scope", "contents_debug_adapter_protocol"]
 
     def __init__(self, scope):
         self.variable_reference = id(self)
@@ -361,14 +365,14 @@ class DAPGrouper(object):
         return hash((self.variable_reference, self.scope))
 
     def __repr__(self):
-        return ''
+        return ""
 
     def __str__(self):
-        return ''
+        return ""
 
 
 def interrupt_main_thread(main_thread=None):
-    '''
+    """
     Generates a KeyboardInterrupt in the main thread by sending a Ctrl+C
     or by calling thread.interrupt_main().
 
@@ -378,21 +382,21 @@ def interrupt_main_thread(main_thread=None):
     Note: if unable to send a Ctrl+C, the KeyboardInterrupt will only be raised
     when the next Python instruction is about to be executed (so, it won't interrupt
     a sleep(1000)).
-    '''
+    """
     if main_thread is None:
         main_thread = threading.main_thread()
 
-    pydev_log.debug('Interrupt main thread.')
+    pydev_log.debug("Interrupt main thread.")
     called = False
     try:
-        if os.name == 'posix':
+        if os.name == "posix":
             # On Linux we can't interrupt 0 as in Windows because it's
             # actually owned by a process -- on the good side, signals
             # work much better on Linux!
             os.kill(os.getpid(), signal.SIGINT)
             called = True
 
-        elif os.name == 'nt':
+        elif os.name == "nt":
             # This generates a Ctrl+C only for the current process and not
             # to the process group!
             # Note: there doesn't seem to be any public documentation for this
@@ -417,33 +421,32 @@ def interrupt_main_thread(main_thread=None):
     except:
         # If something went wrong, fallback to interrupting when the next
         # Python instruction is being called.
-        pydev_log.exception('Error interrupting main thread (using fallback).')
+        pydev_log.exception("Error interrupting main thread (using fallback).")
 
     if not called:
         try:
             # In this case, we don't really interrupt a sleep() nor IO operations
             # (this makes the KeyboardInterrupt be sent only when the next Python
             # instruction is about to be executed).
-            if hasattr(thread, 'interrupt_main'):
+            if hasattr(thread, "interrupt_main"):
                 thread.interrupt_main()
             else:
                 main_thread._thread.interrupt()  # Jython
         except:
-            pydev_log.exception('Error on interrupt main thread fallback.')
+            pydev_log.exception("Error on interrupt main thread fallback.")
 
 
 class Timer(object):
-
     def __init__(self, min_diff=PYDEVD_WARN_SLOW_RESOLVE_TIMEOUT):
         self.min_diff = min_diff
         self._curr_time = time.time()
 
-    def print_time(self, msg='Elapsed:'):
+    def print_time(self, msg="Elapsed:"):
         old = self._curr_time
         new = self._curr_time = time.time()
         diff = new - old
         if diff >= self.min_diff:
-            print('%s: %.2fs' % (msg, diff))
+            print("%s: %.2fs" % (msg, diff))
 
     def _report_slow(self, compute_msg, *args):
         old = self._curr_time
@@ -465,16 +468,14 @@ class Timer(object):
             pass
         if attrs_tab_separated:
             return (
-                'pydevd warning: Computing repr of %s.%s (%s) was slow (took %.2fs).\n'
-                'Customize report timeout by setting the `PYDEVD_WARN_SLOW_RESOLVE_TIMEOUT` environment variable to a higher timeout (default is: %ss)\n'
-                ) % (
-                attrs_tab_separated.replace('\t', '.'), attr_name, attr_type, diff, PYDEVD_WARN_SLOW_RESOLVE_TIMEOUT)
+                "pydevd warning: Computing repr of %s.%s (%s) was slow (took %.2fs).\n"
+                "Customize report timeout by setting the `PYDEVD_WARN_SLOW_RESOLVE_TIMEOUT` environment variable to a higher timeout (default is: %ss)\n"
+            ) % (attrs_tab_separated.replace("\t", "."), attr_name, attr_type, diff, PYDEVD_WARN_SLOW_RESOLVE_TIMEOUT)
         else:
             return (
-                'pydevd warning: Computing repr of %s (%s) was slow (took %.2fs)\n'
-                'Customize report timeout by setting the `PYDEVD_WARN_SLOW_RESOLVE_TIMEOUT` environment variable to a higher timeout (default is: %ss)\n'
-                ) % (
-                attr_name, attr_type, diff, PYDEVD_WARN_SLOW_RESOLVE_TIMEOUT)
+                "pydevd warning: Computing repr of %s (%s) was slow (took %.2fs)\n"
+                "Customize report timeout by setting the `PYDEVD_WARN_SLOW_RESOLVE_TIMEOUT` environment variable to a higher timeout (default is: %ss)\n"
+            ) % (attr_name, attr_type, diff, PYDEVD_WARN_SLOW_RESOLVE_TIMEOUT)
 
     def report_if_getting_attr_slow(self, cls, attr_name):
         self._report_slow(self._compute_get_attr_slow, cls, attr_name)
@@ -485,32 +486,32 @@ class Timer(object):
         except:
             pass
         return (
-            'pydevd warning: Getting attribute %s.%s was slow (took %.2fs)\n'
-            'Customize report timeout by setting the `PYDEVD_WARN_SLOW_RESOLVE_TIMEOUT` environment variable to a higher timeout (default is: %ss)\n'
-            ) % (cls, attr_name, diff, PYDEVD_WARN_SLOW_RESOLVE_TIMEOUT)
+            "pydevd warning: Getting attribute %s.%s was slow (took %.2fs)\n"
+            "Customize report timeout by setting the `PYDEVD_WARN_SLOW_RESOLVE_TIMEOUT` environment variable to a higher timeout (default is: %ss)\n"
+        ) % (cls, attr_name, diff, PYDEVD_WARN_SLOW_RESOLVE_TIMEOUT)
 
 
 def import_attr_from_module(import_with_attr_access):
-    if '.' not in import_with_attr_access:
+    if "." not in import_with_attr_access:
         # We need at least one '.' (we don't support just the module import, we need the attribute access too).
-        raise ImportError('Unable to import module with attr access: %s' % (import_with_attr_access,))
+        raise ImportError("Unable to import module with attr access: %s" % (import_with_attr_access,))
 
-    module_name, attr_name = import_with_attr_access.rsplit('.', 1)
+    module_name, attr_name = import_with_attr_access.rsplit(".", 1)
 
     while True:
         try:
             mod = import_module(module_name)
         except ImportError:
-            if '.' not in module_name:
-                raise ImportError('Unable to import module with attr access: %s' % (import_with_attr_access,))
+            if "." not in module_name:
+                raise ImportError("Unable to import module with attr access: %s" % (import_with_attr_access,))
 
-            module_name, new_attr_part = module_name.rsplit('.', 1)
-            attr_name = new_attr_part + '.' + attr_name
+            module_name, new_attr_part = module_name.rsplit(".", 1)
+            attr_name = new_attr_part + "." + attr_name
         else:
             # Ok, we got the base module, now, get the attribute we need.
             try:
-                for attr in attr_name.split('.'):
+                for attr in attr_name.split("."):
                     mod = getattr(mod, attr)
                 return mod
             except:
-                raise ImportError('Unable to import module with attr access: %s' % (import_with_attr_access,))
+                raise ImportError("Unable to import module with attr access: %s" % (import_with_attr_access,))

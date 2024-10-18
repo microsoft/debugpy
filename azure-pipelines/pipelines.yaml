@@ -28,7 +28,7 @@ jobs:
     pool: { vmImage: "ubuntu-latest" }
 
     variables:
-      python.version: "3.8"
+      python.version: "3.9"
 
     steps:
 
@@ -57,8 +57,6 @@ jobs:
 
     strategy:
       matrix:
-        py38:
-          python.version: "3.8"
         py39:
           python.version: "3.9"
         py310:
@@ -67,6 +65,8 @@ jobs:
           python.version: "3.11"
         py312:
           python.version: "3.12"
+        py313:
+          python.version: "3.13"
 
     steps:
 
@@ -83,12 +83,10 @@ jobs:
   - job: "Test_MacOS"
     timeoutInMinutes: "30"
     displayName: "Tests - macOS"
-    pool: { vmImage: "macOS-11" }
+    pool: { vmImage: "macOS-latest" }
 
     strategy:
       matrix:
-        py38:
-          python.version: "3.8"
         py39:
           python.version: "3.9"
         py310:
@@ -97,6 +95,8 @@ jobs:
           python.version: "3.11"
         py312:
           python.version: "3.12"
+        py313:
+          python.version: "3.13"
 
     steps:
 
@@ -117,8 +117,6 @@ jobs:
 
     strategy:
       matrix:
-        py38:
-          python.version: "3.8"
         py39:
           python.version: "3.9"
         py39_32:
@@ -130,6 +128,8 @@ jobs:
           python.version: "3.11"
         py312:
           python.version: "3.12"
+        py313:
+          python.version: "3.13"
 
     steps:
 

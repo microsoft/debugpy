@@ -3,40 +3,41 @@
 Inputhook management for GUI event loop integration.
 """
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 #  Copyright (C) 2008-2011  The IPython Development Team
 #
 #  Distributed under the terms of the BSD License.  The full license is in
 #  the file COPYING, distributed as part of this software.
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Imports
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 import sys
 import select
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Constants
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 # Constants for identifying the GUI toolkits.
-GUI_WX = 'wx'
-GUI_QT = 'qt'
-GUI_QT4 = 'qt4'
-GUI_QT5 = 'qt5'
-GUI_GTK = 'gtk'
-GUI_TK = 'tk'
-GUI_OSX = 'osx'
-GUI_GLUT = 'glut'
-GUI_PYGLET = 'pyglet'
-GUI_GTK3 = 'gtk3'
-GUI_NONE = 'none'  # i.e. disable
+GUI_WX = "wx"
+GUI_QT = "qt"
+GUI_QT4 = "qt4"
+GUI_QT5 = "qt5"
+GUI_QT6 = "qt6"
+GUI_GTK = "gtk"
+GUI_TK = "tk"
+GUI_OSX = "osx"
+GUI_GLUT = "glut"
+GUI_PYGLET = "pyglet"
+GUI_GTK3 = "gtk3"
+GUI_NONE = "none"  # i.e. disable
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Utilities
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 
 def ignore_CTRL_C():
@@ -48,9 +49,10 @@ def allow_CTRL_C():
     """Take CTRL+C into account (not implemented)."""
     pass
 
-#-----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
 # Main InputHookManager class
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 
 class InputHookManager(object):
@@ -146,12 +148,14 @@ class InputHookManager(object):
         """
         import wx
         from distutils.version import LooseVersion as V
+
         wx_version = V(wx.__version__).version  # @UndefinedVariable
 
         if wx_version < [2, 8]:
             raise ValueError("requires wxPython >= 2.8, but you have %s" % wx.__version__)  # @UndefinedVariable
 
         from pydev_ipython.inputhookwx import inputhook_wx
+
         self.set_inputhook(inputhook_wx)
         self._current_gui = GUI_WX
 
@@ -173,8 +177,11 @@ class InputHookManager(object):
         self.clear_inputhook()
 
     def enable_qt(self, app=None):
-        from pydev_ipython.qt_for_kernel import QT_API, QT_API_PYQT5
-        if QT_API == QT_API_PYQT5:
+        from pydev_ipython.qt_for_kernel import QT_API, QT_API_PYQT5, QT_API_PYQT6
+
+        if QT_API == QT_API_PYQT6:
+            self.enable_qt6(app)
+        elif QT_API == QT_API_PYQT5:
             self.enable_qt5(app)
         else:
             self.enable_qt4(app)
@@ -202,6 +209,7 @@ class InputHookManager(object):
             app = QtGui.QApplication(sys.argv)
         """
         from pydev_ipython.inputhookqt4 import create_inputhook_qt4
+
         app, inputhook_qt4 = create_inputhook_qt4(self, app)
         self.set_inputhook(inputhook_qt4)
 
@@ -221,6 +229,7 @@ class InputHookManager(object):
 
     def enable_qt5(self, app=None):
         from pydev_ipython.inputhookqt5 import create_inputhook_qt5
+
         app, inputhook_qt5 = create_inputhook_qt5(self, app)
         self.set_inputhook(inputhook_qt5)
 
@@ -232,6 +241,22 @@ class InputHookManager(object):
     def disable_qt5(self):
         if GUI_QT5 in self._apps:
             self._apps[GUI_QT5]._in_event_loop = False
+        self.clear_inputhook()
+
+    def enable_qt6(self, app=None):
+        from pydev_ipython.inputhookqt6 import create_inputhook_qt6
+
+        app, inputhook_qt6 = create_inputhook_qt6(self, app)
+        self.set_inputhook(inputhook_qt6)
+
+        self._current_gui = GUI_QT6
+        app._in_event_loop = True
+        self._apps[GUI_QT6] = app
+        return app
+
+    def disable_qt6(self):
+        if GUI_QT6 in self._apps:
+            self._apps[GUI_QT6]._in_event_loop = False
         self.clear_inputhook()
 
     def enable_gtk(self, app=None):
@@ -251,6 +276,7 @@ class InputHookManager(object):
         IPython.
         """
         from pydev_ipython.inputhookgtk import create_inputhook_gtk
+
         self.set_inputhook(create_inputhook_gtk(self._stdin_file))
         self._current_gui = GUI_GTK
 
@@ -289,6 +315,7 @@ class InputHookManager(object):
             self._apps[GUI_TK] = app
 
         from pydev_ipython.inputhooktk import create_inputhook_tk
+
         self.set_inputhook(create_inputhook_tk(app))
         return app
 
@@ -300,7 +327,7 @@ class InputHookManager(object):
         self.clear_inputhook()
 
     def enable_glut(self, app=None):
-        """ Enable event loop integration with GLUT.
+        """Enable event loop integration with GLUT.
 
         Parameters
         ----------
@@ -325,19 +352,16 @@ class InputHookManager(object):
         """
 
         import OpenGL.GLUT as glut  # @UnresolvedImport
-        from pydev_ipython.inputhookglut import glut_display_mode, \
-                                              glut_close, glut_display, \
-                                              glut_idle, inputhook_glut
+        from pydev_ipython.inputhookglut import glut_display_mode, glut_close, glut_display, glut_idle, inputhook_glut
 
         if GUI_GLUT not in self._apps:
-            argv = getattr(sys, 'argv', [])
+            argv = getattr(sys, "argv", [])
             glut.glutInit(argv)
             glut.glutInitDisplayMode(glut_display_mode)
             # This is specific to freeglut
             if bool(glut.glutSetOption):
-                glut.glutSetOption(glut.GLUT_ACTION_ON_WINDOW_CLOSE,
-                                    glut.GLUT_ACTION_GLUTMAINLOOP_RETURNS)
-            glut.glutCreateWindow(argv[0] if len(argv) > 0 else '')
+                glut.glutSetOption(glut.GLUT_ACTION_ON_WINDOW_CLOSE, glut.GLUT_ACTION_GLUTMAINLOOP_RETURNS)
+            glut.glutCreateWindow(argv[0] if len(argv) > 0 else "")
             glut.glutReshapeWindow(1, 1)
             glut.glutHideWindow()
             glut.glutWMCloseFunc(glut_close)
@@ -383,6 +407,7 @@ class InputHookManager(object):
 
         """
         from pydev_ipython.inputhookpyglet import inputhook_pyglet
+
         self.set_inputhook(inputhook_pyglet)
         self._current_gui = GUI_PYGLET
         return app
@@ -411,6 +436,7 @@ class InputHookManager(object):
         IPython.
         """
         from pydev_ipython.inputhookgtk3 import create_inputhook_gtk3
+
         self.set_inputhook(create_inputhook_gtk3(self._stdin_file))
         self._current_gui = GUI_GTK
 
@@ -422,7 +448,7 @@ class InputHookManager(object):
         self.clear_inputhook()
 
     def enable_mac(self, app=None):
-        """ Enable event loop integration with MacOSX.
+        """Enable event loop integration with MacOSX.
 
         We call function pyplot.pause, which updates and displays active
         figure during pause. It's not MacOSX-specific, but it enables to
@@ -434,13 +460,13 @@ class InputHookManager(object):
 
         def inputhook_mac(app=None):
             if self.pyplot_imported:
-                pyplot = sys.modules['matplotlib.pyplot']
+                pyplot = sys.modules["matplotlib.pyplot"]
                 try:
                     pyplot.pause(0.01)
                 except:
                     pass
             else:
-                if 'matplotlib.pyplot' in sys.modules:
+                if "matplotlib.pyplot" in sys.modules:
                     self.pyplot_imported = True
 
         self.set_inputhook(inputhook_mac)
@@ -517,22 +543,23 @@ def enable_gui(gui=None, app=None):
     if get_return_control_callback() is None:
         raise ValueError("A return_control_callback must be supplied as a reference before a gui can be enabled")
 
-    guis = {GUI_NONE: clear_inputhook,
-            GUI_OSX: enable_mac,
-            GUI_TK: enable_tk,
-            GUI_GTK: enable_gtk,
-            GUI_WX: enable_wx,
-            GUI_QT: enable_qt,
-            GUI_QT4: enable_qt4,
-            GUI_QT5: enable_qt5,
-            GUI_GLUT: enable_glut,
-            GUI_PYGLET: enable_pyglet,
-            GUI_GTK3: enable_gtk3,
-            }
+    guis = {
+        GUI_NONE: clear_inputhook,
+        GUI_OSX: enable_mac,
+        GUI_TK: enable_tk,
+        GUI_GTK: enable_gtk,
+        GUI_WX: enable_wx,
+        GUI_QT: enable_qt,
+        GUI_QT4: enable_qt4,
+        GUI_QT5: enable_qt5,
+        GUI_GLUT: enable_glut,
+        GUI_PYGLET: enable_pyglet,
+        GUI_GTK3: enable_gtk3,
+    }
     try:
         gui_hook = guis[gui]
     except KeyError:
-        if gui is None or gui == '':
+        if gui is None or gui == "":
             gui_hook = clear_inputhook
         else:
             e = "Invalid GUI request %r, valid ones are:%s" % (gui, list(guis.keys()))
@@ -552,14 +579,10 @@ __all__ = [
     "GUI_PYGLET",
     "GUI_GTK3",
     "GUI_NONE",
-
     "ignore_CTRL_C",
     "allow_CTRL_C",
-
     "InputHookManager",
-
     "inputhook_manager",
-
     "enable_wx",
     "disable_wx",
     "enable_qt",
@@ -583,10 +606,9 @@ __all__ = [
     "set_inputhook",
     "current_gui",
     "clear_app_refs",
-
     "stdin_ready",
     "set_return_control_callback",
     "get_return_control_callback",
     "get_inputhook",
-
-    "enable_gui"]
+    "enable_gui",
+]

@@ -21,16 +21,11 @@ class BasicBlock(_bytecode._InstrList):
             index += 1
 
             if not isinstance(instr, (SetLineno, Instr)):
-                raise ValueError(
-                    "BasicBlock must only contain SetLineno and Instr objects, "
-                    "but %s was found" % instr.__class__.__name__
-                )
+                raise ValueError("BasicBlock must only contain SetLineno and Instr objects, " "but %s was found" % instr.__class__.__name__)
 
             if isinstance(instr, Instr) and instr.has_jump():
                 if index < len(self):
-                    raise ValueError(
-                        "Only the last instruction of a basic " "block can be a jump"
-                    )
+                    raise ValueError("Only the last instruction of a basic " "block can be a jump")
 
                 if not isinstance(instr.arg, BasicBlock):
                     raise ValueError(
@@ -135,7 +130,6 @@ def _compute_stack_size(block, size, maxsize, *, check_pre_and_post=True):
     block.startsize = size
 
     for instr in block:
-
         # Ignore SetLineno
         if isinstance(instr, SetLineno):
             continue
@@ -143,11 +137,7 @@ def _compute_stack_size(block, size, maxsize, *, check_pre_and_post=True):
         # For instructions with a jump first compute the stacksize required when the
         # jump is taken.
         if instr.has_jump():
-            effect = (
-                instr.pre_and_post_stack_effect(jump=True)
-                if check_pre_and_post
-                else (instr.stack_effect(jump=True), 0)
-            )
+            effect = instr.pre_and_post_stack_effect(jump=True) if check_pre_and_post else (instr.stack_effect(jump=True), 0)
             taken_size, maxsize = update_size(*effect, size, maxsize)
             # Yield the parameters required to compute the stacksize required
             # by the block to which the jumnp points to and resume when we now
@@ -161,11 +151,7 @@ def _compute_stack_size(block, size, maxsize, *, check_pre_and_post=True):
                 yield maxsize
 
         # jump=False: non-taken path of jumps, or any non-jump
-        effect = (
-            instr.pre_and_post_stack_effect(jump=False)
-            if check_pre_and_post
-            else (instr.stack_effect(jump=False), 0)
-        )
+        effect = instr.pre_and_post_stack_effect(jump=False) if check_pre_and_post else (instr.stack_effect(jump=False), 0)
         size, maxsize = update_size(*effect, size, maxsize)
 
     if block.next_block:
@@ -225,17 +211,11 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
         # Starting with Python 3.10, generator and coroutines start with one object
         # on the stack (None, anything is an error).
         initial_stack_size = 0
-        if sys.version_info >= (3, 10) and self.flags & (
-            CompilerFlags.GENERATOR
-            | CompilerFlags.COROUTINE
-            | CompilerFlags.ASYNC_GENERATOR
-        ):
+        if sys.version_info >= (3, 10) and self.flags & (CompilerFlags.GENERATOR | CompilerFlags.COROUTINE | CompilerFlags.ASYNC_GENERATOR):
             initial_stack_size = 1
 
         # Create a generator/coroutine responsible of dealing with the first block
-        coro = _compute_stack_size(
-            self[0], initial_stack_size, 0, check_pre_and_post=check_pre_and_post
-        )
+        coro = _compute_stack_size(self[0], initial_stack_size, 0, check_pre_and_post=check_pre_and_post)
 
         # Create a list of generator that have not yet been exhausted
         coroutines = []

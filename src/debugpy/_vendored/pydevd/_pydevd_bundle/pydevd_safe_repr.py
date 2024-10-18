@@ -19,15 +19,14 @@ class SafeRepr(object):
     # String types are truncated to maxstring_outer when at the outer-
     # most level, and truncated to maxstring_inner characters inside
     # collections.
-    maxstring_outer = 2 ** 16
+    maxstring_outer = 2**16
     maxstring_inner = 128
     string_types = (str, bytes)
     bytes = bytes
-    set_info = (set, '{', '}', False)
-    frozenset_info = (frozenset, 'frozenset({', '})', False)
+    set_info = (set, "{", "}", False)
+    frozenset_info = (frozenset, "frozenset({", "})", False)
     int_types = (int,)
-    long_iter_types = (list, tuple, bytearray, range,
-                       dict, set, frozenset)
+    long_iter_types = (list, tuple, bytearray, range, dict, set, frozenset)
 
     # Collection types are recursively iterated for each limit in
     # maxcollection.
@@ -37,52 +36,54 @@ class SafeRepr(object):
     # comma if there is only one element. (Using a sequence rather than a
     # mapping because we use isinstance() to determine the matching type.)
     collection_types = [
-        (tuple, '(', ')', True),
-        (list, '[', ']', False),
+        (tuple, "(", ")", True),
+        (list, "[", "]", False),
         frozenset_info,
         set_info,
     ]
     try:
         from collections import deque
-        collection_types.append((deque, 'deque([', '])', False))
+
+        collection_types.append((deque, "deque([", "])", False))
     except Exception:
         pass
 
     # type, prefix string, suffix string, item prefix string,
     # item key/value separator, item suffix string
-    dict_types = [(dict, '{', '}', '', ': ', '')]
+    dict_types = [(dict, "{", "}", "", ": ", "")]
     try:
         from collections import OrderedDict
-        dict_types.append((OrderedDict, 'OrderedDict([', '])', '(', ', ', ')'))
+
+        dict_types.append((OrderedDict, "OrderedDict([", "])", "(", ", ", ")"))
     except Exception:
         pass
 
     # All other types are treated identically to strings, but using
     # different limits.
-    maxother_outer = 2 ** 16
+    maxother_outer = 2**16
     maxother_inner = 128
 
     convert_to_hex = False
     raw_value = False
 
     def __call__(self, obj):
-        '''
+        """
         :param object obj:
             The object for which we want a representation.
 
         :return str:
             Returns bytes encoded as utf-8 on py2 and str on py3.
-        '''
+        """
         try:
-            return ''.join(self._repr(obj, 0))
+            return "".join(self._repr(obj, 0))
         except Exception:
             try:
-                return 'An exception was raised: %r' % sys.exc_info()[1]
+                return "An exception was raised: %r" % sys.exc_info()[1]
             except Exception:
-                return 'An exception was raised'
+                return "An exception was raised"
 
     def _repr(self, obj, level):
-        '''Returns an iterable of the parts in the final repr string.'''
+        """Returns an iterable of the parts in the final repr string."""
 
         try:
             obj_repr = type(obj).__repr__
@@ -102,8 +103,7 @@ class SafeRepr(object):
 
         for t, prefix, suffix, item_prefix, item_sep, item_suffix in self.dict_types:  # noqa
             if isinstance(obj, t) and has_obj_repr(t):
-                return self._repr_dict(obj, level, prefix, suffix,
-                                       item_prefix, item_sep, item_suffix)
+                return self._repr_dict(obj, level, prefix, suffix, item_prefix, item_sep, item_suffix)
 
         for t in self.string_types:
             if isinstance(obj, t) and has_obj_repr(t):
@@ -125,7 +125,7 @@ class SafeRepr(object):
                 return len(obj) > self.maxstring_inner
 
             # If it's not an iterable (and not a string), it's fine.
-            if not hasattr(obj, '__iter__'):
+            if not hasattr(obj, "__iter__"):
                 return False
 
             # If it's not an instance of these collection types then it
@@ -148,8 +148,8 @@ class SafeRepr(object):
             # numpy and scipy collections (ndarray etc) have
             # self-truncating repr, so they're always safe.
             try:
-                module = type(obj).__module__.partition('.')[0]
-                if module in ('numpy', 'scipy'):
+                module = type(obj).__module__.partition(".")[0]
+                if module in ("numpy", "scipy"):
                     return False
             except Exception:
                 pass
@@ -160,7 +160,7 @@ class SafeRepr(object):
 
             # It is too long if the length exceeds the limit, or any
             # of its elements are long iterables.
-            if hasattr(obj, '__len__'):
+            if hasattr(obj, "__len__"):
                 try:
                     size = len(obj)
                 except Exception:
@@ -174,23 +174,22 @@ class SafeRepr(object):
             # If anything breaks, assume the worst case.
             return True
 
-    def _repr_iter(self, obj, level, prefix, suffix,
-                   comma_after_single_element=False):
+    def _repr_iter(self, obj, level, prefix, suffix, comma_after_single_element=False):
         yield prefix
 
         if level >= len(self.maxcollection):
-            yield '...'
+            yield "..."
         else:
             count = self.maxcollection[level]
             yield_comma = False
             for item in obj:
                 if yield_comma:
-                    yield ', '
+                    yield ", "
                 yield_comma = True
 
                 count -= 1
                 if count <= 0:
-                    yield '...'
+                    yield "..."
                     break
 
                 for p in self._repr(item, 100 if item is obj else level + 1):
@@ -198,27 +197,26 @@ class SafeRepr(object):
             else:
                 if comma_after_single_element:
                     if count == self.maxcollection[level] - 1:
-                        yield ','
+                        yield ","
         yield suffix
 
     def _repr_long_iter(self, obj):
         try:
             length = hex(len(obj)) if self.convert_to_hex else len(obj)
-            obj_repr = '<%s, len() = %s>' % (type(obj).__name__, length)
+            obj_repr = "<%s, len() = %s>" % (type(obj).__name__, length)
         except Exception:
             try:
-                obj_repr = '<' + type(obj).__name__ + '>'
+                obj_repr = "<" + type(obj).__name__ + ">"
             except Exception:
-                obj_repr = '<no repr available for object>'
+                obj_repr = "<no repr available for object>"
         yield obj_repr
 
-    def _repr_dict(self, obj, level, prefix, suffix,
-                   item_prefix, item_sep, item_suffix):
+    def _repr_dict(self, obj, level, prefix, suffix, item_prefix, item_sep, item_suffix):
         if not obj:
             yield prefix + suffix
             return
         if level >= len(self.maxcollection):
-            yield prefix + '...' + suffix
+            yield prefix + "..." + suffix
             return
 
         yield prefix
@@ -238,12 +236,12 @@ class SafeRepr(object):
 
         for key in sorted_keys:
             if yield_comma:
-                yield ', '
+                yield ", "
             yield_comma = True
 
             count -= 1
             if count <= 0:
-                yield '...'
+                yield "..."
                 break
 
             yield item_prefix
@@ -255,7 +253,7 @@ class SafeRepr(object):
             try:
                 item = obj[key]
             except Exception:
-                yield '<?>'
+                yield "<?>"
             else:
                 for p in self._repr(item, 100 if item is obj else level + 1):
                     yield p
@@ -268,7 +266,7 @@ class SafeRepr(object):
             if self.raw_value:
                 # For raw value retrieval, ignore all limits.
                 if isinstance(obj, bytes):
-                    yield obj.decode('latin-1')
+                    yield obj.decode("latin-1")
                 else:
                     yield obj
                 return
@@ -304,32 +302,30 @@ class SafeRepr(object):
 
             part1 = obj[:left_count]
             part1 = repr(part1)
-            part1 = part1[:part1.rindex("'")]  # Remove the last '
+            part1 = part1[: part1.rindex("'")]  # Remove the last '
 
             part2 = obj[-right_count:]
             part2 = repr(part2)
-            part2 = part2[part2.index("'") + 1:]  # Remove the first ' (and possibly u or b).
+            part2 = part2[part2.index("'") + 1 :]  # Remove the first ' (and possibly u or b).
 
             yield part1
-            yield '...'
+            yield "..."
             yield part2
         except:
             # This shouldn't really happen, but let's play it safe.
-            pydev_log.exception('Error getting string representation to show.')
-            for part in self._repr_obj(obj, level,
-                                  self.maxother_inner, self.maxother_outer):
+            pydev_log.exception("Error getting string representation to show.")
+            for part in self._repr_obj(obj, level, self.maxother_inner, self.maxother_outer):
                 yield part
 
     def _repr_other(self, obj, level):
-        return self._repr_obj(obj, level,
-                              self.maxother_inner, self.maxother_outer)
+        return self._repr_obj(obj, level, self.maxother_inner, self.maxother_outer)
 
     def _repr_obj(self, obj, level, limit_inner, limit_outer):
         try:
             if self.raw_value:
                 # For raw value retrieval, ignore all limits.
                 if isinstance(obj, bytes):
-                    yield obj.decode('latin-1')
+                    yield obj.decode("latin-1")
                     return
 
                 try:
@@ -339,7 +335,7 @@ class SafeRepr(object):
                     return
                 else:
                     # Map bytes to Unicode codepoints with same values.
-                    yield mv.tobytes().decode('latin-1')
+                    yield mv.tobytes().decode("latin-1")
                     return
             elif self.convert_to_hex and isinstance(obj, self.int_types):
                 obj_repr = hex(obj)
@@ -350,9 +346,9 @@ class SafeRepr(object):
                 obj_repr = object.__repr__(obj)
             except Exception:
                 try:
-                    obj_repr = '<no repr available for ' + type(obj).__name__ + '>'  # noqa
+                    obj_repr = "<no repr available for " + type(obj).__name__ + ">"  # noqa
                 except Exception:
-                    obj_repr = '<no repr available for object>'
+                    obj_repr = "<no repr available for object>"
 
         limit = limit_inner if level > 0 else limit_outer
 
@@ -366,7 +362,7 @@ class SafeRepr(object):
         left_count, right_count = max(1, int(2 * limit / 3)), max(1, int(limit / 3))  # noqa
 
         yield obj_repr[:left_count]
-        yield '...'
+        yield "..."
         yield obj_repr[-right_count:]
 
     def _convert_to_unicode_or_bytes_repr(self, obj_repr):
@@ -377,7 +373,7 @@ class SafeRepr(object):
         # locale.getpreferredencoding() and 'utf-8). If no encoding can decode
         # the input, we return the original bytes.
         try_encodings = []
-        encoding = self.sys_stdout_encoding or getattr(sys.stdout, 'encoding', '')
+        encoding = self.sys_stdout_encoding or getattr(sys.stdout, "encoding", "")
         if encoding:
             try_encodings.append(encoding.lower())
 
@@ -387,8 +383,8 @@ class SafeRepr(object):
             if preferred_encoding not in try_encodings:
                 try_encodings.append(preferred_encoding)
 
-        if 'utf-8' not in try_encodings:
-            try_encodings.append('utf-8')
+        if "utf-8" not in try_encodings:
+            try_encodings.append("utf-8")
 
         for encoding in try_encodings:
             try:

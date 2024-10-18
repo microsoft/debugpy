@@ -1,5 +1,6 @@
 import os
 import sys
+from _pydevd_bundle.pydevd_constants import PYDEVD_USE_SYS_MONITORING
 port = int(sys.argv[1])
 root_dirname = os.path.dirname(os.path.dirname(__file__))
 
@@ -32,7 +33,10 @@ with tempfile.TemporaryDirectory('w') as tempdir:
     assert pydevd.get_global_debugger() is not None
     # Set as a part of debugpy-dap
     assert pydevd.get_global_debugger().multi_threads_single_notification
-    assert sys.gettrace() is not None
+    if PYDEVD_USE_SYS_MONITORING:
+        assert sys.monitoring.get_tool(sys.monitoring.DEBUGGER_ID) == 'pydevd'
+    else:
+        assert sys.gettrace() is not None
 
     assert 'my_custom_module' in sys.modules
 

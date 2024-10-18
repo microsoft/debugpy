@@ -9,11 +9,10 @@ from io import StringIO
 import traceback
 
 
-#=======================================================================================================================
+# =======================================================================================================================
 # PydevPlugin
-#=======================================================================================================================
+# =======================================================================================================================
 class PydevPlugin(Plugin):
-
     def __init__(self, configuration):
         self.configuration = configuration
         Plugin.__init__(self)
@@ -28,13 +27,13 @@ class PydevPlugin(Plugin):
         self.coverage.stop()
         self.coverage.save()
 
-        pydev_runfiles_xml_rpc.notifyTestRunFinished('Finished in: %.2f secs.' % (time.time() - self.start_time,))
+        pydev_runfiles_xml_rpc.notifyTestRunFinished("Finished in: %.2f secs." % (time.time() - self.start_time,))
 
-    #===================================================================================================================
+    # ===================================================================================================================
     # Methods below are not called with multiprocess (so, we monkey-patch MultiProcessTestRunner.consolidate
     # so that they're called, but unfortunately we loose some info -- i.e.: the time for each test in this
     # process).
-    #===================================================================================================================
+    # ===================================================================================================================
 
     class Sentinel(object):
         pass
@@ -46,8 +45,8 @@ class PydevPlugin(Plugin):
         user_address = self.Sentinel
         user_class_address = self.Sentinel
         try:
-            if 'address' in user_test_instance.__dict__:
-                user_address = user_test_instance.__dict__.pop('address')
+            if "address" in user_test_instance.__dict__:
+                user_address = user_test_instance.__dict__.pop("address")
         except:
             # Just ignore anything here.
             pass
@@ -62,14 +61,14 @@ class PydevPlugin(Plugin):
             yield
         finally:
             if user_address is not self.Sentinel:
-                user_test_instance.__dict__['address'] = user_address
+                user_test_instance.__dict__["address"] = user_address
 
             if user_class_address is not self.Sentinel:
                 user_test_instance.__class__.address = user_class_address
 
     def _get_test_address(self, test):
         try:
-            if hasattr(test, 'address'):
+            if hasattr(test, "address"):
                 with self._without_user_address(test):
                     address = test.address()
 
@@ -86,30 +85,30 @@ class PydevPlugin(Plugin):
                 except TypeError:
                     # It may be an error at setup, in which case it's not really a test, but a Context object.
                     f = test.context.__file__
-                    if f.endswith('.pyc'):
+                    if f.endswith(".pyc"):
                         f = f[:-1]
-                    elif f.endswith('$py.class'):
-                        f = f[:-len('$py.class')] + '.py'
-                    address = f, '?'
+                    elif f.endswith("$py.class"):
+                        f = f[: -len("$py.class")] + ".py"
+                    address = f, "?"
         except:
             sys.stderr.write("PyDev: Internal pydev error getting test address. Please report at the pydev bug tracker\n")
             traceback.print_exc()
             sys.stderr.write("\n\n\n")
-            address = '?', '?'
+            address = "?", "?"
         return address
 
-    def report_cond(self, cond, test, captured_output, error=''):
-        '''
+    def report_cond(self, cond, test, captured_output, error=""):
+        """
         @param cond: fail, error, ok
-        '''
+        """
 
         address = self._get_test_address(test)
 
         error_contents = self.get_io_from_error(error)
         try:
-            time_str = '%.2f' % (time.time() - test._pydev_start_time)
+            time_str = "%.2f" % (time.time() - test._pydev_start_time)
         except:
-            time_str = '?'
+            time_str = "?"
 
         pydev_runfiles_xml_rpc.notifyTest(cond, captured_output, error_contents, address[0], address[1], time_str)
 
@@ -132,13 +131,13 @@ class PydevPlugin(Plugin):
         return err
 
     def get_captured_output(self, test):
-        if hasattr(test, 'capturedOutput') and test.capturedOutput:
+        if hasattr(test, "capturedOutput") and test.capturedOutput:
             return test.capturedOutput
-        return ''
+        return ""
 
     def addError(self, test, err):
         self.report_cond(
-            'error',
+            "error",
             test,
             self.get_captured_output(test),
             err,
@@ -146,7 +145,7 @@ class PydevPlugin(Plugin):
 
     def addFailure(self, test, err):
         self.report_cond(
-            'fail',
+            "fail",
             test,
             self.get_captured_output(test),
             err,
@@ -154,10 +153,10 @@ class PydevPlugin(Plugin):
 
     def addSuccess(self, test):
         self.report_cond(
-            'ok',
+            "ok",
             test,
             self.get_captured_output(test),
-            '',
+            "",
         )
 
 
@@ -173,33 +172,33 @@ def start_pydev_nose_plugin_singleton(configuration):
 original = MultiProcessTestRunner.consolidate
 
 
-#=======================================================================================================================
+# =======================================================================================================================
 # new_consolidate
-#=======================================================================================================================
+# =======================================================================================================================
 def new_consolidate(self, result, batch_result):
-    '''
+    """
     Used so that it can work with the multiprocess plugin.
     Monkeypatched because nose seems a bit unsupported at this time (ideally
     the plugin would have this support by default).
-    '''
+    """
     ret = original(self, result, batch_result)
 
     parent_frame = sys._getframe().f_back
     # addr is something as D:\pytesting1\src\mod1\hello.py:TestCase.testMet4
     # so, convert it to what report_cond expects
-    addr = parent_frame.f_locals['addr']
-    i = addr.rindex(':')
-    addr = [addr[:i], addr[i + 1:]]
+    addr = parent_frame.f_locals["addr"]
+    i = addr.rindex(":")
+    addr = [addr[:i], addr[i + 1 :]]
 
     output, testsRun, failures, errors, errorClasses = batch_result
     if failures or errors:
         for failure in failures:
-            PYDEV_NOSE_PLUGIN_SINGLETON.report_cond('fail', addr, output, failure)
+            PYDEV_NOSE_PLUGIN_SINGLETON.report_cond("fail", addr, output, failure)
 
         for error in errors:
-            PYDEV_NOSE_PLUGIN_SINGLETON.report_cond('error', addr, output, error)
+            PYDEV_NOSE_PLUGIN_SINGLETON.report_cond("error", addr, output, error)
     else:
-        PYDEV_NOSE_PLUGIN_SINGLETON.report_cond('ok', addr, output)
+        PYDEV_NOSE_PLUGIN_SINGLETON.report_cond("ok", addr, output)
 
     return ret
 

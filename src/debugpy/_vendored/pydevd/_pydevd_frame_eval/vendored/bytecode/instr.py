@@ -123,15 +123,10 @@ class FreeVar(_Variable):
 
 def _check_arg_int(name, arg):
     if not isinstance(arg, int):
-        raise TypeError(
-            "operation %s argument must be an int, "
-            "got %s" % (name, type(arg).__name__)
-        )
+        raise TypeError("operation %s argument must be an int, " "got %s" % (name, type(arg).__name__))
 
     if not (0 <= arg <= 2147483647):
-        raise ValueError(
-            "operation %s argument must be in " "the range 0..2,147,483,647" % name
-        )
+        raise ValueError("operation %s argument must be in " "the range 0..2,147,483,647" % name)
 
 
 if sys.version_info < (3, 8):
@@ -174,8 +169,7 @@ class Instr:
     def _check_arg(self, name, opcode, arg):
         if name == "EXTENDED_ARG":
             raise ValueError(
-                "only concrete instruction can contain EXTENDED_ARG, "
-                "highlevel instruction can represent arbitrary argument without it"
+                "only concrete instruction can contain EXTENDED_ARG, " "highlevel instruction can represent arbitrary argument without it"
             )
 
         if opcode >= _opcode.HAVE_ARGUMENT:
@@ -187,41 +181,25 @@ class Instr:
 
         if self._has_jump(opcode):
             if not isinstance(arg, (Label, _bytecode.BasicBlock)):
-                raise TypeError(
-                    "operation %s argument type must be "
-                    "Label or BasicBlock, got %s" % (name, type(arg).__name__)
-                )
+                raise TypeError("operation %s argument type must be " "Label or BasicBlock, got %s" % (name, type(arg).__name__))
 
         elif opcode in _opcode.hasfree:
             if not isinstance(arg, (CellVar, FreeVar)):
-                raise TypeError(
-                    "operation %s argument must be CellVar "
-                    "or FreeVar, got %s" % (name, type(arg).__name__)
-                )
+                raise TypeError("operation %s argument must be CellVar " "or FreeVar, got %s" % (name, type(arg).__name__))
 
         elif opcode in _opcode.haslocal or opcode in _opcode.hasname:
             if not isinstance(arg, str):
-                raise TypeError(
-                    "operation %s argument must be a str, "
-                    "got %s" % (name, type(arg).__name__)
-                )
+                raise TypeError("operation %s argument must be a str, " "got %s" % (name, type(arg).__name__))
 
         elif opcode in _opcode.hasconst:
             if isinstance(arg, Label):
-                raise ValueError(
-                    "label argument cannot be used " "in %s operation" % name
-                )
+                raise ValueError("label argument cannot be used " "in %s operation" % name)
             if isinstance(arg, _bytecode.BasicBlock):
-                raise ValueError(
-                    "block argument cannot be used " "in %s operation" % name
-                )
+                raise ValueError("block argument cannot be used " "in %s operation" % name)
 
         elif opcode in _opcode.hascompare:
             if not isinstance(arg, Compare):
-                raise TypeError(
-                    "operation %s argument type must be "
-                    "Compare, got %s" % (name, type(arg).__name__)
-                )
+                raise TypeError("operation %s argument type must be " "Compare, got %s" % (name, type(arg).__name__))
 
         elif opcode >= _opcode.HAVE_ARGUMENT:
             _check_arg_int(name, arg)
@@ -340,9 +318,7 @@ class Instr:
             return -1, 2
         if _opname == "ROT_N":
             return (-self._arg, self._arg)
-        return {"ROT_TWO": (-2, 2), "ROT_THREE": (-3, 3), "ROT_FOUR": (-4, 4)}.get(
-            _opname, (_effect, 0)
-        )
+        return {"ROT_TWO": (-2, 2), "ROT_THREE": (-3, 3), "ROT_FOUR": (-4, 4)}.get(_opname, (_effect, 0))
 
     def copy(self):
         return self.__class__(self._name, self._arg, lineno=self._lineno, offset=self.offset)

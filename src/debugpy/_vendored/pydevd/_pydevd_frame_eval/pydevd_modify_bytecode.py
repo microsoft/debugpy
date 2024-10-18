@@ -14,43 +14,42 @@ DEBUG = False
 
 
 class DebugHelper(object):
-
     def __init__(self):
-        self._debug_dir = os.path.join(os.path.dirname(__file__), 'debug_info')
+        self._debug_dir = os.path.join(os.path.dirname(__file__), "debug_info")
         try:
             os.makedirs(self._debug_dir)
         except:
             pass
         self._next = partial(next, itertools.count(0))
 
-    def _get_filename(self, op_number=None, prefix=''):
+    def _get_filename(self, op_number=None, prefix=""):
         if op_number is None:
             op_number = self._next()
-            name = '%03d_before.txt' % op_number
+            name = "%03d_before.txt" % op_number
         else:
-            name = '%03d_change.txt' % op_number
+            name = "%03d_change.txt" % op_number
 
         filename = os.path.join(self._debug_dir, prefix + name)
         return filename, op_number
 
-    def write_bytecode(self, b, op_number=None, prefix=''):
+    def write_bytecode(self, b, op_number=None, prefix=""):
         filename, op_number = self._get_filename(op_number, prefix)
-        with open(filename, 'w') as stream:
+        with open(filename, "w") as stream:
             bytecode.dump_bytecode(b, stream=stream, lineno=True)
         return op_number
 
-    def write_dis(self, code_to_modify, op_number=None, prefix=''):
+    def write_dis(self, code_to_modify, op_number=None, prefix=""):
         filename, op_number = self._get_filename(op_number, prefix)
-        with open(filename, 'w') as stream:
-            stream.write('-------- ')
-            stream.write('-------- ')
-            stream.write('id(code_to_modify): %s' % id(code_to_modify))
-            stream.write('\n\n')
+        with open(filename, "w") as stream:
+            stream.write("-------- ")
+            stream.write("-------- ")
+            stream.write("id(code_to_modify): %s" % id(code_to_modify))
+            stream.write("\n\n")
             dis.dis(code_to_modify, file=stream)
         return op_number
 
 
-_CodeLineInfo = namedtuple('_CodeLineInfo', 'line_to_offset, first_line, last_line')
+_CodeLineInfo = namedtuple("_CodeLineInfo", "line_to_offset, first_line, last_line")
 
 
 # Note: this method has a version in cython too (that one is usually used, this is just for tests).
@@ -72,19 +71,15 @@ if DEBUG:
     debug_helper = DebugHelper()
 
 
-def get_instructions_to_add(
-        stop_at_line,
-        _pydev_stop_at_break=_pydev_stop_at_break,
-        _pydev_needs_stop_at_break=_pydev_needs_stop_at_break
-    ):
-    '''
+def get_instructions_to_add(stop_at_line, _pydev_stop_at_break=_pydev_stop_at_break, _pydev_needs_stop_at_break=_pydev_needs_stop_at_break):
+    """
     This is the bytecode for something as:
 
         if _pydev_needs_stop_at_break():
             _pydev_stop_at_break()
 
     but with some special handling for lines.
-    '''
+    """
     # Good reference to how things work regarding line numbers and jumps:
     # https://github.com/python/cpython/blob/3.6/Objects/lnotab_notes.txt
 
@@ -100,7 +95,6 @@ def get_instructions_to_add(
         Instr("LOAD_CONST", stop_at_line, lineno=stop_at_line),
         Instr("CALL_FUNCTION", 1, lineno=stop_at_line),
         Instr("POP_JUMP_IF_FALSE", label, lineno=stop_at_line),
-
         #     -- _pydev_stop_at_break()
         #
         # Note that this has line numbers -1 so that when the NOP just below
@@ -109,7 +103,6 @@ def get_instructions_to_add(
         Instr("LOAD_CONST", stop_at_line, lineno=spurious_line),
         Instr("CALL_FUNCTION", 1, lineno=spurious_line),
         Instr("POP_TOP", lineno=spurious_line),
-
         # Reason for the NOP: Python will give us a 'line' trace event whenever we forward jump to
         # the first instruction of a line, so, in the case where we haven't added a programmatic
         # breakpoint (either because we didn't hit a breakpoint anymore or because it was already
@@ -122,7 +115,6 @@ def get_instructions_to_add(
 
 
 class _Node(object):
-
     def __init__(self, data):
         self.prev = None
         self.next = None
@@ -158,11 +150,11 @@ class _Node(object):
 
 
 class _HelperBytecodeList(object):
-    '''
+    """
     A helper double-linked list to make the manipulation a bit easier (so that we don't need
     to keep track of indices that change) and performant (because adding multiple items to
     the middle of a regular list isn't ideal).
-    '''
+    """
 
     def __init__(self, lst=None):
         self._head = None
@@ -206,16 +198,24 @@ class _HelperBytecodeList(object):
 
 
 _PREDICT_TABLE = {
-    'LIST_APPEND': ('JUMP_ABSOLUTE',),
-    'SET_ADD': ('JUMP_ABSOLUTE',),
-    'GET_ANEXT': ('LOAD_CONST',),
-    'GET_AWAITABLE': ('LOAD_CONST',),
-    'DICT_MERGE': ('CALL_FUNCTION_EX',),
-    'MAP_ADD': ('JUMP_ABSOLUTE',),
-    'COMPARE_OP': ('POP_JUMP_IF_FALSE', 'POP_JUMP_IF_TRUE',),
-    'IS_OP': ('POP_JUMP_IF_FALSE', 'POP_JUMP_IF_TRUE',),
-    'CONTAINS_OP': ('POP_JUMP_IF_FALSE', 'POP_JUMP_IF_TRUE',),
-
+    "LIST_APPEND": ("JUMP_ABSOLUTE",),
+    "SET_ADD": ("JUMP_ABSOLUTE",),
+    "GET_ANEXT": ("LOAD_CONST",),
+    "GET_AWAITABLE": ("LOAD_CONST",),
+    "DICT_MERGE": ("CALL_FUNCTION_EX",),
+    "MAP_ADD": ("JUMP_ABSOLUTE",),
+    "COMPARE_OP": (
+        "POP_JUMP_IF_FALSE",
+        "POP_JUMP_IF_TRUE",
+    ),
+    "IS_OP": (
+        "POP_JUMP_IF_FALSE",
+        "POP_JUMP_IF_TRUE",
+    ),
+    "CONTAINS_OP": (
+        "POP_JUMP_IF_FALSE",
+        "POP_JUMP_IF_TRUE",
+    ),
     # Note: there are some others with PREDICT on ceval, but they have more logic
     # and it needs more experimentation to know how it behaves in the static generated
     # code (and it's only an issue for us if there's actually a line change between
@@ -236,12 +236,12 @@ FIX_PREDICT = sys.version_info[:2] >= (3, 10)
 
 
 def insert_pydevd_breaks(
-        code_to_modify,
-        breakpoint_lines,
-        code_line_info=None,
-        _pydev_stop_at_break=_pydev_stop_at_break,
-        _pydev_needs_stop_at_break=_pydev_needs_stop_at_break,
-    ):
+    code_to_modify,
+    breakpoint_lines,
+    code_line_info=None,
+    _pydev_stop_at_break=_pydev_stop_at_break,
+    _pydev_needs_stop_at_break=_pydev_needs_stop_at_break,
+):
     """
     Inserts pydevd programmatic breaks into the code (at the given lines).
 
@@ -268,14 +268,14 @@ def insert_pydevd_breaks(
     for line in breakpoint_lines:
         if line <= 0:
             # The first line is line 1, so, a break at line 0 is not valid.
-            pydev_log.info('Trying to add breakpoint in invalid line: %s', line)
+            pydev_log.info("Trying to add breakpoint in invalid line: %s", line)
             return False, code_to_modify
 
     try:
         b = bytecode.Bytecode.from_code(code_to_modify)
 
         if DEBUG:
-            op_number_bytecode = debug_helper.write_bytecode(b, prefix='bytecode.')
+            op_number_bytecode = debug_helper.write_bytecode(b, prefix="bytecode.")
 
         helper_list = _HelperBytecodeList(b)
 
@@ -286,8 +286,8 @@ def insert_pydevd_breaks(
         last_lineno = None
         while curr_node is not None:
             instruction = curr_node.data
-            instruction_lineno = getattr(instruction, 'lineno', None)
-            curr_name = getattr(instruction, 'name', None)
+            instruction_lineno = getattr(instruction, "lineno", None)
+            curr_name = getattr(instruction, "name", None)
 
             if FIX_PREDICT:
                 predict_targets = _PREDICT_TABLE.get(curr_name)
@@ -297,9 +297,9 @@ def insert_pydevd_breaks(
                     # that it does things the way that ceval actually interprets it.
                     # See: https://mail.python.org/archives/list/python-dev@python.org/thread/CP2PTFCMTK57KM3M3DLJNWGO66R5RVPB/
                     next_instruction = curr_node.next.data
-                    next_name = getattr(next_instruction, 'name', None)
+                    next_name = getattr(next_instruction, "name", None)
                     if next_name in predict_targets:
-                        next_instruction_lineno = getattr(next_instruction, 'lineno', None)
+                        next_instruction_lineno = getattr(next_instruction, "lineno", None)
                         if next_instruction_lineno:
                             next_instruction.lineno = None
 
@@ -323,9 +323,7 @@ def insert_pydevd_breaks(
 
                 if instruction_lineno in modified_breakpoint_lines:
                     added_breaks_in_lines.add(instruction_lineno)
-                    if curr_node.prev is not None and curr_node.prev.data.__class__ == Label \
-                            and curr_name == 'POP_TOP':
-
+                    if curr_node.prev is not None and curr_node.prev.data.__class__ == Label and curr_name == "POP_TOP":
                         # If we have a SETUP_FINALLY where the target is a POP_TOP, we can't change
                         # the target to be the breakpoint instruction (this can crash the interpreter).
 
@@ -333,7 +331,7 @@ def insert_pydevd_breaks(
                             instruction_lineno,
                             _pydev_stop_at_break=_pydev_stop_at_break,
                             _pydev_needs_stop_at_break=_pydev_needs_stop_at_break,
-                            ):
+                        ):
                             curr_node = curr_node.append(new_instruction)
 
                     else:
@@ -341,7 +339,7 @@ def insert_pydevd_breaks(
                             instruction_lineno,
                             _pydev_stop_at_break=_pydev_stop_at_break,
                             _pydev_needs_stop_at_break=_pydev_needs_stop_at_break,
-                            ):
+                        ):
                             curr_node.prepend(new_instruction)
 
             curr_node = curr_node.next
@@ -349,12 +347,12 @@ def insert_pydevd_breaks(
         b[:] = helper_list
 
         if DEBUG:
-            debug_helper.write_bytecode(b, op_number_bytecode, prefix='bytecode.')
+            debug_helper.write_bytecode(b, op_number_bytecode, prefix="bytecode.")
 
         new_code = b.to_code()
 
     except:
-        pydev_log.exception('Error inserting pydevd breaks.')
+        pydev_log.exception("Error inserting pydevd breaks.")
         return False, code_to_modify
 
     if DEBUG:
@@ -362,4 +360,3 @@ def insert_pydevd_breaks(
         debug_helper.write_dis(new_code, op_number)
 
     return True, new_code
-

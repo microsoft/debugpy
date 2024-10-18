@@ -1,14 +1,11 @@
 import sys
-from tests_python.debug_constants import TODO_PY311
+from _pydevd_bundle.pydevd_constants import IS_PY312_OR_GREATER, \
+    IS_PY311_OR_GREATER
 try:
     from _pydevd_bundle import pydevd_bytecode_utils
 except ImportError:
     pass
 import pytest
-
-pytestmark = pytest.mark.skipif(
-    sys.version_info[0] < 3 or
-    TODO_PY311, reason='Only available for Python 3. / Requires bytecode support in Python 3.11')
 
 
 @pytest.fixture(autouse=True, scope='function')
@@ -51,6 +48,9 @@ def collect_smart_step_into_variants(*args, **kwargs):
     # In a failure, rerun with DEBUG!
     debug = pydevd_bytecode_utils.DEBUG
     pydevd_bytecode_utils.DEBUG = True
+
+    # pydevd_bytecode_utils.GO_INTO_INNER_CODES = False
+    # pydevd_bytecode_utils.STRICT_MODE = False
     try:
         return pydevd_bytecode_utils.calculate_smart_step_into_variants(*args, **kwargs)
     finally:
@@ -73,6 +73,40 @@ def check_names_from_func_str(func_str, expected):
     check_name_and_line(found, expected)
 
 
+def test_smart_step_into_bytecode_info_simple():
+    from _pydevd_bundle.pydevd_bytecode_utils import Variant
+
+    def function():
+
+        def some(arg):
+            pass
+
+        def call(arg):
+            pass
+
+        yield sys._getframe()
+        call(some(1))
+
+    generator = iter(function())
+    frame = next(generator)
+
+    found = collect_smart_step_into_variants(
+        frame, 0, 99999, base=function.__code__.co_firstlineno)
+
+    if IS_PY311_OR_GREATER:
+        check(found, [
+            Variant(name='sys._getframe()', is_visited=True, line=8, offset=20, call_order=1),
+            Variant(name='some(1)', is_visited=False, line=9, offset=34, call_order=1),
+            Variant(name='call(some(1))', is_visited=False, line=9, offset=36, call_order=1),
+        ])
+    else:
+        check(found, [
+            Variant(name=('_getframe', 'sys'), is_visited=True, line=8, offset=20, call_order=1),
+            Variant(name='some', is_visited=False, line=9, offset=34, call_order=1),
+            Variant(name='call', is_visited=False, line=9, offset=36, call_order=1),
+        ])
+
+
 def test_smart_step_into_bytecode_info():
     from _pydevd_bundle.pydevd_bytecode_utils import Variant
 
@@ -93,13 +127,22 @@ def test_smart_step_into_bytecode_info():
     found = collect_smart_step_into_variants(
         frame, 0, 99999, base=function.__code__.co_firstlineno)
 
-    check(found, [
-        Variant(name=('_getframe', 'sys'), is_visited=True, line=8, offset=20, call_order=1),
-        Variant(name='some', is_visited=False, line=9, offset=34, call_order=1),
-        Variant(name='call', is_visited=False, line=9, offset=36, call_order=1),
-        Variant(name='some', is_visited=False, line=9, offset=38, call_order=2),
-        Variant(name='call', is_visited=False, line=9, offset=40, call_order=2),
-    ])
+    if IS_PY311_OR_GREATER:
+        check(found, [
+            Variant(name='sys._getframe()', is_visited=True, line=8, offset=20, call_order=1),
+            Variant(name='some()', is_visited=False, line=9, offset=34, call_order=1),
+            Variant(name='call(some())', is_visited=False, line=9, offset=36, call_order=1),
+            Variant(name='some(call(some()))', is_visited=False, line=9, offset=38, call_order=1),
+            Variant(name='call(some(call(some())))', is_visited=False, line=9, offset=40, call_order=1),
+        ])
+    else:
+        check(found, [
+            Variant(name=('_getframe', 'sys'), is_visited=True, line=8, offset=20, call_order=1),
+            Variant(name='some', is_visited=False, line=9, offset=34, call_order=1),
+            Variant(name='call', is_visited=False, line=9, offset=36, call_order=1),
+            Variant(name='some', is_visited=False, line=9, offset=38, call_order=2),
+            Variant(name='call', is_visited=False, line=9, offset=40, call_order=2),
+        ])
 
 
 def check_name_and_line(found, expected):
@@ -130,7 +173,10 @@ def test_smart_step_into_bytecode_info_002():
     found = collect_smart_step_into_variants(
         frame, 0, 99999, base=function.__code__.co_firstlineno)
 
-    check_name_and_line(found, [('_getframe', 1), ('bar', 2), ('Something', 3), ('call', 5)])
+    if IS_PY311_OR_GREATER:
+        check_name_and_line(found, [('sys._getframe()', 1), ('foo.bar(\n            Something(param1, param2=xxx.yyy),\n        )', 2), ('Something(param1, param2=xxx.yyy)', 3), ('call()', 5)])
+    else:
+        check_name_and_line(found, [('_getframe', 1), ('bar', 2), ('Something', 3), ('call', 5)])
 
 
 def test_smart_step_into_bytecode_info_003():
@@ -148,9 +194,13 @@ def test_smart_step_into_bytecode_info_003():
     found = collect_smart_step_into_variants(
         frame, 0, 99999, base=function.__code__.co_firstlineno)
 
-    check_name_and_line(found, [('_getframe', 1), ('bar', 2), ('Something', 3), ('call', 5)])
+    if IS_PY311_OR_GREATER:
+        check_name_and_line(found, [('sys._getframe()', 1), ('foo.bar(\n            Something(param1, param2=xxx.yyy), {}\n        )', 2), ('Something(param1, param2=xxx.yyy)', 3), ('call()', 5)])
+    else:
+        check_name_and_line(found, [('_getframe', 1), ('bar', 2), ('Something', 3), ('call', 5)])
 
 
+@pytest.mark.skipif(IS_PY311_OR_GREATER, reason='Impl changed in 3.11 onwards')
 def test_smart_step_into_bytecode_info_004():
 
     def function():
@@ -169,6 +219,7 @@ def test_smart_step_into_bytecode_info_004():
     check_name_and_line(found, [('_getframe', 1), ('bar', 2), ('Something', 3), ('call', 5)])
 
 
+@pytest.mark.skipif(IS_PY311_OR_GREATER, reason='Impl changed in 3.11 onwards')
 def test_smart_step_into_bytecode_info_005():
 
     def function():
@@ -188,6 +239,7 @@ def test_smart_step_into_bytecode_info_005():
         ('_getframe', 1), ('bar', 2), ('Something', 3), ('call', 5)])
 
 
+@pytest.mark.skipif(IS_PY311_OR_GREATER, reason='Impl changed in 3.11 onwards')
 def test_smart_step_into_bytecode_info_006():
 
     def function():
@@ -214,6 +266,7 @@ def test_smart_step_into_bytecode_info_006():
         ('_getframe', 1), ('bar', 2), ('Something', 3), ('call', 8), ('call2', 12)])
 
 
+@pytest.mark.skipif(IS_PY311_OR_GREATER, reason='Impl changed in 3.11 onwards')
 def test_smart_step_into_bytecode_info_007():
 
     def function():
@@ -229,6 +282,7 @@ def test_smart_step_into_bytecode_info_007():
     check_name_and_line(found, [('_getframe', 1), ('__getitem__', 2)])
 
 
+@pytest.mark.skipif(IS_PY311_OR_GREATER, reason='Impl changed in 3.11 onwards')
 def test_smart_step_into_bytecode_info_008():
 
     def function():
@@ -245,6 +299,7 @@ def test_smart_step_into_bytecode_info_008():
     check_name_and_line(found, [('_getframe', 1), ('call', 2)])
 
 
+@pytest.mark.skipif(IS_PY311_OR_GREATER, reason='Impl changed in 3.11 onwards')
 def test_smart_step_into_bytecode_info_009():
 
     def function():
@@ -260,6 +315,7 @@ def test_smart_step_into_bytecode_info_009():
     check_name_and_line(found, [('_getframe', 1), ('__getitem__', 2), ('__getitem__().__call__', 2)])
 
 
+@pytest.mark.skipif(IS_PY311_OR_GREATER, reason='Impl changed in 3.11 onwards')
 def test_smart_step_into_bytecode_info_011():
 
     def function():
@@ -275,6 +331,7 @@ def test_smart_step_into_bytecode_info_011():
     check_name_and_line(found, [('_getframe', 1), ('__getitem__', 2), ('__getitem__().__call__', 2)])
 
 
+@pytest.mark.skipif(IS_PY311_OR_GREATER, reason='Impl changed in 3.11 onwards')
 def test_smart_step_into_bytecode_info_012():
 
     def function():
@@ -290,6 +347,7 @@ def test_smart_step_into_bytecode_info_012():
     check_name_and_line(found, [('_getframe', 1), ('<lambda>', 2)])
 
 
+@pytest.mark.skipif(IS_PY311_OR_GREATER, reason='Impl changed in 3.11 onwards')
 def test_smart_step_into_bytecode_info_013():
 
     def function():
@@ -305,6 +363,7 @@ def test_smart_step_into_bytecode_info_013():
     check_name_and_line(found, [('_getframe', 1), ('__getitem__().__call__', 2), ('__getitem__', 2)])
 
 
+@pytest.mark.skipif(IS_PY311_OR_GREATER, reason='Impl changed in 3.11 onwards')
 def test_smart_step_into_bytecode_info_014():
 
     def function():
@@ -325,6 +384,7 @@ def test_smart_step_into_bytecode_info_014():
     check_name_and_line(found, [('_getframe', 1), ('RuntimeError', 3), ('call2', 5), ('call3', 7)])
 
 
+@pytest.mark.skipif(IS_PY311_OR_GREATER, reason='Impl changed in 3.11 onwards')
 def test_smart_step_into_bytecode_info_015():
 
     def function():
@@ -341,6 +401,7 @@ def test_smart_step_into_bytecode_info_015():
     check_name_and_line(found, [('_getframe', 1), ('call', 2), ('call2', 3)])
 
 
+@pytest.mark.skipif(IS_PY311_OR_GREATER, reason='Impl changed in 3.11 onwards')
 def test_smart_step_into_bytecode_info_016():
 
     def function():
@@ -362,6 +423,7 @@ def test_smart_step_into_bytecode_info_016():
     check_name_and_line(found, [('_getframe', 1), ('call2', 2)])
 
 
+@pytest.mark.skipif(IS_PY311_OR_GREATER, reason='Impl changed in 3.11 onwards')
 def test_smart_step_into_bytecode_info_017():
 
     def function():
@@ -377,11 +439,17 @@ def test_smart_step_into_bytecode_info_017():
     found = collect_smart_step_into_variants(
         frame, 0, 99999, base=function.__code__.co_firstlineno)
 
-    check_name_and_line(found,
-        [('_getframe', 1), ('call', 2), ('__eq__ (in <listcomp>)', 4), ('call2 (in <listcomp>)', 4)]
-    )
+    if IS_PY312_OR_GREATER:
+        check_name_and_line(found,
+            [('_getframe', 1), ('call', 2), ('__eq__', 4), ('call2', 4)]
+        )
+    else:
+        check_name_and_line(found,
+            [('_getframe', 1), ('call', 2), ('__eq__ (in <listcomp>)', 4), ('call2 (in <listcomp>)', 4)]
+        )
 
 
+@pytest.mark.skipif(IS_PY311_OR_GREATER, reason='Impl changed in 3.11 onwards')
 def test_smart_step_into_bytecode_info_018():
 
     def function():
@@ -403,6 +471,7 @@ def test_smart_step_into_bytecode_info_018():
     check_name_and_line(found, [('_getframe', 1), ('Foo', 8)])
 
 
+@pytest.mark.skipif(IS_PY311_OR_GREATER, reason='Impl changed in 3.11 onwards')
 def test_smart_step_into_bytecode_info_019():
 
     def function():
@@ -424,6 +493,7 @@ def test_smart_step_into_bytecode_info_019():
     check_name_and_line(found, [('_getframe', 1), ('Foo', 8)])
 
 
+@pytest.mark.skipif(IS_PY311_OR_GREATER, reason='Impl changed in 3.11 onwards')
 def test_smart_step_into_bytecode_info_020():
 
     def function():
@@ -450,6 +520,7 @@ def test_smart_step_into_bytecode_info_020():
         ('_getframe', 1), ('call', 2), ('__ne__', 3), ('a', 4), ('__ne__', 6), ('b', 7), ('RuntimeError', 12)])
 
 
+@pytest.mark.skipif(IS_PY311_OR_GREATER, reason='Impl changed in 3.11 onwards')
 def test_smart_step_into_bytecode_info_021():
 
     def function():
@@ -468,6 +539,7 @@ def test_smart_step_into_bytecode_info_021():
     check_name_and_line(found, [('_getframe', 1), ('a', 5)])
 
 
+@pytest.mark.skipif(IS_PY311_OR_GREATER, reason='Impl changed in 3.11 onwards')
 def test_smart_step_into_bytecode_info_022():
 
     def function():
@@ -493,6 +565,40 @@ def test_smart_step_into_bytecode_info_022():
         ('_getframe', 1), ('a', 2), ('tuple', 6), ('c', 7), ('__eq__ (in <genexpr>)', 8), ('d (in <genexpr>)', 8), ('b', 11)])
 
 
+def test_smart_step_into_bytecode_info_023a():
+
+    def function():
+        yield sys._getframe()
+        tuple(
+            x for x in
+             c()
+             if x == d()
+        )
+
+    generator = iter(function())
+    frame = next(generator)
+
+    found = collect_smart_step_into_variants(
+        frame, 0, 99999, base=function.__code__.co_firstlineno)
+
+    if IS_PY311_OR_GREATER:
+        check_name_and_line(found, [
+            ('sys._getframe()', 1),
+            ('tuple(\n            x for x in\n             c()\n             if x == d()\n        )', 2),
+            ('c()', 4),
+            ('d() (in (\n            x for x in\n             c()\n             if x == d()\n        ))', 5)
+        ])
+    else:
+        check_name_and_line(found, [
+            ('_getframe', 1),
+            ('tuple', 2),
+            ('c', 4),
+            ('__eq__ (in <genexpr>)', 5),
+            ('d (in <genexpr>)', 5)]
+        )
+
+
+@pytest.mark.skipif(IS_PY311_OR_GREATER, reason='Impl changed in 3.11 onwards')
 def test_smart_step_into_bytecode_info_023():
 
     def function():
@@ -515,9 +621,18 @@ def test_smart_step_into_bytecode_info_023():
         frame, 0, 99999, base=function.__code__.co_firstlineno)
 
     check_name_and_line(found, [
-        ('_getframe', 1), ('tuple', 2), ('c', 4), ('__eq__ (in <genexpr>)', 5), ('d (in <genexpr>)', 5), ('tuple', 7), ('c', 9), ('__eq__ (in <genexpr>)', 10), ('d (in <genexpr>)', 10)])
+        ('_getframe', 1),
+        ('tuple', 2),
+        ('c', 4),
+        ('__eq__ (in <genexpr>)', 5),
+        ('d (in <genexpr>)', 5),
+        ('tuple', 7),
+        ('c', 9),
+        ('__eq__ (in <genexpr>)', 10),
+        ('d (in <genexpr>)', 10)])
 
 
+@pytest.mark.skipif(IS_PY311_OR_GREATER, reason='Impl changed in 3.11 onwards')
 def test_smart_step_into_bytecode_info_024():
 
     func = '''def function():
@@ -590,6 +705,7 @@ def test_smart_step_into_bytecode_info_024():
     )
 
 
+@pytest.mark.skipif(IS_PY311_OR_GREATER, reason='Impl changed in 3.11 onwards')
 def test_smart_step_into_bytecode_info_025():
 
     func = '''def function():
@@ -624,6 +740,7 @@ def test_smart_step_into_bytecode_info_025():
 
 
 @pytest.mark.skipif(sys.version_info[0:2] < (3, 8), reason='Walrus operator only available for Python 3.8 onwards.')
+@pytest.mark.skipif(IS_PY311_OR_GREATER, reason='Impl changed in 3.11 onwards')
 def test_smart_step_into_bytecode_info_026():
 
     func = '''def function():
@@ -643,6 +760,7 @@ def test_smart_step_into_bytecode_info_026():
     check_name_and_line(found, [('_getframe', 1), ('call', 2)])
 
 
+@pytest.mark.skipif(IS_PY311_OR_GREATER, reason='Impl changed in 3.11 onwards')
 def test_smart_step_into_bytecode_info_027():
 
     def function():
@@ -664,6 +782,7 @@ def test_smart_step_into_bytecode_info_027():
     check_name_and_line(found, [('_getframe', 1), ('__getitem__', 8), ('__getitem__().__call__', 8)])
 
 
+@pytest.mark.skipif(IS_PY311_OR_GREATER, reason='Impl changed in 3.11 onwards')
 def test_smart_step_into_bytecode_info_028():
 
     def function():
@@ -685,6 +804,7 @@ def test_smart_step_into_bytecode_info_028():
     check_name_and_line(found, [('_getframe', 1), ('__getitem__', 7), ('__getitem__', 8), ('__getitem__().__call__', 8)])
 
 
+@pytest.mark.skipif(IS_PY311_OR_GREATER, reason='Impl changed in 3.11 onwards')
 def test_smart_step_into_bytecode_info_029():
 
     def function():
@@ -701,6 +821,7 @@ def test_smart_step_into_bytecode_info_029():
     check_name_and_line(found, [('_getframe', 1), ('__add__', 3), ('__mul__', 3), ('__sub__', 3), ('call', 3)])
 
 
+@pytest.mark.skipif(IS_PY311_OR_GREATER, reason='Impl changed in 3.11 onwards')
 def test_smart_step_into_bytecode_info_030():
 
     def function():
@@ -717,6 +838,7 @@ def test_smart_step_into_bytecode_info_030():
     check_name_and_line(found, [('_getframe', 1), ('call', 3)])
 
 
+@pytest.mark.skipif(IS_PY311_OR_GREATER, reason='Impl changed in 3.11 onwards')
 def test_smart_step_into_bytecode_info_031():
 
     def function():
@@ -733,6 +855,7 @@ def test_smart_step_into_bytecode_info_031():
     check_name_and_line(found, [('_getframe', 1), ('call', 3)])
 
 
+@pytest.mark.skipif(IS_PY311_OR_GREATER, reason='Impl changed in 3.11 onwards')
 def test_smart_step_into_bytecode_info_032():
 
     def function():
@@ -750,6 +873,7 @@ def test_smart_step_into_bytecode_info_032():
     check_name_and_line(found, [('_getframe', 1), ('call', 4)])
 
 
+@pytest.mark.skipif(IS_PY311_OR_GREATER, reason='Impl changed in 3.11 onwards')
 def test_smart_step_into_bytecode_info_033():
 
     check_names_from_func_str('''def function():
@@ -760,6 +884,7 @@ def test_smart_step_into_bytecode_info_033():
 
 
 @pytest.mark.skipif(sys.version_info[0:2] < (3, 6), reason='Async only available for Python 3.6 onwards.')
+@pytest.mark.skipif(IS_PY311_OR_GREATER, reason='Impl changed in 3.11 onwards')
 def test_smart_step_into_bytecode_info_034():
 
     check_names_from_func_str('''async def function():
@@ -769,6 +894,7 @@ def test_smart_step_into_bytecode_info_034():
 ''', [('a', 1), ('c', 2), ('d', 3)])
 
 
+@pytest.mark.skipif(IS_PY311_OR_GREATER, reason='Impl changed in 3.11 onwards')
 def test_smart_step_into_bytecode_info_035():
 
     check_names_from_func_str('''def function():
@@ -776,6 +902,7 @@ def test_smart_step_into_bytecode_info_035():
 ''', [('AssertionError', 1)])
 
 
+@pytest.mark.skipif(IS_PY311_OR_GREATER, reason='Impl changed in 3.11 onwards')
 def test_smart_step_into_bytecode_info_036():
 
     check_names_from_func_str('''def function(a):
@@ -785,6 +912,7 @@ def test_smart_step_into_bytecode_info_036():
 ''', [('some_name', 3)])
 
 
+@pytest.mark.skipif(IS_PY311_OR_GREATER, reason='Impl changed in 3.11 onwards')
 def test_smart_step_into_bytecode_info_037():
 
     func = '''def function():
@@ -810,6 +938,7 @@ def test_smart_step_into_bytecode_info_037():
     check_name_and_line(found, [('some_name', 3)])
 
 
+@pytest.mark.skipif(IS_PY311_OR_GREATER, reason='Impl changed in 3.11 onwards')
 def test_smart_step_into_bytecode_info_038():
     check_names_from_func_str('''def function():
     try:
@@ -819,6 +948,7 @@ def test_smart_step_into_bytecode_info_038():
 ''', [('call', 2), ('call2', 4)])
 
 
+@pytest.mark.skipif(IS_PY311_OR_GREATER, reason='Impl changed in 3.11 onwards')
 def test_smart_step_into_bytecode_info_039():
     check_names_from_func_str('''def function():
     try:
@@ -830,6 +960,7 @@ def test_smart_step_into_bytecode_info_039():
 ''', [('call', 2), ('call2', 4), ('call3', 6)])
 
 
+@pytest.mark.skipif(IS_PY311_OR_GREATER, reason='Impl changed in 3.11 onwards')
 def test_smart_step_into_bytecode_info_040():
     check_names_from_func_str('''def function():
     a.call = foo()
@@ -837,6 +968,7 @@ def test_smart_step_into_bytecode_info_040():
 ''', [('foo', 1), ('call', 2)])
 
 
+@pytest.mark.skipif(IS_PY311_OR_GREATER, reason='Impl changed in 3.11 onwards')
 def test_smart_step_into_bytecode_info_041():
     check_names_from_func_str('''def function():
     foo = 10
@@ -846,6 +978,7 @@ def test_smart_step_into_bytecode_info_041():
 ''', [('foo', 4)])
 
 
+@pytest.mark.skipif(IS_PY311_OR_GREATER, reason='Impl changed in 3.11 onwards')
 def test_smart_step_into_bytecode_info_042():
     check_names_from_func_str('''
 foo = 10
@@ -855,6 +988,7 @@ def function():
 ''', [('foo', 2)])
 
 
+@pytest.mark.skipif(IS_PY311_OR_GREATER, reason='Impl changed in 3.11 onwards')
 def test_smart_step_into_bytecode_info_043():
 
     def function(call):
@@ -876,6 +1010,7 @@ def test_smart_step_into_bytecode_info_043():
     check_name_and_line(found, [('_getframe', 3), ('call', 5)])
 
 
+@pytest.mark.skipif(IS_PY311_OR_GREATER, reason='Impl changed in 3.11 onwards')
 def test_smart_step_into_bytecode_info_044():
     check_names_from_func_str('''
 def function(args):
@@ -884,6 +1019,7 @@ def function(args):
 ''', [('call', 2)])
 
 
+@pytest.mark.skipif(IS_PY311_OR_GREATER, reason='Impl changed in 3.11 onwards')
 def test_smart_step_into_bytecode_info_045():
     check_names_from_func_str('''
 def function():
@@ -894,6 +1030,7 @@ def function():
 ''', [('foo', 4)])
 
 
+@pytest.mark.skipif(IS_PY311_OR_GREATER, reason='Impl changed in 3.11 onwards')
 def test_smart_step_into_bytecode_info_046():
     check_names_from_func_str('''
 a = 10
@@ -904,6 +1041,7 @@ def function(args):
 ''', [('a', 3)])
 
 
+@pytest.mark.skipif(IS_PY311_OR_GREATER, reason='Impl changed in 3.11 onwards')
 def test_smart_step_into_bytecode_info_047():
     check_names_from_func_str('''
 def function():
@@ -911,6 +1049,7 @@ def function():
 ''', [('call', 1)])
 
 
+@pytest.mark.skipif(IS_PY311_OR_GREATER, reason='Impl changed in 3.11 onwards')
 def test_smart_step_into_bytecode_info_048():
     check_names_from_func_str('''
 def function(fn):
@@ -924,6 +1063,7 @@ def function(fn):
 ''', [('call', 1), ('pa', 6)])
 
 
+@pytest.mark.skipif(IS_PY311_OR_GREATER, reason='Impl changed in 3.11 onwards')
 def test_smart_step_into_bytecode_info_049():
 
     def function(foo):
@@ -944,6 +1084,7 @@ def test_smart_step_into_bytecode_info_049():
     check_name_and_line(found, [('implementation', 5), ('_getframe', 6)])
 
 
+@pytest.mark.skipif(IS_PY311_OR_GREATER, reason='Impl changed in 3.11 onwards')
 def test_smart_step_into_bytecode_info_050():
     check_names_from_func_str('''
 def function():
@@ -952,6 +1093,7 @@ def function():
 ''', [('index', 1)])
 
 
+@pytest.mark.skipif(IS_PY311_OR_GREATER, reason='Impl changed in 3.11 onwards')
 def test_smart_step_into_bytecode_info_051():
     check_names_from_func_str('''
 def function():
@@ -962,6 +1104,7 @@ def function():
 ''', [('call', 3), ('v', 3), ('v2', 3)])
 
 
+@pytest.mark.skipif(IS_PY311_OR_GREATER, reason='Impl changed in 3.11 onwards')
 def test_smart_step_into_bytecode_info_052():
     check_names_from_func_str('''
 def function():
@@ -972,6 +1115,7 @@ def function():
 ''', [('call', 3), ('v', 3), ('v2', 3)])
 
 
+@pytest.mark.skipif(IS_PY311_OR_GREATER, reason='Impl changed in 3.11 onwards')
 def test_smart_step_into_bytecode_info_053():
     check_names_from_func_str('''
 def function():
@@ -982,6 +1126,7 @@ def function():
 ''', [('call', 3), ('v', 3), ('v2', 3)])
 
 
+@pytest.mark.skipif(IS_PY311_OR_GREATER, reason='Impl changed in 3.11 onwards')
 def test_smart_step_into_bytecode_info_054():
     check_names_from_func_str('''
 def function():
@@ -992,6 +1137,7 @@ def function():
 ''', [('call', 3)])
 
 
+@pytest.mark.skipif(IS_PY311_OR_GREATER, reason='Impl changed in 3.11 onwards')
 def test_smart_step_into_bytecode_info_055():
     check_names_from_func_str('''
 async def function():
@@ -1001,6 +1147,7 @@ async def function():
 ''', [('lock', 1), ('foo', 2)])
 
 
+@pytest.mark.skipif(IS_PY311_OR_GREATER, reason='Impl changed in 3.11 onwards')
 def test_smart_step_into_bytecode_info_056():
     check_names_from_func_str('''
 def function(mask_path):
@@ -1014,6 +1161,7 @@ def function(mask_path):
 ''', [('some_func', 1), ('array', 3), ('open', 4)])
 
 
+@pytest.mark.skipif(IS_PY311_OR_GREATER, reason='Impl changed in 3.11 onwards')
 def test_smart_step_into_bytecode_info_057():
     check_names_from_func_str('''
 def function(mask_path):
@@ -1027,6 +1175,7 @@ def function(mask_path):
 ''', [('some_func', 1), ('array', 3), ('open', 4)])
 
 
+@pytest.mark.skipif(IS_PY311_OR_GREATER, reason='Impl changed in 3.11 onwards')
 def test_get_smart_step_into_variant_from_frame_offset():
     from _pydevd_bundle.pydevd_bytecode_utils import Variant
 
@@ -1050,6 +1199,7 @@ def test_get_smart_step_into_variant_from_frame_offset():
     assert pydevd_bytecode_utils.get_smart_step_into_variant_from_frame_offset(44, found).offset == 40
 
 
+@pytest.mark.skipif(IS_PY311_OR_GREATER, reason='Impl changed in 3.11 onwards')
 def test_smart_step_into_bytecode_info_00eq():
     from _pydevd_bundle.pydevd_bytecode_utils import Variant
 

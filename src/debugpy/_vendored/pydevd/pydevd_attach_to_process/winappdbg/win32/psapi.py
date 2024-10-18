@@ -36,18 +36,19 @@ __revision__ = "$Id$"
 
 from winappdbg.win32.defines import *
 
-#==============================================================================
+# ==============================================================================
 # This is used later on to calculate the list of exported symbols.
 _all = None
 _all = set(vars().keys())
-#==============================================================================
+# ==============================================================================
 
-#--- PSAPI structures and constants -------------------------------------------
+# --- PSAPI structures and constants -------------------------------------------
 
-LIST_MODULES_DEFAULT    = 0x00
-LIST_MODULES_32BIT      = 0x01
-LIST_MODULES_64BIT      = 0x02
-LIST_MODULES_ALL        = 0x03
+LIST_MODULES_DEFAULT = 0x00
+LIST_MODULES_32BIT = 0x01
+LIST_MODULES_64BIT = 0x02
+LIST_MODULES_ALL = 0x03
+
 
 # typedef struct _MODULEINFO {
 #   LPVOID lpBaseOfDll;
@@ -56,13 +57,16 @@ LIST_MODULES_ALL        = 0x03
 # } MODULEINFO, *LPMODULEINFO;
 class MODULEINFO(Structure):
     _fields_ = [
-        ("lpBaseOfDll",     LPVOID),    # remote pointer
-        ("SizeOfImage",     DWORD),
-        ("EntryPoint",      LPVOID),    # remote pointer
-]
+        ("lpBaseOfDll", LPVOID),  # remote pointer
+        ("SizeOfImage", DWORD),
+        ("EntryPoint", LPVOID),  # remote pointer
+    ]
+
+
 LPMODULEINFO = POINTER(MODULEINFO)
 
-#--- psapi.dll ----------------------------------------------------------------
+# --- psapi.dll ----------------------------------------------------------------
+
 
 # BOOL WINAPI EnumDeviceDrivers(
 #   __out  LPVOID *lpImageBase,
@@ -75,9 +79,9 @@ def EnumDeviceDrivers():
     _EnumDeviceDrivers.restype = bool
     _EnumDeviceDrivers.errcheck = RaiseIfZero
 
-    size       = 0x1000
+    size = 0x1000
     lpcbNeeded = DWORD(size)
-    unit       = sizeof(LPVOID)
+    unit = sizeof(LPVOID)
     while 1:
         lpImageBase = (LPVOID * (size // unit))()
         _EnumDeviceDrivers(byref(lpImageBase), lpcbNeeded, byref(lpcbNeeded))
@@ -85,7 +89,8 @@ def EnumDeviceDrivers():
         if needed <= size:
             break
         size = needed
-    return [ lpImageBase[index] for index in compat.xrange(0, (needed // unit)) ]
+    return [lpImageBase[index] for index in compat.xrange(0, (needed // unit))]
+
 
 # BOOL WINAPI EnumProcesses(
 #   __out  DWORD *pProcessIds,
@@ -98,9 +103,9 @@ def EnumProcesses():
     _EnumProcesses.restype = bool
     _EnumProcesses.errcheck = RaiseIfZero
 
-    size            = 0x1000
+    size = 0x1000
     cbBytesReturned = DWORD()
-    unit            = sizeof(DWORD)
+    unit = sizeof(DWORD)
     while 1:
         ProcessIds = (DWORD * (size // unit))()
         cbBytesReturned.value = size
@@ -115,6 +120,7 @@ def EnumProcesses():
             break
         ProcessIdList.append(ProcessId)
     return ProcessIdList
+
 
 # BOOL WINAPI EnumProcessModules(
 #   __in   HANDLE hProcess,
@@ -138,7 +144,8 @@ def EnumProcessModules(hProcess):
         if needed <= size:
             break
         size = needed
-    return [ lphModule[index] for index in compat.xrange(0, int(needed // unit)) ]
+    return [lphModule[index] for index in compat.xrange(0, int(needed // unit))]
+
 
 # BOOL WINAPI EnumProcessModulesEx(
 #   __in   HANDLE hProcess,
@@ -147,7 +154,7 @@ def EnumProcessModules(hProcess):
 #   __out  LPDWORD lpcbNeeded,
 #   __in   DWORD dwFilterFlag
 # );
-def EnumProcessModulesEx(hProcess, dwFilterFlag = LIST_MODULES_DEFAULT):
+def EnumProcessModulesEx(hProcess, dwFilterFlag=LIST_MODULES_DEFAULT):
     _EnumProcessModulesEx = windll.psapi.EnumProcessModulesEx
     _EnumProcessModulesEx.argtypes = [HANDLE, LPVOID, DWORD, LPDWORD, DWORD]
     _EnumProcessModulesEx.restype = bool
@@ -163,7 +170,8 @@ def EnumProcessModulesEx(hProcess, dwFilterFlag = LIST_MODULES_DEFAULT):
         if needed <= size:
             break
         size = needed
-    return [ lphModule[index] for index in compat.xrange(0, (needed // unit)) ]
+    return [lphModule[index] for index in compat.xrange(0, (needed // unit))]
+
 
 # DWORD WINAPI GetDeviceDriverBaseName(
 #   __in   LPVOID ImageBase,
@@ -186,6 +194,7 @@ def GetDeviceDriverBaseNameA(ImageBase):
         nSize = nSize + MAX_PATH
     return lpBaseName.value
 
+
 def GetDeviceDriverBaseNameW(ImageBase):
     _GetDeviceDriverBaseNameW = windll.psapi.GetDeviceDriverBaseNameW
     _GetDeviceDriverBaseNameW.argtypes = [LPVOID, LPWSTR, DWORD]
@@ -193,7 +202,7 @@ def GetDeviceDriverBaseNameW(ImageBase):
 
     nSize = MAX_PATH
     while 1:
-        lpBaseName = ctypes.create_unicode_buffer(u"", nSize)
+        lpBaseName = ctypes.create_unicode_buffer("", nSize)
         nCopied = _GetDeviceDriverBaseNameW(ImageBase, lpBaseName, nSize)
         if nCopied == 0:
             raise ctypes.WinError()
@@ -202,7 +211,9 @@ def GetDeviceDriverBaseNameW(ImageBase):
         nSize = nSize + MAX_PATH
     return lpBaseName.value
 
+
 GetDeviceDriverBaseName = GuessStringType(GetDeviceDriverBaseNameA, GetDeviceDriverBaseNameW)
+
 
 # DWORD WINAPI GetDeviceDriverFileName(
 #   __in   LPVOID ImageBase,
@@ -225,6 +236,7 @@ def GetDeviceDriverFileNameA(ImageBase):
         nSize = nSize + MAX_PATH
     return lpFilename.value
 
+
 def GetDeviceDriverFileNameW(ImageBase):
     _GetDeviceDriverFileNameW = windll.psapi.GetDeviceDriverFileNameW
     _GetDeviceDriverFileNameW.argtypes = [LPVOID, LPWSTR, DWORD]
@@ -232,7 +244,7 @@ def GetDeviceDriverFileNameW(ImageBase):
 
     nSize = MAX_PATH
     while 1:
-        lpFilename = ctypes.create_unicode_buffer(u"", nSize)
+        lpFilename = ctypes.create_unicode_buffer("", nSize)
         nCopied = ctypes.windll.psapi.GetDeviceDriverFileNameW(ImageBase, lpFilename, nSize)
         if nCopied == 0:
             raise ctypes.WinError()
@@ -241,7 +253,9 @@ def GetDeviceDriverFileNameW(ImageBase):
         nSize = nSize + MAX_PATH
     return lpFilename.value
 
+
 GetDeviceDriverFileName = GuessStringType(GetDeviceDriverFileNameA, GetDeviceDriverFileNameW)
+
 
 # DWORD WINAPI GetMappedFileName(
 #   __in   HANDLE hProcess,
@@ -265,6 +279,7 @@ def GetMappedFileNameA(hProcess, lpv):
         nSize = nSize + MAX_PATH
     return lpFilename.value
 
+
 def GetMappedFileNameW(hProcess, lpv):
     _GetMappedFileNameW = ctypes.windll.psapi.GetMappedFileNameW
     _GetMappedFileNameW.argtypes = [HANDLE, LPVOID, LPWSTR, DWORD]
@@ -272,7 +287,7 @@ def GetMappedFileNameW(hProcess, lpv):
 
     nSize = MAX_PATH
     while 1:
-        lpFilename = ctypes.create_unicode_buffer(u"", nSize)
+        lpFilename = ctypes.create_unicode_buffer("", nSize)
         nCopied = _GetMappedFileNameW(hProcess, lpv, lpFilename, nSize)
         if nCopied == 0:
             raise ctypes.WinError()
@@ -281,7 +296,9 @@ def GetMappedFileNameW(hProcess, lpv):
         nSize = nSize + MAX_PATH
     return lpFilename.value
 
+
 GetMappedFileName = GuessStringType(GetMappedFileNameA, GetMappedFileNameW)
+
 
 # DWORD WINAPI GetModuleFileNameEx(
 #   __in      HANDLE hProcess,
@@ -289,7 +306,7 @@ GetMappedFileName = GuessStringType(GetMappedFileNameA, GetMappedFileNameW)
 #   __out     LPTSTR lpFilename,
 #   __in      DWORD nSize
 # );
-def GetModuleFileNameExA(hProcess, hModule = None):
+def GetModuleFileNameExA(hProcess, hModule=None):
     _GetModuleFileNameExA = ctypes.windll.psapi.GetModuleFileNameExA
     _GetModuleFileNameExA.argtypes = [HANDLE, HMODULE, LPSTR, DWORD]
     _GetModuleFileNameExA.restype = DWORD
@@ -305,14 +322,15 @@ def GetModuleFileNameExA(hProcess, hModule = None):
         nSize = nSize + MAX_PATH
     return lpFilename.value
 
-def GetModuleFileNameExW(hProcess, hModule = None):
+
+def GetModuleFileNameExW(hProcess, hModule=None):
     _GetModuleFileNameExW = ctypes.windll.psapi.GetModuleFileNameExW
     _GetModuleFileNameExW.argtypes = [HANDLE, HMODULE, LPWSTR, DWORD]
     _GetModuleFileNameExW.restype = DWORD
 
     nSize = MAX_PATH
     while 1:
-        lpFilename = ctypes.create_unicode_buffer(u"", nSize)
+        lpFilename = ctypes.create_unicode_buffer("", nSize)
         nCopied = _GetModuleFileNameExW(hProcess, hModule, lpFilename, nSize)
         if nCopied == 0:
             raise ctypes.WinError()
@@ -321,7 +339,9 @@ def GetModuleFileNameExW(hProcess, hModule = None):
         nSize = nSize + MAX_PATH
     return lpFilename.value
 
+
 GetModuleFileNameEx = GuessStringType(GetModuleFileNameExA, GetModuleFileNameExW)
+
 
 # BOOL WINAPI GetModuleInformation(
 #   __in   HANDLE hProcess,
@@ -329,7 +349,7 @@ GetModuleFileNameEx = GuessStringType(GetModuleFileNameExA, GetModuleFileNameExW
 #   __out  LPMODULEINFO lpmodinfo,
 #   __in   DWORD cb
 # );
-def GetModuleInformation(hProcess, hModule, lpmodinfo = None):
+def GetModuleInformation(hProcess, hModule, lpmodinfo=None):
     _GetModuleInformation = windll.psapi.GetModuleInformation
     _GetModuleInformation.argtypes = [HANDLE, HMODULE, LPMODULEINFO, DWORD]
     _GetModuleInformation.restype = bool
@@ -339,6 +359,7 @@ def GetModuleInformation(hProcess, hModule, lpmodinfo = None):
         lpmodinfo = MODULEINFO()
     _GetModuleInformation(hProcess, hModule, byref(lpmodinfo), sizeof(lpmodinfo))
     return lpmodinfo
+
 
 # DWORD WINAPI GetProcessImageFileName(
 #   __in   HANDLE hProcess,
@@ -361,6 +382,7 @@ def GetProcessImageFileNameA(hProcess):
         nSize = nSize + MAX_PATH
     return lpFilename.value
 
+
 def GetProcessImageFileNameW(hProcess):
     _GetProcessImageFileNameW = windll.psapi.GetProcessImageFileNameW
     _GetProcessImageFileNameW.argtypes = [HANDLE, LPWSTR, DWORD]
@@ -368,7 +390,7 @@ def GetProcessImageFileNameW(hProcess):
 
     nSize = MAX_PATH
     while 1:
-        lpFilename = ctypes.create_unicode_buffer(u"", nSize)
+        lpFilename = ctypes.create_unicode_buffer("", nSize)
         nCopied = _GetProcessImageFileNameW(hProcess, lpFilename, nSize)
         if nCopied == 0:
             raise ctypes.WinError()
@@ -377,11 +399,12 @@ def GetProcessImageFileNameW(hProcess):
         nSize = nSize + MAX_PATH
     return lpFilename.value
 
+
 GetProcessImageFileName = GuessStringType(GetProcessImageFileNameA, GetProcessImageFileNameW)
 
-#==============================================================================
+# ==============================================================================
 # This calculates the list of exported symbols.
 _all = set(vars().keys()).difference(_all)
-__all__ = [_x for _x in _all if not _x.startswith('_')]
+__all__ = [_x for _x in _all if not _x.startswith("_")]
 __all__.sort()
-#==============================================================================
+# ==============================================================================

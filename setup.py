@@ -195,5 +195,7 @@ if __name__ == "__main__":
         ext_modules=ExtModules(),
         has_ext_modules=lambda: True,
         cmdclass=cmds,
+        # allow the user to call "debugpy" instead of "python -m debugpy"
+        entry_points={"console_scripts": ["debugpy = debugpy.server.cli:main"]},
         **extras
     )

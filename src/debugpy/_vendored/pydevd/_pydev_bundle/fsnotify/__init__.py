@@ -1,4 +1,4 @@
-'''
+"""
 Sample usage to track changes in a thread.
 
     import threading
@@ -36,11 +36,10 @@ Sample usage to track changes in a thread.
 
 
 Note: changes are only reported for files (added/modified/deleted), not directories.
-'''
-import threading
+"""
 import sys
 from os.path import basename
-from _pydev_bundle import pydev_log
+from _pydev_bundle import pydev_log, _pydev_saved_modules
 from os import scandir
 
 try:
@@ -50,11 +49,12 @@ except:
     class IntEnum(object):
         pass
 
+
 import time
 
-__author__ = 'Fabio Zadrozny'
-__email__ = 'fabiofz@gmail.com'
-__version__ = '0.1.5'  # Version here and in setup.py
+__author__ = "Fabio Zadrozny"
+__email__ = "fabiofz@gmail.com"
+__version__ = "0.1.5"  # Version here and in setup.py
 
 
 class Change(IntEnum):
@@ -64,7 +64,6 @@ class Change(IntEnum):
 
 
 class _SingleVisitInfo(object):
-
     def __init__(self):
         self.count = 0
         self.visited_dirs = set()
@@ -73,18 +72,18 @@ class _SingleVisitInfo(object):
 
 
 class _PathWatcher(object):
-    '''
+    """
     Helper to watch a single path.
-    '''
+    """
 
-    def __init__(self, root_path, accept_directory, accept_file, single_visit_info, max_recursion_level, sleep_time=.0):
-        '''
+    def __init__(self, root_path, accept_directory, accept_file, single_visit_info, max_recursion_level, sleep_time=0.0):
+        """
         :type root_path: str
         :type accept_directory: Callback[str, bool]
         :type accept_file: Callback[str, bool]
         :type max_recursion_level: int
         :type sleep_time: float
-        '''
+        """
         self.accept_directory = accept_directory
         self.accept_file = accept_file
         self._max_recursion_level = max_recursion_level
@@ -95,7 +94,7 @@ class _PathWatcher(object):
         # Watcher.target_time_for_single_scan.
         self.sleep_time = sleep_time
 
-        self.sleep_at_elapsed = 1. / 30.
+        self.sleep_at_elapsed = 1.0 / 30.0
 
         # When created, do the initial snapshot right away!
         old_file_to_mtime = {}
@@ -124,7 +123,7 @@ class _PathWatcher(object):
                     dir_path = dir_path.decode(sys.getfilesystemencoding())
                 except UnicodeDecodeError:
                     try:
-                        dir_path = dir_path.decode('utf-8')
+                        dir_path = dir_path.decode("utf-8")
                     except UnicodeDecodeError:
                         return  # Ignore if we can't deal with the path.
 
@@ -167,10 +166,9 @@ class _PathWatcher(object):
 
 
 class Watcher(object):
-
     # By default (if accept_directory is not specified), these will be the
     # ignored directories.
-    ignored_dirs = {u'.git', u'__pycache__', u'.idea', u'node_modules', u'.metadata'}
+    ignored_dirs = {".git", "__pycache__", ".idea", "node_modules", ".metadata"}
 
     # By default (if accept_file is not specified), these will be the
     # accepted files.
@@ -195,7 +193,7 @@ class Watcher(object):
     max_recursion_level = 10
 
     def __init__(self, accept_directory=None, accept_file=None):
-        '''
+        """
         :param Callable[str, bool] accept_directory:
             Callable that returns whether a directory should be watched.
             Note: if passed it'll override the `ignored_dirs`
@@ -203,15 +201,14 @@ class Watcher(object):
         :param Callable[str, bool] accept_file:
             Callable that returns whether a file should be watched.
             Note: if passed it'll override the `accepted_file_extensions`.
-        '''
+        """
         self._path_watchers = set()
-        self._disposed = threading.Event()
+        self._disposed = _pydev_saved_modules.ThreadingEvent()
 
         if accept_directory is None:
             accept_directory = lambda dir_path: basename(dir_path) not in self.ignored_dirs
         if accept_file is None:
-            accept_file = lambda path_name: \
-                not self.accepted_file_extensions or path_name.endswith(self.accepted_file_extensions)
+            accept_file = lambda path_name: not self.accepted_file_extensions or path_name.endswith(self.accepted_file_extensions)
         self.accept_file = accept_file
         self.accept_directory = accept_directory
         self._single_visit_info = _SingleVisitInfo()
@@ -253,14 +250,14 @@ class Watcher(object):
         # Sort by the path len so that the bigger paths come first (so,
         # if there's any nesting we want the nested paths to be visited
         # before the parent paths so that the max_recursion_level is correct).
-        paths = sorted(set(paths), key=lambda path:-len(path))
+        paths = sorted(set(paths), key=lambda path: -len(path))
         path_watchers = set()
 
         self._single_visit_info = _SingleVisitInfo()
 
         initial_time = time.time()
         for path in paths:
-            sleep_time = 0.  # When collecting the first time, sleep_time should be 0!
+            sleep_time = 0.0  # When collecting the first time, sleep_time should be 0!
             path_watcher = _PathWatcher(
                 path,
                 self.accept_directory,
@@ -272,22 +269,22 @@ class Watcher(object):
 
             path_watchers.add(path_watcher)
 
-        actual_time = (time.time() - initial_time)
+        actual_time = time.time() - initial_time
 
-        pydev_log.debug('Tracking the following paths for changes: %s', paths)
-        pydev_log.debug('Time to track: %.2fs', actual_time)
-        pydev_log.debug('Folders found: %s', len(self._single_visit_info.visited_dirs))
-        pydev_log.debug('Files found: %s', len(self._single_visit_info.file_to_mtime))
+        pydev_log.debug("Tracking the following paths for changes: %s", paths)
+        pydev_log.debug("Time to track: %.2fs", actual_time)
+        pydev_log.debug("Folders found: %s", len(self._single_visit_info.visited_dirs))
+        pydev_log.debug("Files found: %s", len(self._single_visit_info.file_to_mtime))
         self._path_watchers = path_watchers
 
     def iter_changes(self):
-        '''
+        """
         Continuously provides changes (until dispose() is called).
 
         Changes provided are tuples with the Change enum and filesystem path.
 
         :rtype: Iterable[Tuple[Change, str]]
-        '''
+        """
         while not self._disposed.is_set():
             initial_time = time.time()
 
@@ -307,9 +304,9 @@ class Watcher(object):
             for change in changes:
                 yield change
 
-            actual_time = (time.time() - initial_time)
+            actual_time = time.time() - initial_time
             if self.print_poll_time:
-                print('--- Total poll time: %.3fs' % actual_time)
+                print("--- Total poll time: %.3fs" % actual_time)
 
             if actual_time > 0:
                 if self.target_time_for_single_scan <= 0.0:
@@ -322,8 +319,8 @@ class Watcher(object):
                     # direction).
                     # (to prevent from cases where the user puts the machine on sleep and
                     # values become too skewed).
-                    if perc > 2.:
-                        perc = 2.
+                    if perc > 2.0:
+                        perc = 2.0
                     elif perc < 0.5:
                         perc = 0.5
 
@@ -337,7 +334,7 @@ class Watcher(object):
                         # (to prevent from cases where the user puts the machine on sleep and
                         # values become too skewed).
                         diff_sleep_time = new_sleep_time - path_watcher.sleep_time
-                        path_watcher.sleep_time += (diff_sleep_time / (3.0 * len(self._path_watchers)))
+                        path_watcher.sleep_time += diff_sleep_time / (3.0 * len(self._path_watchers))
 
                         if actual_time > 0:
                             self._disposed.wait(actual_time)
@@ -348,6 +345,5 @@ class Watcher(object):
             # print('new sleep time: %s' % path_watcher.sleep_time)
 
             diff = self.target_time_for_notification - actual_time
-            if diff > 0.:
+            if diff > 0.0:
                 self._disposed.wait(diff)
-

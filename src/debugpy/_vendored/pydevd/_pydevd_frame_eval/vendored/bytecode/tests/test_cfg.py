@@ -1,8 +1,8 @@
-
 import pytest
 from tests_python.debugger_unittest import IS_PY36_OR_GREATER, IS_CPYTHON
 from tests_python.debug_constants import TEST_CYTHON
-pytestmark = pytest.mark.skipif(not IS_PY36_OR_GREATER or not IS_CPYTHON or not TEST_CYTHON, reason='Requires CPython >= 3.6')
+
+pytestmark = pytest.mark.skipif(not IS_PY36_OR_GREATER or not IS_CPYTHON or not TEST_CYTHON, reason="Requires CPython >= 3.6")
 #!/usr/bin/env python3
 import io
 import sys
@@ -21,24 +21,16 @@ from _pydevd_frame_eval.vendored.bytecode.concrete import OFFSET_AS_INSTRUCTION
 from _pydevd_frame_eval.vendored.bytecode.tests import disassemble as _disassemble, TestCase
 
 
-def disassemble(
-    source, *, filename="<string>", function=False, remove_last_return_none=False
-):
+def disassemble(source, *, filename="<string>", function=False, remove_last_return_none=False):
     code = _disassemble(source, filename=filename, function=function)
     blocks = ControlFlowGraph.from_bytecode(code)
     if remove_last_return_none:
         # drop LOAD_CONST+RETURN_VALUE to only keep 2 instructions,
         # to make unit tests shorter
         block = blocks[-1]
-        test = (
-            block[-2].name == "LOAD_CONST"
-            and block[-2].arg is None
-            and block[-1].name == "RETURN_VALUE"
-        )
+        test = block[-2].name == "LOAD_CONST" and block[-2].arg is None and block[-1].name == "RETURN_VALUE"
         if not test:
-            raise ValueError(
-                "unable to find implicit RETURN_VALUE <None>: %s" % block[-2:]
-            )
+            raise ValueError("unable to find implicit RETURN_VALUE <None>: %s" % block[-2:])
         del block[-2:]
     return blocks
 
@@ -458,9 +450,7 @@ class BytecodeBlocksFunctionalTests(TestCase):
 
     def sample_code(self):
         code = disassemble("x = 1", remove_last_return_none=True)
-        self.assertBlocksEqual(
-            code, [Instr("LOAD_CONST", 1, lineno=1), Instr("STORE_NAME", "x", lineno=1)]
-        )
+        self.assertBlocksEqual(code, [Instr("LOAD_CONST", 1, lineno=1), Instr("STORE_NAME", "x", lineno=1)])
         return code
 
     def test_split_block(self):
@@ -522,9 +512,7 @@ class BytecodeBlocksFunctionalTests(TestCase):
         # FIXME: is it really useful to support that?
         block = code.split_block(code[0], 0)
         self.assertIs(block, code[0])
-        self.assertBlocksEqual(
-            code, [Instr("LOAD_CONST", 1, lineno=1), Instr("STORE_NAME", "x", lineno=1)]
-        )
+        self.assertBlocksEqual(code, [Instr("LOAD_CONST", 1, lineno=1), Instr("STORE_NAME", "x", lineno=1)])
 
     def test_split_block_error(self):
         code = self.sample_code()
@@ -555,9 +543,7 @@ class BytecodeBlocksFunctionalTests(TestCase):
                 Instr("POP_JUMP_IF_FALSE", block2, lineno=4),
             ]
         )
-        block1.extend(
-            [Instr("LOAD_FAST", "arg", lineno=5), Instr("STORE_FAST", "x", lineno=5)]
-        )
+        block1.extend([Instr("LOAD_FAST", "arg", lineno=5), Instr("STORE_FAST", "x", lineno=5)])
         block2.extend(
             [
                 Instr("LOAD_CONST", 3, lineno=6),
@@ -569,13 +555,9 @@ class BytecodeBlocksFunctionalTests(TestCase):
 
         if OFFSET_AS_INSTRUCTION:
             # The argument of the jump is divided by 2
-            expected = (
-                b"|\x05" b"r\x04" b"|\x00" b"}\x05" b"d\x01" b"}\x05" b"|\x05" b"S\x00"
-            )
+            expected = b"|\x05" b"r\x04" b"|\x00" b"}\x05" b"d\x01" b"}\x05" b"|\x05" b"S\x00"
         else:
-            expected = (
-                b"|\x05" b"r\x08" b"|\x00" b"}\x05" b"d\x01" b"}\x05" b"|\x05" b"S\x00"
-            )
+            expected = b"|\x05" b"r\x08" b"|\x00" b"}\x05" b"d\x01" b"}\x05" b"|\x05" b"S\x00"
 
         code = bytecode.to_code()
         self.assertEqual(code.co_consts, (None, 3))
@@ -589,9 +571,7 @@ class BytecodeBlocksFunctionalTests(TestCase):
         self.assertEqual(code.co_flags, 0x43)
         self.assertEqual(code.co_code, expected)
         self.assertEqual(code.co_names, ())
-        self.assertEqual(
-            code.co_varnames, ("arg", "arg2", "arg3", "kwonly", "kwonly2", "x")
-        )
+        self.assertEqual(code.co_varnames, ("arg", "arg2", "arg3", "kwonly", "kwonly2", "x"))
         self.assertEqual(code.co_filename, "hello.py")
         self.assertEqual(code.co_name, "func")
         self.assertEqual(code.co_firstlineno, 3)
