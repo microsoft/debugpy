@@ -221,7 +221,7 @@ def pyfile(request, long_tmpdir):
         source = "".join(source)
 
         # Add a sleep at the end so that the program doesn't exit before we can handle all of the messages it sent
-        source += "\nimport time\nprint('extra time')\ntime.sleep(2)\n"
+        source += "\nimport time\ntime.sleep(2)\n"
 
         # Write it to file.
         tmpfile = long_tmpdir / (name + ".py")
