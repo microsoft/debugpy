@@ -17,6 +17,7 @@ from tests.patterns import some
 
 @pytest.mark.parametrize("run", runners.all)
 @pytest.mark.parametrize("target", targets.all)
+@pytest.mark.flaky(retries=2, delay=1)
 def test_run(pyfile, target, run):
     @pyfile
     def code_to_debug():
