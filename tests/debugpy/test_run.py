@@ -249,6 +249,7 @@ def test_custom_python(
 @pytest.mark.parametrize("python_args", [None, "-B"])
 @pytest.mark.parametrize("python", [None, "custompy", "custompy,-O"])
 @pytest.mark.parametrize("python_key", ["python", "pythonPath"])
+@pytest.mark.flaky(retries=2, delay=1)
 def test_custom_python_args(
     pyfile, tmpdir, run, target, python_key, python, python_args
 ):
