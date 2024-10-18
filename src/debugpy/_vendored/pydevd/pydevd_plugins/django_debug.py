@@ -586,12 +586,13 @@ def _get_original_filename_from_origin_in_parent_frame_locals(frame, parent_fram
     return filename
 
 
-def exception_break(py_db, frame, thread, arg):
+def exception_break(py_db, frame, thread, arg, is_unwind):
     exception, value, trace = arg
 
     if py_db.django_exception_break and exception is not None:
         if (
             exception.__name__ in ["VariableDoesNotExist", "TemplateDoesNotExist", "TemplateSyntaxError"]
+            and not is_unwind
             and just_raised(trace)
             and not ignore_exception_trace(trace)
         ):

@@ -23,7 +23,7 @@ def _thread1():
     _event1_set = True
 
     while not event2.is_set():
-        event2.wait(timeout=0.001)
+        event2.wait(timeout=0.05)
     _event2_set = True  # Note: we can only get here if thread 2 is also released.
 
     event3.set()

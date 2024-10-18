@@ -765,6 +765,7 @@ class PyDevJsonCommandProcessor(object):
         expression = None
 
         breakpoints_set = []
+        arguments.breakpoints = arguments.breakpoints or []
         for bp in arguments.breakpoints:
             hit_condition = self._get_hit_condition_expression(bp.get("hitCondition"))
             condition = bp.get("condition")
@@ -805,7 +806,7 @@ class PyDevJsonCommandProcessor(object):
                 btype = "jinja2-line"
 
         breakpoints_set = []
-
+        arguments.breakpoints = arguments.breakpoints or []
         for source_breakpoint in arguments.breakpoints:
             source_breakpoint = SourceBreakpoint(**source_breakpoint)
             line = source_breakpoint.line
