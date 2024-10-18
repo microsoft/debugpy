@@ -525,8 +525,8 @@ def start_client(host, port):
         pass  # May not be available everywhere.
 
     try:
-        # 30 seconds default timeout
-        timeout = int(os.environ.get("PYDEVD_CONNECT_TIMEOUT", 30))
+        # 10 seconds default timeout
+        timeout = int(os.environ.get("PYDEVD_CONNECT_TIMEOUT", 10))
         s.settimeout(timeout)
         s.connect((host, port))
         s.settimeout(None)  # no timeout after connected

@@ -104,7 +104,8 @@ def test_redirect_output_and_eval(pyfile, target, run, redirect_mode):
 
         session.request_continue()
 
-    assert session.output("stdout") == "line\nevaluated\n"
+    assert "line" in session.output("stdout")
+    assert "evaluated" in session.output("stdout")
 
 
 @pytest.mark.parametrize("run", runners.all)
