@@ -19,6 +19,7 @@ import os
 import socket
 import sys
 import threading
+import time
 
 from debugpy.common import json, log, util
 from debugpy.common.util import hide_thread_from_debugger
@@ -292,6 +293,7 @@ class JsonIOStream(object):
         header = f"Content-Length: {len(body)}\r\n\r\n".encode("ascii")
         data = header + body
         data_written = 0
+        retry_count = 0
         try:
             while data_written < len(data):
                 try:
@@ -299,7 +301,13 @@ class JsonIOStream(object):
                     if written is not None:
                         data_written += written
                 except OSError:
-                    raise Exception("Error while writing message:", (data_written, data[data_written:]))
+                    # On 3.13 the socket write is failing but only occasionally. Try again after
+                    # a delay.
+                    retry_count += 1
+                    if retry_count < 5:
+                        time.sleep(0.1)
+                    else:
+                        raise Exception("Error while writing message:", (data_written, data[data_written:]))
             writer.flush()
         except Exception as exc:  # pragma: no cover
             self._log_message("<--", value, logger=log.swallow_exception)
