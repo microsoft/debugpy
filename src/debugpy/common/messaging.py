@@ -298,7 +298,7 @@ class JsonIOStream(object):
                     written = writer.write(data[data_written:])
                     if written is not None:
                         data_written += written
-                except OSError as ose:
+                except OSError:
                     # Drop the message if there's an OS error. Other side may have
                     # already been closed.
                     # Tests were failing here when unregister_spawn message was called
