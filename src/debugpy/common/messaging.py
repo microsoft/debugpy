@@ -294,9 +294,12 @@ class JsonIOStream(object):
         data_written = 0
         try:
             while data_written < len(data):
-                written = writer.write(data[data_written:])
-                if written is not None:
-                    data_written += written
+                try:
+                    written = writer.write(data[data_written:])
+                    if written is not None:
+                        data_written += written
+                except OSError:
+                    raise Exception("Error while writing message:", (data_written, data[data_written:]))
             writer.flush()
         except Exception as exc:  # pragma: no cover
             self._log_message("<--", value, logger=log.swallow_exception)
