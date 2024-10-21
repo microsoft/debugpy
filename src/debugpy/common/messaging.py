@@ -294,18 +294,17 @@ class JsonIOStream(object):
         data_written = 0
         try:
             while data_written < len(data):
-                try:
-                    written = writer.write(data[data_written:])
-                    if written is not None:
-                        data_written += written
-                except OSError:
-                    # Drop the message if there's an OS error. Other side may have
-                    # already been closed.
-                    # Tests were failing here when unregister_spawn message was called
-                    pass
+                written = writer.write(data[data_written:])
+                if written is not None:
+                    data_written += written
             writer.flush()
         except Exception as exc:  # pragma: no cover
             self._log_message("<--", value, logger=log.swallow_exception)
+
+            # Special case for unregister_spawn - it's a common error when the other end dies
+            if exc is OSError and value.contains("unregister_spawn"):
+                log.error("Error while writing message to {0}", self.name)
+                raise NoMoreMessages(stream=self)
             raise JsonIOError(stream=self, cause=exc)
 
         self._log_message("<--", value)
