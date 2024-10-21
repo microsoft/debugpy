@@ -146,7 +146,7 @@ def overrides(method):
     return wrapper
 
 
-TIMEOUT = 20
+TIMEOUT = 60
 
 try:
     TimeoutError = TimeoutError  # @ReservedAssignment
@@ -647,8 +647,9 @@ class DebuggerRunner(object):
             except:
                 traceback.print_exc()
             finish[0] = True
+            # print("Log on success: " + self.get_log_contents())
 
-    def fail_with_message(self, msg, stdout, stderr, writerThread):
+    def get_log_contents(self):
         log_contents = ""
         if self.pydevd_debug_file:
             for f in pydev_log.list_log_files(self.pydevd_debug_file):
@@ -656,6 +657,10 @@ class DebuggerRunner(object):
                     with open(f, "r") as stream:
                         log_contents += "\n-------------------- %s ------------------\n\n" % (f,)
                         log_contents += stream.read()
+        return log_contents
+
+    def fail_with_message(self, msg, stdout, stderr, writerThread):
+        log_contents = self.get_log_contents()
         msg += (
             "\n\n===========================\nStdout: \n"
             + "".join(stdout)
@@ -728,9 +733,12 @@ class AbstractWriterThread(threading.Thread):
                 "warning: Debugger speedups",
                 "pydev debugger: New process is launching",
                 "pydev debugger: To debug that process",
+                "pydevd: New process is launching",
+                "pydevd: To debug that process",
                 "*** Multiprocess",
                 "WARNING: This is a development server. Do not use it in a production deployment",
                 "Press CTRL+C to quit",
+                "pydevd: waiting for connection at:",
             )
         ):
             return True

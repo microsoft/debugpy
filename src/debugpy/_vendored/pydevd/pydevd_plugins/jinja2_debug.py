@@ -494,7 +494,7 @@ def suspend(pydb, thread, frame, bp_type):
     return None
 
 
-def exception_break(pydb, frame, thread, arg):
+def exception_break(pydb, frame, thread, arg, is_unwind):
     exception, value, trace = arg
     if pydb.jinja2_exception_break and exception is not None:
         exception_type = list(pydb.jinja2_exception_break.keys())[0]

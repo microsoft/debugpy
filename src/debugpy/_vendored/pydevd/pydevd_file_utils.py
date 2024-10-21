@@ -71,6 +71,7 @@ except:
     # realpath is a no-op on systems without islink support
     os_path_real_path = os.path.abspath
 
+PYDEVD_ROOT_PATH = os_path_real_path(os.path.dirname(__file__))
 
 def _get_library_dir():
     library_dir = None
@@ -964,14 +965,8 @@ def get_package_dir(mod_name):
             return mod_path
     return None
 
-def contains_dir(path, dir_name):
-    try:
-        while path:
-            path, tail = os.path.split(path)
-            if tail == dir_name:
-                return True
-            if tail is None and path == dir_name:
-                return True
-    except:
-        pass
-    return False
+def is_pydevd_path(path):
+    # Return true if this file is rooted in the pydevd directory.
+    dir: str = os_path_real_path(os.path.dirname(path))
+    return dir.startswith(PYDEVD_ROOT_PATH)
+

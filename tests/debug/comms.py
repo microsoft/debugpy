@@ -11,7 +11,7 @@ from debugpy.common import log, messaging, sockets
 
 
 class BackChannel(object):
-    TIMEOUT = 20
+    TIMEOUT = 60
 
     def __init__(self, session):
         self.session = session

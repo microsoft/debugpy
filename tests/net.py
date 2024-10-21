@@ -15,7 +15,11 @@ import time
 from debugpy.common import log, util
 from tests.patterns import some
 
-
+def is_port_in_use(port, host='127.0.0.1'):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        result = sock.connect_ex((host, port))
+        return result == 0
+    
 def get_test_server_port(start, stop):
     """Returns a server port number that can be safely used for listening without
     clashing with another test worker process, when running with pytest-xdist.
@@ -40,6 +44,12 @@ def get_test_server_port(start, stop):
 
     port = start + n
     assert port <= stop
+
+    # Makes sure the port is not in use by another process.
+    if is_port_in_use(port):
+        # Try over the range again with + 100
+        return get_test_server_port(start + 100, stop + 100)
+    
     return port
 
 

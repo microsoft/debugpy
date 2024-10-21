@@ -191,9 +191,9 @@ class PluginManager(object):
 
         return None
 
-    def exception_break(self, py_db, frame, thread, arg):
+    def exception_break(self, py_db, frame, thread, arg, is_unwind=False):
         for plugin in self.active_plugins:
-            ret = plugin.exception_break(py_db, frame, thread, arg)
+            ret = plugin.exception_break(py_db, frame, thread, arg, is_unwind)
             if ret is not None:
                 return ret
 
