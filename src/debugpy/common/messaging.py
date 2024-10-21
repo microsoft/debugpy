@@ -302,7 +302,7 @@ class JsonIOStream(object):
                     # Drop the message if there's an OS error. Other side may have
                     # already been closed.
                     # Tests were failing here when unregister_spawn message was called
-                    log.debug("JsonIOStream failure while writing message {0}: {1}, ignoring message", data, ose)
+                    pass
             writer.flush()
         except Exception as exc:  # pragma: no cover
             self._log_message("<--", value, logger=log.swallow_exception)

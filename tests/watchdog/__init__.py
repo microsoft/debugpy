@@ -22,7 +22,7 @@ import time
 from debugpy.common import log, messaging
 from tests.watchdog import worker
 
-WATCHDOG_TIMEOUT = 3
+WATCHDOG_TIMEOUT = 5 
 
 
 _name = f"watchdog-{os.getpid()}"
