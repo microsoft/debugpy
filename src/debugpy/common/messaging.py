@@ -19,7 +19,6 @@ import os
 import socket
 import sys
 import threading
-import time
 
 from debugpy.common import json, log, util
 from debugpy.common.util import hide_thread_from_debugger
