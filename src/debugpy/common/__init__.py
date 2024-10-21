@@ -12,7 +12,7 @@ if typing.TYPE_CHECKING:
 __all__ = []
 
 # The lower time bound for assuming that the process hasn't spawned successfully.
-PROCESS_SPAWN_TIMEOUT = float(os.getenv("DEBUGPY_PROCESS_SPAWN_TIMEOUT", 15)) or None
+PROCESS_SPAWN_TIMEOUT = float(os.getenv("DEBUGPY_PROCESS_SPAWN_TIMEOUT", 60)) or None
 
 # The lower time bound for assuming that the process hasn't exited gracefully.
-PROCESS_EXIT_TIMEOUT = float(os.getenv("DEBUGPY_PROCESS_EXIT_TIMEOUT", 5)) or None
+PROCESS_EXIT_TIMEOUT = float(os.getenv("DEBUGPY_PROCESS_EXIT_TIMEOUT", 30)) or None
