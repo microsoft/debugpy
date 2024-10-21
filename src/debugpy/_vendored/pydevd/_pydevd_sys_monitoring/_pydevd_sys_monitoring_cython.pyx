@@ -1362,8 +1362,8 @@ cdef _jump_event(code, int from_offset, int to_offset):
     if to_offset > from_offset:
         return monitor.DISABLE
 
-    from_line = func_code_info.get_line_of_offset(from_offset)
-    to_line = func_code_info.get_line_of_offset(to_offset)
+    from_line = func_code_info.get_line_of_offset(from_offset or 0)
+    to_line = func_code_info.get_line_of_offset(to_offset or 0)
     # print('jump event', code.co_name, 'from line', from_line, 'to line', to_line)
 
     if from_line != to_line:

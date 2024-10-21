@@ -22,7 +22,7 @@ def test_with_no_output(pyfile, target, run):
         import debuggee
 
         debuggee.setup()
-        x = 4  # @wait_for_output # noqa: F841
+        x = 4  # @wait_for_output
 
     with debug.Session() as session:
         session.config["redirectOutput"] = True
@@ -56,7 +56,7 @@ def test_with_tab_in_output(pyfile, target, run):
         debuggee.setup()
         a = "\t".join(("Hello", "World"))
         print(a)
-        x = 4  # @wait_for_output # noqa: F841
+        x = 4  # @wait_for_output
 
     with debug.Session() as session:
         session.config["redirectOutput"] = True
@@ -79,7 +79,7 @@ def test_redirect_output_and_eval(pyfile, target, run, redirect_mode):
 
         debuggee.setup()
         sys.stdout.write("line\n")
-        x = 4  # @wait_for_output # noqa: F841
+        x = 4  # @wait_for_output
 
     with debug.Session() as session:
         if redirect_mode == "redirectOutput":
@@ -120,7 +120,7 @@ def test_redirect_output(pyfile, target, run, redirect):
         for i in [111, 222, 333, 444]:
             print(i)
 
-        x = 4  # @wait_for_output # noqa: F841
+        x = 4  # @wait_for_output
 
     with debug.Session() as session:
         session.config["redirectOutput"] = redirect == "enabled"
@@ -153,7 +153,7 @@ def test_non_ascii_output(pyfile, target, run):
         debuggee.setup()
         a = b"\xc3\xa9 \xc3\xa0 \xc3\xb6 \xc3\xb9\n"
         sys.stdout.buffer.write(a)
-        x = 4  # @wait_for_output # noqa: F841
+        x = 4  # @wait_for_output
 
     with debug.Session() as session:
         session.config["redirectOutput"] = True
@@ -182,7 +182,7 @@ if sys.platform == "win32":
 
             debuggee.setup()
             print("ok")
-            x = 4  # @wait_for_output  # noqa: F841
+            x = 4  # @wait_for_output
 
         with debug.Session() as session:
             # Don't capture launcher output - we want to see how it handles not

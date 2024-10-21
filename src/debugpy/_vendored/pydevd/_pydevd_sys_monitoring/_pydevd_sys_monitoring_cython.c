@@ -23336,7 +23336,7 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__jump_event(PyObject *_
  *     if to_offset > from_offset:
  *         return monitor.DISABLE             # <<<<<<<<<<<<<<
  * 
- *     from_line = func_code_info.get_line_of_offset(from_offset)
+ *     from_line = func_code_info.get_line_of_offset(from_offset or 0)
  */
     __Pyx_XDECREF(__pyx_r);
     __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_monitor); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1363, __pyx_L1_error)
@@ -23360,14 +23360,25 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__jump_event(PyObject *_
   /* "_pydevd_sys_monitoring_cython.pyx":1365
  *         return monitor.DISABLE
  * 
- *     from_line = func_code_info.get_line_of_offset(from_offset)             # <<<<<<<<<<<<<<
- *     to_line = func_code_info.get_line_of_offset(to_offset)
+ *     from_line = func_code_info.get_line_of_offset(from_offset or 0)             # <<<<<<<<<<<<<<
+ *     to_line = func_code_info.get_line_of_offset(to_offset or 0)
  *     # print('jump event', code.co_name, 'from line', from_line, 'to line', to_line)
  */
   __pyx_t_4 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_func_code_info), __pyx_n_s_get_line_of_offset); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1365, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
-  __pyx_t_5 = __Pyx_PyInt_From_int(__pyx_v_from_offset); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 1365, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_5);
+  if (!__pyx_v_from_offset) {
+  } else {
+    __pyx_t_7 = __Pyx_PyInt_From_int(__pyx_v_from_offset); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 1365, __pyx_L1_error)
+    __Pyx_GOTREF(__pyx_t_7);
+    __pyx_t_5 = __pyx_t_7;
+    __pyx_t_7 = 0;
+    goto __pyx_L23_bool_binop_done;
+  }
+  __pyx_t_7 = __Pyx_PyInt_From_long(0); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 1365, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_7);
+  __pyx_t_5 = __pyx_t_7;
+  __pyx_t_7 = 0;
+  __pyx_L23_bool_binop_done:;
   __pyx_t_7 = NULL;
   __pyx_t_11 = 0;
   #if CYTHON_UNPACK_METHODS
@@ -23397,15 +23408,26 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__jump_event(PyObject *_
 
   /* "_pydevd_sys_monitoring_cython.pyx":1366
  * 
- *     from_line = func_code_info.get_line_of_offset(from_offset)
- *     to_line = func_code_info.get_line_of_offset(to_offset)             # <<<<<<<<<<<<<<
+ *     from_line = func_code_info.get_line_of_offset(from_offset or 0)
+ *     to_line = func_code_info.get_line_of_offset(to_offset or 0)             # <<<<<<<<<<<<<<
  *     # print('jump event', code.co_name, 'from line', from_line, 'to line', to_line)
  * 
  */
   __pyx_t_4 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_func_code_info), __pyx_n_s_get_line_of_offset); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1366, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
-  __pyx_t_5 = __Pyx_PyInt_From_int(__pyx_v_to_offset); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 1366, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_5);
+  if (!__pyx_v_to_offset) {
+  } else {
+    __pyx_t_7 = __Pyx_PyInt_From_int(__pyx_v_to_offset); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 1366, __pyx_L1_error)
+    __Pyx_GOTREF(__pyx_t_7);
+    __pyx_t_5 = __pyx_t_7;
+    __pyx_t_7 = 0;
+    goto __pyx_L25_bool_binop_done;
+  }
+  __pyx_t_7 = __Pyx_PyInt_From_long(0); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 1366, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_7);
+  __pyx_t_5 = __pyx_t_7;
+  __pyx_t_7 = 0;
+  __pyx_L25_bool_binop_done:;
   __pyx_t_7 = NULL;
   __pyx_t_11 = 0;
   #if CYTHON_UNPACK_METHODS
