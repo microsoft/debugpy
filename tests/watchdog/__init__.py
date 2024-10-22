@@ -35,6 +35,8 @@ def start():
     global _stream, _process, _worker_log_filename
     if _stream is not None:
         return
+    if sys.version_info >= (3, 13):
+        return
 
     args = [sys.executable, worker.__file__, str(os.getpid())]
     log.info(
@@ -114,11 +116,15 @@ def stop():
 
 
 def register_spawn(pid, name):
+    if sys.version_info >= (3, 13):
+        return
     if _stream is None:
         start()
     _invoke("register_spawn", pid, name)
 
 
 def unregister_spawn(pid, name):
+    if sys.version_info >= (3, 13):
+        return
     assert _stream is not None
     _invoke("unregister_spawn", pid, name)

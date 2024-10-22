@@ -300,10 +300,6 @@ class JsonIOStream(object):
             writer.flush()
         except Exception as exc:  # pragma: no cover
             self._log_message("<--", value, logger=log.swallow_exception)
-
-            # Special case for register_spawn/unregister_spawn - it's a common error when the other end dies
-            if exc is OSError and value.contains("register_spawn"):
-                raise NoMoreMessages("Connection closed", stream=self)
             raise JsonIOError(stream=self, cause=exc)
 
         self._log_message("<--", value)
