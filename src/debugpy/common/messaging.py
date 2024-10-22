@@ -303,7 +303,7 @@ class JsonIOStream(object):
 
             # Special case for register_spawn/unregister_spawn - it's a common error when the other end dies
             if exc is OSError and value.contains("register_spawn"):
-                pass
+                raise NoMoreMessages("Connection closed", stream=self)
             raise JsonIOError(stream=self, cause=exc)
 
         self._log_message("<--", value)
