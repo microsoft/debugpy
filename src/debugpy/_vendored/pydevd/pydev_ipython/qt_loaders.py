@@ -126,15 +126,18 @@ def has_binding(api):
         QT_API_PYQT6: "PyQt6",
     }
     module_name = module_name[api]
-    
+
+    import importlib
+
     try:
         import imp
         # importing top level PyQt4/PySide module is ok...
         mod = __import__(module_name)
         # ...importing submodules is not
-        imp.find_module("QtCore", mod.__path__)
-        imp.find_module("QtGui", mod.__path__)
-        imp.find_module("QtSvg", mod.__path__)
+
+        for check in ("QtCore", "QtGui", "QtSvg"):
+            if importlib.util.find_spec("%s.%s" % (module_name, check)) is None:
+                return False
 
         # we can also safely check PySide version
         if api == QT_API_PYSIDE:
