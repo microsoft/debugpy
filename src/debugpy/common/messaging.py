@@ -301,10 +301,9 @@ class JsonIOStream(object):
         except Exception as exc:  # pragma: no cover
             self._log_message("<--", value, logger=log.swallow_exception)
 
-            # Special case for unregister_spawn - it's a common error when the other end dies
-            if exc is OSError and value.contains("unregister_spawn"):
-                log.error("Error while writing message to {0}", self.name)
-                raise NoMoreMessages(stream=self)
+            # Special case for register_spawn/unregister_spawn - it's a common error when the other end dies
+            if exc is OSError and value.contains("register_spawn"):
+                pass
             raise JsonIOError(stream=self, cause=exc)
 
         self._log_message("<--", value)
