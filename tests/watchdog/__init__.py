@@ -22,7 +22,7 @@ import time
 from debugpy.common import log, messaging
 from tests.watchdog import worker
 
-WATCHDOG_TIMEOUT = 30
+WATCHDOG_TIMEOUT = 10
 
 
 _name = f"watchdog-{os.getpid()}"
@@ -79,7 +79,6 @@ def _dump_worker_log(command, problem, exc_info=None):
 
 
 def _invoke(command, *args):
-    time.sleep(1) # Give the worker a chance to start up.
     def timeout():
         time.sleep(WATCHDOG_TIMEOUT)
         if timeout.occurred is None:
