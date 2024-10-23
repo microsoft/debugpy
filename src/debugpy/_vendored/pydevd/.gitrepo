@@ -1,0 +1,12 @@
+; DO NOT EDIT (unless you know what you are doing)
+;
+; This subdirectory is a git "subrepo", and this file is maintained by the
+; git-subrepo command. See https://github.com/ingydotnet/git-subrepo#readme
+;
+[subrepo]
+	remote = https://github.com/fabioz/PyDev.Debugger.git
+	branch = main
+	commit = 7d6e6e68670277c63d7b8f64cb73688f963f0663
+	parent = 7b94f64e86da752c53196d1cce505ad9abd27d42
+	method = merge
+	cmdver = 0.4.9
