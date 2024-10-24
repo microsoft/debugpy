@@ -272,7 +272,7 @@ if {wait!r}:
 
 
 attach_connect.host = "127.0.0.1"
-attach_connect.port = net.get_test_server_port(5678, 5800)
+attach_connect.port = net.get_test_server_port()
 
 
 @_runner
@@ -328,7 +328,7 @@ debugpy.connect({(host, port)!r})
 
 
 attach_listen.host = "127.0.0.1"
-attach_listen.port = net.get_test_server_port(5478, 5600)
+attach_listen.port = net.get_test_server_port()
 
 all_launch_terminal = [
     launch.with_options(console="integratedTerminal"),

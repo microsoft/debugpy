@@ -11,7 +11,7 @@ from tests.patterns import some
 
 pytestmark = pytest.mark.timeout(60)
 
-flask_server = net.WebServer(net.get_test_server_port(7000, 7100))
+flask_server = net.WebServer(net.get_test_server_port())
 
 
 class paths:

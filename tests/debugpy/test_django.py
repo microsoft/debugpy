@@ -10,7 +10,7 @@ from tests.patterns import some
 
 pytestmark = pytest.mark.timeout(60)
 
-django_server = net.WebServer(net.get_test_server_port(8000, 8100))
+django_server = net.WebServer(net.get_test_server_port())
 
 
 class paths:
