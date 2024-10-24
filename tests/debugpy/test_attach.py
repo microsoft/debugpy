@@ -157,6 +157,7 @@ def test_reattach(pyfile, target, run):
     not sys.platform.startswith("linux"),
     reason="https://github.com/microsoft/debugpy/issues/311",
 )
+@pytest.mark.flaky(retries=2, delay=1)
 def test_attach_pid_client(pyfile, target, pid_type):
     @pyfile
     def code_to_debug():

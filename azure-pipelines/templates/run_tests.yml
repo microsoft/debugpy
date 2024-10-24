@@ -8,7 +8,7 @@ steps:
         $toxEnv = 'py' + $toxEnv.Replace('.', '')
       }
       echo 'tox environment: $toxEnv'
-      python -m tox -e $toxEnv -- --retries 2 --retry-delay 5 --junitxml=$(Build.ArtifactStagingDirectory)/tests.xml --debugpy-log-dir=$(Build.ArtifactStagingDirectory)/logs tests
+      python -m tox -e $toxEnv -- --junitxml=$(Build.ArtifactStagingDirectory)/tests.xml --debugpy-log-dir=$(Build.ArtifactStagingDirectory)/logs tests
     displayName: "Run tests using tox"
     env: 
       DEBUGPY_PROCESS_SPAWN_TIMEOUT: 60

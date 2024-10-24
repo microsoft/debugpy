@@ -304,6 +304,7 @@ def test_breakpoint_in_nonexistent_file(pyfile, target, run):
             ]
 
 
+@pytest.mark.flaky(retries=2, delay=1)
 def test_invalid_breakpoints(pyfile, target, run):
     @pyfile
     def code_to_debug():
