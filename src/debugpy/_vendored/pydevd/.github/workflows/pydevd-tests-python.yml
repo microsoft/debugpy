@@ -24,6 +24,8 @@ jobs:
           "ubuntu-py311-cython",
           "ubuntu-py312-cython-checkbin",
           "windows-py312-cython-checkbin",
+          "ubuntu-py313-cython", 
+          "windows-py313-cython",
         ]
         
         include:
@@ -64,6 +66,14 @@ jobs:
             python: "3.12"
             os: windows-latest
             PYDEVD_USE_CYTHON: YES
+          - name: "ubuntu-py313-cython"
+            python: "3.13"
+            os: ubuntu-20.04
+            PYDEVD_USE_CYTHON: YES
+          - name: "windows-py313-cython"
+            python: "3.13"
+            os: windows-latest
+            PYDEVD_USE_CYTHON: YES
 
     steps:
     - uses: actions/checkout@v1
@@ -95,7 +105,7 @@ jobs:
         pip install untangle --no-warn-script-location
         pip install importlib-metadata --no-warn-script-location
     - name: Install Python 3.x deps
-      if: contains(matrix.name, 'py3') && !contains(matrix.name, 'pypy') && !contains(matrix.name, 'py312') && !contains(matrix.name, 'py311')
+      if: contains(matrix.name, 'py3') && !contains(matrix.name, 'pypy') && !contains(matrix.name, 'py312') && !contains(matrix.name, 'py311') && !contains(matrix.name, 'py313')
       run: |
         pip install PySide2 --no-warn-script-location
         pip install "numpy<2" --force --no-warn-script-location
@@ -118,13 +128,14 @@ jobs:
     - name: Check that wheels can be built
       if: contains(matrix.name, 'checkbin') && contains(matrix.name, 'ubuntu')
       run: |
-        python -m pip install cibuildwheel==2.21.2
+        python -m pip install setuptools --no-warn-script-location
+        python -m pip install cibuildwheel==2.21.3
         # Remove these .so files (will be rebuilt)
         rm pydevd_attach_to_process/*.so
         python -m cibuildwheel --output-dir wheelhouse
       env:
-        CIBW_BUILD: cp310-*manylinux*x86_64 cp311-*manylinux*x86_64 cp312-*manylinux*x86_64
-        CIBW_BUILD_VERBOSITY: 1
+        CIBW_BUILD: cp310-*manylinux*x86_64 cp311-*manylinux*x86_64 cp312-*manylinux*x86_64 cp313-*manylinux*x86_64
+        CIBW_BUILD_VERBOSITY: 3
         
     - name: Rebuild .so
       if: contains(matrix.name, 'checkbin') && contains(matrix.name, 'ubuntu')

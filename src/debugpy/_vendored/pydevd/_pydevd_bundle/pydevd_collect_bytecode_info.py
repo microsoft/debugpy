@@ -846,6 +846,8 @@ class _Disassembler(object):
         argrepr = instruction.argrepr
         if isinstance(argrepr, str) and argrepr.startswith("NULL + "):
             argrepr = argrepr[7:]
+        if isinstance(argrepr, str) and argrepr.endswith("+ NULL"):
+            argrepr = argrepr[:-7]
         return _MsgPart(line, tok if tok is not None else dec(instruction, argrepr))
 
     def _next_instruction_to_str(self, line_to_contents):

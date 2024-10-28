@@ -310,6 +310,11 @@ extern "C"
         // Either _PyThreadState_Current or _PyThreadState_UncheckedGet are required
         DEFINE_PROC_NO_CHECK(curPythonThread, PyThreadState**, "_PyThreadState_Current", -220);  // optional
         DEFINE_PROC_NO_CHECK(getPythonThread, _PyThreadState_UncheckedGet*, "_PyThreadState_UncheckedGet", -230);  // optional
+        DEFINE_PROC_NO_CHECK(getPythonThread13, _PyThreadState_GetCurrent*, "_PyThreadState_GetCurrent", -231);  // optional
+        if (getPythonThread == nullptr && getPythonThread13 != nullptr) {
+            std::cout << "Using Python 3.13 or later, using _PyThreadState_GetCurrent" << std::endl << std::flush;
+            getPythonThread = getPythonThread13;
+        }
 
         if (curPythonThread == nullptr && getPythonThread == nullptr) {
             // we're missing some APIs, we cannot attach.

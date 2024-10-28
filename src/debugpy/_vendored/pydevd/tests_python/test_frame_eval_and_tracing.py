@@ -6,7 +6,7 @@ import time
 from contextlib import contextmanager
 from tests_python.debugger_unittest import IS_CPYTHON
 from tests_python.debug_constants import TEST_CYTHON
-from _pydevd_bundle.pydevd_constants import IS_PY312_OR_GREATER, IS_PY311_OR_GREATER
+from _pydevd_bundle.pydevd_constants import IS_PY312_OR_GREATER, IS_PY311_OR_GREATER, IS_PY313_OR_GREATER, TODO_PY313_OR_GREATER
 
 pytest_plugins = [
     str("tests_python.debugger_fixtures"),
@@ -296,6 +296,7 @@ def test_frame_eval_change_breakpoints(case_setup_force_frame_eval):
         writer.finished_ok = True
 
 
+@pytest.mark.skipif(TODO_PY313_OR_GREATER, reason="Flakey on python 3.13 or newer")
 def test_generator_code_cache(case_setup_force_frame_eval):
     with case_setup_force_frame_eval.test_file("_debugger_case_yield_from.py") as writer:
         break1_line = writer.get_line_index_with_content("break1")

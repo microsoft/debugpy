@@ -1,6 +1,6 @@
 import sys
 from _pydevd_bundle.pydevd_constants import IS_PY312_OR_GREATER, \
-    IS_PY311_OR_GREATER
+    IS_PY311_OR_GREATER, IS_PY313_OR_GREATER
 try:
     from _pydevd_bundle import pydevd_bytecode_utils
 except ImportError:
@@ -173,7 +173,9 @@ def test_smart_step_into_bytecode_info_002():
     found = collect_smart_step_into_variants(
         frame, 0, 99999, base=function.__code__.co_firstlineno)
 
-    if IS_PY311_OR_GREATER:
+    if IS_PY313_OR_GREATER:
+        check_name_and_line(found,  [('sys._getframe()', 1), ('foo.bar(\n            Something(param1, param2=xxx.yyy),\n        )', 2), ('call()', 5)])
+    elif IS_PY311_OR_GREATER:
         check_name_and_line(found, [('sys._getframe()', 1), ('foo.bar(\n            Something(param1, param2=xxx.yyy),\n        )', 2), ('Something(param1, param2=xxx.yyy)', 3), ('call()', 5)])
     else:
         check_name_and_line(found, [('_getframe', 1), ('bar', 2), ('Something', 3), ('call', 5)])
@@ -194,7 +196,9 @@ def test_smart_step_into_bytecode_info_003():
     found = collect_smart_step_into_variants(
         frame, 0, 99999, base=function.__code__.co_firstlineno)
 
-    if IS_PY311_OR_GREATER:
+    if IS_PY313_OR_GREATER:
+        check_name_and_line(found, [('sys._getframe()', 1), ('foo.bar(\n            Something(param1, param2=xxx.yyy), {}\n        )', 2), ('call()', 5)])
+    elif IS_PY311_OR_GREATER:
         check_name_and_line(found, [('sys._getframe()', 1), ('foo.bar(\n            Something(param1, param2=xxx.yyy), {}\n        )', 2), ('Something(param1, param2=xxx.yyy)', 3), ('call()', 5)])
     else:
         check_name_and_line(found, [('_getframe', 1), ('bar', 2), ('Something', 3), ('call', 5)])

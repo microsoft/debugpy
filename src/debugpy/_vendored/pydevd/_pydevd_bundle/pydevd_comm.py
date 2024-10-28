@@ -1140,7 +1140,8 @@ def internal_get_next_statement_targets(dbg, seq, thread_id, frame_id):
                 xml += "<line>%d</line>" % (frame.f_lineno,)
             else:
                 for _, line in linestarts:
-                    xml += "<line>%d</line>" % (line,)
+                    if line is not None:
+                        xml += "<line>%d</line>" % (line,)
             del frame
             xml += "</xml>"
             cmd = dbg.cmd_factory.make_get_next_statement_targets_message(seq, xml)

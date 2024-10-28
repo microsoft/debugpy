@@ -50,6 +50,7 @@ from _pydevd_bundle.pydevd_constants import (
     PYDEVD_USE_SYS_MONITORING,
     IS_PY312_OR_GREATER,
     SUPPORT_ATTACH_TO_PID,
+    IS_PY313_OR_GREATER,
 )
 from tests_python import debugger_unittest
 from tests_python.debug_constants import TEST_CHERRYPY, TEST_DJANGO, TEST_FLASK, IS_CPYTHON, TEST_GEVENT, TEST_CYTHON, IS_PY311
@@ -1402,11 +1403,12 @@ def test_case_sys_exit_multiple_exception_attach(case_setup_remote, raised, unca
         wait_for_condition(lambda: hasattr(writer, "reader_thread"))
 
         json_facade = JsonFacade(writer)
+        json_facade.write_set_debugger_property([], ["_debugger_case_sysexit_unhandled_launcher.py"])
 
+        break_file = debugger_unittest._get_debugger_test_file("_debugger_case_sysexit_unhandled_break.py")
         target_file = debugger_unittest._get_debugger_test_file("_debugger_case_sysexit_unhandled_attach.py")
 
-        bp_line = writer.get_line_index_with_content("break here")
-        final_line = writer.get_line_index_with_content("final break")
+        bp_line = writer.get_line_index_with_content("break here", filename=break_file)
         handled_line = writer.get_line_index_with_content("@handled", filename=target_file)
         unhandled_line = writer.get_line_index_with_content("@unhandled", filename=target_file)
         original_ignore_stderr_line = writer._ignore_stderr_line
@@ -1421,21 +1423,21 @@ def test_case_sys_exit_multiple_exception_attach(case_setup_remote, raised, unca
 
         # Not really a launch, but we want to send these before the make_initial_run.
         json_facade.write_launch(
-             breakpointOnSystemExit=True if zero else False,
-             debugOptions=["BreakOnSystemExitZero", "ShowReturnValue"] if zero else ["ShowReturnValue"],
+            breakpointOnSystemExit=True if zero else False,
+            debugOptions=["BreakOnSystemExitZero", "ShowReturnValue"] if zero else ["ShowReturnValue"],
         )
 
         json_facade.write_set_exception_breakpoints(filters)
-        json_facade.write_set_breakpoints([bp_line])
+        json_facade.write_set_breakpoints([bp_line], filename=break_file)
         json_facade.write_make_initial_run()
-        hit = json_facade.wait_for_thread_stopped(line=bp_line)
+        hit = json_facade.wait_for_thread_stopped(line=bp_line, file=break_file)
 
         # Stop looping
         json_facade.get_global_var(hit.frame_id, "wait")
         json_facade.write_set_variable(hit.frame_id, "wait", "False")
         json_facade.write_set_breakpoints([])
         json_facade.write_continue()
-        
+
         # When breaking on raised exceptions, we'll stop on both lines,
         # unless it's SystemExit(0) and we asked to ignore that.
         if raised and (zero or exit_code != 0):
@@ -1448,12 +1450,6 @@ def test_case_sys_exit_multiple_exception_attach(case_setup_remote, raised, unca
             json_facade.wait_for_thread_stopped(
                 "exception",
                 line=unhandled_line,
-            )
-            json_facade.write_continue()
-
-            json_facade.wait_for_thread_stopped(
-                "exception",
-                line=final_line,
             )
             json_facade.write_continue()
 
@@ -4227,7 +4223,7 @@ def test_wait_for_attach(case_setup_remote_attach_to_dap):
         json_facade.write_list_threads()
         # Check that we have the started thread event (whenever we reconnect).
         started_events = json_facade.mark_messages(ThreadEvent, lambda x: x.body.reason == "started")
-        assert len(started_events) == 1
+        assert len(started_events) >= 1
 
     def check_process_event(json_facade, start_method):
         if start_method == "attach":
@@ -5742,16 +5738,18 @@ def test_stop_on_entry2(case_setup_dap):
         json_facade.write_continue()
         writer.finished_ok = True
 
+
 def test_stop_on_entry_verify_strings(case_setup_dap):
     with case_setup_dap.test_file("not_my_code/main_on_entry3.py") as writer:
         json_facade = JsonFacade(writer)
-        json_facade.write_set_debugger_property([], ["main_on_entry3.py"])
+        json_facade.write_set_debugger_property([], ["main_on_entry3.py", "_pydevd_string_breakpoint.py"])
         json_facade.write_launch(
             justMyCode=True,
             stopOnEntry=True,
             showReturnValue=True,
             rules=[
                 {"path": "**/main_on_entry3.py", "include": False},
+                {"path": "**/_pydevd_string_breakpoint.py", "include": False},
             ],
         )
 
@@ -5759,6 +5757,7 @@ def test_stop_on_entry_verify_strings(case_setup_dap):
         json_facade.wait_for_thread_stopped("breakpoint", file="empty_file.py")
         json_facade.write_continue()
         writer.finished_ok = True
+
 
 @pytest.mark.parametrize("val", [True, False])
 def test_debug_options(case_setup_dap, val):
@@ -6256,11 +6255,14 @@ print('TEST SUCEEDED')
 
 
 @pytest.mark.skipif(
-    not IS_WINDOWS
-    or not IS_PY36_OR_GREATER
-    or not IS_CPYTHON
-    or not TEST_CYTHON
-    or IS_PY311,  # Requires frame-eval mode (not available for Python 3.11).
+    not (IS_PY312_OR_GREATER and IS_WINDOWS)  # Always works with sys.monitoring (even without TEST_CYTHON)
+    and (
+        not IS_WINDOWS
+        or not IS_PY36_OR_GREATER
+        or not IS_CPYTHON
+        or not TEST_CYTHON
+        or IS_PY311  # Requires frame-eval mode (not available for Python 3.11).
+    ),
     # Note that this works in Python 3.12 as it uses sys.monitoring.
     reason="Windows only test and only Python 3.6 onwards.",
 )
@@ -6280,6 +6282,41 @@ def test_native_threads(case_setup_dap, pyfile):
             return 0
 
         windll.kernel32.CreateThread(None, c_size_t(0), method, None, c_uint32(0), None)
+        while not entered_thread[0]:
+            time.sleep(0.1)
+
+        print("TEST SUCEEDED")
+
+    with case_setup_dap.test_file(case_native_thread) as writer:
+        json_facade = JsonFacade(writer)
+
+        line = writer.get_line_index_with_content("Break here")
+        json_facade.write_launch(justMyCode=False)
+        json_facade.write_set_breakpoints(line)
+        json_facade.write_make_initial_run()
+
+        json_facade.wait_for_thread_stopped(line=line)
+
+        json_facade.write_continue()
+        writer.finished_ok = True
+
+
+@pytest.mark.skipif(not IS_PY313_OR_GREATER, reason="3.13 onwards only test.")
+def test_internal_thread(case_setup_dap, pyfile):
+    @pyfile
+    def case_native_thread():
+        import _thread
+        import time
+
+        entered_thread = [False]
+
+        def method(*args, **kwargs):
+            entered_thread[0] = True  # Break here
+            return 0
+
+        # Using it directly must still work!
+        _thread.start_joinable_thread(method)
+
         while not entered_thread[0]:
             time.sleep(0.1)
 

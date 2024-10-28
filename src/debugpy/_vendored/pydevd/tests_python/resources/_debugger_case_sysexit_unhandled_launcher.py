@@ -1,11 +1,6 @@
-import time
 import os
 
-wait = True
-while wait:
-    time.sleep(1)  # break here
-
-print('attached')
+import _debugger_case_sysexit_unhandled_break
 
 # Raise an exception in a system module.
 def raise_exception():

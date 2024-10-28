@@ -1,4 +1,4 @@
-from _pydevd_bundle.pydevd_constants import EXCEPTION_TYPE_USER_UNHANDLED, EXCEPTION_TYPE_UNHANDLED, IS_PY311_OR_GREATER
+from _pydevd_bundle.pydevd_constants import EXCEPTION_TYPE_USER_UNHANDLED, EXCEPTION_TYPE_UNHANDLED, IS_PY311_OR_GREATER, IS_PY313_0
 from _pydev_bundle import pydev_log
 import itertools
 from typing import Any, Dict
@@ -34,7 +34,13 @@ def add_exception_to_frame(frame, exception_info):
 
 
 def remove_exception_from_frame(frame):
-    frame.f_locals.pop("__exception__", None)
+    if IS_PY313_0:
+        # In 3.13.0 frame.f_locals became a proxy for a dict, It does not
+        # have methods to allow items to be removed, only added. So just set the item to None.
+        # Should be fixed in 3.13.1 in PR: https://github.com/python/cpython/pull/125616
+        frame.f_locals["__exception__"] = None
+    else:
+        frame.f_locals.pop("__exception__", None)
 
 
 FILES_WITH_IMPORT_HOOKS = ["pydev_monkey_qt.py", "pydev_import_hook.py"]
@@ -43,32 +49,34 @@ FILES_WITH_IMPORT_HOOKS = ["pydev_monkey_qt.py", "pydev_import_hook.py"]
 def just_raised(trace):
     if trace is None:
         return False
-    
+
     return trace.tb_next is None
+
 
 def short_tb(exc_tb):
     traceback = []
     while exc_tb:
-        traceback.append('{%r, %r, %r}' % (exc_tb.tb_frame.f_code.co_filename,
-                                           exc_tb.tb_frame.f_code.co_name,
-                                           exc_tb.tb_lineno))
+        traceback.append("{%r, %r, %r}" % (exc_tb.tb_frame.f_code.co_filename, exc_tb.tb_frame.f_code.co_name, exc_tb.tb_lineno))
         exc_tb = exc_tb.tb_next
-    return 'Traceback: %s\n' % (' -> '.join(traceback))
+    return "Traceback: %s\n" % (" -> ".join(traceback))
+
 
 def short_frame(frame):
     if frame is None:
-        return 'None'
-    
+        return "None"
+
     filename = frame.f_code.co_filename
     name = splitext(basename(filename))[0]
-    return '%s::%s %s' % (name, frame.f_code.co_name, frame.f_lineno)
+    return "%s::%s %s" % (name, frame.f_code.co_name, frame.f_lineno)
+
 
 def short_stack(frame):
     stack = []
     while frame:
         stack.append(short_frame(frame))
         frame = frame.f_back
-    return 'Stack: %s\n' % (' -> '.join(stack))
+    return "Stack: %s\n" % (" -> ".join(stack))
+
 
 def ignore_exception_trace(trace):
     while trace is not None:
@@ -139,6 +147,7 @@ _utf8_with_4_bytes = 0x10000
 def _utf8_byte_offset_to_character_offset(s: str, offset: int):
     byte_offset = 0
     char_offset = 0
+    offset = offset or 0
 
     for char_offset, character in enumerate(s):
         byte_offset += 1

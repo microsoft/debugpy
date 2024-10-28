@@ -15,6 +15,7 @@ from os.path import basename, splitext
 from _pydev_bundle import pydev_log
 from _pydevd_bundle import pydevd_dont_trace
 from _pydevd_bundle.pydevd_constants import (
+    IS_PY313_OR_GREATER,
     GlobalDebuggerHolder,
     ForkSafeLock,
     PYDEVD_IPYTHON_CONTEXT,
@@ -32,7 +33,6 @@ from _pydevd_bundle.pydevd_constants import EXCEPTION_TYPE_HANDLED
 from _pydevd_bundle.pydevd_trace_dispatch import is_unhandled_exception
 from _pydevd_bundle.pydevd_breakpoints import stop_on_unhandled_exception
 from _pydevd_bundle.pydevd_utils import get_clsname_for_code
-from _pydevd_bundle.pydevd_dont_trace_files import PYDEV_FILE
 
 
 # fmt: off
@@ -60,10 +60,8 @@ _thread_local_info = threading.local()
 _get_ident = threading.get_ident
 _thread_active = threading._active  # noqa
 
-STATE_SUSPEND: int = 2
 CMD_STEP_INTO: int = 107
 CMD_STEP_OVER: int = 108
-CMD_STEP_OVER_MY_CODE: int = 159
 CMD_STEP_INTO_MY_CODE: int = 144
 CMD_STEP_INTO_COROUTINE: int = 206
 CMD_SMART_STEP_INTO: int = 128
@@ -172,23 +170,19 @@ def _get_bootstrap_frame(depth: int) -> Tuple[Optional[FrameType], bool]:
 
 # fmt: off
 # IFDEF CYTHON
-# cdef _get_unhandled_exception_frame(int depth):
+# cdef _get_unhandled_exception_frame(exc, int depth):
 # ELSE
-def _get_unhandled_exception_frame(depth: int) -> Optional[FrameType]:
+def _get_unhandled_exception_frame(exc, depth: int) -> Optional[FrameType]:
 # ENDIF
 # fmt: on
     try:
-        result = _thread_local_info.f_unhandled
-
-        # Make sure the result is from the same exception. That means the result is in the stack somewhere.
-        if result is not None:
-            orig = frame = _getframe(depth)
-            while result != frame and frame is not None:
-                frame = frame.f_back
-            if frame is not None:
-                return result
-            del _thread_local_info.f_unhandled
-            raise AttributeError("Unhandled frame from different exception")
+        # Unhandled frame has to be from the same exception.
+        if _thread_local_info.f_unhandled_exc is exc:
+            return _thread_local_info.f_unhandled_frame
+        else:
+            del _thread_local_info.f_unhandled_frame
+            del _thread_local_info.f_unhandled_exc
+            raise AttributeError('Not the same exception')
     except:
         f_unhandled = _getframe(depth)
 
@@ -226,8 +220,9 @@ def _get_unhandled_exception_frame(depth: int) -> Optional[FrameType]:
             f_unhandled = f_back
 
         if f_unhandled is not None:
-            _thread_local_info.f_unhandled = f_unhandled
-            return _thread_local_info.f_unhandled
+            _thread_local_info.f_unhandled_frame = f_unhandled
+            _thread_local_info.f_unhandled_exc = exc
+            return _thread_local_info.f_unhandled_frame
 
         return f_unhandled
 
@@ -239,6 +234,7 @@ def _get_unhandled_exception_frame(depth: int) -> Optional[FrameType]:
 #     cdef PyDBAdditionalThreadInfo additional_info
 #     thread: threading.Thread
 #     trace: bool
+#     _use_is_stopped: bool
 # ELSE
 class ThreadInfo:
     additional_info: PyDBAdditionalThreadInfo
@@ -259,6 +255,19 @@ class ThreadInfo:
         self.thread_ident = thread_ident
         self.additional_info = additional_info
         self.trace = trace
+        self._use_is_stopped = hasattr(thread, '_is_stopped')
+        
+    # fmt: off
+    # IFDEF CYTHON
+    # cdef bint is_thread_alive(self):
+    # ELSE
+    def is_thread_alive(self):
+    # ENDIF
+    # fmt: on
+        if self._use_is_stopped:
+            return not self.thread._is_stopped
+        else:
+            return not self.thread._handle.is_done()
 
 
 class _DeleteDummyThreadOnDel:
@@ -322,7 +331,7 @@ def _create_thread_info(depth):
     if t is None:
         t = _thread_active.get(thread_ident)
 
-    if isinstance(t, threading._DummyThread):
+    if isinstance(t, threading._DummyThread) and not IS_PY313_OR_GREATER:
         _thread_local_info._ref = _DeleteDummyThreadOnDel(t)
 
     if t is None:
@@ -409,8 +418,9 @@ class FuncCodeInfo:
 
     def get_line_of_offset(self, offset):
         for start, end, line in self.code_obj.co_lines():
-            if offset >= start and offset <= end:
-                return line
+            if start is not None and end is not None and line is not None:
+                if offset >= start and offset <= end:
+                    return line
         return -1
 
 
@@ -460,9 +470,10 @@ def _get_code_line_info(code_obj, _cache={}):
         last_line = None
 
         for offset, line in dis.findlinestarts(code_obj):
-            line_to_offset[line] = offset
+            if offset is not None and line is not None:
+                line_to_offset[line] = offset
 
-        if line_to_offset:
+        if len(line_to_offset):
             first_line = min(line_to_offset)
             last_line = max(line_to_offset)
         ret = _CodeLineInfo(line_to_offset, first_line, last_line)
@@ -836,7 +847,7 @@ def _unwind_event(code, instruction, exc):
     if py_db is None or py_db.pydb_disposed:
         return
 
-    if not thread_info.trace or thread_info.thread._is_stopped:
+    if not thread_info.trace or not thread_info.is_thread_alive():
         # For thread-related stuff we can't disable the code tracing because other
         # threads may still want it...
         return
@@ -875,7 +886,7 @@ def _unwind_event(code, instruction, exc):
 
     break_on_uncaught_exceptions = py_db.break_on_uncaught_exceptions
     if break_on_uncaught_exceptions:
-        if frame is _get_unhandled_exception_frame(1):
+        if frame is _get_unhandled_exception_frame(exc, 1):
             stop_on_unhandled_exception(py_db, thread_info.thread, thread_info.additional_info, arg)
             return
 
@@ -910,7 +921,7 @@ def _raise_event(code, instruction, exc):
     if py_db is None or py_db.pydb_disposed:
         return
 
-    if not thread_info.trace or thread_info.thread._is_stopped:
+    if not thread_info.trace or not thread_info.is_thread_alive():
         # For thread-related stuff we can't disable the code tracing because other
         # threads may still want it...
         return
@@ -1025,7 +1036,7 @@ def _return_event(code, instruction, retval):
     if py_db is None or py_db.pydb_disposed:
         return monitor.DISABLE
 
-    if not thread_info.trace or thread_info.thread._is_stopped:
+    if not thread_info.trace or not thread_info.is_thread_alive():
         # For thread-related stuff we can't disable the code tracing because other
         # threads may still want it...
         return
@@ -1340,7 +1351,7 @@ def _jump_event(code, from_offset, to_offset):
     if hasattr(_thread_local_info, "f_disable_next_line_if_match"):
         del _thread_local_info.f_disable_next_line_if_match
 
-    if not thread_info.trace or thread_info.thread._is_stopped:
+    if not thread_info.trace or not thread_info.is_thread_alive():
         # For thread-related stuff we can't disable the code tracing because other
         # threads may still want it...
         return
@@ -1356,8 +1367,8 @@ def _jump_event(code, from_offset, to_offset):
     if to_offset > from_offset:
         return monitor.DISABLE
 
-    from_line = func_code_info.get_line_of_offset(from_offset)
-    to_line = func_code_info.get_line_of_offset(to_offset)
+    from_line = func_code_info.get_line_of_offset(from_offset or 0)
+    to_line = func_code_info.get_line_of_offset(to_offset or 0)
 
     if from_line != to_line:
         # I.e.: use case: "yield from [j for j in a if j % 2 == 0]"
@@ -1368,6 +1379,7 @@ def _jump_event(code, from_offset, to_offset):
 
     # Disable the next line event as we're jumping to a line. The line event will be redundant.
     _thread_local_info.f_disable_next_line_if_match = (func_code_info.co_filename, frame.f_lineno)
+    # pydev_log.debug('_jump_event', code.co_name, 'from line', from_line, 'to line', frame.f_lineno)
 
     return _internal_line_event(func_code_info, frame, frame.f_lineno)
 
@@ -1403,18 +1415,19 @@ def _line_event(code, line):
         if line_to_skip is line and co_filename == code.co_filename:
             # The last jump already jumped to this line and we haven't had any
             # line events or jumps since then. We don't want to consider this line twice
+            # pydev_log.debug('_line_event skipped', line)
             return
 
-    if not thread_info.trace or thread_info.thread._is_stopped:
+    if not thread_info.trace or not thread_info.is_thread_alive():
         # For thread-related stuff we can't disable the code tracing because other
         # threads may still want it...
         return
-
+    
     func_code_info: FuncCodeInfo = _get_func_code_info(code, 1)
     if func_code_info.always_skip_code or func_code_info.always_filtered_out:
         return monitor.DISABLE
 
-    # print('line event', code.co_name, line)
+    # pydev_log.debug('_line_event', code.co_name, line)
 
     # We know the frame depth.
     frame = _getframe(1)
@@ -1644,7 +1657,7 @@ def _start_method_event(code, instruction_offset):
     if py_db is None or py_db.pydb_disposed:
         return monitor.DISABLE
 
-    if not thread_info.trace or thread_info.thread._is_stopped:
+    if not thread_info.trace or not thread_info.is_thread_alive():
         # For thread-related stuff we can't disable the code tracing because other
         # threads may still want it...
         return
@@ -1841,7 +1854,10 @@ def update_monitor_events(suspend_requested: Optional[bool] = None) -> None:
         monitor.register_callback(DEBUGGER_ID, monitor.events.PY_START, _start_method_event)
         # monitor.register_callback(DEBUGGER_ID, monitor.events.PY_RESUME, _resume_method_event)
         monitor.register_callback(DEBUGGER_ID, monitor.events.LINE, _line_event)
-        monitor.register_callback(DEBUGGER_ID, monitor.events.JUMP, _jump_event)
+        if not IS_PY313_OR_GREATER:
+            # In Python 3.13+ jump_events aren't necessary as we have a line_event for every
+            # jump location. 
+            monitor.register_callback(DEBUGGER_ID, monitor.events.JUMP, _jump_event)
         monitor.register_callback(DEBUGGER_ID, monitor.events.PY_RETURN, _return_event)
 
     else:

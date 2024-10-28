@@ -14,7 +14,8 @@ def method1():
         method2()  # handle on method1
     except:
         pass  # Ok, handled
-    assert '__exception__' not in sys._getframe().f_locals
+    exc = sys._getframe().f_locals.get('__exception__', None)
+    assert exc is None
 
 
 if __name__ == '__main__':

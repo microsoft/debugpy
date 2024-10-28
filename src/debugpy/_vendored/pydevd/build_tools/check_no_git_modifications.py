@@ -42,6 +42,17 @@ expected_differences = set(
 -static const char __pyx_k_pydevd_sys_monitoring__pydevd_s[] = "_pydevd_sys_monitoring\\_pydevd_sys_monitoring_cython.pyx";
 -  ".\\\\\\\\_pydevd_bundle\\\\\\\\pydevd_cython.pxd",
 -  ".\\\\_pydevd_bundle\\\\pydevd_cython.pxd",
+
+-  "_pydevd_sys_monitoring/_pydevd_sys_monitoring_cython.pyx",
++  "_pydevd_sys_monitoring\\\\\\\\_pydevd_sys_monitoring_cython.pyx",
+-  "./_pydevd_bundle/pydevd_cython.pxd",
++  ".\\\\\\\\_pydevd_bundle\\\\\\\\pydevd_cython.pxd",
+-static const char __pyx_k_pydevd_sys_monitoring__pydevd_s[] = "_pydevd_sys_monitoring/_pydevd_sys_monitoring_cython.pyx";
++static const char __pyx_k_pydevd_sys_monitoring__pydevd_s[] = "_pydevd_sys_monitoring\\\\_pydevd_sys_monitoring_cython.pyx";
+
++  "_pydevd_sys_monitoring\\\\_pydevd_sys_monitoring_cython.pyx",
++  ".\\\\_pydevd_bundle\\\\pydevd_cython.pxd",
++static const char __pyx_k_pydevd_sys_monitoring__pydevd_s[] = "_pydevd_sys_monitoring\\_pydevd_sys_monitoring_cython.pyx";
 """.splitlines()
     if line.strip()
 )

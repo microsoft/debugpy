@@ -7,7 +7,7 @@ Update cython-generated files (must update cython and then run build_tools/build
 
 Create tag:
 -----------
-git tag pydev_debugger_3_1_0 -a -m "PyDev.Debugger 3.1.0"
+git tag pydev_debugger_3_2_1 -a -m "PyDev.Debugger 3.2.1"
 git push --tags
 
 

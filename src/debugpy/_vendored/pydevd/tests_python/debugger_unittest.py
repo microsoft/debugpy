@@ -647,7 +647,7 @@ class DebuggerRunner(object):
             except:
                 traceback.print_exc()
             finish[0] = True
-            # print("Log on success: " + self.get_log_contents())
+            print("Log on success: " + self.get_log_contents())
 
     def get_log_contents(self):
         log_contents = ""
@@ -1656,7 +1656,9 @@ class AbstractWriterThread(threading.Thread):
 
     def wait_for_thread_join(self, main_thread_id):
         def condition():
-            return self.get_frame_names(main_thread_id) in (
+            names = self.get_frame_names(main_thread_id)
+            return names in (
+                ["join", "<module>"],
                 ["wait", "join", "<module>"],
                 ["_wait_for_tstate_lock", "join", "<module>"],
                 ["_wait_for_tstate_lock", "join", "<module>", "_run_code", "_run_module_code", "run_path"],
