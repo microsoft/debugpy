@@ -19,9 +19,9 @@ from typing import Dict, Optional, Tuple, Any
 from os.path import basename, splitext
 
 from _pydev_bundle import pydev_log
-from _pydev_bundle.pydev_is_thread_alive import is_thread_alive
 from _pydevd_bundle import pydevd_dont_trace
 from _pydevd_bundle.pydevd_constants import (
+    IS_PY313_OR_GREATER,
     GlobalDebuggerHolder,
     ForkSafeLock,
     PYDEVD_IPYTHON_CONTEXT,
@@ -39,7 +39,7 @@ from _pydevd_bundle.pydevd_constants import EXCEPTION_TYPE_HANDLED
 from _pydevd_bundle.pydevd_trace_dispatch import is_unhandled_exception
 from _pydevd_bundle.pydevd_breakpoints import stop_on_unhandled_exception
 from _pydevd_bundle.pydevd_utils import get_clsname_for_code
-from _pydevd_bundle.pydevd_dont_trace_files import PYDEV_FILE
+
 
 # fmt: off
 # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
@@ -66,10 +66,8 @@ _thread_local_info = threading.local()
 _get_ident = threading.get_ident
 _thread_active = threading._active  # noqa
 
-STATE_SUSPEND: int = 2
 CMD_STEP_INTO: int = 107
 CMD_STEP_OVER: int = 108
-CMD_STEP_OVER_MY_CODE: int = 159
 CMD_STEP_INTO_MY_CODE: int = 144
 CMD_STEP_INTO_COROUTINE: int = 206
 CMD_SMART_STEP_INTO: int = 128
@@ -242,6 +240,7 @@ cdef class ThreadInfo:
     cdef PyDBAdditionalThreadInfo additional_info
     thread: threading.Thread
     trace: bool
+    _use_is_stopped: bool
 # ELSE
 # class ThreadInfo:
 #     additional_info: PyDBAdditionalThreadInfo
@@ -262,6 +261,19 @@ cdef class ThreadInfo:
         self.thread_ident = thread_ident
         self.additional_info = additional_info
         self.trace = trace
+        self._use_is_stopped = hasattr(thread, '_is_stopped')
+        
+    # fmt: off
+    # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
+    cdef bint is_thread_alive(self):
+    # ELSE
+#     def is_thread_alive(self):
+    # ENDIF
+    # fmt: on
+        if self._use_is_stopped:
+            return not self.thread._is_stopped
+        else:
+            return not self.thread._handle.is_done()
 
 
 class _DeleteDummyThreadOnDel:
@@ -325,7 +337,7 @@ cdef _create_thread_info(depth):
     if t is None:
         t = _thread_active.get(thread_ident)
 
-    if isinstance(t, threading._DummyThread):
+    if isinstance(t, threading._DummyThread) and not IS_PY313_OR_GREATER:
         _thread_local_info._ref = _DeleteDummyThreadOnDel(t)
 
     if t is None:
@@ -412,8 +424,9 @@ cdef class FuncCodeInfo:
 
     def get_line_of_offset(self, offset):
         for start, end, line in self.code_obj.co_lines():
-            if offset >= start and offset <= end:
-                return line
+            if start is not None and end is not None and line is not None:
+                if offset >= start and offset <= end:
+                    return line
         return -1
 
 
@@ -444,15 +457,41 @@ cdef _get_thread_info(bint create, int depth):
         return _thread_local_info.thread_info
 
 
-_CodeLineInfo = namedtuple("_CodeLineInfo", "line_to_offset, first_line, last_line")
+# fmt: off
+# IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
+cdef class _CodeLineInfo:
+    cdef dict line_to_offset
+    cdef int first_line
+    cdef int last_line
+# ELSE
+# class _CodeLineInfo:
+#     line_to_offset: Dict[int, Any]
+#     first_line: int
+#     last_line: int
+# ENDIF
+# fmt: on
 
+    # fmt: off
+    # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
+    def __init__(self, dict line_to_offset, int first_line, int last_line):
+        self.line_to_offset = line_to_offset
+        self.first_line = first_line
+        self.last_line = last_line
+    # ELSE
+#     def __init__(self, line_to_offset, first_line, last_line):
+#         self.line_to_offset = line_to_offset
+#         self.first_line = first_line
+#         self.last_line = last_line
+# 
+    # ENDIF
+    # fmt: on
 
 # Note: this method has a version in cython too
 # fmt: off
 # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
-cdef _get_code_line_info(code_obj, _cache={}):
+cdef _CodeLineInfo _get_code_line_info(code_obj, _cache={}):
 # ELSE
-# def _get_code_line_info(code_obj, _cache={}):
+# def _get_code_line_info(code_obj, _cache={}) -> _CodeLineInfo:
 # ENDIF
 # fmt: on
     try:
@@ -840,16 +879,16 @@ cdef _unwind_event(code, instruction, exc):
     if py_db is None or py_db.pydb_disposed:
         return
 
-    if not thread_info.trace or not is_thread_alive(thread_info.thread):
+    if not thread_info.trace or not thread_info.is_thread_alive():
         # For thread-related stuff we can't disable the code tracing because other
         # threads may still want it...
         return
-    
+
     func_code_info: FuncCodeInfo = _get_func_code_info(code, 1)
     if func_code_info.always_skip_code:
         return
-    
-    # pydev_log.debug('_unwind_event', code, exc)
+
+    # print('_unwind_event', code, exc)
     frame = _getframe(1)
     arg = (type(exc), exc, exc.__traceback__)
 
@@ -874,7 +913,6 @@ cdef _unwind_event(code, instruction, exc):
             )
 
             if is_unhandled:
-                # print('stop in user uncaught')
                 handle_exception(py_db, thread_info.thread, frame, user_uncaught_exc_info[0], EXCEPTION_TYPE_USER_UNHANDLED)
                 return
 
@@ -910,12 +948,12 @@ cdef _raise_event(code, instruction, exc):
         thread_info = _get_thread_info(True, 1)
         if thread_info is None:
             return
-
+        
     py_db: object = GlobalDebuggerHolder.global_dbg
     if py_db is None or py_db.pydb_disposed:
         return
 
-    if not thread_info.trace or not is_thread_alive(thread_info.thread):
+    if not thread_info.trace or not thread_info.is_thread_alive():
         # For thread-related stuff we can't disable the code tracing because other
         # threads may still want it...
         return
@@ -926,7 +964,6 @@ cdef _raise_event(code, instruction, exc):
 
     frame = _getframe(1)
     arg = (type(exc), exc, exc.__traceback__)
-    # pydev_log.debug('_raise_event', code, exc)
 
     # Compute the previous exception info (if any). We use it to check if the exception
     # should be stopped
@@ -1031,7 +1068,7 @@ cdef _return_event(code, instruction, retval):
     if py_db is None or py_db.pydb_disposed:
         return monitor.DISABLE
 
-    if not thread_info.trace or not is_thread_alive(thread_info.thread):
+    if not thread_info.trace or not thread_info.is_thread_alive():
         # For thread-related stuff we can't disable the code tracing because other
         # threads may still want it...
         return
@@ -1346,7 +1383,7 @@ cdef _jump_event(code, int from_offset, int to_offset):
     if hasattr(_thread_local_info, "f_disable_next_line_if_match"):
         del _thread_local_info.f_disable_next_line_if_match
 
-    if not thread_info.trace or not is_thread_alive(thread_info.thread):
+    if not thread_info.trace or not thread_info.is_thread_alive():
         # For thread-related stuff we can't disable the code tracing because other
         # threads may still want it...
         return
@@ -1364,7 +1401,6 @@ cdef _jump_event(code, int from_offset, int to_offset):
 
     from_line = func_code_info.get_line_of_offset(from_offset or 0)
     to_line = func_code_info.get_line_of_offset(to_offset or 0)
-    # print('jump event', code.co_name, 'from line', from_line, 'to line', to_line)
 
     if from_line != to_line:
         # I.e.: use case: "yield from [j for j in a if j % 2 == 0]"
@@ -1375,6 +1411,7 @@ cdef _jump_event(code, int from_offset, int to_offset):
 
     # Disable the next line event as we're jumping to a line. The line event will be redundant.
     _thread_local_info.f_disable_next_line_if_match = (func_code_info.co_filename, frame.f_lineno)
+    # pydev_log.debug('_jump_event', code.co_name, 'from line', from_line, 'to line', frame.f_lineno)
 
     return _internal_line_event(func_code_info, frame, frame.f_lineno)
 
@@ -1403,24 +1440,26 @@ cdef _line_event(code, int line):
     if py_db is None or py_db.pydb_disposed:
         return monitor.DISABLE
 
-    if not thread_info.trace or not is_thread_alive(thread_info.thread):
-        # For thread-related stuff we can't disable the code tracing because other
-        # threads may still want it...
-        return
-    
+    # If we get another line event, remove the extra check for the line event
     if hasattr(_thread_local_info, "f_disable_next_line_if_match"):
         (co_filename, line_to_skip) = _thread_local_info.f_disable_next_line_if_match
         del _thread_local_info.f_disable_next_line_if_match
         if line_to_skip is line and co_filename == code.co_filename:
-            # If we're in a jump, we should skip this line event. The jump would have
-            # been considered a line event for this same line and we don't want to
+            # The last jump already jumped to this line and we haven't had any
+            # line events or jumps since then. We don't want to consider this line twice
+            # pydev_log.debug('_line_event skipped', line)
             return
 
+    if not thread_info.trace or not thread_info.is_thread_alive():
+        # For thread-related stuff we can't disable the code tracing because other
+        # threads may still want it...
+        return
+    
     func_code_info: FuncCodeInfo = _get_func_code_info(code, 1)
     if func_code_info.always_skip_code or func_code_info.always_filtered_out:
         return monitor.DISABLE
 
-    # print('line event', code.co_name, line)
+    # pydev_log.debug('_line_event', code.co_name, line)
 
     # We know the frame depth.
     frame = _getframe(1)
@@ -1650,7 +1689,7 @@ cdef _start_method_event(code, instruction_offset):
     if py_db is None or py_db.pydb_disposed:
         return monitor.DISABLE
 
-    if not thread_info.trace or not is_thread_alive(thread_info.thread):
+    if not thread_info.trace or not thread_info.is_thread_alive():
         # For thread-related stuff we can't disable the code tracing because other
         # threads may still want it...
         return
@@ -1847,7 +1886,10 @@ def update_monitor_events(suspend_requested: Optional[bool] = None) -> None:
         monitor.register_callback(DEBUGGER_ID, monitor.events.PY_START, _start_method_event)
         # monitor.register_callback(DEBUGGER_ID, monitor.events.PY_RESUME, _resume_method_event)
         monitor.register_callback(DEBUGGER_ID, monitor.events.LINE, _line_event)
-        monitor.register_callback(DEBUGGER_ID, monitor.events.JUMP, _jump_event)
+        if not IS_PY313_OR_GREATER:
+            # In Python 3.13+ jump_events aren't necessary as we have a line_event for every
+            # jump location. 
+            monitor.register_callback(DEBUGGER_ID, monitor.events.JUMP, _jump_event)
         monitor.register_callback(DEBUGGER_ID, monitor.events.PY_RETURN, _return_event)
 
     else:

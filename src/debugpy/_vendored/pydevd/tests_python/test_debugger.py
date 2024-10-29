@@ -1,11 +1,12 @@
 # coding: utf-8
 """
-    The idea is that we record the commands sent to the debugger and reproduce them from this script
-    (so, this works as the client, which spawns the debugger as a separate process and communicates
-    to it as if it was run from the outside)
+The idea is that we record the commands sent to the debugger and reproduce them from this script
+(so, this works as the client, which spawns the debugger as a separate process and communicates
+to it as if it was run from the outside)
 
-    Note that it's a python script but it'll spawn a process to run as jython, ironpython and as python.
+Note that it's a python script but it'll spawn a process to run as jython, ironpython and as python.
 """
+
 import time
 
 import pytest
@@ -1523,7 +1524,7 @@ def test_case_handled_and_unhandled_exception_generator(case_setup, target_file,
         if unhandled:
             writer.write_add_exception_breakpoint_with_policy("Exception", "0", "1", "0")
         else:
-            writer.write_add_exception_breakpoint_with_policy("Exception", "1", "0", "0")
+            writer.write_add_exception_breakpoint_with_policy("Exception", "1", "0", "1")
 
         writer.write_make_initial_run()
 
@@ -1726,7 +1727,7 @@ def test_unhandled_exceptions_in_top_level4(case_setup_unhandled_exceptions):
         EXPECTED_RETURNCODE=1,
     ) as writer:
         # Handled and unhandled
-        writer.write_add_exception_breakpoint_with_policy("Exception", "1", "1", "0")
+        writer.write_add_exception_breakpoint_with_policy("Exception", "1", "1", "1")
         writer.write_make_initial_run()
 
         # We have an exception thrown and handled and another which is thrown and is then unhandled.
@@ -2258,7 +2259,7 @@ def test_redirect_output(case_setup):
             if original_ignore_stderr_line(line):
                 return True
 
-            binary_junk = b"\xe8\xF0\x80\x80\x80"
+            binary_junk = b"\xe8\xf0\x80\x80\x80"
             if sys.version_info[0] >= 3:
                 binary_junk = binary_junk.decode("utf-8", "replace")
 
@@ -3044,7 +3045,9 @@ def test_attach_to_pid_no_threads(case_setup_remote, reattach):
         writer.finished_ok = True
 
 
-@pytest.mark.skipif(not IS_CPYTHON or IS_MAC or not SUPPORT_ATTACH_TO_PID or IS_PY312_OR_GREATER, reason="CPython only test (brittle on Mac).")
+@pytest.mark.skipif(
+    not IS_CPYTHON or IS_MAC or not SUPPORT_ATTACH_TO_PID or IS_PY312_OR_GREATER, reason="CPython only test (brittle on Mac)."
+)
 def test_attach_to_pid_halted(case_setup_remote):
     with case_setup_remote.test_file("_debugger_case_attach_to_pid_multiple_threads.py", wait_for_port=False) as writer:
         time.sleep(1)  # Give it some time to initialize and get to the proper halting condition

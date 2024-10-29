@@ -1,6 +1,4 @@
 :: This script compiles the attach and inject DLLs for x86 and x64 architectures.
-:: It runs as part of the PR checks in the debugpy repo, AND the artifacts are uploaded to github,
-:: so you don't have to run it locally.
 
 setlocal
 @cd /d %~dp0

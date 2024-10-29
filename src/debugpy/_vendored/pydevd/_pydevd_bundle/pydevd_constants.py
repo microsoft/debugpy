@@ -1,6 +1,7 @@
 """
 This module holds the constants used for specifying the states of the debugger.
 """
+
 from __future__ import nested_scopes
 import platform
 import weakref
@@ -175,6 +176,13 @@ IS_PY311_OR_GREATER = sys.version_info >= (3, 11)
 IS_PY312_OR_GREATER = sys.version_info >= (3, 12)
 IS_PY313_OR_GREATER = sys.version_info >= (3, 13)
 IS_PY314_OR_GREATER = sys.version_info >= (3, 14)
+
+# Bug affecting Python 3.13.0 specifically makes some tests crash the interpreter!
+# Hopefully it'll be fixed in 3.13.1.
+IS_PY313_0 = sys.version_info[:3] == (3, 13, 0)
+
+# Mark tests that need to be fixed with this.
+TODO_PY313_OR_GREATER = IS_PY313_OR_GREATER
 
 # Not currently supported in Python 3.14.
 SUPPORT_ATTACH_TO_PID = not IS_PY314_OR_GREATER

@@ -1,4 +1,4 @@
-from _pydevd_bundle.pydevd_constants import IS_PY38_OR_GREATER, NULL
+from _pydevd_bundle.pydevd_constants import IS_PY313_OR_GREATER, IS_PY38_OR_GREATER, NULL, IS_PY313_0
 from _pydevd_bundle.pydevd_xml import ExceptionOnEvaluate
 
 import sys
@@ -27,6 +27,7 @@ def disable_critical_log():
         yield
 
 
+@pytest.mark.skipif(IS_PY313_0, reason="Crashes on Python 3.13.0")
 def test_evaluate_expression_basic(disable_critical_log):
     from _pydevd_bundle.pydevd_vars import evaluate_expression
 
@@ -45,6 +46,7 @@ def test_evaluate_expression_basic(disable_critical_log):
     assert "some_var" not in sys._getframe().f_globals
 
 
+@pytest.mark.skipif(IS_PY313_0, reason="Crashes on Python 3.13.0")
 def test_evaluate_expression_1(disable_critical_log):
     from _pydevd_bundle.pydevd_vars import evaluate_expression
 
@@ -73,6 +75,7 @@ for s in container:
         del sys._getframe().f_globals[varname]
 
 
+@pytest.mark.skipif(IS_PY313_0, reason="Crashes on Python 3.13.0")
 def test_evaluate_expression_2(disable_critical_log):
     from _pydevd_bundle.pydevd_vars import evaluate_expression
 
@@ -84,6 +87,7 @@ def test_evaluate_expression_2(disable_critical_log):
     check(global_frame)
 
 
+@pytest.mark.skipif(IS_PY313_0, reason="Crashes on Python 3.13.0")
 def test_evaluate_expression_3(disable_critical_log):
     if not IS_PY38_OR_GREATER:
         return
@@ -104,6 +108,7 @@ def test_evaluate_expression_3(disable_critical_log):
     assert "some_var" not in sys._getframe().f_globals
 
 
+@pytest.mark.skipif(IS_PY313_0, reason="Crashes on Python 3.13.0")
 def test_evaluate_expression_4(disable_critical_log):
     from _pydevd_bundle.pydevd_vars import evaluate_expression
 
@@ -123,6 +128,7 @@ def test_evaluate_expression_4(disable_critical_log):
     assert "email" not in sys._getframe().f_globals
 
 
+@pytest.mark.skipif(IS_PY313_0, reason="Crashes on Python 3.13.0")
 def test_evaluate_expression_access_globals(disable_critical_log):
     from _pydevd_bundle.pydevd_vars import evaluate_expression
 
@@ -137,6 +143,7 @@ def test_evaluate_expression_access_globals(disable_critical_log):
     assert "global_variable" not in sys._getframe().f_locals
 
 
+@pytest.mark.skipif(IS_PY313_0, reason="Crashes on Python 3.13.0")
 def test_evaluate_expression_create_none(disable_critical_log):
     from _pydevd_bundle.pydevd_vars import evaluate_expression
 
@@ -149,6 +156,7 @@ def test_evaluate_expression_create_none(disable_critical_log):
     check(next(iter(obtain_frame())))
 
 
+@pytest.mark.skipif(IS_PY313_0, reason="Crashes on Python 3.13.0")
 def test_evaluate_expression_delete_var(disable_critical_log):
     from _pydevd_bundle.pydevd_vars import evaluate_expression
 
@@ -159,11 +167,15 @@ def test_evaluate_expression_delete_var(disable_critical_log):
 
         eval_txt = "del x"
         evaluate_expression(None, frame, eval_txt, is_exec=True)
-        assert "x" not in frame.f_locals
+        if IS_PY313_0:
+            assert frame.f_locals["x"] == None
+        else:
+            assert "x" not in frame.f_locals
 
     check(next(iter(obtain_frame())))
 
 
+@pytest.mark.skipif(IS_PY313_0, reason="Crashes on Python 3.13.0")
 def test_evaluate_expression_5(disable_critical_log):
     from _pydevd_bundle.pydevd_vars import evaluate_expression
 
@@ -243,7 +255,7 @@ def test_evaluate_expression_async_exec_as_eval(disable_critical_log):
     asyncio.run(main())
 
 
-@pytest.mark.skipif(not CAN_EVALUATE_TOP_LEVEL_ASYNC, reason="Requires top-level async evaluation.")
+@pytest.mark.skipif(not CAN_EVALUATE_TOP_LEVEL_ASYNC or IS_PY313_0, reason="Requires top-level async evaluation. Crashes on Python 3.13.0")
 def test_evaluate_expression_async_exec_error(disable_critical_log):
     py_db = _DummyPyDB()
 
@@ -266,7 +278,7 @@ def test_evaluate_expression_async_exec_error(disable_critical_log):
     asyncio.run(main())
 
 
-@pytest.mark.skipif(not CAN_EVALUATE_TOP_LEVEL_ASYNC, reason="Requires top-level async evaluation.")
+@pytest.mark.skipif(not CAN_EVALUATE_TOP_LEVEL_ASYNC or IS_PY313_0, reason="Requires top-level async evaluation. Crashes on Python 3.13.0")
 def test_evaluate_expression_async_eval(disable_critical_log):
     py_db = _DummyPyDB()
 
@@ -290,7 +302,7 @@ def test_evaluate_expression_async_eval(disable_critical_log):
     asyncio.run(main())
 
 
-@pytest.mark.skipif(not CAN_EVALUATE_TOP_LEVEL_ASYNC, reason="Requires top-level async evaluation.")
+@pytest.mark.skipif(not CAN_EVALUATE_TOP_LEVEL_ASYNC or IS_PY313_0, reason="Requires top-level async evaluation. Crashes on Python 3.13.0")
 def test_evaluate_expression_async_eval_error(disable_critical_log):
     py_db = _DummyPyDB()
 

@@ -103,13 +103,14 @@ Using `pydevd_log.debug` you can add logging just about anywhere in the pydevd c
 
 ## Updating pydevd
 
-Pydevd (at src/debugpy/_vendored/pydevd) is a copy of https://github.com/fabioz/PyDev.Debugger. We do not use a git submodule but instead just copy the source. 
+Pydevd (at src/debugpy/_vendored/pydevd) is a subrepo of https://github.com/fabioz/PyDev.Debugger. We use the [subrepo](https://github.com/ingydotnet/git-subrepo) to have a copy of pydevd inside of debugpy
 
 In order to update the source, you would:
-- Sync to the appropriate commit in a pydevd repo
-- Diff this against the src/debugpy/_vendored/pydevd folder, being careful to not remove the edits made in the debugpy version
-- Run our tests
-- Make any fixes to get the tests to pass (see logging on how to debug)
+- git checkout -b "branch name"
+- python subrepo.py pull
+- git push 
+- Fix any debugpy tests that are failing as a result of the pull
+- Create a PR from your branch
 
 You might need to regenerate the Cython modules after any changes. This can be done by:
 
@@ -123,13 +124,17 @@ You might need to regenerate the Cython modules after any changes. This can be d
 
 If you've made changes to pydevd (at src/debugpy/_vendored/pydevd), you'll want to push back changes to pydevd so as Fabio makes changes to pydevd we can continue to share updates. 
 
+To do this, you would:
+
+- python subrepo.py branch -m "pydevd branch you want to create"
+- git push -f https://github.com/fabioz/PyDev.Debugger subrepo/src/debugpy/_vendored/pydevd:$(pydevd branch you want to create)
+- Create a PR from that branch
+- Get Fabio's buyoff on the changes
+
 ### Setting up pydevd to be testable
 
 Follow these steps to get pydevd testable:
 
-- git clone https://github.com/fabioz/PyDev.Debugger (or using your own fork)
-- copy all of your changes from src/debugpy/_vendored/pydevd to the root of your PyDev.Debugger clone
-- remove the pdb files (pydevd doesn't ship those) if you rebuilt the attach dlls
 - create an environment to test. The list of stuff in your environment is outlined [here](https://github.com/fabioz/PyDev.Debugger/blob/6cd4d431e6a794448f33a73857d479149041500a/.github/workflows/pydevd-tests-python.yml#L83).
 - set PYTHONPATH=. (make sure you don't forget this part, otherwise a lot of tests will fail)
 

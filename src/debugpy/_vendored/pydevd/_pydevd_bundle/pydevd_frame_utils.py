@@ -1,4 +1,4 @@
-from _pydevd_bundle.pydevd_constants import EXCEPTION_TYPE_USER_UNHANDLED, EXCEPTION_TYPE_UNHANDLED, IS_PY311_OR_GREATER
+from _pydevd_bundle.pydevd_constants import EXCEPTION_TYPE_USER_UNHANDLED, EXCEPTION_TYPE_UNHANDLED, IS_PY311_OR_GREATER, IS_PY313_0
 from _pydev_bundle import pydev_log
 import itertools
 from typing import Any, Dict
@@ -34,47 +34,50 @@ def add_exception_to_frame(frame, exception_info):
 
 
 def remove_exception_from_frame(frame):
-    # In 3.13 frame.f_locals became a proxy for a dict, so we need to copy it to a real dict
-    # so we can call the defined update method. Just deleting the entry throws in 3.13.
-    items = {key: value for key, value in frame.f_locals.items()}
-    if "__exception__" in items:
-        del items["__exception__"]
-    frame.f_locals.update(items)
+    if IS_PY313_0:
+        # In 3.13.0 frame.f_locals became a proxy for a dict, It does not
+        # have methods to allow items to be removed, only added. So just set the item to None.
+        # Should be fixed in 3.13.1 in PR: https://github.com/python/cpython/pull/125616
+        frame.f_locals["__exception__"] = None
+    else:
+        frame.f_locals.pop("__exception__", None)
 
 
 FILES_WITH_IMPORT_HOOKS = ["pydev_monkey_qt.py", "pydev_import_hook.py"]
 
 
-
 def just_raised(trace):
     if trace is None:
         return False
-    
+
     return trace.tb_next is None
+
 
 def short_tb(exc_tb):
     traceback = []
     while exc_tb:
-        traceback.append('{%r, %r, %r}' % (exc_tb.tb_frame.f_code.co_filename,
-                                           exc_tb.tb_frame.f_code.co_name,
-                                           exc_tb.tb_lineno))
+        traceback.append("{%r, %r, %r}" % (exc_tb.tb_frame.f_code.co_filename, exc_tb.tb_frame.f_code.co_name, exc_tb.tb_lineno))
         exc_tb = exc_tb.tb_next
-    return 'Traceback: %s\n' % (' -> '.join(traceback))
+    return "Traceback: %s\n" % (" -> ".join(traceback))
+
 
 def short_frame(frame):
     if frame is None:
-        return 'None'
-    
+        return "None"
+
     filename = frame.f_code.co_filename
     name = splitext(basename(filename))[0]
-    return '%s::%s %s' % (name, frame.f_code.co_name, frame.f_lineno)
+    line = hasattr(frame, "f_lineno") and frame.f_lineno or 1
+    return "%s::%s %s" % (name, frame.f_code.co_name, line)
+
 
 def short_stack(frame):
     stack = []
     while frame:
         stack.append(short_frame(frame))
-        frame = frame.f_back
-    return 'Stack: %s\n' % (' -> '.join(stack))
+        frame = frame.f_back if hasattr(frame, "f_back") else None
+    return "Stack: %s\n" % (" -> ".join(stack))
+
 
 def ignore_exception_trace(trace):
     while trace is not None:

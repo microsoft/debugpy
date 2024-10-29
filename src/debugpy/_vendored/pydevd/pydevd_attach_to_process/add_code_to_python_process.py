@@ -308,7 +308,7 @@ def run_python_code_windows(pid, python_code, connect_debugger_tracing=False, sh
                 args = [target_executable, str(pid), target_dll_run_on_dllmain]
                 subprocess.check_call(args)
 
-                if not event.wait_for_event_set(30):
+                if not event.wait_for_event_set(15):
                     print("Timeout error: the attach may not have completed.")
                     sys.stdout.flush()
             print("--- Finished dll injection ---\n")

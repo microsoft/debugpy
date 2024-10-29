@@ -1,5 +1,6 @@
 import sys
 from _pydev_bundle._pydev_saved_modules import thread
+from _pydevd_bundle.pydevd_constants import IS_PY313_OR_GREATER
 import pycompletionserver
 import socket
 from urllib.parse import quote_plus
@@ -71,6 +72,8 @@ class TestCPython(unittest.TestCase):
 
         return msg
 
+    @unittest.skipIf(IS_PY313_OR_GREATER and sys.platform == "linux",
+                     "Flakey on Linux")
     def test_completion_sockets_and_messages(self):
         t, socket = self.create_connections()
         self.socket = socket

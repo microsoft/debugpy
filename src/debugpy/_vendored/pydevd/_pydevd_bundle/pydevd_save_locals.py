@@ -2,6 +2,8 @@
 Utility for saving locals.
 """
 import sys
+from _pydevd_bundle.pydevd_constants import IS_PY313_OR_GREATER
+from _pydev_bundle import pydev_log
 
 try:
     import types
@@ -53,6 +55,11 @@ def make_save_locals_impl():
                 save_locals(frame)
 
             return save_locals_pypy_impl
+
+    if IS_PY313_OR_GREATER:
+        # No longer needed in Python 3.13 (deprecated)
+        # See PEP 667
+        return None
 
     try:
         import ctypes
@@ -108,8 +115,16 @@ def update_globals_and_locals(updated_globals, initial_globals, frame):
         for key in removed:
             try:
                 del f_locals[key]
-            except KeyError:
-                pass
+            except Exception:
+                # Python 3.13.0 has issues here:
+                # https://github.com/python/cpython/pull/125616
+                # This should be backported from the pull request
+                # but we still need to handle it in this version
+                try:
+                    if key in f_locals:
+                        f_locals[key] = None
+                except Exception as e:
+                    pydev_log.info('Unable to remove key: %s from locals. Exception: %s', key, e)
 
     if f_locals is not None:
         save_locals(frame)

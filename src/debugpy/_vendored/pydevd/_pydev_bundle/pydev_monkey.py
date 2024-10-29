@@ -12,17 +12,14 @@ from _pydevd_bundle.pydevd_constants import (
     set_global_debugger,
     DebugInfoHolder,
     PYDEVD_USE_SYS_MONITORING,
+    IS_PY313_OR_GREATER,
 )
 from _pydev_bundle import pydev_log
 from contextlib import contextmanager
 from _pydevd_bundle import pydevd_constants, pydevd_defaults
 from _pydevd_bundle.pydevd_defaults import PydevdCustomization
 import ast
-
-try:
-    from pathlib import Path
-except ImportError:
-    Path = None
+from pathlib import Path
 
 # ===============================================================================
 # Things that are dependent on having the pydevd debugger
@@ -299,7 +296,7 @@ def remove_quotes_from_args(args):
         new_args = []
 
         for x in args:
-            if Path is not None and isinstance(x, Path):
+            if isinstance(x, Path):
                 x = str(x)
             else:
                 if not isinstance(x, (bytes, str)):
@@ -316,7 +313,7 @@ def remove_quotes_from_args(args):
     else:
         new_args = []
         for x in args:
-            if Path is not None and isinstance(x, Path):
+            if isinstance(x, Path):
                 x = x.as_posix()
             else:
                 if not isinstance(x, (bytes, str)):
@@ -1173,15 +1170,31 @@ threading_modules_to_patch = _get_threading_modules_to_patch()
 
 
 def patch_thread_module(thread_module):
-    if getattr(thread_module, "_original_start_new_thread", None) is None:
-        if thread_module is threading:
-            if not hasattr(thread_module, "_start_new_thread"):
-                return  # Jython doesn't have it.
-            _original_start_new_thread = thread_module._original_start_new_thread = thread_module._start_new_thread
+    # Note: this is needed not just for the tracing, but to have an early way to
+    # notify that a thread was created (i.e.: tests_python.test_debugger_json.test_case_started_exited_threads_protocol)
+    start_thread_attrs = ["_start_new_thread", "start_new_thread", "start_new"]
+    start_joinable_attrs = ["start_joinable_thread", "_start_joinable_thread"]
+    check = start_thread_attrs + start_joinable_attrs
+
+    replace_attrs = []
+    for attr in check:
+        if hasattr(thread_module, attr):
+            replace_attrs.append(attr)
+
+    if not replace_attrs:
+        return
+
+    for attr in replace_attrs:
+        if attr in start_joinable_attrs:
+            if getattr(thread_module, "_original_start_joinable_thread", None) is None:
+                _original_start_joinable_thread = thread_module._original_start_joinable_thread = getattr(thread_module, attr)
+            else:
+                _original_start_joinable_thread = thread_module._original_start_joinable_thread
         else:
-            _original_start_new_thread = thread_module._original_start_new_thread = thread_module.start_new_thread
-    else:
-        _original_start_new_thread = thread_module._original_start_new_thread
+            if getattr(thread_module, "_original_start_new_thread", None) is None:
+                _original_start_new_thread = thread_module._original_start_new_thread = getattr(thread_module, attr)
+            else:
+                _original_start_new_thread = thread_module._original_start_new_thread
 
     class ClassWithPydevStartNewThread:
         def pydev_start_new_thread(self, function, args=(), kwargs={}):
@@ -1190,6 +1203,19 @@ def patch_thread_module(thread_module):
             through it and not through the threading module are properly traced.
             """
             return _original_start_new_thread(_UseNewThreadStartup(function, args, kwargs), ())
+
+    class ClassWithPydevStartJoinableThread:
+        def pydev_start_joinable_thread(self, function, *args, **kwargs):
+            """
+            We need to replace the original thread_module._start_joinable_thread with this function so that threads started
+            through it and not through the threading module are properly traced.
+            """
+            # Note: only handling the case from threading.py where the handle
+            # and daemon flags are passed explicitly. This will fail if some user library
+            # actually passes those without being a keyword argument!
+            handle = kwargs.pop("handle", None)
+            daemon = kwargs.pop("daemon", True)
+            return _original_start_joinable_thread(_UseNewThreadStartup(function, args, kwargs), handle=handle, daemon=daemon)
 
     # This is a hack for the situation where the thread_module.start_new_thread is declared inside a class, such as the one below
     # class F(object):
@@ -1200,17 +1226,15 @@ def patch_thread_module(thread_module):
     # So, if it's an already bound method, calling self.start_new_thread won't really receive a different 'self' -- it
     # does work in the default case because in builtins self isn't passed either.
     pydev_start_new_thread = ClassWithPydevStartNewThread().pydev_start_new_thread
+    pydev_start_joinable_thread = ClassWithPydevStartJoinableThread().pydev_start_joinable_thread
 
-    try:
-        # We need to replace the original thread_module.start_new_thread with this function so that threads started through
-        # it and not through the threading module are properly traced.
-        if thread_module is threading:
-            thread_module._start_new_thread = pydev_start_new_thread
+    # We need to replace the original thread_module.start_new_thread with this function so that threads started through
+    # it and not through the threading module are properly traced.
+    for attr in replace_attrs:
+        if attr in start_joinable_attrs:
+            setattr(thread_module, attr, pydev_start_joinable_thread)
         else:
-            thread_module.start_new_thread = pydev_start_new_thread
-            thread_module.start_new = pydev_start_new_thread
-    except:
-        pass
+            setattr(thread_module, attr, pydev_start_new_thread)
 
 
 def patch_thread_modules():
@@ -1232,6 +1256,16 @@ def undo_patch_thread_modules():
 
         try:
             t._start_new_thread = t._original_start_new_thread
+        except:
+            pass
+
+        try:
+            t._start_joinable_thread = t._original_start_joinable_thread
+        except:
+            pass
+
+        try:
+            t.start_joinable_thread = t._original_start_joinable_thread
         except:
             pass
 

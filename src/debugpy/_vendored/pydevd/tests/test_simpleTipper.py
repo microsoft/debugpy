@@ -1,6 +1,7 @@
 """
 @author Fabio Zadrozny
 """
+
 from _pydev_bundle import _pydev_imports_tipper
 import inspect
 import pytest
@@ -176,7 +177,13 @@ class TestCPython(unittest.TestCase):
                 self.assert_in("parseFile", tip)
             else:
                 self.assert_args(
-                    "parse", ["(source, filename, mode)", "(source, filename, mode, type_comments=False, feature_version=None)"], tip
+                    "parse",
+                    [
+                        "(source, filename, mode)",
+                        "(source, filename, mode, type_comments=False, feature_version=None)",
+                        "(source, filename, mode, type_comments=False, feature_version=None, optimize=-1)",
+                    ],
+                    tip,
                 )
                 self.assert_args("walk", "(node)", tip)
             self.assert_in("parse", tip)

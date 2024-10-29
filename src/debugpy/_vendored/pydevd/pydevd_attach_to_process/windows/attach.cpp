@@ -108,8 +108,8 @@ struct InitializeThreadingInfo {
     PyEval_Lock* initThreads;
 
     CRITICAL_SECTION cs;
-    HANDLE initedEvent;  // Note: only access with cs locked (and check if not already nullptr).
-    bool completed; // Note: only access with cs locked
+    HANDLE initedEvent;  // Note: only access with mutex locked (and check if not already nullptr).
+    bool completed; // Note: only access with mutex locked
 };
 
 
@@ -322,7 +322,6 @@ extern "C"
             return -240;
         }
 
-
         // Either _Py_CheckInterval or _PyEval_[GS]etSwitchInterval are useful, but not required
         DEFINE_PROC_NO_CHECK(intervalCheck, int*, "_Py_CheckInterval", -250);  // optional
         DEFINE_PROC_NO_CHECK(getSwitchInterval, _PyEval_GetSwitchInterval*, "_PyEval_GetSwitchInterval", -260);  // optional
@@ -374,7 +373,6 @@ extern "C"
         initializeThreadingInfo->initThreads = initThreads;
         initializeThreadingInfo->initedEvent = CreateEvent(nullptr, TRUE, FALSE, nullptr);
         InitializeCriticalSection(&initializeThreadingInfo->cs);
-
 
         // Add the call to initialize threading.
         addPendingCall(&AttachCallback, initializeThreadingInfo);
