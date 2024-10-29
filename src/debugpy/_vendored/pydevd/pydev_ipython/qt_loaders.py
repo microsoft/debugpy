@@ -143,6 +143,28 @@ def has_binding(api):
             return check_version(mod.__version__, "1.0.3")
         else:
             return True
+
+    except ModuleNotFoundError:
+        from importlib import machinery
+
+        # importing top level PyQt4/PySide module is ok...
+        mod = __import__(module_name)
+
+        # ...importing submodules is not
+        loader_details = (machinery.ExtensionFileLoader, machinery.EXTENSION_SUFFIXES)
+        submod_finder = machinery.FileFinder(mod.__path__[0], loader_details)
+        submod_check = (
+            submod_finder.find_spec("QtCore") is not None
+            and submod_finder.find_spec("QtGui") is not None
+            and submod_finder.find_spec("QtSvg") is not None
+        )
+
+        # we can also safely check PySide version
+        if api == QT_API_PYSIDE:
+            return check_version(mod.__version__, '1.0.3') and submod_check
+        else:
+            return submod_check
+                
     except ImportError:
         return False
 
