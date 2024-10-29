@@ -457,15 +457,41 @@ cdef _get_thread_info(bint create, int depth):
         return _thread_local_info.thread_info
 
 
-_CodeLineInfo = namedtuple("_CodeLineInfo", "line_to_offset, first_line, last_line")
+# fmt: off
+# IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
+cdef class _CodeLineInfo:
+    cdef dict line_to_offset
+    cdef int first_line
+    cdef int last_line
+# ELSE
+# class _CodeLineInfo:
+#     line_to_offset: Dict[int, Any]
+#     first_line: int
+#     last_line: int
+# ENDIF
+# fmt: on
 
+    # fmt: off
+    # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
+    def __init__(self, dict line_to_offset, int first_line, int last_line):
+        self.line_to_offset = line_to_offset
+        self.first_line = first_line
+        self.last_line = last_line
+    # ELSE
+#     def __init__(self, line_to_offset, first_line, last_line):
+#         self.line_to_offset = line_to_offset
+#         self.first_line = first_line
+#         self.last_line = last_line
+# 
+    # ENDIF
+    # fmt: on
 
 # Note: this method has a version in cython too
 # fmt: off
 # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
-cdef _get_code_line_info(code_obj, _cache={}):
+cdef _CodeLineInfo _get_code_line_info(code_obj, _cache={}):
 # ELSE
-# def _get_code_line_info(code_obj, _cache={}):
+# def _get_code_line_info(code_obj, _cache={}) -> _CodeLineInfo:
 # ENDIF
 # fmt: on
     try:

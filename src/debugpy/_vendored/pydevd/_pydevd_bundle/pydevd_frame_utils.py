@@ -67,14 +67,15 @@ def short_frame(frame):
 
     filename = frame.f_code.co_filename
     name = splitext(basename(filename))[0]
-    return "%s::%s %s" % (name, frame.f_code.co_name, frame.f_lineno)
+    line = hasattr(frame, "f_lineno") and frame.f_lineno or 1
+    return "%s::%s %s" % (name, frame.f_code.co_name, line)
 
 
 def short_stack(frame):
     stack = []
     while frame:
         stack.append(short_frame(frame))
-        frame = frame.f_back
+        frame = frame.f_back if hasattr(frame, "f_back") else None
     return "Stack: %s\n" % (" -> ".join(stack))
 
 
