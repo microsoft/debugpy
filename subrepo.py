@@ -3,12 +3,10 @@
 # pyright: strict
 
 import argparse
-import json
 import os
 import shlex
 import subprocess
 import sys
-import urllib.request
 from contextlib import contextmanager
 from typing import Iterator
 
@@ -87,8 +85,6 @@ def reclone() -> None:
 
 
 def pull() -> None:
-    current_commit = get_current_commit()
-
     # Remove the temporary branch and worktree.
     invoke_call("git", "subrepo", "clean", "--force", _SUBREPO_NAME)
 
