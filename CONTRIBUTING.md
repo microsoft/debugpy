@@ -126,8 +126,10 @@ If you've made changes to pydevd (at src/debugpy/_vendored/pydevd), you'll want 
 
 To do this, you would:
 
+- Create a fork of https://github.com/fabioz/PyDev.Debugger
+- Switch back to your debugpy clone
 - python subrepo.py branch -m "pydevd branch you want to create"
-- git push -f https://github.com/fabioz/PyDev.Debugger subrepo/src/debugpy/_vendored/pydevd:$(pydevd branch you want to create)
+- git push -f https://github.com/"your fork"/PyDev.Debugger subrepo/src/debugpy/_vendored/pydevd:$(pydevd branch you want to create)
 - Create a PR from that branch
 - Get Fabio's buyoff on the changes
 

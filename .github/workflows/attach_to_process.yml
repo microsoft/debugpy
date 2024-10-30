@@ -1,4 +1,5 @@
 # Used to build binaries under src/debugpy/_vendored/pydevd/pydevd_attach_to_process
+# requires changes to this file or something under that path to run.
 name: attach_to_process
 
 on:
