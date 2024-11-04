@@ -791,10 +791,10 @@ class PyDB(object):
                     max_line = -1
                     min_line = sys.maxsize
                     for _, line in dis.findlinestarts(code_obj):
-                        if line > max_line:
+                        if line is not None and line > max_line:
                             max_line = line
 
-                        if line < min_line:
+                        if line is not None and line < min_line:
                             min_line = line
 
                     try_except_infos = [x for x in try_except_infos if min_line <= x.try_line <= max_line]

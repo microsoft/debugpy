@@ -83,7 +83,8 @@ else:
             # bodies of nested class and function definitions, as they have their
             # own objects.
             for _, lineno in dis.findlinestarts(code):
-                yield lineno
+                if lineno is not None:
+                    yield lineno
 
             # For nested class and function definitions, their respective code objects
             # are constants referenced by this object.
