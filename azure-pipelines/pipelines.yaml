@@ -19,6 +19,7 @@ pr:
 
 variables:
   architecture: "x64"
+  PYDEVD_ATTACH_TO_PROCESS: src/debugpy/_vendored/pydevd/pydevd_attach_to_process
 
 jobs:
 
@@ -78,6 +79,20 @@ jobs:
 
       - template: "templates/use_python.yml"
 
+      # Clean up old binaries
+      - task: DeleteFiles@1
+        displayName: Clean up old binaries
+        inputs:
+          SourceFolder: $(Build.SourcesDirectory)/debugpy/$(PYDEVD_ATTACH_TO_PROCESS)
+          Contents: |
+            *.so
+
+      # Build pydevd binaries
+      - task: Bash@3
+        displayName: Build pydevd binaries
+        inputs:
+          filepath: $(Build.SourcesDirectory)/debugpy/$(PYDEVD_ATTACH_TO_PROCESS)/linux_and_mac/compile_linux.sh
+
       - template: "templates/run_tests.yml"
 
   - job: "Test_MacOS"
@@ -108,6 +123,20 @@ jobs:
       - script: "python -m ensurepip --user"
         displayName: "Bootstrap pip"
 
+      # Clean up old binaries
+      - task: DeleteFiles@1
+        displayName: Clean up old binaries
+        inputs:
+          SourceFolder: $(Build.SourcesDirectory)/debugpy/$(PYDEVD_ATTACH_TO_PROCESS)
+          Contents: |
+            *.so
+
+      # Build pydevd binaries
+      - task: Bash@3
+        displayName: Build pydevd binaries
+        inputs:
+          filepath: $(Build.SourcesDirectory)/debugpy/$(PYDEVD_ATTACH_TO_PROCESS)/linux_and_mac/compile_mac.sh
+
       - template: "templates/run_tests.yml"
 
   - job: "Test_Windows"
@@ -135,4 +164,21 @@ jobs:
 
       - template: "templates/use_python.yml"
       
+      # Clean up old binaries
+      - task: DeleteFiles@1
+        displayName: Clean up old binaries
+        inputs:
+          SourceFolder: $(Build.SourcesDirectory)\debugpy\$(PYDEVD_ATTACH_TO_PROCESS)
+          Contents: |
+            *.exe
+            *.dll
+            *.pdb
+      
+      # Build pydevd binaries
+      - task: BatchScript@1
+        displayName: Build pydevd binaries
+        inputs:
+          filename: $(Build.SourcesDirectory)\debugpy\$(PYDEVD_ATTACH_TO_PROCESS)\windows\compile_windows.bat
+          workingFolder: $(Build.SourcesDirectory)\debugpy\$(PYDEVD_ATTACH_TO_PROCESS)\windows      
+
       - template: "templates/run_tests.yml"
