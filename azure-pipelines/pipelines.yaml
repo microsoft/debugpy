@@ -83,7 +83,7 @@ jobs:
       - task: DeleteFiles@1
         displayName: Clean up old binaries
         inputs:
-          SourceFolder: $(Build.SourcesDirectory)/debugpy/$(PYDEVD_ATTACH_TO_PROCESS)
+          SourceFolder: $(Build.SourcesDirectory)/$(PYDEVD_ATTACH_TO_PROCESS)
           Contents: |
             *.so
 
@@ -91,7 +91,7 @@ jobs:
       - task: Bash@3
         displayName: Build pydevd binaries
         inputs:
-          filepath: $(Build.SourcesDirectory)/debugpy/$(PYDEVD_ATTACH_TO_PROCESS)/linux_and_mac/compile_linux.sh
+          filepath: $(Build.SourcesDirectory)/$(PYDEVD_ATTACH_TO_PROCESS)/linux_and_mac/compile_linux.sh
 
       - template: "templates/run_tests.yml"
 
@@ -127,7 +127,7 @@ jobs:
       - task: DeleteFiles@1
         displayName: Clean up old binaries
         inputs:
-          SourceFolder: $(Build.SourcesDirectory)/debugpy/$(PYDEVD_ATTACH_TO_PROCESS)
+          SourceFolder: $(Build.SourcesDirectory)/$(PYDEVD_ATTACH_TO_PROCESS)
           Contents: |
             *.so
 
@@ -135,7 +135,7 @@ jobs:
       - task: Bash@3
         displayName: Build pydevd binaries
         inputs:
-          filepath: $(Build.SourcesDirectory)/debugpy/$(PYDEVD_ATTACH_TO_PROCESS)/linux_and_mac/compile_mac.sh
+          filepath: $(Build.SourcesDirectory)/$(PYDEVD_ATTACH_TO_PROCESS)/linux_and_mac/compile_mac.sh
 
       - template: "templates/run_tests.yml"
 
@@ -168,7 +168,7 @@ jobs:
       - task: DeleteFiles@1
         displayName: Clean up old binaries
         inputs:
-          SourceFolder: $(Build.SourcesDirectory)\debugpy\$(PYDEVD_ATTACH_TO_PROCESS)
+          SourceFolder: $(Build.SourcesDirectory)\$(PYDEVD_ATTACH_TO_PROCESS)
           Contents: |
             *.exe
             *.dll
@@ -178,7 +178,7 @@ jobs:
       - task: BatchScript@1
         displayName: Build pydevd binaries
         inputs:
-          filename: $(Build.SourcesDirectory)\debugpy\$(PYDEVD_ATTACH_TO_PROCESS)\windows\compile_windows.bat
-          workingFolder: $(Build.SourcesDirectory)\debugpy\$(PYDEVD_ATTACH_TO_PROCESS)\windows      
+          filename: $(Build.SourcesDirectory)\$(PYDEVD_ATTACH_TO_PROCESS)\windows\compile_windows.bat
+          workingFolder: $(Build.SourcesDirectory)\$(PYDEVD_ATTACH_TO_PROCESS)\windows      
 
       - template: "templates/run_tests.yml"
