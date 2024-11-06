@@ -139,12 +139,16 @@ jobs:
       - template: "templates/use_python.yml"
 
       # download pydevd binaries
-      - task: DownloadBuildArtifacts@1
+      - download: current
         displayName: Download pydevd binaries
+        artifact: pydevd binaries
+
+      # copy pydevd binaries
+      - task: CopyFiles@2
+        displayName: Copy pydevd binaries
         inputs:
-          buildType: current
-          artifactName: pydevd binaries
-          downloadPath: $(Build.SourcesDirectory)/$(PYDEVD_ATTACH_TO_PROCESS)
+          SourceFolder: $(Pipeline.Workspace)/pydevd binaries
+          TargetFolder: $(Build.SourcesDirectory)/$(PYDEVD_ATTACH_TO_PROCESS)
 
       - template: "templates/run_tests.yml"
 
@@ -178,12 +182,16 @@ jobs:
         displayName: "Bootstrap pip"
 
       # download pydevd binaries
-      - task: DownloadBuildArtifacts@1
+      - download: current
         displayName: Download pydevd binaries
+        artifact: pydevd binaries
+
+      # copy pydevd binaries
+      - task: CopyFiles@2
+        displayName: Copy pydevd binaries
         inputs:
-          buildType: current
-          artifactName: pydevd binaries
-          downloadPath: $(Build.SourcesDirectory)/$(PYDEVD_ATTACH_TO_PROCESS)
+          SourceFolder: $(Pipeline.Workspace)/pydevd binaries
+          TargetFolder: $(Build.SourcesDirectory)/$(PYDEVD_ATTACH_TO_PROCESS)
 
       - template: "templates/run_tests.yml"
 
@@ -214,11 +222,15 @@ jobs:
       - template: "templates/use_python.yml"
       
       # download pydevd binaries
-      - task: DownloadBuildArtifacts@1
+      - download: current
         displayName: Download pydevd binaries
+        artifact: pydevd binaries
+
+      # copy pydevd binaries
+      - task: CopyFiles@2
+        displayName: Copy pydevd binaries
         inputs:
-          buildType: current
-          artifactName: pydevd binaries
-          downloadPath: $(Build.SourcesDirectory)/$(PYDEVD_ATTACH_TO_PROCESS)
+          SourceFolder: $(Pipeline.Workspace)/pydevd binaries
+          TargetFolder: $(Build.SourcesDirectory)/$(PYDEVD_ATTACH_TO_PROCESS)
 
       - template: "templates/run_tests.yml"
