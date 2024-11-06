@@ -51,10 +51,69 @@ jobs:
           searchFolder: "$(Build.ArtifactStagingDirectory)"
         condition: "always()"
 
+  - job: pydevd_binaries
+    displayName: Build pydevd binaries
+
+    strategy:
+      matrix:
+        windows:
+          image: windows-latest
+          contents: |
+            *.exe
+            *.dll
+            *.pdb
+          script: $(Build.SourcesDirectory)/$(PYDEVD_ATTACH_TO_PROCESS)/windows/compile_windows.bat
+          workingDirectory: $(Build.SourcesDirectory)/$(PYDEVD_ATTACH_TO_PROCESS)/windows
+        mac:
+          image: macOS-latest
+          contents: |
+            *.dylib
+          script: $(Build.SourcesDirectory)/$(PYDEVD_ATTACH_TO_PROCESS)/linux_and_mac/compile_mac.sh
+          workingDirectory: $(System.DefaultWorkingDirectory)
+        linux:
+          image: ubuntu-latest
+          contents: |
+            *.so
+          script: $(Build.SourcesDirectory)/$(PYDEVD_ATTACH_TO_PROCESS)/linux_and_mac/compile_linux.sh
+          workingDirectory: $(System.DefaultWorkingDirectory)
+        
+    pool:
+      vmImage: $(image)
+
+    steps:
+
+      # Clean up old binaries
+      - task: DeleteFiles@1
+        displayName: Clean up old binaries
+        inputs:
+          SourceFolder: $(Build.SourcesDirectory)/$(PYDEVD_ATTACH_TO_PROCESS)
+          Contents: $(contents)
+
+      # Build pydevd binaries
+      - script: $(script)
+        displayName: Build pydevd binaries
+        workingDirectory: $(workingDirectory)
+    
+      # copy pydevd binaries
+      - task: CopyFiles@2
+        displayName: Copy pydevd binaries
+        inputs:
+          SourceFolder: $(Build.SourcesDirectory)/$(PYDEVD_ATTACH_TO_PROCESS)
+          Contents: $(contents)
+          TargetFolder: $(Build.ArtifactStagingDirectory)
+    
+      # Publish pydevd binaries
+      - task: PublishBuildArtifacts@1
+        displayName: Publish pydevd binaries
+        inputs:
+          artifactName: pydevd binaries
+          pathToPublish: $(Build.ArtifactStagingDirectory)
+    
   - job: "Test_Linux"
     timeoutInMinutes: "30"
     displayName: "Tests - Linux"
     pool: { vmImage: "ubuntu-latest" }
+    dependsOn: pydevd_binaries
 
     strategy:
       matrix:
@@ -79,19 +138,13 @@ jobs:
 
       - template: "templates/use_python.yml"
 
-      # Clean up old binaries
-      - task: DeleteFiles@1
-        displayName: Clean up old binaries
+      # download pydevd binaries
+      - task: DownloadBuildArtifacts@1
+        displayName: Download pydevd binaries
         inputs:
-          SourceFolder: $(Build.SourcesDirectory)/$(PYDEVD_ATTACH_TO_PROCESS)
-          Contents: |
-            *.so
-
-      # Build pydevd binaries
-      - task: Bash@3
-        displayName: Build pydevd binaries
-        inputs:
-          filepath: $(Build.SourcesDirectory)/$(PYDEVD_ATTACH_TO_PROCESS)/linux_and_mac/compile_linux.sh
+          buildType: current
+          artifactName: pydevd binaries
+          downloadPath: $(Build.SourcesDirectory)/$(PYDEVD_ATTACH_TO_PROCESS)
 
       - template: "templates/run_tests.yml"
 
@@ -99,6 +152,7 @@ jobs:
     timeoutInMinutes: "30"
     displayName: "Tests - macOS"
     pool: { vmImage: "macOS-latest" }
+    dependsOn: pydevd_binaries
 
     strategy:
       matrix:
@@ -123,19 +177,13 @@ jobs:
       - script: "python -m ensurepip --user"
         displayName: "Bootstrap pip"
 
-      # Clean up old binaries
-      - task: DeleteFiles@1
-        displayName: Clean up old binaries
+      # download pydevd binaries
+      - task: DownloadBuildArtifacts@1
+        displayName: Download pydevd binaries
         inputs:
-          SourceFolder: $(Build.SourcesDirectory)/$(PYDEVD_ATTACH_TO_PROCESS)
-          Contents: |
-            *.so
-
-      # Build pydevd binaries
-      - task: Bash@3
-        displayName: Build pydevd binaries
-        inputs:
-          filepath: $(Build.SourcesDirectory)/$(PYDEVD_ATTACH_TO_PROCESS)/linux_and_mac/compile_mac.sh
+          buildType: current
+          artifactName: pydevd binaries
+          downloadPath: $(Build.SourcesDirectory)/$(PYDEVD_ATTACH_TO_PROCESS)
 
       - template: "templates/run_tests.yml"
 
@@ -143,6 +191,7 @@ jobs:
     timeoutInMinutes: "40"
     displayName: "Tests - Windows"
     pool: { vmImage: "windows-latest" }
+    dependsOn: pydevd_binaries
 
     strategy:
       matrix:
@@ -164,21 +213,12 @@ jobs:
 
       - template: "templates/use_python.yml"
       
-      # Clean up old binaries
-      - task: DeleteFiles@1
-        displayName: Clean up old binaries
+      # download pydevd binaries
+      - task: DownloadBuildArtifacts@1
+        displayName: Download pydevd binaries
         inputs:
-          SourceFolder: $(Build.SourcesDirectory)\$(PYDEVD_ATTACH_TO_PROCESS)
-          Contents: |
-            *.exe
-            *.dll
-            *.pdb
-      
-      # Build pydevd binaries
-      - task: BatchScript@1
-        displayName: Build pydevd binaries
-        inputs:
-          filename: $(Build.SourcesDirectory)\$(PYDEVD_ATTACH_TO_PROCESS)\windows\compile_windows.bat
-          workingFolder: $(Build.SourcesDirectory)\$(PYDEVD_ATTACH_TO_PROCESS)\windows      
+          buildType: current
+          artifactName: pydevd binaries
+          downloadPath: $(Build.SourcesDirectory)/$(PYDEVD_ATTACH_TO_PROCESS)
 
       - template: "templates/run_tests.yml"
