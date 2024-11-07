@@ -1,6 +1,6 @@
 steps:
-  - script: "python -m pip install tox"
-    displayName: "Setup Python packages"
+  - script: python -m pip install tox
+    displayName: Setup Python packages
 
   - pwsh: |
       $toxEnv = '$(python.version)'
@@ -9,22 +9,23 @@ steps:
       }
       echo 'tox environment: $toxEnv'
       python -m tox -e $toxEnv -- --junitxml=$(Build.ArtifactStagingDirectory)/tests.xml --debugpy-log-dir=$(Build.ArtifactStagingDirectory)/logs tests
-    displayName: "Run tests using tox"
+    displayName: Run tests using tox
     env: 
       DEBUGPY_PROCESS_SPAWN_TIMEOUT: 60
       DEBUGPY_LAUNCH_TIMEOUT: 60
 
   - task: PublishBuildArtifacts@1
-    condition: failed()
+    displayName: Publish test logs
     inputs:
-      artifactName: "Test logs"
-      pathToPublish: "$(Build.ArtifactStagingDirectory)/logs"
-    displayName: "Publish test logs"
+      artifactName: Test logs
+      pathToPublish: $(Build.ArtifactStagingDirectory)/logs
+    condition: failed()
 
   - task: PublishTestResults@2
-    condition: always()
+    displayName: Publish test results
     inputs:
-      testRunTitle: "$(Agent.JobName)"
-      testResultsFiles: "tests.xml"
-      searchFolder: "$(Build.ArtifactStagingDirectory)"
-    displayName: "Publish test results"
+      testRunTitle: $(Agent.JobName)
+      testResultsFiles: tests.xml
+      searchFolder: $(Build.ArtifactStagingDirectory)
+    condition: always()
+

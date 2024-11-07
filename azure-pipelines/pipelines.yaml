@@ -15,124 +15,233 @@ pr:
     include:
       - main
       - release/*
-  drafts: "false"
+  drafts: false
 
 variables:
-  architecture: "x64"
+  architecture: x64
+  PYDEVD_ATTACH_TO_PROCESS: src/debugpy/_vendored/pydevd/pydevd_attach_to_process
 
-jobs:
+stages:
 
-  - job: "Lint"
-    timeoutInMinutes: "5"
-    displayName: "Lint"
-    pool: { vmImage: "ubuntu-latest" }
+  - stage: Lint
+    jobs:
+      - job: Lint
+        timeoutInMinutes: 5
 
-    variables:
-      python.version: "3.9"
+        pool:
+          vmImage: ubuntu-latest
 
-    steps:
+        variables:
+          python.version: "3.9"
 
-      - template: "templates/use_python.yml"
+        steps:
 
-      # Install and run ruff
-      # See https://github.com/astral-sh/ruff and https://beta.ruff.rs/docs/
-      - script: "python3 -m pip install -U ruff"
-        displayName: "Install ruff"
+          - template: templates/use_python.yml
+
+          # Install and run ruff
+          # See https://github.com/astral-sh/ruff and https://beta.ruff.rs/docs/
+          - script: python3 -m pip install -U ruff
+            displayName: Install ruff
+          
+          # Run linter
+          - script: python3 -m ruff check --output-format=junit --output-file=$(Build.ArtifactStagingDirectory)/lint-ruff.xml .
+            displayName: Run ruff
+
+          # Publish results, even on failure
+          - task: PublishTestResults@2
+            displayName: Publish linting results
+            inputs:
+              testRunTitle: $(Agent.JobName)
+              testResultsFiles: lint-*.xml
+              searchFolder: $(Build.ArtifactStagingDirectory)
+            condition: always()
+
+  - stage: Pydevd
+    jobs:
+      - job: Build
+        displayName: Build
+
+        strategy:
+          matrix:
+            Windows:
+              image: windows-latest
+              contents: |
+                *.exe
+                *.dll
+                *.pdb
+              script: $(Build.SourcesDirectory)/$(PYDEVD_ATTACH_TO_PROCESS)/windows/compile_windows.bat
+              workingDirectory: $(Build.SourcesDirectory)/$(PYDEVD_ATTACH_TO_PROCESS)/windows
+            macOS:
+              image: macOS-latest
+              contents: |
+                *.dylib
+              script: $(Build.SourcesDirectory)/$(PYDEVD_ATTACH_TO_PROCESS)/linux_and_mac/compile_mac.sh
+              workingDirectory: $(System.DefaultWorkingDirectory)
+            Linux:
+              image: ubuntu-latest
+              contents: |
+                *.so
+              script: $(Build.SourcesDirectory)/$(PYDEVD_ATTACH_TO_PROCESS)/linux_and_mac/compile_linux.sh
+              workingDirectory: $(System.DefaultWorkingDirectory)
+            
+        pool:
+          vmImage: $(image)
+
+        steps:
+
+          # Clean up old binaries
+          - task: DeleteFiles@1
+            displayName: Clean up old binaries
+            inputs:
+              SourceFolder: $(Build.SourcesDirectory)/$(PYDEVD_ATTACH_TO_PROCESS)
+              Contents: $(contents)
+
+          # Build pydevd binaries
+          - script: $(script)
+            displayName: Build pydevd binaries
+            workingDirectory: $(workingDirectory)
         
-      - script: "python3 -m ruff check --output-format=junit --output-file=$(Build.ArtifactStagingDirectory)/lint-ruff.xml ."
-        displayName: "Run ruff"
+          # copy pydevd binaries
+          - task: CopyFiles@2
+            displayName: Copy pydevd binaries
+            inputs:
+              SourceFolder: $(Build.SourcesDirectory)/$(PYDEVD_ATTACH_TO_PROCESS)
+              Contents: $(contents)
+              TargetFolder: $(Build.ArtifactStagingDirectory)
+        
+          # Publish pydevd binaries
+          - task: PublishBuildArtifacts@1
+            displayName: Publish pydevd binaries
+            inputs:
+              artifactName: pydevd binaries
+              pathToPublish: $(Build.ArtifactStagingDirectory)
+    
+  - stage: Test
+    dependsOn: Pydevd
+    jobs:
 
-      - task: "PublishTestResults@2"
-        displayName: "Publish linting results"
-        inputs:
-          testRunTitle: "$(Agent.JobName)"
-          testResultsFiles: "lint-*.xml"
-          searchFolder: "$(Build.ArtifactStagingDirectory)"
-        condition: "always()"
+    - job: Tests_Linux
+      displayName: Tests - Linux
+      timeoutInMinutes: 30
+      pool:
+        vmImage: ubuntu-latest
 
-  - job: "Test_Linux"
-    timeoutInMinutes: "30"
-    displayName: "Tests - Linux"
-    pool: { vmImage: "ubuntu-latest" }
+      strategy:
+        matrix:
+          py39:
+            python.version: 3.9
+          py310:
+            python.version: 3.10
+          py311:
+            python.version: 3.11
+          py312:
+            python.version: 3.12
+          py313:
+            python.version: 3.13
 
-    strategy:
-      matrix:
-        py39:
-          python.version: "3.9"
-        py310:
-          python.version: "3.10"
-        py311:
-          python.version: "3.11"
-        py312:
-          python.version: "3.12"
-        py313:
-          python.version: "3.13"
+      steps:
 
-    steps:
+        - script: |
+            sudo apt-get update
+            sudo apt-get --yes install gdb
+            sudo sysctl kernel.yama.ptrace_scope=0
+          displayName: Setup gdb
 
-      - script: |
-          sudo apt-get update
-          sudo apt-get --yes install gdb
-          sudo sysctl kernel.yama.ptrace_scope=0
-        displayName: "Setup gdb"
+        - template: templates/use_python.yml
 
-      - template: "templates/use_python.yml"
+        # download pydevd binaries
+        - download: current
+          displayName: Download pydevd binaries
+          artifact: pydevd binaries
 
-      - template: "templates/run_tests.yml"
+        # copy pydevd binaries
+        - task: CopyFiles@2
+          displayName: Copy pydevd binaries
+          inputs:
+            SourceFolder: $(Pipeline.Workspace)/pydevd binaries
+            TargetFolder: $(Build.SourcesDirectory)/$(PYDEVD_ATTACH_TO_PROCESS)
 
-  - job: "Test_MacOS"
-    timeoutInMinutes: "30"
-    displayName: "Tests - macOS"
-    pool: { vmImage: "macOS-latest" }
+        - template: templates/run_tests.yml
 
-    strategy:
-      matrix:
-        py39:
-          python.version: "3.9"
-        py310:
-          python.version: "3.10"
-        py311:
-          python.version: "3.11"
-        py312:
-          python.version: "3.12"
-        py313:
-          python.version: "3.13"
+    - job: Tests_Mac
+      timeoutInMinutes: 30
+      displayName: Tests - macOS
+      pool:
+        vmImage: macOS-latest
 
-    steps:
+      strategy:
+        matrix:
+          py39:
+            python.version: 3.9
+          py310:
+            python.version: 3.10
+          py311:
+            python.version: 3.11
+          py312:
+            python.version: 3.12
+          py313:
+            python.version: 3.13
 
-      - script: "ulimit -Sn 8192"
-        displayName: "Increase file descriptor limit"
+      steps:
 
-      - template: "templates/use_python.yml"
+        - script: ulimit -Sn 8192
+          displayName: Increase file descriptor limit
 
-      - script: "python -m ensurepip --user"
-        displayName: "Bootstrap pip"
+        - template: templates/use_python.yml
 
-      - template: "templates/run_tests.yml"
+        - script: python -m ensurepip --user
+          displayName: Bootstrap pip
 
-  - job: "Test_Windows"
-    timeoutInMinutes: "40"
-    displayName: "Tests - Windows"
-    pool: { vmImage: "windows-latest" }
+        # download pydevd binaries
+        - download: current
+          displayName: Download pydevd binaries
+          artifact: pydevd binaries
 
-    strategy:
-      matrix:
-        py39:
-          python.version: "3.9"
-        py39_32:
-          python.version: "3.9"
-          architecture: "x86"
-        py310:
-          python.version: "3.10"
-        py311:
-          python.version: "3.11"
-        py312:
-          python.version: "3.12"
-        py313:
-          python.version: "3.13"
+        # copy pydevd binaries
+        - task: CopyFiles@2
+          displayName: Copy pydevd binaries
+          inputs:
+            SourceFolder: $(Pipeline.Workspace)/pydevd binaries
+            TargetFolder: $(Build.SourcesDirectory)/$(PYDEVD_ATTACH_TO_PROCESS)
 
-    steps:
+        - template: templates/run_tests.yml
 
-      - template: "templates/use_python.yml"
-      
-      - template: "templates/run_tests.yml"
+    - job: Test_Windows
+      timeoutInMinutes: 40
+      displayName: Tests - Windows
+      pool:
+        vmImage: windows-latest
+
+      strategy:
+        matrix:
+          py39:
+            python.version: 3.9
+          py39_32:
+            python.version: 3.9
+            architecture: x86
+          py310:
+            python.version: 3.10
+          py311:
+            python.version: 3.11
+          py312:
+            python.version: 3.12
+          py313:
+            python.version: 3.13
+
+      steps:
+
+        - template: templates/use_python.yml
+        
+        # download pydevd binaries
+        - download: current
+          displayName: Download pydevd binaries
+          artifact: pydevd binaries
+
+        # copy pydevd binaries
+        - task: CopyFiles@2
+          displayName: Copy pydevd binaries
+          inputs:
+            SourceFolder: $(Pipeline.Workspace)/pydevd binaries
+            TargetFolder: $(Build.SourcesDirectory)/$(PYDEVD_ATTACH_TO_PROCESS)
+
+        - template: templates/run_tests.yml
