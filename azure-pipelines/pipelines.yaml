@@ -58,12 +58,12 @@ stages:
 
   - stage: Pydevd
     jobs:
-      - job: pydevd_binaries
-        displayName: Build pydevd binaries
+      - job: Build
+        displayName: Build
 
         strategy:
           matrix:
-            windows:
+            Windows:
               image: windows-latest
               contents: |
                 *.exe
@@ -71,13 +71,13 @@ stages:
                 *.pdb
               script: $(Build.SourcesDirectory)/$(PYDEVD_ATTACH_TO_PROCESS)/windows/compile_windows.bat
               workingDirectory: $(Build.SourcesDirectory)/$(PYDEVD_ATTACH_TO_PROCESS)/windows
-            mac:
+            macOS:
               image: macOS-latest
               contents: |
                 *.dylib
               script: $(Build.SourcesDirectory)/$(PYDEVD_ATTACH_TO_PROCESS)/linux_and_mac/compile_mac.sh
               workingDirectory: $(System.DefaultWorkingDirectory)
-            linux:
+            Linux:
               image: ubuntu-latest
               contents: |
                 *.so
