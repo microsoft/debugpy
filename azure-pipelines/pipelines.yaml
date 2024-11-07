@@ -18,7 +18,7 @@ pr:
   drafts: false
 
 variables:
-  architecture: "x64"
+  architecture: x64
   PYDEVD_ATTACH_TO_PROCESS: src/debugpy/_vendored/pydevd/pydevd_attach_to_process
 
 stages:
