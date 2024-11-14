@@ -64,6 +64,9 @@ def cli(pyfile):
             argv, options = pickle.loads(output)
         except subprocess.CalledProcessError as exc:
             raise pickle.loads(exc.output)
+        except EOFError:
+            # We may have just been shutting down. If so, return an empty argv and options.
+            argv, options = [], {}
 
         log.debug("Adjusted sys.argv: {0!r}", argv)
         log.debug("Parsed options: {0!r}", options)
