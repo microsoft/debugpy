@@ -55,15 +55,16 @@ def cli(pyfile):
     def parse(args):
         log.debug("Parsing argv: {0!r}", args)
         try:
-            # Run the CLI parser in a subprocess, and capture its output.
-            output = subprocess.check_output(
-                [sys.executable, "-u", cli_parser.strpath] + args
-            )
+            try:
+                # Run the CLI parser in a subprocess, and capture its output.
+                output = subprocess.check_output(
+                    [sys.executable, "-u", cli_parser.strpath] + args
+                )
 
-            # Deserialize the output and return the parsed argv and options.
-            argv, options = pickle.loads(output)
-        except subprocess.CalledProcessError as exc:
-            raise pickle.loads(exc.output)
+                # Deserialize the output and return the parsed argv and options.
+                argv, options = pickle.loads(output)
+            except subprocess.CalledProcessError as exc:
+                raise pickle.loads(exc.output)
         except EOFError:
             # We may have just been shutting down. If so, return an empty argv and options.
             argv, options = [], {}
