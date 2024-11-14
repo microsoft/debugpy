@@ -149,7 +149,7 @@ def check(
 
             assert tracer.lines_executed
             if has_line_event_optimized_in_original_case:
-                lines = sorted(set(x[1] for x in dis.findlinestarts(new_code)))
+                lines = sorted(set(x[1] for x in dis.findlinestarts(new_code) if x[1] is not None))
                 new_line_contents = []
                 last_line = str(max(lines)) + " "
                 for l in contents.splitlines(keepends=True):

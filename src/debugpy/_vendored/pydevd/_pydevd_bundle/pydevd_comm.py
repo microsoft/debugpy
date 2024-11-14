@@ -1344,9 +1344,8 @@ def internal_evaluate_expression(dbg, seq, thread_id, frame_id, expression, is_e
 
 
 def _set_expression_response(py_db, request, error_message):
-    body = pydevd_schema.SetExpressionResponseBody(value='')
-    variables_response = pydevd_base_schema.build_response(request, kwargs={
-        'body':body, 'success':False, 'message': error_message})
+    body = pydevd_schema.SetExpressionResponseBody(value="")
+    variables_response = pydevd_base_schema.build_response(request, kwargs={"body": body, "success": False, "message": error_message})
     py_db.writer.add_command(NetCommand(CMD_RETURN, 0, variables_response, is_json=True))
 
 
@@ -1362,18 +1361,18 @@ def internal_set_expression_json(py_db, request, thread_id):
         fmt = fmt.to_dict()
 
     frame = py_db.find_frame(thread_id, frame_id)
-    exec_code = '%s = (%s)' % (expression, value)
+    exec_code = "%s = (%s)" % (expression, value)
     try:
         pydevd_vars.evaluate_expression(py_db, frame, exec_code, is_exec=True)
     except (Exception, KeyboardInterrupt):
-        _set_expression_response(py_db, request, error_message='Error executing: %s' % (exec_code,))
+        _set_expression_response(py_db, request, error_message="Error executing: %s" % (exec_code,))
         return
 
     # Ok, we have the result (could be an error), let's put it into the saved variables.
     frame_tracker = py_db.suspended_frames_manager.get_frame_tracker(thread_id)
     if frame_tracker is None:
         # This is not really expected.
-        _set_expression_response(py_db, request, error_message='Thread id: %s is not current thread id.' % (thread_id,))
+        _set_expression_response(py_db, request, error_message="Thread id: %s is not current thread id." % (thread_id,))
         return
 
     # Now that the exec is done, get the actual value changed to return.

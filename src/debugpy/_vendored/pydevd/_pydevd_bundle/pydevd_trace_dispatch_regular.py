@@ -187,9 +187,7 @@ def fix_top_level_trace_and_get_trace_func(py_db, frame):
             if top_level_thread_tracer is None:
                 # Stop in some internal place to report about unhandled exceptions
                 top_level_thread_tracer = TopLevelThreadTracerOnlyUnhandledExceptions(args)
-                additional_info.top_level_thread_tracer_unhandled = (
-                    top_level_thread_tracer
-                )  # Hack for cython to keep it alive while the thread is alive (just the method in the SetTrace is not enough).
+                additional_info.top_level_thread_tracer_unhandled = top_level_thread_tracer  # Hack for cython to keep it alive while the thread is alive (just the method in the SetTrace is not enough).
 
         # print(' --> found to trace unhandled', f_unhandled.f_code.co_name, f_unhandled.f_code.co_filename, f_unhandled.f_code.co_firstlineno)
         f_trace = top_level_thread_tracer.get_trace_dispatch_func()

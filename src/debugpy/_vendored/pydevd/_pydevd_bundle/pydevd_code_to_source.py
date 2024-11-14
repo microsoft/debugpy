@@ -529,8 +529,7 @@ class _PyCodeToSource(object):
             instruction = instructions[0]
             new_line_index = op_offset_to_line.get(instruction.offset)
             if new_line_index is not None:
-                if new_line_index is not None:
-                    curr_line_index = new_line_index
+                curr_line_index = new_line_index
 
             self._process_next(curr_line_index)
         return self.writer.line_to_contents

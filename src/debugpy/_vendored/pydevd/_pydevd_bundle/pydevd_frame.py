@@ -25,7 +25,6 @@ except ImportError:
     def get_smart_step_into_variant_from_frame_offset(*args, **kwargs):
         return None
 
-
 # IFDEF CYTHON
 # cython_inline_constant: CMD_STEP_INTO = 107
 # cython_inline_constant: CMD_STEP_INTO_MY_CODE = 144
@@ -123,7 +122,6 @@ class _TryExceptContainerObj(object):
     """
 
     try_except_infos = None
-
 
 # ENDIF
 
@@ -623,7 +621,8 @@ class PyDBFrame:
                         try:
                             func_lines = set()
                             for offset_and_lineno in dis.findlinestarts(frame.f_code):
-                                func_lines.add(offset_and_lineno[1])
+                                if offset_and_lineno[1] is not None:
+                                    func_lines.add(offset_and_lineno[1])
                         except:
                             # This is a fallback for implementations where we can't get the function
                             # lines -- i.e.: jython (in this case clients need to provide the function

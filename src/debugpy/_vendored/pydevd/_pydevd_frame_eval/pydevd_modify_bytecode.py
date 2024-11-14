@@ -59,7 +59,7 @@ def _get_code_line_info(code_obj):
     last_line = None
 
     for offset, line in dis.findlinestarts(code_obj):
-        if line is not None and offset is not None:
+        if line is not None:
             line_to_offset[line] = offset
 
     if line_to_offset:

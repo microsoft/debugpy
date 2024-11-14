@@ -101,7 +101,7 @@ def _patch_threading_to_hide_pydevd_threads():
         {"_active_limbo_lock", "_limbo", "_active", "values", "list"},
         {"_active_limbo_lock", "_limbo", "_active", "values", "NULL + list"},
         {"NULL + list", "_active", "_active_limbo_lock", "NULL|self + values", "_limbo"},
-        {'_active_limbo_lock', 'values + NULL|self', '_limbo', '_active', 'list + NULL'},
+        {"_active_limbo_lock", "values + NULL|self", "_limbo", "_active", "list + NULL"},
     ):
         pydev_log.debug("Applying patching to hide pydevd threads (Py3 version).")
 

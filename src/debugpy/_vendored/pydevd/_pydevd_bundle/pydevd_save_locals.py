@@ -124,7 +124,7 @@ def update_globals_and_locals(updated_globals, initial_globals, frame):
                     if key in f_locals:
                         f_locals[key] = None
                 except Exception as e:
-                    pydev_log.info('Unable to remove key: %s from locals. Exception: %s', key, e)
+                    pydev_log.info("Unable to remove key: %s from locals. Exception: %s", key, e)
 
     if f_locals is not None:
         save_locals(frame)

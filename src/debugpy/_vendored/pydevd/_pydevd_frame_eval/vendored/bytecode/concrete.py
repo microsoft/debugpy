@@ -19,7 +19,6 @@ from _pydevd_frame_eval.vendored.bytecode.instr import (
     _check_arg_int,
 )
 
-
 # - jumps use instruction
 # - lineno use bytes (dis.findlinestarts(code))
 # - dis displays bytes
@@ -169,7 +168,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
 
     @staticmethod
     def from_code(code, *, extended_arg=False):
-        line_starts = dict(dis.findlinestarts(code))
+        line_starts = dict(entry for entry in dis.findlinestarts(code) if entry[1] is not None)
 
         # find block starts
         instructions = []

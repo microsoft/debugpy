@@ -28,7 +28,6 @@ import os
 
 
 class BinaryDistribution(Distribution):
-
     def is_pure(self):
         return False
 
@@ -60,7 +59,12 @@ data_files.append(
 )
 for root, dirs, files in os.walk(attach_to_process_dir):
     for d in dirs:
-        data_files.append((make_rel(os.path.join(root, d)), [make_rel(os.path.join(root, d, f)) for f in os.listdir(os.path.join(root, d)) if accept_file(f)]))
+        data_files.append(
+            (
+                make_rel(os.path.join(root, d)),
+                [make_rel(os.path.join(root, d, f)) for f in os.listdir(os.path.join(root, d)) if accept_file(f)],
+            )
+        )
 
 import pydevd
 

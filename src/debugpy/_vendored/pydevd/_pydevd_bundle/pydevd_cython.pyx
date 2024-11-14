@@ -359,7 +359,6 @@ except ImportError:
     def get_smart_step_into_variant_from_frame_offset(*args, **kwargs):
         return None
 
-
 # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
 # ELSE
 # # Note: those are now inlined on cython.
@@ -445,7 +444,6 @@ cdef class _TryExceptContainerObj:
 #     """
 # 
 #     try_except_infos = None
-# 
 # 
 # ENDIF
 
@@ -945,7 +943,8 @@ cdef class PyDBFrame:
                         try:
                             func_lines = set()
                             for offset_and_lineno in dis.findlinestarts(frame.f_code):
-                                func_lines.add(offset_and_lineno[1])
+                                if offset_and_lineno[1] is not None:
+                                    func_lines.add(offset_and_lineno[1])
                         except:
                             # This is a fallback for implementations where we can't get the function
                             # lines -- i.e.: jython (in this case clients need to provide the function
@@ -1813,9 +1812,7 @@ def fix_top_level_trace_and_get_trace_func(py_db, frame):
             if top_level_thread_tracer is None:
                 # Stop in some internal place to report about unhandled exceptions
                 top_level_thread_tracer = TopLevelThreadTracerOnlyUnhandledExceptions(args)
-                additional_info.top_level_thread_tracer_unhandled = (
-                    top_level_thread_tracer
-                )  # Hack for cython to keep it alive while the thread is alive (just the method in the SetTrace is not enough).
+                additional_info.top_level_thread_tracer_unhandled = top_level_thread_tracer  # Hack for cython to keep it alive while the thread is alive (just the method in the SetTrace is not enough).
 
         # print(' --> found to trace unhandled', f_unhandled.f_code.co_name, f_unhandled.f_code.co_filename, f_unhandled.f_code.co_firstlineno)
         f_trace = top_level_thread_tracer.get_trace_dispatch_func()
