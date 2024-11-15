@@ -7,8 +7,8 @@ Update cython-generated files (must update cython and then run build_tools/build
 
 Create tag:
 -----------
-git tag pydev_debugger_3_2_1 -a -m "PyDev.Debugger 3.2.1"
-git push --tags
+git tag pydev_debugger_3_2_3 -a -m "PyDev.Debugger 3.2.3"
+git push origin pydev_debugger_3_2_3
 
 
 (pushing the tag does the release to PyPi now)

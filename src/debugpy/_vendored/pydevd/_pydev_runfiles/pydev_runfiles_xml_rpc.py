@@ -203,7 +203,7 @@ def _encode_if_needed(obj):
 
     elif isinstance(obj, bytes):
         try:
-            return xmlrpclib.Binary(obj.decode(sys.stdin.encoding, 'replace').encode("ISO-8859-1", "xmlcharrefreplace"))
+            return xmlrpclib.Binary(obj.decode(sys.stdin.encoding, "replace").encode("ISO-8859-1", "xmlcharrefreplace"))
         except:
             return xmlrpclib.Binary(obj)  # bytes already
 

@@ -173,7 +173,7 @@ if SUPPORT_GEVENT:
 if USE_CUSTOM_SYS_CURRENT_FRAMES_MAP:
     from _pydevd_bundle.pydevd_constants import constructed_tid_to_last_frame
 
-__version_info__ = (3, 2, 2)
+__version_info__ = (3, 2, 3)
 __version_info_str__ = []
 for v in __version_info__:
     __version_info_str__.append(str(v))
@@ -255,6 +255,7 @@ TIMEOUT_FAST = 1.0 / 50
 # PyDBCommandThread
 # =======================================================================================================================
 class PyDBCommandThread(PyDBDaemonThread):
+
     def __init__(self, py_db):
         PyDBDaemonThread.__init__(self, py_db)
         self._py_db_command_thread_event = py_db._py_db_command_thread_event
@@ -299,6 +300,7 @@ class PyDBCommandThread(PyDBDaemonThread):
 # Non-daemon thread: guarantees that all data is written even if program is finished
 # =======================================================================================================================
 class CheckAliveThread(PyDBDaemonThread):
+
     def __init__(self, py_db):
         PyDBDaemonThread.__init__(self, py_db)
         self.name = "pydevd.CheckAliveThread"
@@ -731,6 +733,7 @@ class PyDB(object):
         # in the namespace (and thus can't be relied upon unless the reference was previously
         # saved).
         if IS_IRONPYTHON:
+
             # A partial() cannot be used in IronPython for sys.settrace.
             def new_trace_dispatch(frame, event, arg):
                 return _trace_dispatch(self, frame, event, arg)
@@ -791,11 +794,11 @@ class PyDB(object):
                     max_line = -1
                     min_line = sys.maxsize
                     for _, line in dis.findlinestarts(code_obj):
-                        if line is not None and line > max_line:
-                            max_line = line
-
-                        if line is not None and line < min_line:
-                            min_line = line
+                        if line is not None:
+                            if line > max_line:
+                                max_line = line
+                            if line < min_line:
+                                min_line = line
 
                     try_except_infos = [x for x in try_except_infos if min_line <= x.try_line <= max_line]
                 return try_except_infos
@@ -1010,7 +1013,7 @@ class PyDB(object):
                 abs_path = abs_path[0:i]
                 i = max(abs_path.rfind("/"), abs_path.rfind("\\"))
                 if i:
-                    dirname = abs_path[i + 1 :]
+                    dirname = abs_path[i + 1:]
                     # At this point, something as:
                     # "my_path\_pydev_runfiles\__init__.py"
                     # is now  "_pydev_runfiles".
@@ -1528,6 +1531,7 @@ class PyDB(object):
         self._dap_messages_listeners.append(listener)
 
     class _WaitForConnectionThread(PyDBDaemonThread):
+
         def __init__(self, py_db):
             PyDBDaemonThread.__init__(self, py_db)
             self._server_socket = None
@@ -1581,7 +1585,7 @@ class PyDB(object):
         """returns internal command queue for a given thread.
         if new queue is created, notify the RDB about it"""
         if thread_id.startswith("__frame__"):
-            thread_id = thread_id[thread_id.rfind("|") + 1 :]
+            thread_id = thread_id[thread_id.rfind("|") + 1:]
         return self._cmd_queue[thread_id], self._thread_events[thread_id]
 
     def post_method_as_internal_command(self, thread_id, method, *args, **kwargs):
@@ -1758,7 +1762,7 @@ class PyDB(object):
                     # (so, clear the cache related to that).
                     self._running_thread_ids = {}
 
-    def process_internal_commands(self, process_thread_ids: Optional[tuple] = None):
+    def process_internal_commands(self, process_thread_ids: Optional[tuple]=None):
         """
         This function processes internal commands.
         """
@@ -1917,10 +1921,10 @@ class PyDB(object):
         self,
         thread,
         stop_reason: int,
-        suspend_other_threads: bool = False,
+        suspend_other_threads: bool=False,
         is_pause=False,
-        original_step_cmd: int = -1,
-        suspend_requested: bool = False,
+        original_step_cmd: int=-1,
+        suspend_requested: bool=False,
     ):
         """
         :param thread:
@@ -2731,6 +2735,7 @@ class PyDB(object):
 
 
 class IDAPMessagesListener(object):
+
     def before_send(self, message_as_dict):
         """
         Called just before a message is sent to the IDE.
@@ -3216,6 +3221,7 @@ def stoptrace():
 
 
 class Dispatcher(object):
+
     def __init__(self):
         self.port = None
 
@@ -3235,6 +3241,7 @@ class Dispatcher(object):
 
 
 class DispatchReader(ReaderThread):
+
     def __init__(self, dispatcher):
         self.dispatcher = dispatcher
 
@@ -3434,7 +3441,6 @@ def _internal_patch_stdin(py_db=None, sys=None, getpass_mod=None):
                 sys.stdin = curr_stdin
 
     getpass_mod.getpass = getpass
-
 
 # Dispatch on_debugger_modules_loaded here, after all primary py_db modules are loaded
 

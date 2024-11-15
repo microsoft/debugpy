@@ -11,6 +11,7 @@ encoding//pydev_ipython/inputhookqt5.py=utf-8
 encoding//pydev_ipython/inputhooktk.py=utf-8
 encoding//pydev_ipython/inputhookwx.py=utf-8
 encoding//pydev_ipython/version.py=utf-8
+encoding//pydevd_attach_to_process/winappdbg/__init__.py=utf-8
 encoding//pydevd_attach_to_process/winappdbg/breakpoint.py=utf-8
 encoding//pydevd_attach_to_process/winappdbg/crash.py=utf-8
 encoding//pydevd_attach_to_process/winappdbg/interactive.py=utf-8

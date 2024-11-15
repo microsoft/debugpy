@@ -9,13 +9,10 @@ trigger:
       - release/*
 
 # Trigger pr builds for commits into master and any release branches
-# Ignore draft PR's
 pr:
   branches:
     include:
-      - main
-      - release/*
-  drafts: false
+      - '*'
 
 variables:
   architecture: x64

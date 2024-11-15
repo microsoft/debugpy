@@ -110,7 +110,10 @@ class TestStrings(SafeReprTestBase):
         value = "A" * (SafeRepr.maxstring_outer + 10)
 
         self.assert_shortened(value, "'" + "A" * 43690 + "..." + "A" * 21845 + "'")
-        self.assert_shortened([value], "['AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA...AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA']")
+        self.assert_shortened(
+            [value],
+            "['AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA...AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA']",
+        )
 
     def test_str_largest_unchanged(self):
         value = "A" * (SafeRepr.maxstring_outer)
@@ -125,12 +128,18 @@ class TestStrings(SafeReprTestBase):
     def test_str_list_largest_unchanged(self):
         value = "A" * (SafeRepr.maxstring_inner)
 
-        self.assert_unchanged([value], "['AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA']")
+        self.assert_unchanged(
+            [value],
+            "['AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA']",
+        )
 
     def test_str_list_smallest_changed(self):
         value = "A" * (SafeRepr.maxstring_inner + 1)
 
-        self.assert_shortened([value], "['AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA...AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA']")
+        self.assert_shortened(
+            [value],
+            "['AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA...AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA']",
+        )
 
     @pytest.mark.skipif(sys.version_info > (3, 0), reason="Py2 specific test")
     def test_unicode_small(self):
@@ -158,7 +167,10 @@ class TestStrings(SafeReprTestBase):
         value = b"A" * (SafeRepr.maxstring_outer + 10)
 
         self.assert_shortened(value, "b'" + "A" * 43690 + "..." + "A" * 21845 + "'")
-        self.assert_shortened([value], "[b'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA...AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA']")
+        self.assert_shortened(
+            [value],
+            "[b'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA...AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA']",
+        )
 
     # @pytest.mark.skip(reason='not written')  # TODO: finish!
     # def test_bytearray_small(self):

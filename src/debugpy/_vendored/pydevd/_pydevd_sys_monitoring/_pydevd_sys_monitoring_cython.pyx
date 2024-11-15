@@ -40,7 +40,6 @@ from _pydevd_bundle.pydevd_trace_dispatch import is_unhandled_exception
 from _pydevd_bundle.pydevd_breakpoints import stop_on_unhandled_exception
 from _pydevd_bundle.pydevd_utils import get_clsname_for_code
 
-
 # fmt: off
 # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
 import cython
@@ -173,6 +172,7 @@ cdef _get_bootstrap_frame(depth):
             return _thread_local_info.f_bootstrap, _thread_local_info.is_bootstrap_frame_internal
 
         return f_bootstrap, is_bootstrap_frame_internal
+
 
 # fmt: off
 # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
@@ -379,6 +379,7 @@ cdef class FuncCodeInfo:
     cdef str co_name
 # ELSE
 # class FuncCodeInfo:
+# 
 # ENDIF
 # fmt: on
     def __init__(self):
@@ -502,7 +503,7 @@ cdef _CodeLineInfo _get_code_line_info(code_obj, _cache={}):
         last_line = None
 
         for offset, line in dis.findlinestarts(code_obj):
-            if offset is not None and line is not None:
+            if line is not None:
                 line_to_offset[line] = offset
 
         if len(line_to_offset):
@@ -874,7 +875,6 @@ cdef _unwind_event(code, instruction, exc):
         if thread_info is None:
             return
 
-
     py_db: object = GlobalDebuggerHolder.global_dbg
     if py_db is None or py_db.pydb_disposed:
         return
@@ -895,7 +895,6 @@ cdef _unwind_event(code, instruction, exc):
     has_caught_exception_breakpoint_in_pydb = (
         py_db.break_on_caught_exceptions or py_db.break_on_user_uncaught_exceptions or py_db.has_plugin_exception_breaks
     )
-
 
     if has_caught_exception_breakpoint_in_pydb:
         _should_stop, frame, user_uncaught_exc_info = should_stop_on_exception(
@@ -1694,7 +1693,6 @@ cdef _start_method_event(code, instruction_offset):
         # threads may still want it...
         return
 
-
     frame = _getframe(1)
     func_code_info = _get_func_code_info(code, frame)
     if func_code_info.always_skip_code:
@@ -1741,6 +1739,7 @@ cdef _start_method_event(code, instruction_offset):
         return None
 
     return monitor.DISABLE
+
 
 # fmt: off
 # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
@@ -1814,7 +1813,7 @@ cpdef stop_monitoring(all_threads=False):
         thread_info.trace = False
 
 
-def update_monitor_events(suspend_requested: Optional[bool] = None) -> None:
+def update_monitor_events(suspend_requested: Optional[bool]=None) -> None:
     """
     This should be called when breakpoints change.
 
@@ -1944,7 +1943,6 @@ def _do_wait_suspend(py_db, ThreadInfo thread_info, frame, event, arg):
 # fmt: on
     thread_info.additional_info.trace_suspend_type = "sys_monitor"
     py_db.do_wait_suspend(thread_info.thread, frame, event, arg)
-
 
 # This can be used to diagnose exceptions inside of the debugger itself.
 #
