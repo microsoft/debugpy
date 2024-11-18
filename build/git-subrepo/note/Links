@@ -1,0 +1,25 @@
+- http://stackoverflow.com/questions/1186535/how-to-modify-a-specified-commit/
+- http://git-scm.com/book/en/Git-Tools-Rewriting-History
+- http://git.661346.n2.nabble.com/Editing-the-root-commit-td7561714.html
+- http://stackoverflow.com/questions/645450/git-how-to-insert-a-commit-as-the-first-shifting-all-the-others
+- http://stackoverflow.com/questions/6149520/git-remove-root-commit ***
+- http://fourkitchens.com/blog/2009/01/19/creating-common-branch-ancestry-hard-problem
+- http://stackoverflow.com/questions/1488753/how-to-merge-two-branches-without-a-common-ancestor
+- http://sahd.lamafam.org/?p=1534
+
+- http://www.claassen.net/geek/blog/2011/02/git-merge-strategytheirs.html
+- sahd.lamafam.org/?p=1534
+- http://stackoverflow.com/questions/2945344/selecting-merge-strategy-options-for-git-rebase
+- http://stackoverflow.com/questions/2428137/how-to-rebase-one-git-repository-onto-another-one
+- http://stackoverflow.com/questions/3080509/git-list-commits-not-pushed-to-the-origin-yet
+- http://stackoverflow.com/questions/2263674/how-do-i-find-the-next-commit-in-git
+
+- http://git-scm.com/book/ch6-7.html (Subtree Merge)
+- https://www.kernel.org/pub/software/scm/git/docs/howto/using-merge-subtree.html
+- https://help.github.com/articles/working-with-subtree-merge
+  - git pull -s subtree foo master
+
+- http://git-scm.com/2010/03/17/replace.html
+
+- http://git.661346.n2.nabble.com/subtree-merges-lose-prefix-after-rebase-td7332850.html
+- http://ruleant.blogspot.com/2013/06/git-subtree-module-with-gittrees-config.html

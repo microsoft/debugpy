@@ -1,0 +1,33 @@
+$$$ for cmd in `cat AllGitCmds`; do git help $cmd; done
+
+
+== Inteesting Plumbing Commands:
+- git ls-tree HEAD
+- git cat-file -t <object>
+- git cat-file commit <commit>
+- git cat-file -p <commit>
+- git ls-tree <tree>
+- git ls-files --stage
+- git write-tree
+- git update-ref refs/heads/master <commit>
+- git symbolic-ref HEAD refs/heads/master
+- git show-branch
+- git hash-object <file>
+
+- git rev-list --max-parents=0 HEAD     — Find root commit
+- git cherry        — find commits in one branch that are not in another
+- git replace
+
+== Commands with DAG diagrams in their manpages:
+
+- git-commit
+- git-filter-branch
+- git-log
+- git-merge
+- git-merge-base
+- git-pull
+- git-push
+- git-rebase
+- git-rerere
+- git-rev-list
+- git-rev-parse
