@@ -1,0 +1,110 @@
+---
+version: 0.4.1
+date:    Thu Jan  9 17:11:21 CST 2020
+- Fix Bash version error messages and add to .rc
+- Nicer YAML formatting in .travis.yml
+- Wrap a long line
+- Update the docs
+- Force `make update` to always update docs
+- Don't use XXX in perl stuff
+- Add testing on MacOS
+- Remove conflicting -C from install -d commands.
+- Update version requirement documentation
+- Correct error message in branch
+- Use topo-order in subrepo branch
+- Make “git subrepo clean -f ...” delete refs correctly
+- Fix #410 Push empty repositories with recent git versions
+- Make subrepo work when run in a worktree
+- Simplify finding subrepos
+- Ask git to find the .gitrepo files
+- Doc: fix sentence repetition
+- Fix typos
+- Fixed typo
+- Travis CI not checking out a branch.
+---
+version: 0.4.0
+date:    Thu Nov  8 12:26:38 CET 2018
+changes:
+- Fix #325 Do not squash main repo commits
+- Improve error message for worktree handling
+- Make version checking portable. #307
+- #307, improve version check
+- #307, update version requirement
+- Fix part #308, Add stderr output if commands fail
+- Fix #306: Add check to prevent following commits with no .gitrepo
+- Remove dry-run flag as it's not implemented. Make sure branch --force delete worktree
+- Fix #296, Replace --first-parent with --ancestry-path
+- Fix #291, specify Trusty host to get new 2.x git
+- Fix #258, add --no-tags to git fetch
+- Test that no remotes are created during clone
+- #257 Remove remote creation to avoid problems with fetch --all
+- (origin/issue/150_to_0.4.0) Fix remove-worktree, remove unused parameters
+- Regenerate completion files
+- filter-branch operation should not be done on HEAD
+- Cleanup push and add hint to push directly after pull
+- Simplify cleanup and add worktree to status
+- Add --method option to init/clone, add a 'config' command
+- Updated unit tests to support the new logic
+- Use 'git worktree' for merge/rebase
+- Update docs to reflect how things should work
+- Make it possible to specify commit messages
+- Redesign, trash the tree hash approach and use merges instead
+- Add release branches to travis-ci
+- Add --method option to init/clone, add a 'config' command
+- Detect multiple pulls, use -u flag to decide
+- Don't reuse previous commit message when using --all
+- Update the docs for pull and push
+- Update error messages when failing merge/rebase
+- Fix env var bug in test/push.t
+- Do not overwrite author information
+---
+version: 0.3.1
+date:    Tue Jan  3 23:08:56 PST 2017
+changes:
+- Updated release for homebrew
+- Fix #192
+---
+version: 0.3.0
+date:    Wed Dec  2 19:19:43 PST 2015
+changes:
+- Fix issue #98 and host of others (89, 91, 95, 96)
+- Adds support for the merge-base command
+- Adds stability to many commands
+- Command completion updates
+- Rename `init` to `.rc`
+- @grimmySwe++ @dzzh++ @jrosdahl++ @perlpunk++
+---
+version: 0.2.3
+date:    Sun Aug  9 13:44:22 PDT 2015
+changes:
+- Fix issues #75 and #76
+---
+version: 0.2.2
+date:    Wed Jul 22 09:45:13 PDT 2015
+changes:
+- Added the `init` subcommand
+- Applied doc fixes
+---
+version: 0.2.1
+date:    Sat Mar 28 07:52:22 PDT 2015
+changes:
+- Allows subrepo clone to clone to an empty branch; fixes #26.
+- Refs in status
+- Empty parent set to 'none' in .gitrepo file.
+- Bug fixes
+---
+version: 0.2.0
+date:    Sat Jan 24 06:22:05 PST 2015
+changes:
+- Massive overhaul
+- .gitrepo files remain the same so backwards compatible
+- Introduce the branch and commit subcommands
+- The checkout subcommand goes away
+- Operations work much smoother like normal Git flow
+- Much more testing
+- Better doc
+---
+version: 0.1.0
+date:    Fri Feb 21 12:25:53 2014 -0800
+changes:
+- First version
