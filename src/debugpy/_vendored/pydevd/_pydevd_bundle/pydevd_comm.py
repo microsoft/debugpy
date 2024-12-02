@@ -1523,12 +1523,13 @@ def build_exception_info_response(dbg, thread_id, thread, request_seq, set_addit
                     if IS_PY311_OR_GREATER:
                         stack_summary = traceback.StackSummary()
                         for filename_in_utf8, lineno, method_name, line_text, line_col_info in frames[-max_frames:]:
-                            frame_summary = traceback.FrameSummary(filename_in_utf8, lineno, method_name, line=line_text)
-                            if line_col_info is not None:
-                                frame_summary.end_lineno = line_col_info.end_lineno
-                                frame_summary.colno = line_col_info.colno
-                                frame_summary.end_colno = line_col_info.end_colno
-                            stack_summary.append(frame_summary)
+                            if lineno is not None:
+                                frame_summary = traceback.FrameSummary(filename_in_utf8, lineno, method_name, line=line_text)
+                                if line_col_info is not None and line_col_info.end_lineno is not None:
+                                    frame_summary.end_lineno = line_col_info.end_lineno
+                                    frame_summary.colno = line_col_info.colno
+                                    frame_summary.end_colno = line_col_info.end_colno
+                                stack_summary.append(frame_summary)
 
                         stack_str = "".join(stack_summary.format())
 
