@@ -22,5 +22,5 @@ requests
 typing_extensions
 
 # Used to build pydevd attach to process binaries:
-pyMSVC
+vswhere
 Cython

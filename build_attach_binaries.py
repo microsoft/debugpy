@@ -8,11 +8,10 @@ def build_pydevd_binaries(force: bool):
     # Attempt to find where Visual Studio is installed if we're running on Windows.
     if os.name == "nt":
         try:
-            import pyMSVC
-            env = pyMSVC.Environment()
-            c_info = pyMSVC.VisualCInfo(env)
-            info = pyMSVC.VisualStudioInfo(env, c_info)
-            os.environ["FORCE_PYDEVD_VC_VARS"] = os.path.join(info.install_directory, "VC", "Auxiliary", "Build", "vcvars64.bat")
+            import vswhere
+            install_path = vswhere.get_latest_path(prerelease=True)
+            if install_path is not None:
+                os.environ["FORCE_PYDEVD_VC_VARS"] = os.path.join(install_path, "VC", "Auxiliary", "Build", "vcvars64.bat")
         except ImportError:
             pass
 
