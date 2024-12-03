@@ -42,7 +42,7 @@ def _settrace(*args, **kwargs):
     # The stdin in notification is not acted upon in debugpy, so, disable it.
     kwargs.setdefault("notify_stdin", False)
     try:
-        return pydevd.settrace(*args, **kwargs)
+        pydevd.settrace(*args, **kwargs)
     except Exception:
         raise
     else:
