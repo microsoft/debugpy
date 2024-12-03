@@ -211,7 +211,13 @@ if __name__ == "__main__":
     # future imports of it or its submodules will resolve accordingly.
     if "debugpy" not in sys.modules:
         # Do not use dirname() to walk up - this can be a relative path, e.g. ".".
-        sys.path[0] = sys.path[0] + "/../../"
+        if os.name == "nt":
+            import pathlib
+
+            windows_path = pathlib.Path(sys.path[0])
+            sys.path[0] = str(windows_path.parent.parent)
+        else:
+            sys.path[0] = sys.path[0] + "/../../"
         __import__("debugpy")
         del sys.path[0]
 
