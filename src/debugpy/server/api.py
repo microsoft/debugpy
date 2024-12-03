@@ -36,6 +36,16 @@ _config_valid_values = {
 # https://bugs.python.org/issue37380.
 _adapter_process = None
 
+# if operating in server mode, stores connection parameters for the endpoint the process is listening to
+# otherwise None
+_stored_server_endpoint = None
+_stored_server_access_token = None
+
+# if operating in server mode, stores connection parameters for the endpoint the process is connected to
+# otherwise None
+_stored_client_endpoint = None
+_stored_client_access_token = None
+
 
 def _settrace(*args, **kwargs):
     log.debug("pydevd.settrace(*{0!r}, **{1!r})", args, kwargs)
@@ -116,7 +126,7 @@ def _starts_debugging(func):
             port.__index__()  # ensure it's int-like
         except Exception:
             raise ValueError("expected port or (host, port)")
-        if not (0 <= port < 2 ** 16):
+        if not (0 <= port < 2**16):
             raise ValueError("invalid port number")
 
         ensure_logging()
@@ -143,6 +153,10 @@ def _starts_debugging(func):
             log.reraise_exception("{0}() failed:", func.__name__, level="info")
 
     return debug
+
+
+def listening_endpoint():
+    return _stored_server_endpoint, _stored_server_access_token
 
 
 @_starts_debugging
@@ -288,13 +302,23 @@ def listen(address, settrace_kwargs, in_process_debug_adapter=False):
         **settrace_kwargs
     )
     log.info("pydevd is connected to adapter at {0}:{1}", server_host, server_port)
+    global _stored_server_endpoint, _stored_server_access_token
+    _stored_server_endpoint = (client_host, client_port)
+    _stored_server_access_token = server_access_token
     return client_host, client_port
+
+
+def connected_endpoint():
+    return _stored_client_endpoint, _stored_client_access_token
 
 
 @_starts_debugging
 def connect(address, settrace_kwargs, access_token=None):
     host, port = address
     _settrace(host=host, port=port, client_access_token=access_token, **settrace_kwargs)
+    global _stored_client_endpoint, _stored_client_access_token
+    _stored_client_endpoint = address
+    _stored_client_access_token = access_token
 
 
 class wait_for_client:
