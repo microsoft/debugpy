@@ -108,7 +108,6 @@ def test_multiple_listen_raises_exception(pyfile, target):
         import debuggee
         import debugpy
         import sys
-        import time
 
         from debuggee import backchannel
 
@@ -125,7 +124,7 @@ def test_multiple_listen_raises_exception(pyfile, target):
 
     host, port = runners.attach_connect.host, runners.attach_connect.port
     with debug.Session() as session:
-        backchannel = session.open_backchannel()
+        session.open_backchannel()
         session.spawn_debuggee(
             [
                 code_to_debug,
