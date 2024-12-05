@@ -47,9 +47,6 @@ def _settrace(*args, **kwargs):
         raise
 
 
-_listen.called = False
-
-
 def ensure_logging():
     """Starts logging to log.log_dir, if it hasn't already been done."""
     if ensure_logging.ensured:
@@ -142,7 +139,7 @@ def listen(address, settrace_kwargs, in_process_debug_adapter=False):
     # Errors below are logged with level="info", because the caller might be catching
     # and handling exceptions, and we don't want to spam their stderr unnecessarily.
 
-    if _listen.called:
+    if listen.called:
         # Multiple calls to listen() cause the debuggee to hang
         raise RuntimeError("debugpy.listen() has already been called on this process")
 
@@ -287,8 +284,10 @@ def listen(address, settrace_kwargs, in_process_debug_adapter=False):
         **settrace_kwargs
     )
     log.info("pydevd is connected to adapter at {0}:{1}", server_host, server_port)
-    _listen.called = True
+    listen.called = True
     return client_host, client_port
+
+listen.called = False
 
 
 @_starts_debugging
