@@ -102,6 +102,46 @@ def test_attach_api(pyfile, wait_for_client, is_client_connected, stop_method):
 
         session.request_continue()
 
+def test_multiple_listen_raises_exception(pyfile, target):
+    @pyfile
+    def code_to_debug():
+        import debuggee
+        import debugpy
+        import sys
+        import time
+
+        from debuggee import backchannel
+
+        debuggee.setup()
+        _, host, port = sys.argv
+        port = int(port)
+        debugpy.listen(address=(host, port))
+        try:
+            debugpy.listen(address=(host, port))
+        except RuntimeError:
+            backchannel.send("listen_exception")
+        debugpy.breakpoint()
+        print("break")  # @breakpoint
+
+    host, port = runners.attach_connect.host, runners.attach_connect.port
+    with debug.Session() as session:
+        backchannel = session.open_backchannel()
+        session.spawn_debuggee(
+            [
+                code_to_debug,
+                host,
+                port,
+            ]
+        )
+        session.wait_for_adapter_socket()
+
+        session.expect_server_socket()
+        session.connect_to_adapter((host, port))
+        with session.request_attach():
+            pass
+
+        assert session.backchannel.receive() == "listen_exception"
+
 
 @pytest.mark.parametrize("run", runners.all_attach_connect)
 def test_reattach(pyfile, target, run):
