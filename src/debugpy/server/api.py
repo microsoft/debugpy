@@ -42,14 +42,9 @@ def _settrace(*args, **kwargs):
     # The stdin in notification is not acted upon in debugpy, so, disable it.
     kwargs.setdefault("notify_stdin", False)
     try:
-        return pydevd.settrace(*args, **kwargs)
+        pydevd.settrace(*args, **kwargs)
     except Exception:
         raise
-    else:
-        _settrace.called = True
-
-
-_settrace.called = False
 
 
 def ensure_logging():
@@ -78,9 +73,6 @@ def log_to(path):
 
 
 def configure(properties=None, **kwargs):
-    if _settrace.called:
-        raise RuntimeError("debug adapter is already running")
-
     ensure_logging()
     log.debug("configure{0!r}", (properties, kwargs))
 
@@ -104,9 +96,6 @@ def configure(properties=None, **kwargs):
 
 def _starts_debugging(func):
     def debug(address, **kwargs):
-        if _settrace.called:
-            raise RuntimeError("this process already has a debug adapter")
-
         try:
             _, port = address
         except Exception:
@@ -116,7 +105,7 @@ def _starts_debugging(func):
             port.__index__()  # ensure it's int-like
         except Exception:
             raise ValueError("expected port or (host, port)")
-        if not (0 <= port < 2 ** 16):
+        if not (0 <= port < 2**16):
             raise ValueError("invalid port number")
 
         ensure_logging()
@@ -150,10 +139,14 @@ def listen(address, settrace_kwargs, in_process_debug_adapter=False):
     # Errors below are logged with level="info", because the caller might be catching
     # and handling exceptions, and we don't want to spam their stderr unnecessarily.
 
+    if listen.called:
+        # Multiple calls to listen() cause the debuggee to hang
+        raise RuntimeError("debugpy.listen() has already been called on this process")
+
     if in_process_debug_adapter:
         host, port = address
         log.info("Listening: pydevd without debugpy adapter: {0}:{1}", host, port)
-        settrace_kwargs['patch_multiprocessing'] = False
+        settrace_kwargs["patch_multiprocessing"] = False
         _settrace(
             host=host,
             port=port,
@@ -218,7 +211,10 @@ def listen(address, settrace_kwargs, in_process_debug_adapter=False):
         try:
             global _adapter_process
             _adapter_process = subprocess.Popen(
-                adapter_args, close_fds=True, creationflags=creationflags, env=python_env
+                adapter_args,
+                close_fds=True,
+                creationflags=creationflags,
+                env=python_env,
             )
             if os.name == "posix":
                 # It's going to fork again to daemonize, so we need to wait on it to
@@ -288,7 +284,10 @@ def listen(address, settrace_kwargs, in_process_debug_adapter=False):
         **settrace_kwargs
     )
     log.info("pydevd is connected to adapter at {0}:{1}", server_host, server_port)
+    listen.called = True
     return client_host, client_port
+
+listen.called = False
 
 
 @_starts_debugging
