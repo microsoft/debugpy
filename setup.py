@@ -11,6 +11,10 @@ import subprocess
 import sys
 
 
+# pydevd is unbundled iff BUNDLE_DEBUGPY is set to 0
+BUNDLE_DEBUGPY = bool(os.getenv("BUNDLE_DEBUGPY", "1").strip().lower() != "0")
+
+
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import versioneer  # noqa
 
@@ -18,12 +22,14 @@ del sys.path[0]
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "src"))
 import debugpy
-import debugpy._vendored
+
+if BUNDLE_DEBUGPY:
+    import debugpy._vendored
 
 del sys.path[0]
 
-
-PYDEVD_ROOT = debugpy._vendored.project_root("pydevd")
+if BUNDLE_DEBUGPY:
+    PYDEVD_ROOT = debugpy._vendored.project_root("pydevd")
 DEBUGBY_ROOT = os.path.dirname(os.path.abspath(debugpy.__file__))
 
 
@@ -46,7 +52,7 @@ def get_buildplatform():
 # relevant setuptools versions.
 class ExtModules(list):
     def __bool__(self):
-        return True
+        return BUNDLE_DEBUGPY
 
 
 def override_build(cmds):
@@ -147,7 +153,28 @@ if __name__ == "__main__":
 
     cmds = versioneer.get_cmdclass()
     override_build(cmds)
-    override_build_py(cmds)
+    if BUNDLE_DEBUGPY:
+        override_build_py(cmds)
+
+    data = {"debugpy": ["ThirdPartyNotices.txt"]}
+    packages = [
+        "debugpy",
+        "debugpy.adapter",
+        "debugpy.common",
+        "debugpy.launcher",
+        "debugpy.server",
+    ]
+    if BUNDLE_DEBUGPY:
+        data.update(
+            {
+                "debugpy._vendored": [
+                    # pydevd extensions must be built before this list can
+                    # be computed properly, so it is populated in the
+                    # overridden build_py.finalize_options().
+                ]
+            }
+        )
+        packages.append("debugpy._vendored")
 
     setuptools.setup(
         name="debugpy",
@@ -177,23 +204,10 @@ if __name__ == "__main__":
             "License :: OSI Approved :: MIT License",
         ],
         package_dir={"": "src"},
-        packages=[
-            "debugpy",
-            "debugpy.adapter",
-            "debugpy.common",
-            "debugpy.launcher",
-            "debugpy.server",
-            "debugpy._vendored",
-        ],
-        package_data={
-            "debugpy": ["ThirdPartyNotices.txt"],
-            "debugpy._vendored": [
-                # pydevd extensions must be built before this list can be computed properly,
-                # so it is populated in the overridden build_py.finalize_options().
-            ],
-        },
+        packages=packages,
+        package_data=data,
         ext_modules=ExtModules(),
-        has_ext_modules=lambda: True,
+        has_ext_modules=lambda: BUNDLE_DEBUGPY,
         cmdclass=cmds,
         # allow the user to call "debugpy" instead of "python -m debugpy"
         entry_points={"console_scripts": ["debugpy = debugpy.server.cli:main"]},
