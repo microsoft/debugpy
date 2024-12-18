@@ -630,7 +630,7 @@ cpdef FuncCodeInfo _get_func_code_info(code_obj, frame_or_depth):
             frame = frame_or_depth
         assert frame.f_code is code_obj
 
-    func_code_info.filtered_out_force_checked = py_db.apply_files_filter(frame, func_code_info.abs_path_filename, True)
+    func_code_info.filtered_out_force_checked = py_db.apply_files_filter(frame, func_code_info.abs_path_filename, py_db.get_use_libraries_filter())
 
     if py_db.is_files_filter_enabled:
         func_code_info.always_filtered_out = func_code_info.filtered_out_force_checked
@@ -1164,7 +1164,7 @@ cdef _return_event(code, instruction, retval):
             or (
                 info.pydev_step_cmd == CMD_STEP_INTO_MY_CODE
                 and frame.f_back is not None
-                and not py_db.apply_files_filter(frame.f_back, frame.f_back.f_code.co_filename, True)
+                and not py_db.apply_files_filter(frame.f_back, frame.f_back.f_code.co_filename, py_db.get_use_libraries_filter())
             )
         ):
             _show_return_values(frame, retval)
