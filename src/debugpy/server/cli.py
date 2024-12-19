@@ -49,6 +49,7 @@ class Options(object):
     target: Union[str, None] = None
     target_kind: Union[str, None] = None
     wait_for_client = False
+    log_on_listening = True
     adapter_access_token = None
     config: Dict[str, Any] = {}
 
@@ -177,6 +178,7 @@ switches = [
     ("--listen",                "<address>",        set_address("listen")),
     ("--connect",               "<address>",        set_address("connect")),
     ("--wait-for-client",       None,               set_const("wait_for_client", True)),
+    ("--log-on-listening",      None,               set_const("log_on_listening", True)),
     ("--configure-.+",          "<value>",          set_config),
 
     # Switches that are used internally by the client or debugpy itself.
@@ -325,6 +327,8 @@ def start_debugging(argv_0):
             raise AssertionError(repr(options.mode))
 
         if options.wait_for_client:
+            if options.log_on_listening:
+                print(f"Listening for debugger connection on {options.address[0]}:{options.address[1]}")
             debugpy.wait_for_client()
 
     os.environ["DEBUGPY_RUNNING"] = "true"
