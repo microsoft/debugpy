@@ -883,7 +883,7 @@ cdef _unwind_event(code, instruction, exc):
         # For thread-related stuff we can't disable the code tracing because other
         # threads may still want it...
         return
-    
+
     func_code_info: FuncCodeInfo = _get_func_code_info(code, 1)
     if func_code_info.always_skip_code:
         return
