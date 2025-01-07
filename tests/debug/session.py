@@ -867,6 +867,8 @@ class Session(object):
             assert len(expected_frames) <= len(frames)
             assert expected_frames == frames[0 : len(expected_frames)]
 
+        assert len(frames) > 0
+
         fid = frames[0]("id", int)
         return StopInfo(stopped, frames, tid, fid)
 

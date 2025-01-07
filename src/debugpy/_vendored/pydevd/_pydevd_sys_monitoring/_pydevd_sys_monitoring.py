@@ -1084,7 +1084,12 @@ def _return_event(code, instruction, retval):
         if func_code_info.plugin_return_stepping:
             _plugin_stepping(py_db, step_cmd, "return", frame, thread_info)
         return
-
+    
+    if info.pydev_state == STATE_SUSPEND:
+        # We're already suspended, don't handle any more events on this thread.
+        _do_wait_suspend(py_db, thread_info, frame, "return", None)
+        return
+    
     # Python line stepping
     stop_frame = info.pydev_step_stop
     if step_cmd in (CMD_STEP_INTO, CMD_STEP_INTO_MY_CODE, CMD_STEP_INTO_COROUTINE):
