@@ -1540,7 +1540,7 @@ struct __pyx_opt_args_29_pydevd_sys_monitoring_cython__get_code_line_info {
   PyObject *_cache;
 };
 
-/* "_pydevd_sys_monitoring_cython.pyx":1770
+/* "_pydevd_sys_monitoring_cython.pyx":1765
  * # fmt: off
  * # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
  * cpdef start_monitoring(bint all_threads=False):             # <<<<<<<<<<<<<<
@@ -1552,7 +1552,7 @@ struct __pyx_opt_args_29_pydevd_sys_monitoring_cython_start_monitoring {
   int all_threads;
 };
 
-/* "_pydevd_sys_monitoring_cython.pyx":1798
+/* "_pydevd_sys_monitoring_cython.pyx":1793
  * # fmt: off
  * # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
  * cpdef stop_monitoring(all_threads=False):             # <<<<<<<<<<<<<<
@@ -2804,7 +2804,6 @@ static const char __pyx_k_handle[] = "_handle";
 static const char __pyx_k_import[] = "__import__";
 static const char __pyx_k_kwargs[] = "kwargs";
 static const char __pyx_k_main_2[] = "__main__";
-static const char __pyx_k_method[] = "method";
 static const char __pyx_k_module[] = "<module>";
 static const char __pyx_k_offset[] = "offset";
 static const char __pyx_k_pickle[] = "pickle";
@@ -3409,7 +3408,6 @@ typedef struct {
   PyObject *__pyx_n_s_make_io_message;
   PyObject *__pyx_n_s_max;
   PyObject *__pyx_n_s_metaclass;
-  PyObject *__pyx_n_s_method;
   PyObject *__pyx_n_s_min;
   PyObject *__pyx_kp_s_module;
   PyObject *__pyx_n_s_module_2;
@@ -3915,7 +3913,6 @@ static int __pyx_m_clear(PyObject *m) {
   Py_CLEAR(clear_module_state->__pyx_n_s_make_io_message);
   Py_CLEAR(clear_module_state->__pyx_n_s_max);
   Py_CLEAR(clear_module_state->__pyx_n_s_metaclass);
-  Py_CLEAR(clear_module_state->__pyx_n_s_method);
   Py_CLEAR(clear_module_state->__pyx_n_s_min);
   Py_CLEAR(clear_module_state->__pyx_kp_s_module);
   Py_CLEAR(clear_module_state->__pyx_n_s_module_2);
@@ -4399,7 +4396,6 @@ static int __pyx_m_traverse(PyObject *m, visitproc visit, void *arg) {
   Py_VISIT(traverse_module_state->__pyx_n_s_make_io_message);
   Py_VISIT(traverse_module_state->__pyx_n_s_max);
   Py_VISIT(traverse_module_state->__pyx_n_s_metaclass);
-  Py_VISIT(traverse_module_state->__pyx_n_s_method);
   Py_VISIT(traverse_module_state->__pyx_n_s_min);
   Py_VISIT(traverse_module_state->__pyx_kp_s_module);
   Py_VISIT(traverse_module_state->__pyx_n_s_module_2);
@@ -4899,7 +4895,6 @@ static int __pyx_m_traverse(PyObject *m, visitproc visit, void *arg) {
 #define __pyx_n_s_make_io_message __pyx_mstate_global->__pyx_n_s_make_io_message
 #define __pyx_n_s_max __pyx_mstate_global->__pyx_n_s_max
 #define __pyx_n_s_metaclass __pyx_mstate_global->__pyx_n_s_metaclass
-#define __pyx_n_s_method __pyx_mstate_global->__pyx_n_s_method
 #define __pyx_n_s_min __pyx_mstate_global->__pyx_n_s_min
 #define __pyx_kp_s_module __pyx_mstate_global->__pyx_kp_s_module
 #define __pyx_n_s_module_2 __pyx_mstate_global->__pyx_n_s_module_2
@@ -27371,8 +27366,8 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__start_method_event(PyO
   int __pyx_t_9;
   int __pyx_t_10;
   struct __pyx_opt_args_29_pydevd_sys_monitoring_cython__getframe __pyx_t_11;
-  unsigned int __pyx_t_12;
-  int __pyx_t_13;
+  int __pyx_t_12;
+  unsigned int __pyx_t_13;
   PyObject *(*__pyx_t_14)(PyObject *);
   int __pyx_lineno = 0;
   const char *__pyx_filename = NULL;
@@ -27661,7 +27656,7 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__start_method_event(PyO
  *         #     print('disable (always skip)')
  *         return monitor.DISABLE             # <<<<<<<<<<<<<<
  * 
- *     if thread_info.additional_info.pydev_state == STATE_SUSPEND:
+ *     keep_enabled: bool = _enable_code_tracing(py_db, thread_info.additional_info, func_code_info, code, frame, True)
  */
     __Pyx_XDECREF(__pyx_r);
     __Pyx_GetModuleGlobalName(__pyx_t_6, __pyx_n_s_monitor); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 1706, __pyx_L1_error)
@@ -27685,88 +27680,17 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__start_method_event(PyO
   /* "_pydevd_sys_monitoring_cython.pyx":1708
  *         return monitor.DISABLE
  * 
- *     if thread_info.additional_info.pydev_state == STATE_SUSPEND:             # <<<<<<<<<<<<<<
- *         # We're already suspended, don't handle any more events on this thread.
- *         _do_wait_suspend(py_db, thread_info, frame, "method", None)
- */
-  __pyx_t_4 = __Pyx_PyInt_From_int(__pyx_v_thread_info->additional_info->pydev_state); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1708, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_4);
-  __Pyx_GetModuleGlobalName(__pyx_t_6, __pyx_n_s_STATE_SUSPEND); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 1708, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_6);
-  __pyx_t_5 = PyObject_RichCompare(__pyx_t_4, __pyx_t_6, Py_EQ); __Pyx_XGOTREF(__pyx_t_5); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 1708, __pyx_L1_error)
-  __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-  __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
-  __pyx_t_8 = __Pyx_PyObject_IsTrue(__pyx_t_5); if (unlikely((__pyx_t_8 < 0))) __PYX_ERR(0, 1708, __pyx_L1_error)
-  __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-  if (__pyx_t_8) {
-
-    /* "_pydevd_sys_monitoring_cython.pyx":1710
- *     if thread_info.additional_info.pydev_state == STATE_SUSPEND:
- *         # We're already suspended, don't handle any more events on this thread.
- *         _do_wait_suspend(py_db, thread_info, frame, "method", None)             # <<<<<<<<<<<<<<
- *         return
- * 
- */
-    __Pyx_GetModuleGlobalName(__pyx_t_6, __pyx_n_s_do_wait_suspend); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 1710, __pyx_L1_error)
-    __Pyx_GOTREF(__pyx_t_6);
-    __pyx_t_4 = NULL;
-    __pyx_t_12 = 0;
-    #if CYTHON_UNPACK_METHODS
-    if (unlikely(PyMethod_Check(__pyx_t_6))) {
-      __pyx_t_4 = PyMethod_GET_SELF(__pyx_t_6);
-      if (likely(__pyx_t_4)) {
-        PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_6);
-        __Pyx_INCREF(__pyx_t_4);
-        __Pyx_INCREF(function);
-        __Pyx_DECREF_SET(__pyx_t_6, function);
-        __pyx_t_12 = 1;
-      }
-    }
-    #endif
-    {
-      PyObject *__pyx_callargs[6] = {__pyx_t_4, __pyx_v_py_db, ((PyObject *)__pyx_v_thread_info), __pyx_v_frame, __pyx_n_s_method, Py_None};
-      __pyx_t_5 = __Pyx_PyObject_FastCall(__pyx_t_6, __pyx_callargs+1-__pyx_t_12, 5+__pyx_t_12);
-      __Pyx_XDECREF(__pyx_t_4); __pyx_t_4 = 0;
-      if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 1710, __pyx_L1_error)
-      __Pyx_GOTREF(__pyx_t_5);
-      __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
-    }
-    __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-
-    /* "_pydevd_sys_monitoring_cython.pyx":1711
- *         # We're already suspended, don't handle any more events on this thread.
- *         _do_wait_suspend(py_db, thread_info, frame, "method", None)
- *         return             # <<<<<<<<<<<<<<
- * 
- *     keep_enabled: bool = _enable_code_tracing(py_db, thread_info.additional_info, func_code_info, code, frame, True)
- */
-    __Pyx_XDECREF(__pyx_r);
-    __pyx_r = Py_None; __Pyx_INCREF(Py_None);
-    goto __pyx_L0;
-
-    /* "_pydevd_sys_monitoring_cython.pyx":1708
- *         return monitor.DISABLE
- * 
- *     if thread_info.additional_info.pydev_state == STATE_SUSPEND:             # <<<<<<<<<<<<<<
- *         # We're already suspended, don't handle any more events on this thread.
- *         _do_wait_suspend(py_db, thread_info, frame, "method", None)
- */
-  }
-
-  /* "_pydevd_sys_monitoring_cython.pyx":1713
- *         return
- * 
  *     keep_enabled: bool = _enable_code_tracing(py_db, thread_info.additional_info, func_code_info, code, frame, True)             # <<<<<<<<<<<<<<
  * 
  *     if func_code_info.function_breakpoint_found:
  */
-  __pyx_t_5 = ((PyObject *)__pyx_v_thread_info->additional_info);
-  __Pyx_INCREF(__pyx_t_5);
-  __pyx_t_8 = __pyx_f_29_pydevd_sys_monitoring_cython__enable_code_tracing(__pyx_v_py_db, ((struct __pyx_obj_14_pydevd_bundle_13pydevd_cython_PyDBAdditionalThreadInfo *)__pyx_t_5), __pyx_v_func_code_info, __pyx_v_code, __pyx_v_frame, 1); if (unlikely(__pyx_t_8 == ((int)-1) && PyErr_Occurred())) __PYX_ERR(0, 1713, __pyx_L1_error)
-  __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
+  __pyx_t_4 = ((PyObject *)__pyx_v_thread_info->additional_info);
+  __Pyx_INCREF(__pyx_t_4);
+  __pyx_t_8 = __pyx_f_29_pydevd_sys_monitoring_cython__enable_code_tracing(__pyx_v_py_db, ((struct __pyx_obj_14_pydevd_bundle_13pydevd_cython_PyDBAdditionalThreadInfo *)__pyx_t_4), __pyx_v_func_code_info, __pyx_v_code, __pyx_v_frame, 1); if (unlikely(__pyx_t_8 == ((int)-1) && PyErr_Occurred())) __PYX_ERR(0, 1708, __pyx_L1_error)
+  __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
   __pyx_v_keep_enabled = __pyx_t_8;
 
-  /* "_pydevd_sys_monitoring_cython.pyx":1715
+  /* "_pydevd_sys_monitoring_cython.pyx":1710
  *     keep_enabled: bool = _enable_code_tracing(py_db, thread_info.additional_info, func_code_info, code, frame, True)
  * 
  *     if func_code_info.function_breakpoint_found:             # <<<<<<<<<<<<<<
@@ -27775,19 +27699,19 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__start_method_event(PyO
  */
   if (__pyx_v_func_code_info->function_breakpoint_found) {
 
-    /* "_pydevd_sys_monitoring_cython.pyx":1716
+    /* "_pydevd_sys_monitoring_cython.pyx":1711
  * 
  *     if func_code_info.function_breakpoint_found:
  *         bp = func_code_info.function_breakpoint             # <<<<<<<<<<<<<<
  *         stop = True
  *         new_frame = frame
  */
-    __pyx_t_5 = __pyx_v_func_code_info->function_breakpoint;
-    __Pyx_INCREF(__pyx_t_5);
-    __pyx_v_bp = __pyx_t_5;
-    __pyx_t_5 = 0;
+    __pyx_t_4 = __pyx_v_func_code_info->function_breakpoint;
+    __Pyx_INCREF(__pyx_t_4);
+    __pyx_v_bp = __pyx_t_4;
+    __pyx_t_4 = 0;
 
-    /* "_pydevd_sys_monitoring_cython.pyx":1717
+    /* "_pydevd_sys_monitoring_cython.pyx":1712
  *     if func_code_info.function_breakpoint_found:
  *         bp = func_code_info.function_breakpoint
  *         stop = True             # <<<<<<<<<<<<<<
@@ -27796,7 +27720,7 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__start_method_event(PyO
  */
     __pyx_v_stop = 1;
 
-    /* "_pydevd_sys_monitoring_cython.pyx":1718
+    /* "_pydevd_sys_monitoring_cython.pyx":1713
  *         bp = func_code_info.function_breakpoint
  *         stop = True
  *         new_frame = frame             # <<<<<<<<<<<<<<
@@ -27806,20 +27730,20 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__start_method_event(PyO
     __Pyx_INCREF(__pyx_v_frame);
     __pyx_v_new_frame = __pyx_v_frame;
 
-    /* "_pydevd_sys_monitoring_cython.pyx":1719
+    /* "_pydevd_sys_monitoring_cython.pyx":1714
  *         stop = True
  *         new_frame = frame
  *         stop_reason = CMD_SET_FUNCTION_BREAK             # <<<<<<<<<<<<<<
  *         stop_on_plugin_breakpoint = False
  * 
  */
-    __Pyx_GetModuleGlobalName(__pyx_t_5, __pyx_n_s_CMD_SET_FUNCTION_BREAK); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 1719, __pyx_L1_error)
-    __Pyx_GOTREF(__pyx_t_5);
-    __pyx_t_13 = __Pyx_PyInt_As_int(__pyx_t_5); if (unlikely((__pyx_t_13 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 1719, __pyx_L1_error)
-    __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-    __pyx_v_stop_reason = __pyx_t_13;
+    __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_CMD_SET_FUNCTION_BREAK); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1714, __pyx_L1_error)
+    __Pyx_GOTREF(__pyx_t_4);
+    __pyx_t_12 = __Pyx_PyInt_As_int(__pyx_t_4); if (unlikely((__pyx_t_12 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 1714, __pyx_L1_error)
+    __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
+    __pyx_v_stop_reason = __pyx_t_12;
 
-    /* "_pydevd_sys_monitoring_cython.pyx":1720
+    /* "_pydevd_sys_monitoring_cython.pyx":1715
  *         new_frame = frame
  *         stop_reason = CMD_SET_FUNCTION_BREAK
  *         stop_on_plugin_breakpoint = False             # <<<<<<<<<<<<<<
@@ -27828,18 +27752,18 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__start_method_event(PyO
  */
     __pyx_v_stop_on_plugin_breakpoint = 0;
 
-    /* "_pydevd_sys_monitoring_cython.pyx":1722
+    /* "_pydevd_sys_monitoring_cython.pyx":1717
  *         stop_on_plugin_breakpoint = False
  * 
  *         _stop_on_breakpoint(py_db, thread_info, stop_reason, bp, frame, new_frame, stop, stop_on_plugin_breakpoint, "python-function")             # <<<<<<<<<<<<<<
  *         return
  * 
  */
-    __pyx_t_5 = __pyx_f_29_pydevd_sys_monitoring_cython__stop_on_breakpoint(__pyx_v_py_db, __pyx_v_thread_info, __pyx_v_stop_reason, __pyx_v_bp, __pyx_v_frame, __pyx_v_new_frame, __pyx_v_stop, __pyx_v_stop_on_plugin_breakpoint, __pyx_kp_s_python_function); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 1722, __pyx_L1_error)
-    __Pyx_GOTREF(__pyx_t_5);
-    __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
+    __pyx_t_4 = __pyx_f_29_pydevd_sys_monitoring_cython__stop_on_breakpoint(__pyx_v_py_db, __pyx_v_thread_info, __pyx_v_stop_reason, __pyx_v_bp, __pyx_v_frame, __pyx_v_new_frame, __pyx_v_stop, __pyx_v_stop_on_plugin_breakpoint, __pyx_kp_s_python_function); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1717, __pyx_L1_error)
+    __Pyx_GOTREF(__pyx_t_4);
+    __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
 
-    /* "_pydevd_sys_monitoring_cython.pyx":1723
+    /* "_pydevd_sys_monitoring_cython.pyx":1718
  * 
  *         _stop_on_breakpoint(py_db, thread_info, stop_reason, bp, frame, new_frame, stop, stop_on_plugin_breakpoint, "python-function")
  *         return             # <<<<<<<<<<<<<<
@@ -27850,7 +27774,7 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__start_method_event(PyO
     __pyx_r = Py_None; __Pyx_INCREF(Py_None);
     goto __pyx_L0;
 
-    /* "_pydevd_sys_monitoring_cython.pyx":1715
+    /* "_pydevd_sys_monitoring_cython.pyx":1710
  *     keep_enabled: bool = _enable_code_tracing(py_db, thread_info.additional_info, func_code_info, code, frame, True)
  * 
  *     if func_code_info.function_breakpoint_found:             # <<<<<<<<<<<<<<
@@ -27859,44 +27783,44 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__start_method_event(PyO
  */
   }
 
-  /* "_pydevd_sys_monitoring_cython.pyx":1725
+  /* "_pydevd_sys_monitoring_cython.pyx":1720
  *         return
  * 
  *     if py_db.plugin:             # <<<<<<<<<<<<<<
  *         plugin_manager = py_db.plugin
  * 
  */
-  __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_v_py_db, __pyx_n_s_plugin); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 1725, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_5);
-  __pyx_t_8 = __Pyx_PyObject_IsTrue(__pyx_t_5); if (unlikely((__pyx_t_8 < 0))) __PYX_ERR(0, 1725, __pyx_L1_error)
-  __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
+  __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_v_py_db, __pyx_n_s_plugin); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1720, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_4);
+  __pyx_t_8 = __Pyx_PyObject_IsTrue(__pyx_t_4); if (unlikely((__pyx_t_8 < 0))) __PYX_ERR(0, 1720, __pyx_L1_error)
+  __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
   if (__pyx_t_8) {
 
-    /* "_pydevd_sys_monitoring_cython.pyx":1726
+    /* "_pydevd_sys_monitoring_cython.pyx":1721
  * 
  *     if py_db.plugin:
  *         plugin_manager = py_db.plugin             # <<<<<<<<<<<<<<
  * 
  *         # Check breaking on breakpoints in a 'call'
  */
-    __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_v_py_db, __pyx_n_s_plugin); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 1726, __pyx_L1_error)
-    __Pyx_GOTREF(__pyx_t_5);
-    __pyx_v_plugin_manager = __pyx_t_5;
-    __pyx_t_5 = 0;
+    __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_v_py_db, __pyx_n_s_plugin); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1721, __pyx_L1_error)
+    __Pyx_GOTREF(__pyx_t_4);
+    __pyx_v_plugin_manager = __pyx_t_4;
+    __pyx_t_4 = 0;
 
-    /* "_pydevd_sys_monitoring_cython.pyx":1729
+    /* "_pydevd_sys_monitoring_cython.pyx":1724
  * 
  *         # Check breaking on breakpoints in a 'call'
  *         info = thread_info.additional_info             # <<<<<<<<<<<<<<
  *         if func_code_info.plugin_call_breakpoint_found:
  *             result = plugin_manager.get_breakpoint(py_db, frame, "call", info)
  */
-    __pyx_t_5 = ((PyObject *)__pyx_v_thread_info->additional_info);
-    __Pyx_INCREF(__pyx_t_5);
-    __pyx_v_info = ((struct __pyx_obj_14_pydevd_bundle_13pydevd_cython_PyDBAdditionalThreadInfo *)__pyx_t_5);
-    __pyx_t_5 = 0;
+    __pyx_t_4 = ((PyObject *)__pyx_v_thread_info->additional_info);
+    __Pyx_INCREF(__pyx_t_4);
+    __pyx_v_info = ((struct __pyx_obj_14_pydevd_bundle_13pydevd_cython_PyDBAdditionalThreadInfo *)__pyx_t_4);
+    __pyx_t_4 = 0;
 
-    /* "_pydevd_sys_monitoring_cython.pyx":1730
+    /* "_pydevd_sys_monitoring_cython.pyx":1725
  *         # Check breaking on breakpoints in a 'call'
  *         info = thread_info.additional_info
  *         if func_code_info.plugin_call_breakpoint_found:             # <<<<<<<<<<<<<<
@@ -27905,64 +27829,64 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__start_method_event(PyO
  */
     if (__pyx_v_func_code_info->plugin_call_breakpoint_found) {
 
-      /* "_pydevd_sys_monitoring_cython.pyx":1731
+      /* "_pydevd_sys_monitoring_cython.pyx":1726
  *         info = thread_info.additional_info
  *         if func_code_info.plugin_call_breakpoint_found:
  *             result = plugin_manager.get_breakpoint(py_db, frame, "call", info)             # <<<<<<<<<<<<<<
  *             if result:
  *                 stop_reason = CMD_SET_BREAK
  */
-      __pyx_t_6 = __Pyx_PyObject_GetAttrStr(__pyx_v_plugin_manager, __pyx_n_s_get_breakpoint); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 1731, __pyx_L1_error)
+      __pyx_t_6 = __Pyx_PyObject_GetAttrStr(__pyx_v_plugin_manager, __pyx_n_s_get_breakpoint); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 1726, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_6);
-      __pyx_t_4 = NULL;
-      __pyx_t_12 = 0;
+      __pyx_t_5 = NULL;
+      __pyx_t_13 = 0;
       #if CYTHON_UNPACK_METHODS
       if (likely(PyMethod_Check(__pyx_t_6))) {
-        __pyx_t_4 = PyMethod_GET_SELF(__pyx_t_6);
-        if (likely(__pyx_t_4)) {
+        __pyx_t_5 = PyMethod_GET_SELF(__pyx_t_6);
+        if (likely(__pyx_t_5)) {
           PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_6);
-          __Pyx_INCREF(__pyx_t_4);
+          __Pyx_INCREF(__pyx_t_5);
           __Pyx_INCREF(function);
           __Pyx_DECREF_SET(__pyx_t_6, function);
-          __pyx_t_12 = 1;
+          __pyx_t_13 = 1;
         }
       }
       #endif
       {
-        PyObject *__pyx_callargs[5] = {__pyx_t_4, __pyx_v_py_db, __pyx_v_frame, __pyx_n_s_call_2, ((PyObject *)__pyx_v_info)};
-        __pyx_t_5 = __Pyx_PyObject_FastCall(__pyx_t_6, __pyx_callargs+1-__pyx_t_12, 4+__pyx_t_12);
-        __Pyx_XDECREF(__pyx_t_4); __pyx_t_4 = 0;
-        if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 1731, __pyx_L1_error)
-        __Pyx_GOTREF(__pyx_t_5);
+        PyObject *__pyx_callargs[5] = {__pyx_t_5, __pyx_v_py_db, __pyx_v_frame, __pyx_n_s_call_2, ((PyObject *)__pyx_v_info)};
+        __pyx_t_4 = __Pyx_PyObject_FastCall(__pyx_t_6, __pyx_callargs+1-__pyx_t_13, 4+__pyx_t_13);
+        __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
+        if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1726, __pyx_L1_error)
+        __Pyx_GOTREF(__pyx_t_4);
         __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
       }
-      __pyx_v_result = __pyx_t_5;
-      __pyx_t_5 = 0;
+      __pyx_v_result = __pyx_t_4;
+      __pyx_t_4 = 0;
 
-      /* "_pydevd_sys_monitoring_cython.pyx":1732
+      /* "_pydevd_sys_monitoring_cython.pyx":1727
  *         if func_code_info.plugin_call_breakpoint_found:
  *             result = plugin_manager.get_breakpoint(py_db, frame, "call", info)
  *             if result:             # <<<<<<<<<<<<<<
  *                 stop_reason = CMD_SET_BREAK
  *                 stop = False
  */
-      __pyx_t_8 = __Pyx_PyObject_IsTrue(__pyx_v_result); if (unlikely((__pyx_t_8 < 0))) __PYX_ERR(0, 1732, __pyx_L1_error)
+      __pyx_t_8 = __Pyx_PyObject_IsTrue(__pyx_v_result); if (unlikely((__pyx_t_8 < 0))) __PYX_ERR(0, 1727, __pyx_L1_error)
       if (__pyx_t_8) {
 
-        /* "_pydevd_sys_monitoring_cython.pyx":1733
+        /* "_pydevd_sys_monitoring_cython.pyx":1728
  *             result = plugin_manager.get_breakpoint(py_db, frame, "call", info)
  *             if result:
  *                 stop_reason = CMD_SET_BREAK             # <<<<<<<<<<<<<<
  *                 stop = False
  *                 stop_on_plugin_breakpoint = True
  */
-        __Pyx_GetModuleGlobalName(__pyx_t_5, __pyx_n_s_CMD_SET_BREAK); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 1733, __pyx_L1_error)
-        __Pyx_GOTREF(__pyx_t_5);
-        __pyx_t_13 = __Pyx_PyInt_As_int(__pyx_t_5); if (unlikely((__pyx_t_13 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 1733, __pyx_L1_error)
-        __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-        __pyx_v_stop_reason = __pyx_t_13;
+        __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_CMD_SET_BREAK); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1728, __pyx_L1_error)
+        __Pyx_GOTREF(__pyx_t_4);
+        __pyx_t_12 = __Pyx_PyInt_As_int(__pyx_t_4); if (unlikely((__pyx_t_12 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 1728, __pyx_L1_error)
+        __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
+        __pyx_v_stop_reason = __pyx_t_12;
 
-        /* "_pydevd_sys_monitoring_cython.pyx":1734
+        /* "_pydevd_sys_monitoring_cython.pyx":1729
  *             if result:
  *                 stop_reason = CMD_SET_BREAK
  *                 stop = False             # <<<<<<<<<<<<<<
@@ -27971,7 +27895,7 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__start_method_event(PyO
  */
         __pyx_v_stop = 0;
 
-        /* "_pydevd_sys_monitoring_cython.pyx":1735
+        /* "_pydevd_sys_monitoring_cython.pyx":1730
  *                 stop_reason = CMD_SET_BREAK
  *                 stop = False
  *                 stop_on_plugin_breakpoint = True             # <<<<<<<<<<<<<<
@@ -27980,7 +27904,7 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__start_method_event(PyO
  */
         __pyx_v_stop_on_plugin_breakpoint = 1;
 
-        /* "_pydevd_sys_monitoring_cython.pyx":1736
+        /* "_pydevd_sys_monitoring_cython.pyx":1731
  *                 stop = False
  *                 stop_on_plugin_breakpoint = True
  *                 bp, new_frame, bp_type = result             # <<<<<<<<<<<<<<
@@ -27993,71 +27917,71 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__start_method_event(PyO
           if (unlikely(size != 3)) {
             if (size > 3) __Pyx_RaiseTooManyValuesError(3);
             else if (size >= 0) __Pyx_RaiseNeedMoreValuesError(size);
-            __PYX_ERR(0, 1736, __pyx_L1_error)
+            __PYX_ERR(0, 1731, __pyx_L1_error)
           }
           #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
           if (likely(PyTuple_CheckExact(sequence))) {
-            __pyx_t_5 = PyTuple_GET_ITEM(sequence, 0); 
+            __pyx_t_4 = PyTuple_GET_ITEM(sequence, 0); 
             __pyx_t_6 = PyTuple_GET_ITEM(sequence, 1); 
-            __pyx_t_4 = PyTuple_GET_ITEM(sequence, 2); 
+            __pyx_t_5 = PyTuple_GET_ITEM(sequence, 2); 
           } else {
-            __pyx_t_5 = PyList_GET_ITEM(sequence, 0); 
+            __pyx_t_4 = PyList_GET_ITEM(sequence, 0); 
             __pyx_t_6 = PyList_GET_ITEM(sequence, 1); 
-            __pyx_t_4 = PyList_GET_ITEM(sequence, 2); 
+            __pyx_t_5 = PyList_GET_ITEM(sequence, 2); 
           }
-          __Pyx_INCREF(__pyx_t_5);
-          __Pyx_INCREF(__pyx_t_6);
           __Pyx_INCREF(__pyx_t_4);
+          __Pyx_INCREF(__pyx_t_6);
+          __Pyx_INCREF(__pyx_t_5);
           #else
-          __pyx_t_5 = PySequence_ITEM(sequence, 0); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 1736, __pyx_L1_error)
-          __Pyx_GOTREF(__pyx_t_5);
-          __pyx_t_6 = PySequence_ITEM(sequence, 1); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 1736, __pyx_L1_error)
-          __Pyx_GOTREF(__pyx_t_6);
-          __pyx_t_4 = PySequence_ITEM(sequence, 2); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1736, __pyx_L1_error)
+          __pyx_t_4 = PySequence_ITEM(sequence, 0); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1731, __pyx_L1_error)
           __Pyx_GOTREF(__pyx_t_4);
+          __pyx_t_6 = PySequence_ITEM(sequence, 1); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 1731, __pyx_L1_error)
+          __Pyx_GOTREF(__pyx_t_6);
+          __pyx_t_5 = PySequence_ITEM(sequence, 2); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 1731, __pyx_L1_error)
+          __Pyx_GOTREF(__pyx_t_5);
           #endif
         } else {
           Py_ssize_t index = -1;
-          __pyx_t_7 = PyObject_GetIter(__pyx_v_result); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 1736, __pyx_L1_error)
+          __pyx_t_7 = PyObject_GetIter(__pyx_v_result); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 1731, __pyx_L1_error)
           __Pyx_GOTREF(__pyx_t_7);
           __pyx_t_14 = __Pyx_PyObject_GetIterNextFunc(__pyx_t_7);
-          index = 0; __pyx_t_5 = __pyx_t_14(__pyx_t_7); if (unlikely(!__pyx_t_5)) goto __pyx_L24_unpacking_failed;
-          __Pyx_GOTREF(__pyx_t_5);
-          index = 1; __pyx_t_6 = __pyx_t_14(__pyx_t_7); if (unlikely(!__pyx_t_6)) goto __pyx_L24_unpacking_failed;
-          __Pyx_GOTREF(__pyx_t_6);
-          index = 2; __pyx_t_4 = __pyx_t_14(__pyx_t_7); if (unlikely(!__pyx_t_4)) goto __pyx_L24_unpacking_failed;
+          index = 0; __pyx_t_4 = __pyx_t_14(__pyx_t_7); if (unlikely(!__pyx_t_4)) goto __pyx_L23_unpacking_failed;
           __Pyx_GOTREF(__pyx_t_4);
-          if (__Pyx_IternextUnpackEndCheck(__pyx_t_14(__pyx_t_7), 3) < 0) __PYX_ERR(0, 1736, __pyx_L1_error)
+          index = 1; __pyx_t_6 = __pyx_t_14(__pyx_t_7); if (unlikely(!__pyx_t_6)) goto __pyx_L23_unpacking_failed;
+          __Pyx_GOTREF(__pyx_t_6);
+          index = 2; __pyx_t_5 = __pyx_t_14(__pyx_t_7); if (unlikely(!__pyx_t_5)) goto __pyx_L23_unpacking_failed;
+          __Pyx_GOTREF(__pyx_t_5);
+          if (__Pyx_IternextUnpackEndCheck(__pyx_t_14(__pyx_t_7), 3) < 0) __PYX_ERR(0, 1731, __pyx_L1_error)
           __pyx_t_14 = NULL;
           __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
-          goto __pyx_L25_unpacking_done;
-          __pyx_L24_unpacking_failed:;
+          goto __pyx_L24_unpacking_done;
+          __pyx_L23_unpacking_failed:;
           __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
           __pyx_t_14 = NULL;
           if (__Pyx_IterFinish() == 0) __Pyx_RaiseNeedMoreValuesError(index);
-          __PYX_ERR(0, 1736, __pyx_L1_error)
-          __pyx_L25_unpacking_done:;
+          __PYX_ERR(0, 1731, __pyx_L1_error)
+          __pyx_L24_unpacking_done:;
         }
-        __pyx_v_bp = __pyx_t_5;
-        __pyx_t_5 = 0;
+        __pyx_v_bp = __pyx_t_4;
+        __pyx_t_4 = 0;
         __pyx_v_new_frame = __pyx_t_6;
         __pyx_t_6 = 0;
-        __pyx_v_bp_type = __pyx_t_4;
-        __pyx_t_4 = 0;
+        __pyx_v_bp_type = __pyx_t_5;
+        __pyx_t_5 = 0;
 
-        /* "_pydevd_sys_monitoring_cython.pyx":1737
+        /* "_pydevd_sys_monitoring_cython.pyx":1732
  *                 stop_on_plugin_breakpoint = True
  *                 bp, new_frame, bp_type = result
  *                 _stop_on_breakpoint(py_db, thread_info, stop_reason, bp, frame, new_frame, stop, stop_on_plugin_breakpoint, bp_type)             # <<<<<<<<<<<<<<
  *                 return
  * 
  */
-        if (!(likely(PyString_CheckExact(__pyx_v_bp_type))||((__pyx_v_bp_type) == Py_None) || __Pyx_RaiseUnexpectedTypeError("str", __pyx_v_bp_type))) __PYX_ERR(0, 1737, __pyx_L1_error)
-        __pyx_t_4 = __pyx_f_29_pydevd_sys_monitoring_cython__stop_on_breakpoint(__pyx_v_py_db, __pyx_v_thread_info, __pyx_v_stop_reason, __pyx_v_bp, __pyx_v_frame, __pyx_v_new_frame, __pyx_v_stop, __pyx_v_stop_on_plugin_breakpoint, ((PyObject*)__pyx_v_bp_type)); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1737, __pyx_L1_error)
-        __Pyx_GOTREF(__pyx_t_4);
-        __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
+        if (!(likely(PyString_CheckExact(__pyx_v_bp_type))||((__pyx_v_bp_type) == Py_None) || __Pyx_RaiseUnexpectedTypeError("str", __pyx_v_bp_type))) __PYX_ERR(0, 1732, __pyx_L1_error)
+        __pyx_t_5 = __pyx_f_29_pydevd_sys_monitoring_cython__stop_on_breakpoint(__pyx_v_py_db, __pyx_v_thread_info, __pyx_v_stop_reason, __pyx_v_bp, __pyx_v_frame, __pyx_v_new_frame, __pyx_v_stop, __pyx_v_stop_on_plugin_breakpoint, ((PyObject*)__pyx_v_bp_type)); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 1732, __pyx_L1_error)
+        __Pyx_GOTREF(__pyx_t_5);
+        __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
 
-        /* "_pydevd_sys_monitoring_cython.pyx":1738
+        /* "_pydevd_sys_monitoring_cython.pyx":1733
  *                 bp, new_frame, bp_type = result
  *                 _stop_on_breakpoint(py_db, thread_info, stop_reason, bp, frame, new_frame, stop, stop_on_plugin_breakpoint, bp_type)
  *                 return             # <<<<<<<<<<<<<<
@@ -28068,7 +27992,7 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__start_method_event(PyO
         __pyx_r = Py_None; __Pyx_INCREF(Py_None);
         goto __pyx_L0;
 
-        /* "_pydevd_sys_monitoring_cython.pyx":1732
+        /* "_pydevd_sys_monitoring_cython.pyx":1727
  *         if func_code_info.plugin_call_breakpoint_found:
  *             result = plugin_manager.get_breakpoint(py_db, frame, "call", info)
  *             if result:             # <<<<<<<<<<<<<<
@@ -28077,7 +28001,7 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__start_method_event(PyO
  */
       }
 
-      /* "_pydevd_sys_monitoring_cython.pyx":1740
+      /* "_pydevd_sys_monitoring_cython.pyx":1735
  *                 return
  * 
  *             keep_enabled = True             # <<<<<<<<<<<<<<
@@ -28086,7 +28010,7 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__start_method_event(PyO
  */
       __pyx_v_keep_enabled = 1;
 
-      /* "_pydevd_sys_monitoring_cython.pyx":1730
+      /* "_pydevd_sys_monitoring_cython.pyx":1725
  *         # Check breaking on breakpoints in a 'call'
  *         info = thread_info.additional_info
  *         if func_code_info.plugin_call_breakpoint_found:             # <<<<<<<<<<<<<<
@@ -28095,17 +28019,17 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__start_method_event(PyO
  */
     }
 
-    /* "_pydevd_sys_monitoring_cython.pyx":1743
+    /* "_pydevd_sys_monitoring_cython.pyx":1738
  * 
  *         # Check breaking on line stepping in a 'call'
  *         step_cmd = info.pydev_step_cmd             # <<<<<<<<<<<<<<
  *         if step_cmd != -1 and func_code_info.plugin_call_stepping and info.suspend_type != PYTHON_SUSPEND:
  *             _plugin_stepping(py_db, step_cmd, "call", frame, thread_info)
  */
-    __pyx_t_13 = __pyx_v_info->pydev_step_cmd;
-    __pyx_v_step_cmd = __pyx_t_13;
+    __pyx_t_12 = __pyx_v_info->pydev_step_cmd;
+    __pyx_v_step_cmd = __pyx_t_12;
 
-    /* "_pydevd_sys_monitoring_cython.pyx":1744
+    /* "_pydevd_sys_monitoring_cython.pyx":1739
  *         # Check breaking on line stepping in a 'call'
  *         step_cmd = info.pydev_step_cmd
  *         if step_cmd != -1 and func_code_info.plugin_call_stepping and info.suspend_type != PYTHON_SUSPEND:             # <<<<<<<<<<<<<<
@@ -28116,38 +28040,38 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__start_method_event(PyO
     if (__pyx_t_9) {
     } else {
       __pyx_t_8 = __pyx_t_9;
-      goto __pyx_L27_bool_binop_done;
+      goto __pyx_L26_bool_binop_done;
     }
     if (__pyx_v_func_code_info->plugin_call_stepping) {
     } else {
       __pyx_t_8 = __pyx_v_func_code_info->plugin_call_stepping;
-      goto __pyx_L27_bool_binop_done;
+      goto __pyx_L26_bool_binop_done;
     }
-    __pyx_t_4 = __Pyx_PyInt_From_int(__pyx_v_info->suspend_type); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1744, __pyx_L1_error)
-    __Pyx_GOTREF(__pyx_t_4);
-    __Pyx_GetModuleGlobalName(__pyx_t_6, __pyx_n_s_PYTHON_SUSPEND); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 1744, __pyx_L1_error)
+    __pyx_t_5 = __Pyx_PyInt_From_int(__pyx_v_info->suspend_type); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 1739, __pyx_L1_error)
+    __Pyx_GOTREF(__pyx_t_5);
+    __Pyx_GetModuleGlobalName(__pyx_t_6, __pyx_n_s_PYTHON_SUSPEND); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 1739, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_6);
-    __pyx_t_5 = PyObject_RichCompare(__pyx_t_4, __pyx_t_6, Py_NE); __Pyx_XGOTREF(__pyx_t_5); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 1744, __pyx_L1_error)
-    __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-    __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
-    __pyx_t_9 = __Pyx_PyObject_IsTrue(__pyx_t_5); if (unlikely((__pyx_t_9 < 0))) __PYX_ERR(0, 1744, __pyx_L1_error)
+    __pyx_t_4 = PyObject_RichCompare(__pyx_t_5, __pyx_t_6, Py_NE); __Pyx_XGOTREF(__pyx_t_4); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1739, __pyx_L1_error)
     __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
+    __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
+    __pyx_t_9 = __Pyx_PyObject_IsTrue(__pyx_t_4); if (unlikely((__pyx_t_9 < 0))) __PYX_ERR(0, 1739, __pyx_L1_error)
+    __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
     __pyx_t_8 = __pyx_t_9;
-    __pyx_L27_bool_binop_done:;
+    __pyx_L26_bool_binop_done:;
     if (__pyx_t_8) {
 
-      /* "_pydevd_sys_monitoring_cython.pyx":1745
+      /* "_pydevd_sys_monitoring_cython.pyx":1740
  *         step_cmd = info.pydev_step_cmd
  *         if step_cmd != -1 and func_code_info.plugin_call_stepping and info.suspend_type != PYTHON_SUSPEND:
  *             _plugin_stepping(py_db, step_cmd, "call", frame, thread_info)             # <<<<<<<<<<<<<<
  *             return
  * 
  */
-      __pyx_t_5 = __pyx_f_29_pydevd_sys_monitoring_cython__plugin_stepping(__pyx_v_py_db, __pyx_v_step_cmd, __pyx_n_s_call_2, __pyx_v_frame, __pyx_v_thread_info); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 1745, __pyx_L1_error)
-      __Pyx_GOTREF(__pyx_t_5);
-      __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
+      __pyx_t_4 = __pyx_f_29_pydevd_sys_monitoring_cython__plugin_stepping(__pyx_v_py_db, __pyx_v_step_cmd, __pyx_n_s_call_2, __pyx_v_frame, __pyx_v_thread_info); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1740, __pyx_L1_error)
+      __Pyx_GOTREF(__pyx_t_4);
+      __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
 
-      /* "_pydevd_sys_monitoring_cython.pyx":1746
+      /* "_pydevd_sys_monitoring_cython.pyx":1741
  *         if step_cmd != -1 and func_code_info.plugin_call_stepping and info.suspend_type != PYTHON_SUSPEND:
  *             _plugin_stepping(py_db, step_cmd, "call", frame, thread_info)
  *             return             # <<<<<<<<<<<<<<
@@ -28158,7 +28082,7 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__start_method_event(PyO
       __pyx_r = Py_None; __Pyx_INCREF(Py_None);
       goto __pyx_L0;
 
-      /* "_pydevd_sys_monitoring_cython.pyx":1744
+      /* "_pydevd_sys_monitoring_cython.pyx":1739
  *         # Check breaking on line stepping in a 'call'
  *         step_cmd = info.pydev_step_cmd
  *         if step_cmd != -1 and func_code_info.plugin_call_stepping and info.suspend_type != PYTHON_SUSPEND:             # <<<<<<<<<<<<<<
@@ -28167,7 +28091,7 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__start_method_event(PyO
  */
     }
 
-    /* "_pydevd_sys_monitoring_cython.pyx":1725
+    /* "_pydevd_sys_monitoring_cython.pyx":1720
  *         return
  * 
  *     if py_db.plugin:             # <<<<<<<<<<<<<<
@@ -28176,7 +28100,7 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__start_method_event(PyO
  */
   }
 
-  /* "_pydevd_sys_monitoring_cython.pyx":1748
+  /* "_pydevd_sys_monitoring_cython.pyx":1743
  *             return
  * 
  *     if keep_enabled or any_thread_stepping():             # <<<<<<<<<<<<<<
@@ -28186,14 +28110,14 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__start_method_event(PyO
   if (!__pyx_v_keep_enabled) {
   } else {
     __pyx_t_8 = __pyx_v_keep_enabled;
-    goto __pyx_L31_bool_binop_done;
+    goto __pyx_L30_bool_binop_done;
   }
-  __pyx_t_9 = __pyx_f_14_pydevd_bundle_13pydevd_cython_any_thread_stepping(0); if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 1748, __pyx_L1_error)
+  __pyx_t_9 = __pyx_f_14_pydevd_bundle_13pydevd_cython_any_thread_stepping(0); if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 1743, __pyx_L1_error)
   __pyx_t_8 = __pyx_t_9;
-  __pyx_L31_bool_binop_done:;
+  __pyx_L30_bool_binop_done:;
   if (__pyx_t_8) {
 
-    /* "_pydevd_sys_monitoring_cython.pyx":1749
+    /* "_pydevd_sys_monitoring_cython.pyx":1744
  * 
  *     if keep_enabled or any_thread_stepping():
  *         return None             # <<<<<<<<<<<<<<
@@ -28204,7 +28128,7 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__start_method_event(PyO
     __pyx_r = Py_None; __Pyx_INCREF(Py_None);
     goto __pyx_L0;
 
-    /* "_pydevd_sys_monitoring_cython.pyx":1748
+    /* "_pydevd_sys_monitoring_cython.pyx":1743
  *             return
  * 
  *     if keep_enabled or any_thread_stepping():             # <<<<<<<<<<<<<<
@@ -28213,7 +28137,7 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__start_method_event(PyO
  */
   }
 
-  /* "_pydevd_sys_monitoring_cython.pyx":1751
+  /* "_pydevd_sys_monitoring_cython.pyx":1746
  *         return None
  * 
  *     return monitor.DISABLE             # <<<<<<<<<<<<<<
@@ -28221,11 +28145,11 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__start_method_event(PyO
  * 
  */
   __Pyx_XDECREF(__pyx_r);
-  __Pyx_GetModuleGlobalName(__pyx_t_5, __pyx_n_s_monitor); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 1751, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_5);
-  __pyx_t_6 = __Pyx_PyObject_GetAttrStr(__pyx_t_5, __pyx_n_s_DISABLE); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 1751, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_monitor); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1746, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_4);
+  __pyx_t_6 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_DISABLE); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 1746, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_6);
-  __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
+  __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
   __pyx_r = __pyx_t_6;
   __pyx_t_6 = 0;
   goto __pyx_L0;
@@ -28262,7 +28186,7 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__start_method_event(PyO
   return __pyx_r;
 }
 
-/* "_pydevd_sys_monitoring_cython.pyx":1756
+/* "_pydevd_sys_monitoring_cython.pyx":1751
  * # fmt: off
  * # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
  * cpdef _ensure_monitoring():             # <<<<<<<<<<<<<<
@@ -28286,31 +28210,31 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__ensure_monitoring(CYTH
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("_ensure_monitoring", 1);
 
-  /* "_pydevd_sys_monitoring_cython.pyx":1761
+  /* "_pydevd_sys_monitoring_cython.pyx":1756
  * # ENDIF
  * # fmt: on
  *     DEBUGGER_ID = monitor.DEBUGGER_ID             # <<<<<<<<<<<<<<
  *     if not monitor.get_tool(DEBUGGER_ID):
  *         monitor.use_tool_id(DEBUGGER_ID, "pydevd")
  */
-  __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_monitor); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1761, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_monitor); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1756, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_DEBUGGER_ID); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1761, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_DEBUGGER_ID); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1756, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
   __pyx_v_DEBUGGER_ID = __pyx_t_2;
   __pyx_t_2 = 0;
 
-  /* "_pydevd_sys_monitoring_cython.pyx":1762
+  /* "_pydevd_sys_monitoring_cython.pyx":1757
  * # fmt: on
  *     DEBUGGER_ID = monitor.DEBUGGER_ID
  *     if not monitor.get_tool(DEBUGGER_ID):             # <<<<<<<<<<<<<<
  *         monitor.use_tool_id(DEBUGGER_ID, "pydevd")
  *         update_monitor_events()
  */
-  __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_monitor); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1762, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_monitor); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1757, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_get_tool); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1762, __pyx_L1_error)
+  __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_get_tool); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1757, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
   __pyx_t_1 = NULL;
@@ -28331,25 +28255,25 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__ensure_monitoring(CYTH
     PyObject *__pyx_callargs[2] = {__pyx_t_1, __pyx_v_DEBUGGER_ID};
     __pyx_t_2 = __Pyx_PyObject_FastCall(__pyx_t_3, __pyx_callargs+1-__pyx_t_4, 1+__pyx_t_4);
     __Pyx_XDECREF(__pyx_t_1); __pyx_t_1 = 0;
-    if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1762, __pyx_L1_error)
+    if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1757, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
   }
-  __pyx_t_5 = __Pyx_PyObject_IsTrue(__pyx_t_2); if (unlikely((__pyx_t_5 < 0))) __PYX_ERR(0, 1762, __pyx_L1_error)
+  __pyx_t_5 = __Pyx_PyObject_IsTrue(__pyx_t_2); if (unlikely((__pyx_t_5 < 0))) __PYX_ERR(0, 1757, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
   __pyx_t_6 = (!__pyx_t_5);
   if (__pyx_t_6) {
 
-    /* "_pydevd_sys_monitoring_cython.pyx":1763
+    /* "_pydevd_sys_monitoring_cython.pyx":1758
  *     DEBUGGER_ID = monitor.DEBUGGER_ID
  *     if not monitor.get_tool(DEBUGGER_ID):
  *         monitor.use_tool_id(DEBUGGER_ID, "pydevd")             # <<<<<<<<<<<<<<
  *         update_monitor_events()
  *         restart_events()
  */
-    __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_monitor); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1763, __pyx_L1_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_monitor); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1758, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_3);
-    __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_use_tool_id); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1763, __pyx_L1_error)
+    __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_use_tool_id); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1758, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
     __pyx_t_3 = NULL;
@@ -28370,20 +28294,20 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__ensure_monitoring(CYTH
       PyObject *__pyx_callargs[3] = {__pyx_t_3, __pyx_v_DEBUGGER_ID, __pyx_n_s_pydevd};
       __pyx_t_2 = __Pyx_PyObject_FastCall(__pyx_t_1, __pyx_callargs+1-__pyx_t_4, 2+__pyx_t_4);
       __Pyx_XDECREF(__pyx_t_3); __pyx_t_3 = 0;
-      if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1763, __pyx_L1_error)
+      if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1758, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_2);
       __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
     }
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-    /* "_pydevd_sys_monitoring_cython.pyx":1764
+    /* "_pydevd_sys_monitoring_cython.pyx":1759
  *     if not monitor.get_tool(DEBUGGER_ID):
  *         monitor.use_tool_id(DEBUGGER_ID, "pydevd")
  *         update_monitor_events()             # <<<<<<<<<<<<<<
  *         restart_events()
  * 
  */
-    __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_update_monitor_events); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1764, __pyx_L1_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_update_monitor_events); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1759, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
     __pyx_t_3 = NULL;
     __pyx_t_4 = 0;
@@ -28403,20 +28327,20 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__ensure_monitoring(CYTH
       PyObject *__pyx_callargs[2] = {__pyx_t_3, NULL};
       __pyx_t_2 = __Pyx_PyObject_FastCall(__pyx_t_1, __pyx_callargs+1-__pyx_t_4, 0+__pyx_t_4);
       __Pyx_XDECREF(__pyx_t_3); __pyx_t_3 = 0;
-      if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1764, __pyx_L1_error)
+      if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1759, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_2);
       __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
     }
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-    /* "_pydevd_sys_monitoring_cython.pyx":1765
+    /* "_pydevd_sys_monitoring_cython.pyx":1760
  *         monitor.use_tool_id(DEBUGGER_ID, "pydevd")
  *         update_monitor_events()
  *         restart_events()             # <<<<<<<<<<<<<<
  * 
  * 
  */
-    __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_restart_events); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1765, __pyx_L1_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_restart_events); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1760, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
     __pyx_t_3 = NULL;
     __pyx_t_4 = 0;
@@ -28436,13 +28360,13 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__ensure_monitoring(CYTH
       PyObject *__pyx_callargs[2] = {__pyx_t_3, NULL};
       __pyx_t_2 = __Pyx_PyObject_FastCall(__pyx_t_1, __pyx_callargs+1-__pyx_t_4, 0+__pyx_t_4);
       __Pyx_XDECREF(__pyx_t_3); __pyx_t_3 = 0;
-      if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1765, __pyx_L1_error)
+      if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1760, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_2);
       __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
     }
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-    /* "_pydevd_sys_monitoring_cython.pyx":1762
+    /* "_pydevd_sys_monitoring_cython.pyx":1757
  * # fmt: on
  *     DEBUGGER_ID = monitor.DEBUGGER_ID
  *     if not monitor.get_tool(DEBUGGER_ID):             # <<<<<<<<<<<<<<
@@ -28451,7 +28375,7 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__ensure_monitoring(CYTH
  */
   }
 
-  /* "_pydevd_sys_monitoring_cython.pyx":1756
+  /* "_pydevd_sys_monitoring_cython.pyx":1751
  * # fmt: off
  * # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
  * cpdef _ensure_monitoring():             # <<<<<<<<<<<<<<
@@ -28500,7 +28424,7 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_8_ensure_monitoring(CY
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("_ensure_monitoring", 1);
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __pyx_f_29_pydevd_sys_monitoring_cython__ensure_monitoring(0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1756, __pyx_L1_error)
+  __pyx_t_1 = __pyx_f_29_pydevd_sys_monitoring_cython__ensure_monitoring(0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1751, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -28517,7 +28441,7 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_8_ensure_monitoring(CY
   return __pyx_r;
 }
 
-/* "_pydevd_sys_monitoring_cython.pyx":1770
+/* "_pydevd_sys_monitoring_cython.pyx":1765
  * # fmt: off
  * # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
  * cpdef start_monitoring(bint all_threads=False):             # <<<<<<<<<<<<<<
@@ -28558,7 +28482,7 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython_start_monitoring(CYTHON
     }
   }
 
-  /* "_pydevd_sys_monitoring_cython.pyx":1776
+  /* "_pydevd_sys_monitoring_cython.pyx":1771
  * # ENDIF
  * # fmt: on
  *     if all_threads:             # <<<<<<<<<<<<<<
@@ -28567,31 +28491,31 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython_start_monitoring(CYTHON
  */
   if (__pyx_v_all_threads) {
 
-    /* "_pydevd_sys_monitoring_cython.pyx":1778
+    /* "_pydevd_sys_monitoring_cython.pyx":1773
  *     if all_threads:
  *         # print('start monitoring, all_threads=', all_threads)
  *         DEBUGGER_ID = monitor.DEBUGGER_ID             # <<<<<<<<<<<<<<
  *         if not monitor.get_tool(DEBUGGER_ID):
  *             monitor.use_tool_id(DEBUGGER_ID, "pydevd")
  */
-    __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_monitor); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1778, __pyx_L1_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_monitor); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1773, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
-    __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_DEBUGGER_ID); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1778, __pyx_L1_error)
+    __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_DEBUGGER_ID); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1773, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
     __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
     __pyx_v_DEBUGGER_ID = __pyx_t_2;
     __pyx_t_2 = 0;
 
-    /* "_pydevd_sys_monitoring_cython.pyx":1779
+    /* "_pydevd_sys_monitoring_cython.pyx":1774
  *         # print('start monitoring, all_threads=', all_threads)
  *         DEBUGGER_ID = monitor.DEBUGGER_ID
  *         if not monitor.get_tool(DEBUGGER_ID):             # <<<<<<<<<<<<<<
  *             monitor.use_tool_id(DEBUGGER_ID, "pydevd")
  *             update_monitor_events()
  */
-    __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_monitor); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1779, __pyx_L1_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_monitor); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1774, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
-    __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_get_tool); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1779, __pyx_L1_error)
+    __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_get_tool); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1774, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_3);
     __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
     __pyx_t_1 = NULL;
@@ -28612,25 +28536,25 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython_start_monitoring(CYTHON
       PyObject *__pyx_callargs[2] = {__pyx_t_1, __pyx_v_DEBUGGER_ID};
       __pyx_t_2 = __Pyx_PyObject_FastCall(__pyx_t_3, __pyx_callargs+1-__pyx_t_4, 1+__pyx_t_4);
       __Pyx_XDECREF(__pyx_t_1); __pyx_t_1 = 0;
-      if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1779, __pyx_L1_error)
+      if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1774, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_2);
       __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
     }
-    __pyx_t_5 = __Pyx_PyObject_IsTrue(__pyx_t_2); if (unlikely((__pyx_t_5 < 0))) __PYX_ERR(0, 1779, __pyx_L1_error)
+    __pyx_t_5 = __Pyx_PyObject_IsTrue(__pyx_t_2); if (unlikely((__pyx_t_5 < 0))) __PYX_ERR(0, 1774, __pyx_L1_error)
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
     __pyx_t_6 = (!__pyx_t_5);
     if (__pyx_t_6) {
 
-      /* "_pydevd_sys_monitoring_cython.pyx":1780
+      /* "_pydevd_sys_monitoring_cython.pyx":1775
  *         DEBUGGER_ID = monitor.DEBUGGER_ID
  *         if not monitor.get_tool(DEBUGGER_ID):
  *             monitor.use_tool_id(DEBUGGER_ID, "pydevd")             # <<<<<<<<<<<<<<
  *             update_monitor_events()
  *             restart_events()
  */
-      __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_monitor); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1780, __pyx_L1_error)
+      __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_monitor); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1775, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_3);
-      __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_use_tool_id); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1780, __pyx_L1_error)
+      __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_use_tool_id); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1775, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_1);
       __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
       __pyx_t_3 = NULL;
@@ -28651,20 +28575,20 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython_start_monitoring(CYTHON
         PyObject *__pyx_callargs[3] = {__pyx_t_3, __pyx_v_DEBUGGER_ID, __pyx_n_s_pydevd};
         __pyx_t_2 = __Pyx_PyObject_FastCall(__pyx_t_1, __pyx_callargs+1-__pyx_t_4, 2+__pyx_t_4);
         __Pyx_XDECREF(__pyx_t_3); __pyx_t_3 = 0;
-        if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1780, __pyx_L1_error)
+        if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1775, __pyx_L1_error)
         __Pyx_GOTREF(__pyx_t_2);
         __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
       }
       __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-      /* "_pydevd_sys_monitoring_cython.pyx":1781
+      /* "_pydevd_sys_monitoring_cython.pyx":1776
  *         if not monitor.get_tool(DEBUGGER_ID):
  *             monitor.use_tool_id(DEBUGGER_ID, "pydevd")
  *             update_monitor_events()             # <<<<<<<<<<<<<<
  *             restart_events()
  *     else:
  */
-      __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_update_monitor_events); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1781, __pyx_L1_error)
+      __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_update_monitor_events); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1776, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_1);
       __pyx_t_3 = NULL;
       __pyx_t_4 = 0;
@@ -28684,20 +28608,20 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython_start_monitoring(CYTHON
         PyObject *__pyx_callargs[2] = {__pyx_t_3, NULL};
         __pyx_t_2 = __Pyx_PyObject_FastCall(__pyx_t_1, __pyx_callargs+1-__pyx_t_4, 0+__pyx_t_4);
         __Pyx_XDECREF(__pyx_t_3); __pyx_t_3 = 0;
-        if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1781, __pyx_L1_error)
+        if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1776, __pyx_L1_error)
         __Pyx_GOTREF(__pyx_t_2);
         __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
       }
       __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-      /* "_pydevd_sys_monitoring_cython.pyx":1782
+      /* "_pydevd_sys_monitoring_cython.pyx":1777
  *             monitor.use_tool_id(DEBUGGER_ID, "pydevd")
  *             update_monitor_events()
  *             restart_events()             # <<<<<<<<<<<<<<
  *     else:
  *         try:
  */
-      __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_restart_events); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1782, __pyx_L1_error)
+      __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_restart_events); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1777, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_1);
       __pyx_t_3 = NULL;
       __pyx_t_4 = 0;
@@ -28717,13 +28641,13 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython_start_monitoring(CYTHON
         PyObject *__pyx_callargs[2] = {__pyx_t_3, NULL};
         __pyx_t_2 = __Pyx_PyObject_FastCall(__pyx_t_1, __pyx_callargs+1-__pyx_t_4, 0+__pyx_t_4);
         __Pyx_XDECREF(__pyx_t_3); __pyx_t_3 = 0;
-        if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1782, __pyx_L1_error)
+        if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1777, __pyx_L1_error)
         __Pyx_GOTREF(__pyx_t_2);
         __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
       }
       __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-      /* "_pydevd_sys_monitoring_cython.pyx":1779
+      /* "_pydevd_sys_monitoring_cython.pyx":1774
  *         # print('start monitoring, all_threads=', all_threads)
  *         DEBUGGER_ID = monitor.DEBUGGER_ID
  *         if not monitor.get_tool(DEBUGGER_ID):             # <<<<<<<<<<<<<<
@@ -28732,7 +28656,7 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython_start_monitoring(CYTHON
  */
     }
 
-    /* "_pydevd_sys_monitoring_cython.pyx":1776
+    /* "_pydevd_sys_monitoring_cython.pyx":1771
  * # ENDIF
  * # fmt: on
  *     if all_threads:             # <<<<<<<<<<<<<<
@@ -28742,7 +28666,7 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython_start_monitoring(CYTHON
     goto __pyx_L3;
   }
 
-  /* "_pydevd_sys_monitoring_cython.pyx":1784
+  /* "_pydevd_sys_monitoring_cython.pyx":1779
  *             restart_events()
  *     else:
  *         try:             # <<<<<<<<<<<<<<
@@ -28759,23 +28683,23 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython_start_monitoring(CYTHON
       __Pyx_XGOTREF(__pyx_t_9);
       /*try:*/ {
 
-        /* "_pydevd_sys_monitoring_cython.pyx":1785
+        /* "_pydevd_sys_monitoring_cython.pyx":1780
  *     else:
  *         try:
  *             thread_info = _thread_local_info.thread_info             # <<<<<<<<<<<<<<
  *         except:
  *             # code=None means we can already get the threading.current_thread.
  */
-        __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_thread_local_info); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1785, __pyx_L5_error)
+        __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_thread_local_info); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1780, __pyx_L5_error)
         __Pyx_GOTREF(__pyx_t_2);
-        __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_thread_info); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1785, __pyx_L5_error)
+        __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_thread_info); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1780, __pyx_L5_error)
         __Pyx_GOTREF(__pyx_t_1);
         __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-        if (!(likely(((__pyx_t_1) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_1, __pyx_ptype_29_pydevd_sys_monitoring_cython_ThreadInfo))))) __PYX_ERR(0, 1785, __pyx_L5_error)
+        if (!(likely(((__pyx_t_1) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_1, __pyx_ptype_29_pydevd_sys_monitoring_cython_ThreadInfo))))) __PYX_ERR(0, 1780, __pyx_L5_error)
         __pyx_v_thread_info = ((struct __pyx_obj_29_pydevd_sys_monitoring_cython_ThreadInfo *)__pyx_t_1);
         __pyx_t_1 = 0;
 
-        /* "_pydevd_sys_monitoring_cython.pyx":1784
+        /* "_pydevd_sys_monitoring_cython.pyx":1779
  *             restart_events()
  *     else:
  *         try:             # <<<<<<<<<<<<<<
@@ -28792,7 +28716,7 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython_start_monitoring(CYTHON
       __Pyx_XDECREF(__pyx_t_2); __pyx_t_2 = 0;
       __Pyx_XDECREF(__pyx_t_3); __pyx_t_3 = 0;
 
-      /* "_pydevd_sys_monitoring_cython.pyx":1786
+      /* "_pydevd_sys_monitoring_cython.pyx":1781
  *         try:
  *             thread_info = _thread_local_info.thread_info
  *         except:             # <<<<<<<<<<<<<<
@@ -28801,25 +28725,25 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython_start_monitoring(CYTHON
  */
       /*except:*/ {
         __Pyx_AddTraceback("_pydevd_sys_monitoring_cython.start_monitoring", __pyx_clineno, __pyx_lineno, __pyx_filename);
-        if (__Pyx_GetException(&__pyx_t_1, &__pyx_t_2, &__pyx_t_3) < 0) __PYX_ERR(0, 1786, __pyx_L7_except_error)
+        if (__Pyx_GetException(&__pyx_t_1, &__pyx_t_2, &__pyx_t_3) < 0) __PYX_ERR(0, 1781, __pyx_L7_except_error)
         __Pyx_XGOTREF(__pyx_t_1);
         __Pyx_XGOTREF(__pyx_t_2);
         __Pyx_XGOTREF(__pyx_t_3);
 
-        /* "_pydevd_sys_monitoring_cython.pyx":1788
+        /* "_pydevd_sys_monitoring_cython.pyx":1783
  *         except:
  *             # code=None means we can already get the threading.current_thread.
  *             thread_info = _get_thread_info(True, 1)             # <<<<<<<<<<<<<<
  *             if thread_info is None:
  *                 # print('start monitoring, thread=', None)
  */
-        __pyx_t_10 = __pyx_f_29_pydevd_sys_monitoring_cython__get_thread_info(1, 1); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 1788, __pyx_L7_except_error)
+        __pyx_t_10 = __pyx_f_29_pydevd_sys_monitoring_cython__get_thread_info(1, 1); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 1783, __pyx_L7_except_error)
         __Pyx_GOTREF(__pyx_t_10);
-        if (!(likely(((__pyx_t_10) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_10, __pyx_ptype_29_pydevd_sys_monitoring_cython_ThreadInfo))))) __PYX_ERR(0, 1788, __pyx_L7_except_error)
+        if (!(likely(((__pyx_t_10) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_10, __pyx_ptype_29_pydevd_sys_monitoring_cython_ThreadInfo))))) __PYX_ERR(0, 1783, __pyx_L7_except_error)
         __Pyx_XDECREF_SET(__pyx_v_thread_info, ((struct __pyx_obj_29_pydevd_sys_monitoring_cython_ThreadInfo *)__pyx_t_10));
         __pyx_t_10 = 0;
 
-        /* "_pydevd_sys_monitoring_cython.pyx":1789
+        /* "_pydevd_sys_monitoring_cython.pyx":1784
  *             # code=None means we can already get the threading.current_thread.
  *             thread_info = _get_thread_info(True, 1)
  *             if thread_info is None:             # <<<<<<<<<<<<<<
@@ -28829,7 +28753,7 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython_start_monitoring(CYTHON
         __pyx_t_6 = (((PyObject *)__pyx_v_thread_info) == Py_None);
         if (__pyx_t_6) {
 
-          /* "_pydevd_sys_monitoring_cython.pyx":1791
+          /* "_pydevd_sys_monitoring_cython.pyx":1786
  *             if thread_info is None:
  *                 # print('start monitoring, thread=', None)
  *                 return             # <<<<<<<<<<<<<<
@@ -28843,7 +28767,7 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython_start_monitoring(CYTHON
           __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
           goto __pyx_L8_except_return;
 
-          /* "_pydevd_sys_monitoring_cython.pyx":1789
+          /* "_pydevd_sys_monitoring_cython.pyx":1784
  *             # code=None means we can already get the threading.current_thread.
  *             thread_info = _get_thread_info(True, 1)
  *             if thread_info is None:             # <<<<<<<<<<<<<<
@@ -28857,7 +28781,7 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython_start_monitoring(CYTHON
         goto __pyx_L6_exception_handled;
       }
 
-      /* "_pydevd_sys_monitoring_cython.pyx":1784
+      /* "_pydevd_sys_monitoring_cython.pyx":1779
  *             restart_events()
  *     else:
  *         try:             # <<<<<<<<<<<<<<
@@ -28884,7 +28808,7 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython_start_monitoring(CYTHON
       __pyx_L10_try_end:;
     }
 
-    /* "_pydevd_sys_monitoring_cython.pyx":1793
+    /* "_pydevd_sys_monitoring_cython.pyx":1788
  *                 return
  *         # print('start monitoring, thread=', thread_info.thread)
  *         thread_info.trace = True             # <<<<<<<<<<<<<<
@@ -28899,7 +28823,7 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython_start_monitoring(CYTHON
   }
   __pyx_L3:;
 
-  /* "_pydevd_sys_monitoring_cython.pyx":1770
+  /* "_pydevd_sys_monitoring_cython.pyx":1765
  * # fmt: off
  * # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
  * cpdef start_monitoring(bint all_threads=False):             # <<<<<<<<<<<<<<
@@ -28977,12 +28901,12 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
         if (kw_args > 0) {
           PyObject* value = __Pyx_GetKwValue_FASTCALL(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_all_threads);
           if (value) { values[0] = __Pyx_Arg_NewRef_FASTCALL(value); kw_args--; }
-          else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 1770, __pyx_L3_error)
+          else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 1765, __pyx_L3_error)
         }
       }
       if (unlikely(kw_args > 0)) {
         const Py_ssize_t kwd_pos_args = __pyx_nargs;
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "start_monitoring") < 0)) __PYX_ERR(0, 1770, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "start_monitoring") < 0)) __PYX_ERR(0, 1765, __pyx_L3_error)
       }
     } else {
       switch (__pyx_nargs) {
@@ -28993,14 +28917,14 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
       }
     }
     if (values[0]) {
-      __pyx_v_all_threads = __Pyx_PyObject_IsTrue(values[0]); if (unlikely((__pyx_v_all_threads == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 1770, __pyx_L3_error)
+      __pyx_v_all_threads = __Pyx_PyObject_IsTrue(values[0]); if (unlikely((__pyx_v_all_threads == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 1765, __pyx_L3_error)
     } else {
       __pyx_v_all_threads = ((int)0);
     }
   }
   goto __pyx_L6_skip;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("start_monitoring", 0, 0, 1, __pyx_nargs); __PYX_ERR(0, 1770, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("start_monitoring", 0, 0, 1, __pyx_nargs); __PYX_ERR(0, 1765, __pyx_L3_error)
   __pyx_L6_skip:;
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L3_error:;
@@ -29039,7 +28963,7 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_10start_monitoring(CYT
   __Pyx_XDECREF(__pyx_r);
   __pyx_t_2.__pyx_n = 1;
   __pyx_t_2.all_threads = __pyx_v_all_threads;
-  __pyx_t_1 = __pyx_f_29_pydevd_sys_monitoring_cython_start_monitoring(0, &__pyx_t_2); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1770, __pyx_L1_error)
+  __pyx_t_1 = __pyx_f_29_pydevd_sys_monitoring_cython_start_monitoring(0, &__pyx_t_2); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1765, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -29056,7 +28980,7 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_10start_monitoring(CYT
   return __pyx_r;
 }
 
-/* "_pydevd_sys_monitoring_cython.pyx":1798
+/* "_pydevd_sys_monitoring_cython.pyx":1793
  * # fmt: off
  * # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
  * cpdef stop_monitoring(all_threads=False):             # <<<<<<<<<<<<<<
@@ -29096,31 +29020,31 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython_stop_monitoring(CYTHON_
     }
   }
 
-  /* "_pydevd_sys_monitoring_cython.pyx":1804
+  /* "_pydevd_sys_monitoring_cython.pyx":1799
  * # ENDIF
  * # fmt: on
  *     if all_threads:             # <<<<<<<<<<<<<<
  *         # print('stop monitoring, all_threads=', all_threads)
  *         if monitor.get_tool(monitor.DEBUGGER_ID) == "pydevd":
  */
-  __pyx_t_1 = __Pyx_PyObject_IsTrue(__pyx_v_all_threads); if (unlikely((__pyx_t_1 < 0))) __PYX_ERR(0, 1804, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyObject_IsTrue(__pyx_v_all_threads); if (unlikely((__pyx_t_1 < 0))) __PYX_ERR(0, 1799, __pyx_L1_error)
   if (__pyx_t_1) {
 
-    /* "_pydevd_sys_monitoring_cython.pyx":1806
+    /* "_pydevd_sys_monitoring_cython.pyx":1801
  *     if all_threads:
  *         # print('stop monitoring, all_threads=', all_threads)
  *         if monitor.get_tool(monitor.DEBUGGER_ID) == "pydevd":             # <<<<<<<<<<<<<<
  *             monitor.set_events(monitor.DEBUGGER_ID, 0)
  *             monitor.register_callback(DEBUGGER_ID, monitor.events.PY_START, None)
  */
-    __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_monitor); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1806, __pyx_L1_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_monitor); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1801, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_3);
-    __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_get_tool); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1806, __pyx_L1_error)
+    __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_get_tool); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1801, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_4);
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-    __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_monitor); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1806, __pyx_L1_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_monitor); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1801, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_3);
-    __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_DEBUGGER_ID); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 1806, __pyx_L1_error)
+    __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_DEBUGGER_ID); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 1801, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_5);
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
     __pyx_t_3 = NULL;
@@ -29142,29 +29066,29 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython_stop_monitoring(CYTHON_
       __pyx_t_2 = __Pyx_PyObject_FastCall(__pyx_t_4, __pyx_callargs+1-__pyx_t_6, 1+__pyx_t_6);
       __Pyx_XDECREF(__pyx_t_3); __pyx_t_3 = 0;
       __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-      if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1806, __pyx_L1_error)
+      if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1801, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_2);
       __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
     }
-    __pyx_t_1 = (__Pyx_PyString_Equals(__pyx_t_2, __pyx_n_s_pydevd, Py_EQ)); if (unlikely((__pyx_t_1 < 0))) __PYX_ERR(0, 1806, __pyx_L1_error)
+    __pyx_t_1 = (__Pyx_PyString_Equals(__pyx_t_2, __pyx_n_s_pydevd, Py_EQ)); if (unlikely((__pyx_t_1 < 0))) __PYX_ERR(0, 1801, __pyx_L1_error)
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
     if (__pyx_t_1) {
 
-      /* "_pydevd_sys_monitoring_cython.pyx":1807
+      /* "_pydevd_sys_monitoring_cython.pyx":1802
  *         # print('stop monitoring, all_threads=', all_threads)
  *         if monitor.get_tool(monitor.DEBUGGER_ID) == "pydevd":
  *             monitor.set_events(monitor.DEBUGGER_ID, 0)             # <<<<<<<<<<<<<<
  *             monitor.register_callback(DEBUGGER_ID, monitor.events.PY_START, None)
  *             monitor.register_callback(DEBUGGER_ID, monitor.events.PY_RESUME, None)
  */
-      __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_monitor); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1807, __pyx_L1_error)
+      __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_monitor); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1802, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_4);
-      __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_set_events); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 1807, __pyx_L1_error)
+      __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_set_events); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 1802, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_5);
       __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-      __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_monitor); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1807, __pyx_L1_error)
+      __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_monitor); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1802, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_4);
-      __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_DEBUGGER_ID); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1807, __pyx_L1_error)
+      __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_DEBUGGER_ID); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1802, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_3);
       __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
       __pyx_t_4 = NULL;
@@ -29186,32 +29110,32 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython_stop_monitoring(CYTHON_
         __pyx_t_2 = __Pyx_PyObject_FastCall(__pyx_t_5, __pyx_callargs+1-__pyx_t_6, 2+__pyx_t_6);
         __Pyx_XDECREF(__pyx_t_4); __pyx_t_4 = 0;
         __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-        if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1807, __pyx_L1_error)
+        if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1802, __pyx_L1_error)
         __Pyx_GOTREF(__pyx_t_2);
         __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
       }
       __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-      /* "_pydevd_sys_monitoring_cython.pyx":1808
+      /* "_pydevd_sys_monitoring_cython.pyx":1803
  *         if monitor.get_tool(monitor.DEBUGGER_ID) == "pydevd":
  *             monitor.set_events(monitor.DEBUGGER_ID, 0)
  *             monitor.register_callback(DEBUGGER_ID, monitor.events.PY_START, None)             # <<<<<<<<<<<<<<
  *             monitor.register_callback(DEBUGGER_ID, monitor.events.PY_RESUME, None)
  *             monitor.register_callback(DEBUGGER_ID, monitor.events.LINE, None)
  */
-      __Pyx_GetModuleGlobalName(__pyx_t_5, __pyx_n_s_monitor); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 1808, __pyx_L1_error)
+      __Pyx_GetModuleGlobalName(__pyx_t_5, __pyx_n_s_monitor); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 1803, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_5);
-      __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_5, __pyx_n_s_register_callback); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1808, __pyx_L1_error)
+      __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_5, __pyx_n_s_register_callback); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1803, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_3);
       __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-      __Pyx_GetModuleGlobalName(__pyx_t_5, __pyx_n_s_DEBUGGER_ID); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 1808, __pyx_L1_error)
+      __Pyx_GetModuleGlobalName(__pyx_t_5, __pyx_n_s_DEBUGGER_ID); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 1803, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_5);
-      __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_monitor); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1808, __pyx_L1_error)
+      __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_monitor); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1803, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_4);
-      __pyx_t_7 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_events); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 1808, __pyx_L1_error)
+      __pyx_t_7 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_events); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 1803, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_7);
       __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-      __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_7, __pyx_n_s_PY_START); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1808, __pyx_L1_error)
+      __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_7, __pyx_n_s_PY_START); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1803, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_4);
       __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
       __pyx_t_7 = NULL;
@@ -29234,32 +29158,32 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython_stop_monitoring(CYTHON_
         __Pyx_XDECREF(__pyx_t_7); __pyx_t_7 = 0;
         __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
         __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-        if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1808, __pyx_L1_error)
+        if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1803, __pyx_L1_error)
         __Pyx_GOTREF(__pyx_t_2);
         __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
       }
       __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-      /* "_pydevd_sys_monitoring_cython.pyx":1809
+      /* "_pydevd_sys_monitoring_cython.pyx":1804
  *             monitor.set_events(monitor.DEBUGGER_ID, 0)
  *             monitor.register_callback(DEBUGGER_ID, monitor.events.PY_START, None)
  *             monitor.register_callback(DEBUGGER_ID, monitor.events.PY_RESUME, None)             # <<<<<<<<<<<<<<
  *             monitor.register_callback(DEBUGGER_ID, monitor.events.LINE, None)
  *             monitor.register_callback(DEBUGGER_ID, monitor.events.JUMP, None)
  */
-      __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_monitor); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1809, __pyx_L1_error)
+      __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_monitor); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1804, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_3);
-      __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_register_callback); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1809, __pyx_L1_error)
+      __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_register_callback); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1804, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_4);
       __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-      __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_DEBUGGER_ID); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1809, __pyx_L1_error)
+      __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_DEBUGGER_ID); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1804, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_3);
-      __Pyx_GetModuleGlobalName(__pyx_t_5, __pyx_n_s_monitor); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 1809, __pyx_L1_error)
+      __Pyx_GetModuleGlobalName(__pyx_t_5, __pyx_n_s_monitor); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 1804, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_5);
-      __pyx_t_7 = __Pyx_PyObject_GetAttrStr(__pyx_t_5, __pyx_n_s_events); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 1809, __pyx_L1_error)
+      __pyx_t_7 = __Pyx_PyObject_GetAttrStr(__pyx_t_5, __pyx_n_s_events); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 1804, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_7);
       __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-      __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_7, __pyx_n_s_PY_RESUME); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 1809, __pyx_L1_error)
+      __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_7, __pyx_n_s_PY_RESUME); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 1804, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_5);
       __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
       __pyx_t_7 = NULL;
@@ -29282,32 +29206,32 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython_stop_monitoring(CYTHON_
         __Pyx_XDECREF(__pyx_t_7); __pyx_t_7 = 0;
         __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
         __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-        if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1809, __pyx_L1_error)
+        if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1804, __pyx_L1_error)
         __Pyx_GOTREF(__pyx_t_2);
         __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
       }
       __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-      /* "_pydevd_sys_monitoring_cython.pyx":1810
+      /* "_pydevd_sys_monitoring_cython.pyx":1805
  *             monitor.register_callback(DEBUGGER_ID, monitor.events.PY_START, None)
  *             monitor.register_callback(DEBUGGER_ID, monitor.events.PY_RESUME, None)
  *             monitor.register_callback(DEBUGGER_ID, monitor.events.LINE, None)             # <<<<<<<<<<<<<<
  *             monitor.register_callback(DEBUGGER_ID, monitor.events.JUMP, None)
  *             monitor.register_callback(DEBUGGER_ID, monitor.events.PY_RETURN, None)
  */
-      __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_monitor); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1810, __pyx_L1_error)
+      __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_monitor); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1805, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_4);
-      __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_register_callback); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 1810, __pyx_L1_error)
+      __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_register_callback); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 1805, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_5);
       __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-      __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_DEBUGGER_ID); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1810, __pyx_L1_error)
+      __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_DEBUGGER_ID); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1805, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_4);
-      __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_monitor); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1810, __pyx_L1_error)
+      __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_monitor); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1805, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_3);
-      __pyx_t_7 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_events); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 1810, __pyx_L1_error)
+      __pyx_t_7 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_events); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 1805, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_7);
       __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-      __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_7, __pyx_n_s_LINE); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1810, __pyx_L1_error)
+      __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_7, __pyx_n_s_LINE); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1805, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_3);
       __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
       __pyx_t_7 = NULL;
@@ -29330,32 +29254,32 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython_stop_monitoring(CYTHON_
         __Pyx_XDECREF(__pyx_t_7); __pyx_t_7 = 0;
         __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
         __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-        if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1810, __pyx_L1_error)
+        if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1805, __pyx_L1_error)
         __Pyx_GOTREF(__pyx_t_2);
         __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
       }
       __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-      /* "_pydevd_sys_monitoring_cython.pyx":1811
+      /* "_pydevd_sys_monitoring_cython.pyx":1806
  *             monitor.register_callback(DEBUGGER_ID, monitor.events.PY_RESUME, None)
  *             monitor.register_callback(DEBUGGER_ID, monitor.events.LINE, None)
  *             monitor.register_callback(DEBUGGER_ID, monitor.events.JUMP, None)             # <<<<<<<<<<<<<<
  *             monitor.register_callback(DEBUGGER_ID, monitor.events.PY_RETURN, None)
  *             monitor.register_callback(DEBUGGER_ID, monitor.events.RAISE, None)
  */
-      __Pyx_GetModuleGlobalName(__pyx_t_5, __pyx_n_s_monitor); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 1811, __pyx_L1_error)
+      __Pyx_GetModuleGlobalName(__pyx_t_5, __pyx_n_s_monitor); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 1806, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_5);
-      __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_5, __pyx_n_s_register_callback); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1811, __pyx_L1_error)
+      __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_5, __pyx_n_s_register_callback); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1806, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_3);
       __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-      __Pyx_GetModuleGlobalName(__pyx_t_5, __pyx_n_s_DEBUGGER_ID); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 1811, __pyx_L1_error)
+      __Pyx_GetModuleGlobalName(__pyx_t_5, __pyx_n_s_DEBUGGER_ID); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 1806, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_5);
-      __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_monitor); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1811, __pyx_L1_error)
+      __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_monitor); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1806, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_4);
-      __pyx_t_7 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_events); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 1811, __pyx_L1_error)
+      __pyx_t_7 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_events); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 1806, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_7);
       __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-      __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_7, __pyx_n_s_JUMP); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1811, __pyx_L1_error)
+      __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_7, __pyx_n_s_JUMP); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1806, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_4);
       __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
       __pyx_t_7 = NULL;
@@ -29378,32 +29302,32 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython_stop_monitoring(CYTHON_
         __Pyx_XDECREF(__pyx_t_7); __pyx_t_7 = 0;
         __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
         __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-        if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1811, __pyx_L1_error)
+        if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1806, __pyx_L1_error)
         __Pyx_GOTREF(__pyx_t_2);
         __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
       }
       __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-      /* "_pydevd_sys_monitoring_cython.pyx":1812
+      /* "_pydevd_sys_monitoring_cython.pyx":1807
  *             monitor.register_callback(DEBUGGER_ID, monitor.events.LINE, None)
  *             monitor.register_callback(DEBUGGER_ID, monitor.events.JUMP, None)
  *             monitor.register_callback(DEBUGGER_ID, monitor.events.PY_RETURN, None)             # <<<<<<<<<<<<<<
  *             monitor.register_callback(DEBUGGER_ID, monitor.events.RAISE, None)
  *             monitor.free_tool_id(monitor.DEBUGGER_ID)
  */
-      __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_monitor); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1812, __pyx_L1_error)
+      __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_monitor); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1807, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_3);
-      __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_register_callback); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1812, __pyx_L1_error)
+      __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_register_callback); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1807, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_4);
       __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-      __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_DEBUGGER_ID); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1812, __pyx_L1_error)
+      __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_DEBUGGER_ID); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1807, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_3);
-      __Pyx_GetModuleGlobalName(__pyx_t_5, __pyx_n_s_monitor); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 1812, __pyx_L1_error)
+      __Pyx_GetModuleGlobalName(__pyx_t_5, __pyx_n_s_monitor); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 1807, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_5);
-      __pyx_t_7 = __Pyx_PyObject_GetAttrStr(__pyx_t_5, __pyx_n_s_events); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 1812, __pyx_L1_error)
+      __pyx_t_7 = __Pyx_PyObject_GetAttrStr(__pyx_t_5, __pyx_n_s_events); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 1807, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_7);
       __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-      __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_7, __pyx_n_s_PY_RETURN); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 1812, __pyx_L1_error)
+      __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_7, __pyx_n_s_PY_RETURN); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 1807, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_5);
       __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
       __pyx_t_7 = NULL;
@@ -29426,32 +29350,32 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython_stop_monitoring(CYTHON_
         __Pyx_XDECREF(__pyx_t_7); __pyx_t_7 = 0;
         __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
         __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-        if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1812, __pyx_L1_error)
+        if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1807, __pyx_L1_error)
         __Pyx_GOTREF(__pyx_t_2);
         __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
       }
       __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-      /* "_pydevd_sys_monitoring_cython.pyx":1813
+      /* "_pydevd_sys_monitoring_cython.pyx":1808
  *             monitor.register_callback(DEBUGGER_ID, monitor.events.JUMP, None)
  *             monitor.register_callback(DEBUGGER_ID, monitor.events.PY_RETURN, None)
  *             monitor.register_callback(DEBUGGER_ID, monitor.events.RAISE, None)             # <<<<<<<<<<<<<<
  *             monitor.free_tool_id(monitor.DEBUGGER_ID)
  *     else:
  */
-      __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_monitor); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1813, __pyx_L1_error)
+      __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_monitor); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1808, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_4);
-      __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_register_callback); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 1813, __pyx_L1_error)
+      __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_register_callback); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 1808, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_5);
       __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-      __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_DEBUGGER_ID); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1813, __pyx_L1_error)
+      __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_DEBUGGER_ID); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1808, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_4);
-      __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_monitor); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1813, __pyx_L1_error)
+      __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_monitor); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1808, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_3);
-      __pyx_t_7 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_events); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 1813, __pyx_L1_error)
+      __pyx_t_7 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_events); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 1808, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_7);
       __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-      __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_7, __pyx_n_s_RAISE); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1813, __pyx_L1_error)
+      __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_7, __pyx_n_s_RAISE); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1808, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_3);
       __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
       __pyx_t_7 = NULL;
@@ -29474,27 +29398,27 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython_stop_monitoring(CYTHON_
         __Pyx_XDECREF(__pyx_t_7); __pyx_t_7 = 0;
         __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
         __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-        if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1813, __pyx_L1_error)
+        if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1808, __pyx_L1_error)
         __Pyx_GOTREF(__pyx_t_2);
         __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
       }
       __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-      /* "_pydevd_sys_monitoring_cython.pyx":1814
+      /* "_pydevd_sys_monitoring_cython.pyx":1809
  *             monitor.register_callback(DEBUGGER_ID, monitor.events.PY_RETURN, None)
  *             monitor.register_callback(DEBUGGER_ID, monitor.events.RAISE, None)
  *             monitor.free_tool_id(monitor.DEBUGGER_ID)             # <<<<<<<<<<<<<<
  *     else:
  *         try:
  */
-      __Pyx_GetModuleGlobalName(__pyx_t_5, __pyx_n_s_monitor); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 1814, __pyx_L1_error)
+      __Pyx_GetModuleGlobalName(__pyx_t_5, __pyx_n_s_monitor); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 1809, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_5);
-      __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_5, __pyx_n_s_free_tool_id); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1814, __pyx_L1_error)
+      __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_5, __pyx_n_s_free_tool_id); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1809, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_3);
       __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-      __Pyx_GetModuleGlobalName(__pyx_t_5, __pyx_n_s_monitor); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 1814, __pyx_L1_error)
+      __Pyx_GetModuleGlobalName(__pyx_t_5, __pyx_n_s_monitor); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 1809, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_5);
-      __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_5, __pyx_n_s_DEBUGGER_ID); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1814, __pyx_L1_error)
+      __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_5, __pyx_n_s_DEBUGGER_ID); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1809, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_4);
       __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
       __pyx_t_5 = NULL;
@@ -29516,13 +29440,13 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython_stop_monitoring(CYTHON_
         __pyx_t_2 = __Pyx_PyObject_FastCall(__pyx_t_3, __pyx_callargs+1-__pyx_t_6, 1+__pyx_t_6);
         __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
         __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-        if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1814, __pyx_L1_error)
+        if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1809, __pyx_L1_error)
         __Pyx_GOTREF(__pyx_t_2);
         __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
       }
       __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-      /* "_pydevd_sys_monitoring_cython.pyx":1806
+      /* "_pydevd_sys_monitoring_cython.pyx":1801
  *     if all_threads:
  *         # print('stop monitoring, all_threads=', all_threads)
  *         if monitor.get_tool(monitor.DEBUGGER_ID) == "pydevd":             # <<<<<<<<<<<<<<
@@ -29531,7 +29455,7 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython_stop_monitoring(CYTHON_
  */
     }
 
-    /* "_pydevd_sys_monitoring_cython.pyx":1804
+    /* "_pydevd_sys_monitoring_cython.pyx":1799
  * # ENDIF
  * # fmt: on
  *     if all_threads:             # <<<<<<<<<<<<<<
@@ -29541,7 +29465,7 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython_stop_monitoring(CYTHON_
     goto __pyx_L3;
   }
 
-  /* "_pydevd_sys_monitoring_cython.pyx":1816
+  /* "_pydevd_sys_monitoring_cython.pyx":1811
  *             monitor.free_tool_id(monitor.DEBUGGER_ID)
  *     else:
  *         try:             # <<<<<<<<<<<<<<
@@ -29558,23 +29482,23 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython_stop_monitoring(CYTHON_
       __Pyx_XGOTREF(__pyx_t_10);
       /*try:*/ {
 
-        /* "_pydevd_sys_monitoring_cython.pyx":1817
+        /* "_pydevd_sys_monitoring_cython.pyx":1812
  *     else:
  *         try:
  *             thread_info = _thread_local_info.thread_info             # <<<<<<<<<<<<<<
  *         except:
  *             thread_info = _get_thread_info(False, 1)
  */
-        __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_thread_local_info); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1817, __pyx_L5_error)
+        __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_thread_local_info); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1812, __pyx_L5_error)
         __Pyx_GOTREF(__pyx_t_2);
-        __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_thread_info); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1817, __pyx_L5_error)
+        __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_thread_info); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1812, __pyx_L5_error)
         __Pyx_GOTREF(__pyx_t_3);
         __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-        if (!(likely(((__pyx_t_3) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_3, __pyx_ptype_29_pydevd_sys_monitoring_cython_ThreadInfo))))) __PYX_ERR(0, 1817, __pyx_L5_error)
+        if (!(likely(((__pyx_t_3) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_3, __pyx_ptype_29_pydevd_sys_monitoring_cython_ThreadInfo))))) __PYX_ERR(0, 1812, __pyx_L5_error)
         __pyx_v_thread_info = ((struct __pyx_obj_29_pydevd_sys_monitoring_cython_ThreadInfo *)__pyx_t_3);
         __pyx_t_3 = 0;
 
-        /* "_pydevd_sys_monitoring_cython.pyx":1816
+        /* "_pydevd_sys_monitoring_cython.pyx":1811
  *             monitor.free_tool_id(monitor.DEBUGGER_ID)
  *     else:
  *         try:             # <<<<<<<<<<<<<<
@@ -29593,7 +29517,7 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython_stop_monitoring(CYTHON_
       __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
       __Pyx_XDECREF(__pyx_t_7); __pyx_t_7 = 0;
 
-      /* "_pydevd_sys_monitoring_cython.pyx":1818
+      /* "_pydevd_sys_monitoring_cython.pyx":1813
  *         try:
  *             thread_info = _thread_local_info.thread_info
  *         except:             # <<<<<<<<<<<<<<
@@ -29602,25 +29526,25 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython_stop_monitoring(CYTHON_
  */
       /*except:*/ {
         __Pyx_AddTraceback("_pydevd_sys_monitoring_cython.stop_monitoring", __pyx_clineno, __pyx_lineno, __pyx_filename);
-        if (__Pyx_GetException(&__pyx_t_3, &__pyx_t_2, &__pyx_t_4) < 0) __PYX_ERR(0, 1818, __pyx_L7_except_error)
+        if (__Pyx_GetException(&__pyx_t_3, &__pyx_t_2, &__pyx_t_4) < 0) __PYX_ERR(0, 1813, __pyx_L7_except_error)
         __Pyx_XGOTREF(__pyx_t_3);
         __Pyx_XGOTREF(__pyx_t_2);
         __Pyx_XGOTREF(__pyx_t_4);
 
-        /* "_pydevd_sys_monitoring_cython.pyx":1819
+        /* "_pydevd_sys_monitoring_cython.pyx":1814
  *             thread_info = _thread_local_info.thread_info
  *         except:
  *             thread_info = _get_thread_info(False, 1)             # <<<<<<<<<<<<<<
  *             if thread_info is None:
  *                 return
  */
-        __pyx_t_5 = __pyx_f_29_pydevd_sys_monitoring_cython__get_thread_info(0, 1); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 1819, __pyx_L7_except_error)
+        __pyx_t_5 = __pyx_f_29_pydevd_sys_monitoring_cython__get_thread_info(0, 1); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 1814, __pyx_L7_except_error)
         __Pyx_GOTREF(__pyx_t_5);
-        if (!(likely(((__pyx_t_5) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_5, __pyx_ptype_29_pydevd_sys_monitoring_cython_ThreadInfo))))) __PYX_ERR(0, 1819, __pyx_L7_except_error)
+        if (!(likely(((__pyx_t_5) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_5, __pyx_ptype_29_pydevd_sys_monitoring_cython_ThreadInfo))))) __PYX_ERR(0, 1814, __pyx_L7_except_error)
         __Pyx_XDECREF_SET(__pyx_v_thread_info, ((struct __pyx_obj_29_pydevd_sys_monitoring_cython_ThreadInfo *)__pyx_t_5));
         __pyx_t_5 = 0;
 
-        /* "_pydevd_sys_monitoring_cython.pyx":1820
+        /* "_pydevd_sys_monitoring_cython.pyx":1815
  *         except:
  *             thread_info = _get_thread_info(False, 1)
  *             if thread_info is None:             # <<<<<<<<<<<<<<
@@ -29630,7 +29554,7 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython_stop_monitoring(CYTHON_
         __pyx_t_1 = (((PyObject *)__pyx_v_thread_info) == Py_None);
         if (__pyx_t_1) {
 
-          /* "_pydevd_sys_monitoring_cython.pyx":1821
+          /* "_pydevd_sys_monitoring_cython.pyx":1816
  *             thread_info = _get_thread_info(False, 1)
  *             if thread_info is None:
  *                 return             # <<<<<<<<<<<<<<
@@ -29644,7 +29568,7 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython_stop_monitoring(CYTHON_
           __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
           goto __pyx_L8_except_return;
 
-          /* "_pydevd_sys_monitoring_cython.pyx":1820
+          /* "_pydevd_sys_monitoring_cython.pyx":1815
  *         except:
  *             thread_info = _get_thread_info(False, 1)
  *             if thread_info is None:             # <<<<<<<<<<<<<<
@@ -29658,7 +29582,7 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython_stop_monitoring(CYTHON_
         goto __pyx_L6_exception_handled;
       }
 
-      /* "_pydevd_sys_monitoring_cython.pyx":1816
+      /* "_pydevd_sys_monitoring_cython.pyx":1811
  *             monitor.free_tool_id(monitor.DEBUGGER_ID)
  *     else:
  *         try:             # <<<<<<<<<<<<<<
@@ -29685,7 +29609,7 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython_stop_monitoring(CYTHON_
       __pyx_L10_try_end:;
     }
 
-    /* "_pydevd_sys_monitoring_cython.pyx":1823
+    /* "_pydevd_sys_monitoring_cython.pyx":1818
  *                 return
  *         # print('stop monitoring, thread=', thread_info.thread)
  *         thread_info.trace = False             # <<<<<<<<<<<<<<
@@ -29700,7 +29624,7 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython_stop_monitoring(CYTHON_
   }
   __pyx_L3:;
 
-  /* "_pydevd_sys_monitoring_cython.pyx":1798
+  /* "_pydevd_sys_monitoring_cython.pyx":1793
  * # fmt: off
  * # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
  * cpdef stop_monitoring(all_threads=False):             # <<<<<<<<<<<<<<
@@ -29779,12 +29703,12 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
         if (kw_args > 0) {
           PyObject* value = __Pyx_GetKwValue_FASTCALL(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_all_threads);
           if (value) { values[0] = __Pyx_Arg_NewRef_FASTCALL(value); kw_args--; }
-          else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 1798, __pyx_L3_error)
+          else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 1793, __pyx_L3_error)
         }
       }
       if (unlikely(kw_args > 0)) {
         const Py_ssize_t kwd_pos_args = __pyx_nargs;
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "stop_monitoring") < 0)) __PYX_ERR(0, 1798, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "stop_monitoring") < 0)) __PYX_ERR(0, 1793, __pyx_L3_error)
       }
     } else {
       switch (__pyx_nargs) {
@@ -29798,7 +29722,7 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   }
   goto __pyx_L6_skip;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("stop_monitoring", 0, 0, 1, __pyx_nargs); __PYX_ERR(0, 1798, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("stop_monitoring", 0, 0, 1, __pyx_nargs); __PYX_ERR(0, 1793, __pyx_L3_error)
   __pyx_L6_skip:;
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L3_error:;
@@ -29837,7 +29761,7 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_12stop_monitoring(CYTH
   __Pyx_XDECREF(__pyx_r);
   __pyx_t_2.__pyx_n = 1;
   __pyx_t_2.all_threads = __pyx_v_all_threads;
-  __pyx_t_1 = __pyx_f_29_pydevd_sys_monitoring_cython_stop_monitoring(0, &__pyx_t_2); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1798, __pyx_L1_error)
+  __pyx_t_1 = __pyx_f_29_pydevd_sys_monitoring_cython_stop_monitoring(0, &__pyx_t_2); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1793, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -29854,7 +29778,7 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_12stop_monitoring(CYTH
   return __pyx_r;
 }
 
-/* "_pydevd_sys_monitoring_cython.pyx":1826
+/* "_pydevd_sys_monitoring_cython.pyx":1821
  * 
  * 
  * def update_monitor_events(suspend_requested: Optional[bool]=None) -> None:             # <<<<<<<<<<<<<<
@@ -29916,12 +29840,12 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
         if (kw_args > 0) {
           PyObject* value = __Pyx_GetKwValue_FASTCALL(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_suspend_requested);
           if (value) { values[0] = __Pyx_Arg_NewRef_FASTCALL(value); kw_args--; }
-          else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 1826, __pyx_L3_error)
+          else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 1821, __pyx_L3_error)
         }
       }
       if (unlikely(kw_args > 0)) {
         const Py_ssize_t kwd_pos_args = __pyx_nargs;
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "update_monitor_events") < 0)) __PYX_ERR(0, 1826, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "update_monitor_events") < 0)) __PYX_ERR(0, 1821, __pyx_L3_error)
       }
     } else {
       switch (__pyx_nargs) {
@@ -29935,7 +29859,7 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   }
   goto __pyx_L6_skip;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("update_monitor_events", 0, 0, 1, __pyx_nargs); __PYX_ERR(0, 1826, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("update_monitor_events", 0, 0, 1, __pyx_nargs); __PYX_ERR(0, 1821, __pyx_L3_error)
   __pyx_L6_skip:;
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L3_error:;
@@ -29997,21 +29921,21 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
   __Pyx_RefNannySetupContext("update_monitor_events", 0);
   __Pyx_INCREF(__pyx_v_suspend_requested);
 
-  /* "_pydevd_sys_monitoring_cython.pyx":1832
+  /* "_pydevd_sys_monitoring_cython.pyx":1827
  *     :param suspend: means the user requested threads to be suspended
  *     """
  *     if monitor.get_tool(monitor.DEBUGGER_ID) != "pydevd":             # <<<<<<<<<<<<<<
  *         # It is still not initialized.
  *         return
  */
-  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_monitor); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1832, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_monitor); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1827, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_get_tool); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1832, __pyx_L1_error)
+  __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_get_tool); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1827, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_monitor); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1832, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_monitor); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1827, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_DEBUGGER_ID); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1832, __pyx_L1_error)
+  __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_DEBUGGER_ID); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1827, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
   __pyx_t_2 = NULL;
@@ -30033,15 +29957,15 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
     __pyx_t_1 = __Pyx_PyObject_FastCall(__pyx_t_3, __pyx_callargs+1-__pyx_t_5, 1+__pyx_t_5);
     __Pyx_XDECREF(__pyx_t_2); __pyx_t_2 = 0;
     __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-    if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1832, __pyx_L1_error)
+    if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1827, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
   }
-  __pyx_t_6 = (__Pyx_PyString_Equals(__pyx_t_1, __pyx_n_s_pydevd, Py_NE)); if (unlikely((__pyx_t_6 < 0))) __PYX_ERR(0, 1832, __pyx_L1_error)
+  __pyx_t_6 = (__Pyx_PyString_Equals(__pyx_t_1, __pyx_n_s_pydevd, Py_NE)); if (unlikely((__pyx_t_6 < 0))) __PYX_ERR(0, 1827, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
   if (__pyx_t_6) {
 
-    /* "_pydevd_sys_monitoring_cython.pyx":1834
+    /* "_pydevd_sys_monitoring_cython.pyx":1829
  *     if monitor.get_tool(monitor.DEBUGGER_ID) != "pydevd":
  *         # It is still not initialized.
  *         return             # <<<<<<<<<<<<<<
@@ -30052,7 +29976,7 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
     __pyx_r = Py_None; __Pyx_INCREF(Py_None);
     goto __pyx_L0;
 
-    /* "_pydevd_sys_monitoring_cython.pyx":1832
+    /* "_pydevd_sys_monitoring_cython.pyx":1827
  *     :param suspend: means the user requested threads to be suspended
  *     """
  *     if monitor.get_tool(monitor.DEBUGGER_ID) != "pydevd":             # <<<<<<<<<<<<<<
@@ -30061,22 +29985,22 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
  */
   }
 
-  /* "_pydevd_sys_monitoring_cython.pyx":1838
+  /* "_pydevd_sys_monitoring_cython.pyx":1833
  *     # When breakpoints change we need to update what we want to track based
  *     # on the breakpoints.
  *     py_db = GlobalDebuggerHolder.global_dbg             # <<<<<<<<<<<<<<
  *     if py_db is None:
  *         return
  */
-  __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_GlobalDebuggerHolder); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1838, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_GlobalDebuggerHolder); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1833, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_global_dbg); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1838, __pyx_L1_error)
+  __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_global_dbg); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1833, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
   __pyx_v_py_db = __pyx_t_3;
   __pyx_t_3 = 0;
 
-  /* "_pydevd_sys_monitoring_cython.pyx":1839
+  /* "_pydevd_sys_monitoring_cython.pyx":1834
  *     # on the breakpoints.
  *     py_db = GlobalDebuggerHolder.global_dbg
  *     if py_db is None:             # <<<<<<<<<<<<<<
@@ -30086,7 +30010,7 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
   __pyx_t_6 = (__pyx_v_py_db == Py_None);
   if (__pyx_t_6) {
 
-    /* "_pydevd_sys_monitoring_cython.pyx":1840
+    /* "_pydevd_sys_monitoring_cython.pyx":1835
  *     py_db = GlobalDebuggerHolder.global_dbg
  *     if py_db is None:
  *         return             # <<<<<<<<<<<<<<
@@ -30097,7 +30021,7 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
     __pyx_r = Py_None; __Pyx_INCREF(Py_None);
     goto __pyx_L0;
 
-    /* "_pydevd_sys_monitoring_cython.pyx":1839
+    /* "_pydevd_sys_monitoring_cython.pyx":1834
  *     # on the breakpoints.
  *     py_db = GlobalDebuggerHolder.global_dbg
  *     if py_db is None:             # <<<<<<<<<<<<<<
@@ -30106,7 +30030,7 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
  */
   }
 
-  /* "_pydevd_sys_monitoring_cython.pyx":1842
+  /* "_pydevd_sys_monitoring_cython.pyx":1837
  *         return
  * 
  *     if suspend_requested is None:             # <<<<<<<<<<<<<<
@@ -30116,7 +30040,7 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
   __pyx_t_6 = (__pyx_v_suspend_requested == Py_None);
   if (__pyx_t_6) {
 
-    /* "_pydevd_sys_monitoring_cython.pyx":1843
+    /* "_pydevd_sys_monitoring_cython.pyx":1838
  * 
  *     if suspend_requested is None:
  *         suspend_requested = False             # <<<<<<<<<<<<<<
@@ -30126,16 +30050,16 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
     __Pyx_INCREF(Py_False);
     __Pyx_DECREF_SET(__pyx_v_suspend_requested, Py_False);
 
-    /* "_pydevd_sys_monitoring_cython.pyx":1845
+    /* "_pydevd_sys_monitoring_cython.pyx":1840
  *         suspend_requested = False
  * 
  *         for t in threading.enumerate():             # <<<<<<<<<<<<<<
  *             if getattr(t, "pydev_do_not_trace", False):
  *                 continue
  */
-    __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_threading); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1845, __pyx_L1_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_threading); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1840, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
-    __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_enumerate); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1845, __pyx_L1_error)
+    __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_enumerate); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1840, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_4);
     __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
     __pyx_t_1 = NULL;
@@ -30156,7 +30080,7 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
       PyObject *__pyx_callargs[2] = {__pyx_t_1, NULL};
       __pyx_t_3 = __Pyx_PyObject_FastCall(__pyx_t_4, __pyx_callargs+1-__pyx_t_5, 0+__pyx_t_5);
       __Pyx_XDECREF(__pyx_t_1); __pyx_t_1 = 0;
-      if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1845, __pyx_L1_error)
+      if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1840, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_3);
       __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
     }
@@ -30165,9 +30089,9 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
       __pyx_t_7 = 0;
       __pyx_t_8 = NULL;
     } else {
-      __pyx_t_7 = -1; __pyx_t_4 = PyObject_GetIter(__pyx_t_3); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1845, __pyx_L1_error)
+      __pyx_t_7 = -1; __pyx_t_4 = PyObject_GetIter(__pyx_t_3); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1840, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_4);
-      __pyx_t_8 = __Pyx_PyObject_GetIterNextFunc(__pyx_t_4); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 1845, __pyx_L1_error)
+      __pyx_t_8 = __Pyx_PyObject_GetIterNextFunc(__pyx_t_4); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 1840, __pyx_L1_error)
     }
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
     for (;;) {
@@ -30176,28 +30100,28 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
           {
             Py_ssize_t __pyx_temp = __Pyx_PyList_GET_SIZE(__pyx_t_4);
             #if !CYTHON_ASSUME_SAFE_MACROS
-            if (unlikely((__pyx_temp < 0))) __PYX_ERR(0, 1845, __pyx_L1_error)
+            if (unlikely((__pyx_temp < 0))) __PYX_ERR(0, 1840, __pyx_L1_error)
             #endif
             if (__pyx_t_7 >= __pyx_temp) break;
           }
           #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
-          __pyx_t_3 = PyList_GET_ITEM(__pyx_t_4, __pyx_t_7); __Pyx_INCREF(__pyx_t_3); __pyx_t_7++; if (unlikely((0 < 0))) __PYX_ERR(0, 1845, __pyx_L1_error)
+          __pyx_t_3 = PyList_GET_ITEM(__pyx_t_4, __pyx_t_7); __Pyx_INCREF(__pyx_t_3); __pyx_t_7++; if (unlikely((0 < 0))) __PYX_ERR(0, 1840, __pyx_L1_error)
           #else
-          __pyx_t_3 = __Pyx_PySequence_ITEM(__pyx_t_4, __pyx_t_7); __pyx_t_7++; if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1845, __pyx_L1_error)
+          __pyx_t_3 = __Pyx_PySequence_ITEM(__pyx_t_4, __pyx_t_7); __pyx_t_7++; if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1840, __pyx_L1_error)
           __Pyx_GOTREF(__pyx_t_3);
           #endif
         } else {
           {
             Py_ssize_t __pyx_temp = __Pyx_PyTuple_GET_SIZE(__pyx_t_4);
             #if !CYTHON_ASSUME_SAFE_MACROS
-            if (unlikely((__pyx_temp < 0))) __PYX_ERR(0, 1845, __pyx_L1_error)
+            if (unlikely((__pyx_temp < 0))) __PYX_ERR(0, 1840, __pyx_L1_error)
             #endif
             if (__pyx_t_7 >= __pyx_temp) break;
           }
           #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
-          __pyx_t_3 = PyTuple_GET_ITEM(__pyx_t_4, __pyx_t_7); __Pyx_INCREF(__pyx_t_3); __pyx_t_7++; if (unlikely((0 < 0))) __PYX_ERR(0, 1845, __pyx_L1_error)
+          __pyx_t_3 = PyTuple_GET_ITEM(__pyx_t_4, __pyx_t_7); __Pyx_INCREF(__pyx_t_3); __pyx_t_7++; if (unlikely((0 < 0))) __PYX_ERR(0, 1840, __pyx_L1_error)
           #else
-          __pyx_t_3 = __Pyx_PySequence_ITEM(__pyx_t_4, __pyx_t_7); __pyx_t_7++; if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1845, __pyx_L1_error)
+          __pyx_t_3 = __Pyx_PySequence_ITEM(__pyx_t_4, __pyx_t_7); __pyx_t_7++; if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1840, __pyx_L1_error)
           __Pyx_GOTREF(__pyx_t_3);
           #endif
         }
@@ -30207,7 +30131,7 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
           PyObject* exc_type = PyErr_Occurred();
           if (exc_type) {
             if (likely(__Pyx_PyErr_GivenExceptionMatches(exc_type, PyExc_StopIteration))) PyErr_Clear();
-            else __PYX_ERR(0, 1845, __pyx_L1_error)
+            else __PYX_ERR(0, 1840, __pyx_L1_error)
           }
           break;
         }
@@ -30216,20 +30140,20 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
       __Pyx_XDECREF_SET(__pyx_v_t, __pyx_t_3);
       __pyx_t_3 = 0;
 
-      /* "_pydevd_sys_monitoring_cython.pyx":1846
+      /* "_pydevd_sys_monitoring_cython.pyx":1841
  * 
  *         for t in threading.enumerate():
  *             if getattr(t, "pydev_do_not_trace", False):             # <<<<<<<<<<<<<<
  *                 continue
  *             try:
  */
-      __pyx_t_3 = __Pyx_GetAttr3(__pyx_v_t, __pyx_n_s_pydev_do_not_trace, Py_False); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1846, __pyx_L1_error)
+      __pyx_t_3 = __Pyx_GetAttr3(__pyx_v_t, __pyx_n_s_pydev_do_not_trace, Py_False); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1841, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_3);
-      __pyx_t_6 = __Pyx_PyObject_IsTrue(__pyx_t_3); if (unlikely((__pyx_t_6 < 0))) __PYX_ERR(0, 1846, __pyx_L1_error)
+      __pyx_t_6 = __Pyx_PyObject_IsTrue(__pyx_t_3); if (unlikely((__pyx_t_6 < 0))) __PYX_ERR(0, 1841, __pyx_L1_error)
       __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
       if (__pyx_t_6) {
 
-        /* "_pydevd_sys_monitoring_cython.pyx":1847
+        /* "_pydevd_sys_monitoring_cython.pyx":1842
  *         for t in threading.enumerate():
  *             if getattr(t, "pydev_do_not_trace", False):
  *                 continue             # <<<<<<<<<<<<<<
@@ -30238,7 +30162,7 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
  */
         goto __pyx_L6_continue;
 
-        /* "_pydevd_sys_monitoring_cython.pyx":1846
+        /* "_pydevd_sys_monitoring_cython.pyx":1841
  * 
  *         for t in threading.enumerate():
  *             if getattr(t, "pydev_do_not_trace", False):             # <<<<<<<<<<<<<<
@@ -30247,7 +30171,7 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
  */
       }
 
-      /* "_pydevd_sys_monitoring_cython.pyx":1848
+      /* "_pydevd_sys_monitoring_cython.pyx":1843
  *             if getattr(t, "pydev_do_not_trace", False):
  *                 continue
  *             try:             # <<<<<<<<<<<<<<
@@ -30263,19 +30187,19 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
         __Pyx_XGOTREF(__pyx_t_11);
         /*try:*/ {
 
-          /* "_pydevd_sys_monitoring_cython.pyx":1849
+          /* "_pydevd_sys_monitoring_cython.pyx":1844
  *                 continue
  *             try:
  *                 additional_info = t.additional_info             # <<<<<<<<<<<<<<
  *                 if additional_info is None:
  *                     # i.e.: if we don't have it then it makes no sense to check if it was suspended or is stepping
  */
-          __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_v_t, __pyx_n_s_additional_info); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1849, __pyx_L9_error)
+          __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_v_t, __pyx_n_s_additional_info); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1844, __pyx_L9_error)
           __Pyx_GOTREF(__pyx_t_3);
           __Pyx_XDECREF_SET(__pyx_v_additional_info, __pyx_t_3);
           __pyx_t_3 = 0;
 
-          /* "_pydevd_sys_monitoring_cython.pyx":1850
+          /* "_pydevd_sys_monitoring_cython.pyx":1845
  *             try:
  *                 additional_info = t.additional_info
  *                 if additional_info is None:             # <<<<<<<<<<<<<<
@@ -30285,7 +30209,7 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
           __pyx_t_6 = (__pyx_v_additional_info == Py_None);
           if (__pyx_t_6) {
 
-            /* "_pydevd_sys_monitoring_cython.pyx":1852
+            /* "_pydevd_sys_monitoring_cython.pyx":1847
  *                 if additional_info is None:
  *                     # i.e.: if we don't have it then it makes no sense to check if it was suspended or is stepping
  *                     continue             # <<<<<<<<<<<<<<
@@ -30294,7 +30218,7 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
  */
             goto __pyx_L15_try_continue;
 
-            /* "_pydevd_sys_monitoring_cython.pyx":1850
+            /* "_pydevd_sys_monitoring_cython.pyx":1845
  *             try:
  *                 additional_info = t.additional_info
  *                 if additional_info is None:             # <<<<<<<<<<<<<<
@@ -30303,7 +30227,7 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
  */
           }
 
-          /* "_pydevd_sys_monitoring_cython.pyx":1848
+          /* "_pydevd_sys_monitoring_cython.pyx":1843
  *             if getattr(t, "pydev_do_not_trace", False):
  *                 continue
  *             try:             # <<<<<<<<<<<<<<
@@ -30320,7 +30244,7 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
         __Pyx_XDECREF(__pyx_t_2); __pyx_t_2 = 0;
         __Pyx_XDECREF(__pyx_t_3); __pyx_t_3 = 0;
 
-        /* "_pydevd_sys_monitoring_cython.pyx":1853
+        /* "_pydevd_sys_monitoring_cython.pyx":1848
  *                     # i.e.: if we don't have it then it makes no sense to check if it was suspended or is stepping
  *                     continue
  *             except AttributeError:             # <<<<<<<<<<<<<<
@@ -30330,12 +30254,12 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
         __pyx_t_12 = __Pyx_PyErr_ExceptionMatches(__pyx_builtin_AttributeError);
         if (__pyx_t_12) {
           __Pyx_AddTraceback("_pydevd_sys_monitoring_cython.update_monitor_events", __pyx_clineno, __pyx_lineno, __pyx_filename);
-          if (__Pyx_GetException(&__pyx_t_3, &__pyx_t_1, &__pyx_t_2) < 0) __PYX_ERR(0, 1853, __pyx_L11_except_error)
+          if (__Pyx_GetException(&__pyx_t_3, &__pyx_t_1, &__pyx_t_2) < 0) __PYX_ERR(0, 1848, __pyx_L11_except_error)
           __Pyx_XGOTREF(__pyx_t_3);
           __Pyx_XGOTREF(__pyx_t_1);
           __Pyx_XGOTREF(__pyx_t_2);
 
-          /* "_pydevd_sys_monitoring_cython.pyx":1854
+          /* "_pydevd_sys_monitoring_cython.pyx":1849
  *                     continue
  *             except AttributeError:
  *                 continue             # <<<<<<<<<<<<<<
@@ -30351,7 +30275,7 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
         }
         goto __pyx_L11_except_error;
 
-        /* "_pydevd_sys_monitoring_cython.pyx":1848
+        /* "_pydevd_sys_monitoring_cython.pyx":1843
  *             if getattr(t, "pydev_do_not_trace", False):
  *                 continue
  *             try:             # <<<<<<<<<<<<<<
@@ -30373,31 +30297,31 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
         __pyx_L16_try_end:;
       }
 
-      /* "_pydevd_sys_monitoring_cython.pyx":1855
+      /* "_pydevd_sys_monitoring_cython.pyx":1850
  *             except AttributeError:
  *                 continue
  *             if additional_info.pydev_step_cmd != -1 or additional_info.pydev_state == 2:             # <<<<<<<<<<<<<<
  *                 suspend_requested = True
  *                 break
  */
-      __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_additional_info, __pyx_n_s_pydev_step_cmd); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1855, __pyx_L1_error)
+      __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_additional_info, __pyx_n_s_pydev_step_cmd); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1850, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_2);
-      __pyx_t_13 = (__Pyx_PyInt_BoolNeObjC(__pyx_t_2, __pyx_int_neg_1, -1L, 0)); if (unlikely((__pyx_t_13 < 0))) __PYX_ERR(0, 1855, __pyx_L1_error)
+      __pyx_t_13 = (__Pyx_PyInt_BoolNeObjC(__pyx_t_2, __pyx_int_neg_1, -1L, 0)); if (unlikely((__pyx_t_13 < 0))) __PYX_ERR(0, 1850, __pyx_L1_error)
       __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
       if (!__pyx_t_13) {
       } else {
         __pyx_t_6 = __pyx_t_13;
         goto __pyx_L21_bool_binop_done;
       }
-      __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_additional_info, __pyx_n_s_pydev_state); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1855, __pyx_L1_error)
+      __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_additional_info, __pyx_n_s_pydev_state); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1850, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_2);
-      __pyx_t_13 = (__Pyx_PyInt_BoolEqObjC(__pyx_t_2, __pyx_int_2, 2, 0)); if (unlikely((__pyx_t_13 < 0))) __PYX_ERR(0, 1855, __pyx_L1_error)
+      __pyx_t_13 = (__Pyx_PyInt_BoolEqObjC(__pyx_t_2, __pyx_int_2, 2, 0)); if (unlikely((__pyx_t_13 < 0))) __PYX_ERR(0, 1850, __pyx_L1_error)
       __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
       __pyx_t_6 = __pyx_t_13;
       __pyx_L21_bool_binop_done:;
       if (__pyx_t_6) {
 
-        /* "_pydevd_sys_monitoring_cython.pyx":1856
+        /* "_pydevd_sys_monitoring_cython.pyx":1851
  *                 continue
  *             if additional_info.pydev_step_cmd != -1 or additional_info.pydev_state == 2:
  *                 suspend_requested = True             # <<<<<<<<<<<<<<
@@ -30407,7 +30331,7 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
         __Pyx_INCREF(Py_True);
         __Pyx_DECREF_SET(__pyx_v_suspend_requested, Py_True);
 
-        /* "_pydevd_sys_monitoring_cython.pyx":1857
+        /* "_pydevd_sys_monitoring_cython.pyx":1852
  *             if additional_info.pydev_step_cmd != -1 or additional_info.pydev_state == 2:
  *                 suspend_requested = True
  *                 break             # <<<<<<<<<<<<<<
@@ -30416,7 +30340,7 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
  */
         goto __pyx_L7_break;
 
-        /* "_pydevd_sys_monitoring_cython.pyx":1855
+        /* "_pydevd_sys_monitoring_cython.pyx":1850
  *             except AttributeError:
  *                 continue
  *             if additional_info.pydev_step_cmd != -1 or additional_info.pydev_state == 2:             # <<<<<<<<<<<<<<
@@ -30425,7 +30349,7 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
  */
       }
 
-      /* "_pydevd_sys_monitoring_cython.pyx":1845
+      /* "_pydevd_sys_monitoring_cython.pyx":1840
  *         suspend_requested = False
  * 
  *         for t in threading.enumerate():             # <<<<<<<<<<<<<<
@@ -30441,7 +30365,7 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
     goto __pyx_L23_for_end;
     __pyx_L23_for_end:;
 
-    /* "_pydevd_sys_monitoring_cython.pyx":1842
+    /* "_pydevd_sys_monitoring_cython.pyx":1837
  *         return
  * 
  *     if suspend_requested is None:             # <<<<<<<<<<<<<<
@@ -30450,7 +30374,7 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
  */
   }
 
-  /* "_pydevd_sys_monitoring_cython.pyx":1859
+  /* "_pydevd_sys_monitoring_cython.pyx":1854
  *                 break
  * 
  *     required_events = 0             # <<<<<<<<<<<<<<
@@ -30460,16 +30384,16 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
   __Pyx_INCREF(__pyx_int_0);
   __pyx_v_required_events = __pyx_int_0;
 
-  /* "_pydevd_sys_monitoring_cython.pyx":1862
+  /* "_pydevd_sys_monitoring_cython.pyx":1857
  * 
  *     has_caught_exception_breakpoint_in_pydb = (
  *         py_db.break_on_caught_exceptions or py_db.break_on_user_uncaught_exceptions or py_db.has_plugin_exception_breaks             # <<<<<<<<<<<<<<
  *     )
  * 
  */
-  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_py_db, __pyx_n_s_break_on_caught_exceptions); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1862, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_py_db, __pyx_n_s_break_on_caught_exceptions); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1857, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  __pyx_t_6 = __Pyx_PyObject_IsTrue(__pyx_t_2); if (unlikely((__pyx_t_6 < 0))) __PYX_ERR(0, 1862, __pyx_L1_error)
+  __pyx_t_6 = __Pyx_PyObject_IsTrue(__pyx_t_2); if (unlikely((__pyx_t_6 < 0))) __PYX_ERR(0, 1857, __pyx_L1_error)
   if (!__pyx_t_6) {
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
   } else {
@@ -30478,9 +30402,9 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
     goto __pyx_L24_bool_binop_done;
   }
-  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_py_db, __pyx_n_s_break_on_user_uncaught_exception); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1862, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_py_db, __pyx_n_s_break_on_user_uncaught_exception); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1857, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  __pyx_t_6 = __Pyx_PyObject_IsTrue(__pyx_t_2); if (unlikely((__pyx_t_6 < 0))) __PYX_ERR(0, 1862, __pyx_L1_error)
+  __pyx_t_6 = __Pyx_PyObject_IsTrue(__pyx_t_2); if (unlikely((__pyx_t_6 < 0))) __PYX_ERR(0, 1857, __pyx_L1_error)
   if (!__pyx_t_6) {
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
   } else {
@@ -30489,7 +30413,7 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
     goto __pyx_L24_bool_binop_done;
   }
-  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_py_db, __pyx_n_s_has_plugin_exception_breaks); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1862, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_py_db, __pyx_n_s_has_plugin_exception_breaks); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1857, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_INCREF(__pyx_t_2);
   __pyx_t_4 = __pyx_t_2;
@@ -30498,84 +30422,84 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
   __pyx_v_has_caught_exception_breakpoint_in_pydb = __pyx_t_4;
   __pyx_t_4 = 0;
 
-  /* "_pydevd_sys_monitoring_cython.pyx":1865
+  /* "_pydevd_sys_monitoring_cython.pyx":1860
  *     )
  * 
  *     break_on_uncaught_exceptions = py_db.break_on_uncaught_exceptions             # <<<<<<<<<<<<<<
  * 
  *     if has_caught_exception_breakpoint_in_pydb:
  */
-  __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_v_py_db, __pyx_n_s_break_on_uncaught_exceptions); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1865, __pyx_L1_error)
+  __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_v_py_db, __pyx_n_s_break_on_uncaught_exceptions); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1860, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
   __pyx_v_break_on_uncaught_exceptions = __pyx_t_4;
   __pyx_t_4 = 0;
 
-  /* "_pydevd_sys_monitoring_cython.pyx":1867
+  /* "_pydevd_sys_monitoring_cython.pyx":1862
  *     break_on_uncaught_exceptions = py_db.break_on_uncaught_exceptions
  * 
  *     if has_caught_exception_breakpoint_in_pydb:             # <<<<<<<<<<<<<<
  *         required_events |= monitor.events.RAISE | monitor.events.PY_UNWIND
  *         # print('track RAISE')
  */
-  __pyx_t_6 = __Pyx_PyObject_IsTrue(__pyx_v_has_caught_exception_breakpoint_in_pydb); if (unlikely((__pyx_t_6 < 0))) __PYX_ERR(0, 1867, __pyx_L1_error)
+  __pyx_t_6 = __Pyx_PyObject_IsTrue(__pyx_v_has_caught_exception_breakpoint_in_pydb); if (unlikely((__pyx_t_6 < 0))) __PYX_ERR(0, 1862, __pyx_L1_error)
   if (__pyx_t_6) {
 
-    /* "_pydevd_sys_monitoring_cython.pyx":1868
+    /* "_pydevd_sys_monitoring_cython.pyx":1863
  * 
  *     if has_caught_exception_breakpoint_in_pydb:
  *         required_events |= monitor.events.RAISE | monitor.events.PY_UNWIND             # <<<<<<<<<<<<<<
  *         # print('track RAISE')
  *         monitor.register_callback(DEBUGGER_ID, monitor.events.RAISE, _raise_event)
  */
-    __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_monitor); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1868, __pyx_L1_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_monitor); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1863, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_4);
-    __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_events); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1868, __pyx_L1_error)
+    __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_events); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1863, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
     __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-    __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_RAISE); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1868, __pyx_L1_error)
+    __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_RAISE); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1863, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_4);
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-    __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_monitor); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1868, __pyx_L1_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_monitor); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1863, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
-    __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_events); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1868, __pyx_L1_error)
+    __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_events); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1863, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-    __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_PY_UNWIND); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1868, __pyx_L1_error)
+    __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_PY_UNWIND); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1863, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
     __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-    __pyx_t_1 = PyNumber_Or(__pyx_t_4, __pyx_t_2); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1868, __pyx_L1_error)
+    __pyx_t_1 = PyNumber_Or(__pyx_t_4, __pyx_t_2); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1863, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
     __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-    __pyx_t_2 = PyNumber_InPlaceOr(__pyx_v_required_events, __pyx_t_1); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1868, __pyx_L1_error)
+    __pyx_t_2 = PyNumber_InPlaceOr(__pyx_v_required_events, __pyx_t_1); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1863, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
     __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
     __Pyx_DECREF_SET(__pyx_v_required_events, __pyx_t_2);
     __pyx_t_2 = 0;
 
-    /* "_pydevd_sys_monitoring_cython.pyx":1870
+    /* "_pydevd_sys_monitoring_cython.pyx":1865
  *         required_events |= monitor.events.RAISE | monitor.events.PY_UNWIND
  *         # print('track RAISE')
  *         monitor.register_callback(DEBUGGER_ID, monitor.events.RAISE, _raise_event)             # <<<<<<<<<<<<<<
  *         monitor.register_callback(DEBUGGER_ID, monitor.events.PY_UNWIND, _unwind_event)
  *     else:
  */
-    __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_monitor); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1870, __pyx_L1_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_monitor); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1865, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
-    __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_register_callback); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1870, __pyx_L1_error)
+    __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_register_callback); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1865, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_4);
     __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-    __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_DEBUGGER_ID); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1870, __pyx_L1_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_DEBUGGER_ID); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1865, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
-    __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_monitor); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1870, __pyx_L1_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_monitor); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1865, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_3);
-    __pyx_t_14 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_events); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1870, __pyx_L1_error)
+    __pyx_t_14 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_events); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1865, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_14);
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-    __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_14, __pyx_n_s_RAISE); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1870, __pyx_L1_error)
+    __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_14, __pyx_n_s_RAISE); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1865, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_3);
     __Pyx_DECREF(__pyx_t_14); __pyx_t_14 = 0;
-    __pyx_t_14 = __Pyx_CFunc_4904d5__29_pydevd_sys_monitoring_cython_object__lParen__etc_to_py_4code_11instruction_3exc(__pyx_f_29_pydevd_sys_monitoring_cython__raise_event); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1870, __pyx_L1_error)
+    __pyx_t_14 = __Pyx_CFunc_4904d5__29_pydevd_sys_monitoring_cython_object__lParen__etc_to_py_4code_11instruction_3exc(__pyx_f_29_pydevd_sys_monitoring_cython__raise_event); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1865, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_14);
     __pyx_t_15 = NULL;
     __pyx_t_5 = 0;
@@ -30598,35 +30522,35 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
       __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
       __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
       __Pyx_DECREF(__pyx_t_14); __pyx_t_14 = 0;
-      if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1870, __pyx_L1_error)
+      if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1865, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_2);
       __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
     }
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-    /* "_pydevd_sys_monitoring_cython.pyx":1871
+    /* "_pydevd_sys_monitoring_cython.pyx":1866
  *         # print('track RAISE')
  *         monitor.register_callback(DEBUGGER_ID, monitor.events.RAISE, _raise_event)
  *         monitor.register_callback(DEBUGGER_ID, monitor.events.PY_UNWIND, _unwind_event)             # <<<<<<<<<<<<<<
  *     else:
  *         if break_on_uncaught_exceptions:
  */
-    __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_monitor); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1871, __pyx_L1_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_monitor); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1866, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_4);
-    __pyx_t_14 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_register_callback); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1871, __pyx_L1_error)
+    __pyx_t_14 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_register_callback); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1866, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_14);
     __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-    __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_DEBUGGER_ID); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1871, __pyx_L1_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_DEBUGGER_ID); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1866, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_4);
-    __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_monitor); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1871, __pyx_L1_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_monitor); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1866, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_3);
-    __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_events); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1871, __pyx_L1_error)
+    __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_events); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1866, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-    __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_PY_UNWIND); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1871, __pyx_L1_error)
+    __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_PY_UNWIND); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1866, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_3);
     __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-    __pyx_t_1 = __Pyx_CFunc_4904d5__29_pydevd_sys_monitoring_cython_object__lParen__etc_to_py_4code_11instruction_3exc(__pyx_f_29_pydevd_sys_monitoring_cython__unwind_event); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1871, __pyx_L1_error)
+    __pyx_t_1 = __Pyx_CFunc_4904d5__29_pydevd_sys_monitoring_cython_object__lParen__etc_to_py_4code_11instruction_3exc(__pyx_f_29_pydevd_sys_monitoring_cython__unwind_event); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1866, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
     __pyx_t_15 = NULL;
     __pyx_t_5 = 0;
@@ -30649,13 +30573,13 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
       __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
       __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
       __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-      if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1871, __pyx_L1_error)
+      if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1866, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_2);
       __Pyx_DECREF(__pyx_t_14); __pyx_t_14 = 0;
     }
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-    /* "_pydevd_sys_monitoring_cython.pyx":1867
+    /* "_pydevd_sys_monitoring_cython.pyx":1862
  *     break_on_uncaught_exceptions = py_db.break_on_uncaught_exceptions
  * 
  *     if has_caught_exception_breakpoint_in_pydb:             # <<<<<<<<<<<<<<
@@ -30665,7 +30589,7 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
     goto __pyx_L27;
   }
 
-  /* "_pydevd_sys_monitoring_cython.pyx":1873
+  /* "_pydevd_sys_monitoring_cython.pyx":1868
  *         monitor.register_callback(DEBUGGER_ID, monitor.events.PY_UNWIND, _unwind_event)
  *     else:
  *         if break_on_uncaught_exceptions:             # <<<<<<<<<<<<<<
@@ -30673,53 +30597,53 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
  *             monitor.register_callback(DEBUGGER_ID, monitor.events.PY_UNWIND, _unwind_event)
  */
   /*else*/ {
-    __pyx_t_6 = __Pyx_PyObject_IsTrue(__pyx_v_break_on_uncaught_exceptions); if (unlikely((__pyx_t_6 < 0))) __PYX_ERR(0, 1873, __pyx_L1_error)
+    __pyx_t_6 = __Pyx_PyObject_IsTrue(__pyx_v_break_on_uncaught_exceptions); if (unlikely((__pyx_t_6 < 0))) __PYX_ERR(0, 1868, __pyx_L1_error)
     if (__pyx_t_6) {
 
-      /* "_pydevd_sys_monitoring_cython.pyx":1874
+      /* "_pydevd_sys_monitoring_cython.pyx":1869
  *     else:
  *         if break_on_uncaught_exceptions:
  *             required_events |= monitor.events.PY_UNWIND             # <<<<<<<<<<<<<<
  *             monitor.register_callback(DEBUGGER_ID, monitor.events.PY_UNWIND, _unwind_event)
  *         else:
  */
-      __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_monitor); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1874, __pyx_L1_error)
+      __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_monitor); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1869, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_2);
-      __pyx_t_14 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_events); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1874, __pyx_L1_error)
+      __pyx_t_14 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_events); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1869, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_14);
       __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-      __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_14, __pyx_n_s_PY_UNWIND); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1874, __pyx_L1_error)
+      __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_14, __pyx_n_s_PY_UNWIND); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1869, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_2);
       __Pyx_DECREF(__pyx_t_14); __pyx_t_14 = 0;
-      __pyx_t_14 = PyNumber_InPlaceOr(__pyx_v_required_events, __pyx_t_2); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1874, __pyx_L1_error)
+      __pyx_t_14 = PyNumber_InPlaceOr(__pyx_v_required_events, __pyx_t_2); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1869, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_14);
       __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
       __Pyx_DECREF_SET(__pyx_v_required_events, __pyx_t_14);
       __pyx_t_14 = 0;
 
-      /* "_pydevd_sys_monitoring_cython.pyx":1875
+      /* "_pydevd_sys_monitoring_cython.pyx":1870
  *         if break_on_uncaught_exceptions:
  *             required_events |= monitor.events.PY_UNWIND
  *             monitor.register_callback(DEBUGGER_ID, monitor.events.PY_UNWIND, _unwind_event)             # <<<<<<<<<<<<<<
  *         else:
  *             monitor.register_callback(DEBUGGER_ID, monitor.events.RAISE, None)
  */
-      __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_monitor); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1875, __pyx_L1_error)
+      __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_monitor); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1870, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_2);
-      __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_register_callback); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1875, __pyx_L1_error)
+      __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_register_callback); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1870, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_1);
       __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-      __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_DEBUGGER_ID); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1875, __pyx_L1_error)
+      __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_DEBUGGER_ID); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1870, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_2);
-      __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_monitor); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1875, __pyx_L1_error)
+      __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_monitor); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1870, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_3);
-      __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_events); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1875, __pyx_L1_error)
+      __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_events); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1870, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_4);
       __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-      __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_PY_UNWIND); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1875, __pyx_L1_error)
+      __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_PY_UNWIND); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1870, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_3);
       __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-      __pyx_t_4 = __Pyx_CFunc_4904d5__29_pydevd_sys_monitoring_cython_object__lParen__etc_to_py_4code_11instruction_3exc(__pyx_f_29_pydevd_sys_monitoring_cython__unwind_event); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1875, __pyx_L1_error)
+      __pyx_t_4 = __Pyx_CFunc_4904d5__29_pydevd_sys_monitoring_cython_object__lParen__etc_to_py_4code_11instruction_3exc(__pyx_f_29_pydevd_sys_monitoring_cython__unwind_event); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1870, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_4);
       __pyx_t_15 = NULL;
       __pyx_t_5 = 0;
@@ -30742,13 +30666,13 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
         __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
         __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
         __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-        if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1875, __pyx_L1_error)
+        if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1870, __pyx_L1_error)
         __Pyx_GOTREF(__pyx_t_14);
         __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
       }
       __Pyx_DECREF(__pyx_t_14); __pyx_t_14 = 0;
 
-      /* "_pydevd_sys_monitoring_cython.pyx":1873
+      /* "_pydevd_sys_monitoring_cython.pyx":1868
  *         monitor.register_callback(DEBUGGER_ID, monitor.events.PY_UNWIND, _unwind_event)
  *     else:
  *         if break_on_uncaught_exceptions:             # <<<<<<<<<<<<<<
@@ -30758,7 +30682,7 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
       goto __pyx_L28;
     }
 
-    /* "_pydevd_sys_monitoring_cython.pyx":1877
+    /* "_pydevd_sys_monitoring_cython.pyx":1872
  *             monitor.register_callback(DEBUGGER_ID, monitor.events.PY_UNWIND, _unwind_event)
  *         else:
  *             monitor.register_callback(DEBUGGER_ID, monitor.events.RAISE, None)             # <<<<<<<<<<<<<<
@@ -30766,19 +30690,19 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
  * 
  */
     /*else*/ {
-      __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_monitor); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1877, __pyx_L1_error)
+      __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_monitor); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1872, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_1);
-      __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_register_callback); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1877, __pyx_L1_error)
+      __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_register_callback); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1872, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_4);
       __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-      __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_DEBUGGER_ID); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1877, __pyx_L1_error)
+      __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_DEBUGGER_ID); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1872, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_1);
-      __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_monitor); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1877, __pyx_L1_error)
+      __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_monitor); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1872, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_3);
-      __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_events); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1877, __pyx_L1_error)
+      __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_events); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1872, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_2);
       __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-      __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_RAISE); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1877, __pyx_L1_error)
+      __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_RAISE); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1872, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_3);
       __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
       __pyx_t_2 = NULL;
@@ -30801,32 +30725,32 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
         __Pyx_XDECREF(__pyx_t_2); __pyx_t_2 = 0;
         __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
         __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-        if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1877, __pyx_L1_error)
+        if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1872, __pyx_L1_error)
         __Pyx_GOTREF(__pyx_t_14);
         __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
       }
       __Pyx_DECREF(__pyx_t_14); __pyx_t_14 = 0;
 
-      /* "_pydevd_sys_monitoring_cython.pyx":1878
+      /* "_pydevd_sys_monitoring_cython.pyx":1873
  *         else:
  *             monitor.register_callback(DEBUGGER_ID, monitor.events.RAISE, None)
  *             monitor.register_callback(DEBUGGER_ID, monitor.events.PY_UNWIND, None)             # <<<<<<<<<<<<<<
  * 
  *     has_breaks = py_db.has_plugin_line_breaks
  */
-      __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_monitor); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1878, __pyx_L1_error)
+      __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_monitor); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1873, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_4);
-      __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_register_callback); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1878, __pyx_L1_error)
+      __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_register_callback); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1873, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_3);
       __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-      __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_DEBUGGER_ID); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1878, __pyx_L1_error)
+      __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_DEBUGGER_ID); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1873, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_4);
-      __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_monitor); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1878, __pyx_L1_error)
+      __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_monitor); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1873, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_1);
-      __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_events); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1878, __pyx_L1_error)
+      __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_events); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1873, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_2);
       __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-      __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_PY_UNWIND); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1878, __pyx_L1_error)
+      __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_PY_UNWIND); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1873, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_1);
       __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
       __pyx_t_2 = NULL;
@@ -30849,7 +30773,7 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
         __Pyx_XDECREF(__pyx_t_2); __pyx_t_2 = 0;
         __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
         __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-        if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1878, __pyx_L1_error)
+        if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1873, __pyx_L1_error)
         __Pyx_GOTREF(__pyx_t_14);
         __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
       }
@@ -30859,43 +30783,43 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
   }
   __pyx_L27:;
 
-  /* "_pydevd_sys_monitoring_cython.pyx":1880
+  /* "_pydevd_sys_monitoring_cython.pyx":1875
  *             monitor.register_callback(DEBUGGER_ID, monitor.events.PY_UNWIND, None)
  * 
  *     has_breaks = py_db.has_plugin_line_breaks             # <<<<<<<<<<<<<<
  *     if not has_breaks:
  *         if py_db.function_breakpoint_name_to_breakpoint:
  */
-  __pyx_t_14 = __Pyx_PyObject_GetAttrStr(__pyx_v_py_db, __pyx_n_s_has_plugin_line_breaks); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1880, __pyx_L1_error)
+  __pyx_t_14 = __Pyx_PyObject_GetAttrStr(__pyx_v_py_db, __pyx_n_s_has_plugin_line_breaks); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1875, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_14);
   __pyx_v_has_breaks = __pyx_t_14;
   __pyx_t_14 = 0;
 
-  /* "_pydevd_sys_monitoring_cython.pyx":1881
+  /* "_pydevd_sys_monitoring_cython.pyx":1876
  * 
  *     has_breaks = py_db.has_plugin_line_breaks
  *     if not has_breaks:             # <<<<<<<<<<<<<<
  *         if py_db.function_breakpoint_name_to_breakpoint:
  *             has_breaks = True
  */
-  __pyx_t_6 = __Pyx_PyObject_IsTrue(__pyx_v_has_breaks); if (unlikely((__pyx_t_6 < 0))) __PYX_ERR(0, 1881, __pyx_L1_error)
+  __pyx_t_6 = __Pyx_PyObject_IsTrue(__pyx_v_has_breaks); if (unlikely((__pyx_t_6 < 0))) __PYX_ERR(0, 1876, __pyx_L1_error)
   __pyx_t_13 = (!__pyx_t_6);
   if (__pyx_t_13) {
 
-    /* "_pydevd_sys_monitoring_cython.pyx":1882
+    /* "_pydevd_sys_monitoring_cython.pyx":1877
  *     has_breaks = py_db.has_plugin_line_breaks
  *     if not has_breaks:
  *         if py_db.function_breakpoint_name_to_breakpoint:             # <<<<<<<<<<<<<<
  *             has_breaks = True
  *         else:
  */
-    __pyx_t_14 = __Pyx_PyObject_GetAttrStr(__pyx_v_py_db, __pyx_n_s_function_breakpoint_name_to_brea); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1882, __pyx_L1_error)
+    __pyx_t_14 = __Pyx_PyObject_GetAttrStr(__pyx_v_py_db, __pyx_n_s_function_breakpoint_name_to_brea); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1877, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_14);
-    __pyx_t_13 = __Pyx_PyObject_IsTrue(__pyx_t_14); if (unlikely((__pyx_t_13 < 0))) __PYX_ERR(0, 1882, __pyx_L1_error)
+    __pyx_t_13 = __Pyx_PyObject_IsTrue(__pyx_t_14); if (unlikely((__pyx_t_13 < 0))) __PYX_ERR(0, 1877, __pyx_L1_error)
     __Pyx_DECREF(__pyx_t_14); __pyx_t_14 = 0;
     if (__pyx_t_13) {
 
-      /* "_pydevd_sys_monitoring_cython.pyx":1883
+      /* "_pydevd_sys_monitoring_cython.pyx":1878
  *     if not has_breaks:
  *         if py_db.function_breakpoint_name_to_breakpoint:
  *             has_breaks = True             # <<<<<<<<<<<<<<
@@ -30905,7 +30829,7 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
       __Pyx_INCREF(Py_True);
       __Pyx_DECREF_SET(__pyx_v_has_breaks, Py_True);
 
-      /* "_pydevd_sys_monitoring_cython.pyx":1882
+      /* "_pydevd_sys_monitoring_cython.pyx":1877
  *     has_breaks = py_db.has_plugin_line_breaks
  *     if not has_breaks:
  *         if py_db.function_breakpoint_name_to_breakpoint:             # <<<<<<<<<<<<<<
@@ -30915,7 +30839,7 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
       goto __pyx_L30;
     }
 
-    /* "_pydevd_sys_monitoring_cython.pyx":1885
+    /* "_pydevd_sys_monitoring_cython.pyx":1880
  *             has_breaks = True
  *         else:
  *             file_to_line_to_breakpoints = py_db.breakpoints             # <<<<<<<<<<<<<<
@@ -30923,12 +30847,12 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
  *                 if line_to_breakpoints:
  */
     /*else*/ {
-      __pyx_t_14 = __Pyx_PyObject_GetAttrStr(__pyx_v_py_db, __pyx_n_s_breakpoints); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1885, __pyx_L1_error)
+      __pyx_t_14 = __Pyx_PyObject_GetAttrStr(__pyx_v_py_db, __pyx_n_s_breakpoints); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1880, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_14);
       __pyx_v_file_to_line_to_breakpoints = __pyx_t_14;
       __pyx_t_14 = 0;
 
-      /* "_pydevd_sys_monitoring_cython.pyx":1886
+      /* "_pydevd_sys_monitoring_cython.pyx":1881
  *         else:
  *             file_to_line_to_breakpoints = py_db.breakpoints
  *             for line_to_breakpoints in file_to_line_to_breakpoints.values():             # <<<<<<<<<<<<<<
@@ -30938,9 +30862,9 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
       __pyx_t_7 = 0;
       if (unlikely(__pyx_v_file_to_line_to_breakpoints == Py_None)) {
         PyErr_Format(PyExc_AttributeError, "'NoneType' object has no attribute '%.30s'", "values");
-        __PYX_ERR(0, 1886, __pyx_L1_error)
+        __PYX_ERR(0, 1881, __pyx_L1_error)
       }
-      __pyx_t_3 = __Pyx_dict_iterator(__pyx_v_file_to_line_to_breakpoints, 0, __pyx_n_s_values, (&__pyx_t_16), (&__pyx_t_12)); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1886, __pyx_L1_error)
+      __pyx_t_3 = __Pyx_dict_iterator(__pyx_v_file_to_line_to_breakpoints, 0, __pyx_n_s_values, (&__pyx_t_16), (&__pyx_t_12)); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1881, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_3);
       __Pyx_XDECREF(__pyx_t_14);
       __pyx_t_14 = __pyx_t_3;
@@ -30948,22 +30872,22 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
       while (1) {
         __pyx_t_17 = __Pyx_dict_iter_next(__pyx_t_14, __pyx_t_16, &__pyx_t_7, NULL, &__pyx_t_3, NULL, __pyx_t_12);
         if (unlikely(__pyx_t_17 == 0)) break;
-        if (unlikely(__pyx_t_17 == -1)) __PYX_ERR(0, 1886, __pyx_L1_error)
+        if (unlikely(__pyx_t_17 == -1)) __PYX_ERR(0, 1881, __pyx_L1_error)
         __Pyx_GOTREF(__pyx_t_3);
         __Pyx_XDECREF_SET(__pyx_v_line_to_breakpoints, __pyx_t_3);
         __pyx_t_3 = 0;
 
-        /* "_pydevd_sys_monitoring_cython.pyx":1887
+        /* "_pydevd_sys_monitoring_cython.pyx":1882
  *             file_to_line_to_breakpoints = py_db.breakpoints
  *             for line_to_breakpoints in file_to_line_to_breakpoints.values():
  *                 if line_to_breakpoints:             # <<<<<<<<<<<<<<
  *                     has_breaks = True
  *                     break
  */
-        __pyx_t_13 = __Pyx_PyObject_IsTrue(__pyx_v_line_to_breakpoints); if (unlikely((__pyx_t_13 < 0))) __PYX_ERR(0, 1887, __pyx_L1_error)
+        __pyx_t_13 = __Pyx_PyObject_IsTrue(__pyx_v_line_to_breakpoints); if (unlikely((__pyx_t_13 < 0))) __PYX_ERR(0, 1882, __pyx_L1_error)
         if (__pyx_t_13) {
 
-          /* "_pydevd_sys_monitoring_cython.pyx":1888
+          /* "_pydevd_sys_monitoring_cython.pyx":1883
  *             for line_to_breakpoints in file_to_line_to_breakpoints.values():
  *                 if line_to_breakpoints:
  *                     has_breaks = True             # <<<<<<<<<<<<<<
@@ -30973,7 +30897,7 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
           __Pyx_INCREF(Py_True);
           __Pyx_DECREF_SET(__pyx_v_has_breaks, Py_True);
 
-          /* "_pydevd_sys_monitoring_cython.pyx":1889
+          /* "_pydevd_sys_monitoring_cython.pyx":1884
  *                 if line_to_breakpoints:
  *                     has_breaks = True
  *                     break             # <<<<<<<<<<<<<<
@@ -30982,7 +30906,7 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
  */
           goto __pyx_L32_break;
 
-          /* "_pydevd_sys_monitoring_cython.pyx":1887
+          /* "_pydevd_sys_monitoring_cython.pyx":1882
  *             file_to_line_to_breakpoints = py_db.breakpoints
  *             for line_to_breakpoints in file_to_line_to_breakpoints.values():
  *                 if line_to_breakpoints:             # <<<<<<<<<<<<<<
@@ -30996,7 +30920,7 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
     }
     __pyx_L30:;
 
-    /* "_pydevd_sys_monitoring_cython.pyx":1881
+    /* "_pydevd_sys_monitoring_cython.pyx":1876
  * 
  *     has_breaks = py_db.has_plugin_line_breaks
  *     if not has_breaks:             # <<<<<<<<<<<<<<
@@ -31005,80 +30929,80 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
  */
   }
 
-  /* "_pydevd_sys_monitoring_cython.pyx":1891
+  /* "_pydevd_sys_monitoring_cython.pyx":1886
  *                     break
  * 
  *     if has_breaks or suspend_requested:             # <<<<<<<<<<<<<<
  *         # print('track PY_START|PY_RESUME, suspend_requested=', suspend_requested)
  *         required_events |= monitor.events.PY_START | monitor.events.PY_RESUME
  */
-  __pyx_t_6 = __Pyx_PyObject_IsTrue(__pyx_v_has_breaks); if (unlikely((__pyx_t_6 < 0))) __PYX_ERR(0, 1891, __pyx_L1_error)
+  __pyx_t_6 = __Pyx_PyObject_IsTrue(__pyx_v_has_breaks); if (unlikely((__pyx_t_6 < 0))) __PYX_ERR(0, 1886, __pyx_L1_error)
   if (!__pyx_t_6) {
   } else {
     __pyx_t_13 = __pyx_t_6;
     goto __pyx_L35_bool_binop_done;
   }
-  __pyx_t_6 = __Pyx_PyObject_IsTrue(__pyx_v_suspend_requested); if (unlikely((__pyx_t_6 < 0))) __PYX_ERR(0, 1891, __pyx_L1_error)
+  __pyx_t_6 = __Pyx_PyObject_IsTrue(__pyx_v_suspend_requested); if (unlikely((__pyx_t_6 < 0))) __PYX_ERR(0, 1886, __pyx_L1_error)
   __pyx_t_13 = __pyx_t_6;
   __pyx_L35_bool_binop_done:;
   if (__pyx_t_13) {
 
-    /* "_pydevd_sys_monitoring_cython.pyx":1893
+    /* "_pydevd_sys_monitoring_cython.pyx":1888
  *     if has_breaks or suspend_requested:
  *         # print('track PY_START|PY_RESUME, suspend_requested=', suspend_requested)
  *         required_events |= monitor.events.PY_START | monitor.events.PY_RESUME             # <<<<<<<<<<<<<<
  * 
  *         monitor.register_callback(DEBUGGER_ID, monitor.events.PY_START, _start_method_event)
  */
-    __Pyx_GetModuleGlobalName(__pyx_t_14, __pyx_n_s_monitor); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1893, __pyx_L1_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_14, __pyx_n_s_monitor); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1888, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_14);
-    __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_14, __pyx_n_s_events); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1893, __pyx_L1_error)
+    __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_14, __pyx_n_s_events); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1888, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_3);
     __Pyx_DECREF(__pyx_t_14); __pyx_t_14 = 0;
-    __pyx_t_14 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_PY_START); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1893, __pyx_L1_error)
+    __pyx_t_14 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_PY_START); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1888, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_14);
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-    __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_monitor); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1893, __pyx_L1_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_monitor); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1888, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_3);
-    __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_events); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1893, __pyx_L1_error)
+    __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_events); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1888, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-    __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_PY_RESUME); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1893, __pyx_L1_error)
+    __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_PY_RESUME); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1888, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_3);
     __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-    __pyx_t_1 = PyNumber_Or(__pyx_t_14, __pyx_t_3); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1893, __pyx_L1_error)
+    __pyx_t_1 = PyNumber_Or(__pyx_t_14, __pyx_t_3); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1888, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
     __Pyx_DECREF(__pyx_t_14); __pyx_t_14 = 0;
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-    __pyx_t_3 = PyNumber_InPlaceOr(__pyx_v_required_events, __pyx_t_1); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1893, __pyx_L1_error)
+    __pyx_t_3 = PyNumber_InPlaceOr(__pyx_v_required_events, __pyx_t_1); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1888, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_3);
     __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
     __Pyx_DECREF_SET(__pyx_v_required_events, __pyx_t_3);
     __pyx_t_3 = 0;
 
-    /* "_pydevd_sys_monitoring_cython.pyx":1895
+    /* "_pydevd_sys_monitoring_cython.pyx":1890
  *         required_events |= monitor.events.PY_START | monitor.events.PY_RESUME
  * 
  *         monitor.register_callback(DEBUGGER_ID, monitor.events.PY_START, _start_method_event)             # <<<<<<<<<<<<<<
  *         # monitor.register_callback(DEBUGGER_ID, monitor.events.PY_RESUME, _resume_method_event)
  *         monitor.register_callback(DEBUGGER_ID, monitor.events.LINE, _line_event)
  */
-    __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_monitor); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1895, __pyx_L1_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_monitor); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1890, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
-    __pyx_t_14 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_register_callback); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1895, __pyx_L1_error)
+    __pyx_t_14 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_register_callback); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1890, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_14);
     __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-    __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_DEBUGGER_ID); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1895, __pyx_L1_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_DEBUGGER_ID); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1890, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
-    __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_monitor); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1895, __pyx_L1_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_monitor); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1890, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_4);
-    __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_events); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1895, __pyx_L1_error)
+    __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_events); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1890, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
     __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-    __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_PY_START); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1895, __pyx_L1_error)
+    __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_PY_START); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1890, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_4);
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-    __pyx_t_2 = __Pyx_CFunc_893235__29_pydevd_sys_monitoring_cython_object__lParen__etc_to_py_4code_18instruction_offset(__pyx_f_29_pydevd_sys_monitoring_cython__start_method_event); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1895, __pyx_L1_error)
+    __pyx_t_2 = __Pyx_CFunc_893235__29_pydevd_sys_monitoring_cython_object__lParen__etc_to_py_4code_18instruction_offset(__pyx_f_29_pydevd_sys_monitoring_cython__start_method_event); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1890, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
     __pyx_t_15 = NULL;
     __pyx_t_5 = 0;
@@ -31101,35 +31025,35 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
       __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
       __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
       __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-      if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1895, __pyx_L1_error)
+      if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1890, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_3);
       __Pyx_DECREF(__pyx_t_14); __pyx_t_14 = 0;
     }
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
 
-    /* "_pydevd_sys_monitoring_cython.pyx":1897
+    /* "_pydevd_sys_monitoring_cython.pyx":1892
  *         monitor.register_callback(DEBUGGER_ID, monitor.events.PY_START, _start_method_event)
  *         # monitor.register_callback(DEBUGGER_ID, monitor.events.PY_RESUME, _resume_method_event)
  *         monitor.register_callback(DEBUGGER_ID, monitor.events.LINE, _line_event)             # <<<<<<<<<<<<<<
  *         if not IS_PY313_OR_GREATER:
  *             # In Python 3.13+ jump_events aren't necessary as we have a line_event for every
  */
-    __Pyx_GetModuleGlobalName(__pyx_t_14, __pyx_n_s_monitor); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1897, __pyx_L1_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_14, __pyx_n_s_monitor); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1892, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_14);
-    __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_14, __pyx_n_s_register_callback); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1897, __pyx_L1_error)
+    __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_14, __pyx_n_s_register_callback); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1892, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
     __Pyx_DECREF(__pyx_t_14); __pyx_t_14 = 0;
-    __Pyx_GetModuleGlobalName(__pyx_t_14, __pyx_n_s_DEBUGGER_ID); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1897, __pyx_L1_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_14, __pyx_n_s_DEBUGGER_ID); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1892, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_14);
-    __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_monitor); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1897, __pyx_L1_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_monitor); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1892, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_4);
-    __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_events); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1897, __pyx_L1_error)
+    __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_events); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1892, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
     __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-    __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_LINE); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1897, __pyx_L1_error)
+    __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_LINE); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1892, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_4);
     __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-    __pyx_t_1 = __Pyx_CFunc_b0409f__29_pydevd_sys_monitoring_cython_object__lParen__etc_to_py_4code_4line(__pyx_f_29_pydevd_sys_monitoring_cython__line_event); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1897, __pyx_L1_error)
+    __pyx_t_1 = __Pyx_CFunc_b0409f__29_pydevd_sys_monitoring_cython_object__lParen__etc_to_py_4code_4line(__pyx_f_29_pydevd_sys_monitoring_cython__line_event); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1892, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
     __pyx_t_15 = NULL;
     __pyx_t_5 = 0;
@@ -31152,49 +31076,49 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
       __Pyx_DECREF(__pyx_t_14); __pyx_t_14 = 0;
       __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
       __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-      if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1897, __pyx_L1_error)
+      if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1892, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_3);
       __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
     }
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
 
-    /* "_pydevd_sys_monitoring_cython.pyx":1898
+    /* "_pydevd_sys_monitoring_cython.pyx":1893
  *         # monitor.register_callback(DEBUGGER_ID, monitor.events.PY_RESUME, _resume_method_event)
  *         monitor.register_callback(DEBUGGER_ID, monitor.events.LINE, _line_event)
  *         if not IS_PY313_OR_GREATER:             # <<<<<<<<<<<<<<
  *             # In Python 3.13+ jump_events aren't necessary as we have a line_event for every
  *             # jump location.
  */
-    __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_IS_PY313_OR_GREATER); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1898, __pyx_L1_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_IS_PY313_OR_GREATER); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1893, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_3);
-    __pyx_t_13 = __Pyx_PyObject_IsTrue(__pyx_t_3); if (unlikely((__pyx_t_13 < 0))) __PYX_ERR(0, 1898, __pyx_L1_error)
+    __pyx_t_13 = __Pyx_PyObject_IsTrue(__pyx_t_3); if (unlikely((__pyx_t_13 < 0))) __PYX_ERR(0, 1893, __pyx_L1_error)
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
     __pyx_t_6 = (!__pyx_t_13);
     if (__pyx_t_6) {
 
-      /* "_pydevd_sys_monitoring_cython.pyx":1901
+      /* "_pydevd_sys_monitoring_cython.pyx":1896
  *             # In Python 3.13+ jump_events aren't necessary as we have a line_event for every
  *             # jump location.
  *             monitor.register_callback(DEBUGGER_ID, monitor.events.JUMP, _jump_event)             # <<<<<<<<<<<<<<
  *         monitor.register_callback(DEBUGGER_ID, monitor.events.PY_RETURN, _return_event)
  * 
  */
-      __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_monitor); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1901, __pyx_L1_error)
+      __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_monitor); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1896, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_2);
-      __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_register_callback); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1901, __pyx_L1_error)
+      __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_register_callback); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1896, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_1);
       __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-      __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_DEBUGGER_ID); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1901, __pyx_L1_error)
+      __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_DEBUGGER_ID); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1896, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_2);
-      __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_monitor); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1901, __pyx_L1_error)
+      __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_monitor); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1896, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_4);
-      __pyx_t_14 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_events); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1901, __pyx_L1_error)
+      __pyx_t_14 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_events); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1896, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_14);
       __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-      __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_14, __pyx_n_s_JUMP); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1901, __pyx_L1_error)
+      __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_14, __pyx_n_s_JUMP); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1896, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_4);
       __Pyx_DECREF(__pyx_t_14); __pyx_t_14 = 0;
-      __pyx_t_14 = __Pyx_CFunc_7f6725__29_pydevd_sys_monitoring_cython_object__lParen__etc_to_py_4code_11from_offset_9to_offset(__pyx_f_29_pydevd_sys_monitoring_cython__jump_event); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1901, __pyx_L1_error)
+      __pyx_t_14 = __Pyx_CFunc_7f6725__29_pydevd_sys_monitoring_cython_object__lParen__etc_to_py_4code_11from_offset_9to_offset(__pyx_f_29_pydevd_sys_monitoring_cython__jump_event); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1896, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_14);
       __pyx_t_15 = NULL;
       __pyx_t_5 = 0;
@@ -31217,13 +31141,13 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
         __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
         __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
         __Pyx_DECREF(__pyx_t_14); __pyx_t_14 = 0;
-        if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1901, __pyx_L1_error)
+        if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1896, __pyx_L1_error)
         __Pyx_GOTREF(__pyx_t_3);
         __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
       }
       __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
 
-      /* "_pydevd_sys_monitoring_cython.pyx":1898
+      /* "_pydevd_sys_monitoring_cython.pyx":1893
  *         # monitor.register_callback(DEBUGGER_ID, monitor.events.PY_RESUME, _resume_method_event)
  *         monitor.register_callback(DEBUGGER_ID, monitor.events.LINE, _line_event)
  *         if not IS_PY313_OR_GREATER:             # <<<<<<<<<<<<<<
@@ -31232,29 +31156,29 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
  */
     }
 
-    /* "_pydevd_sys_monitoring_cython.pyx":1902
+    /* "_pydevd_sys_monitoring_cython.pyx":1897
  *             # jump location.
  *             monitor.register_callback(DEBUGGER_ID, monitor.events.JUMP, _jump_event)
  *         monitor.register_callback(DEBUGGER_ID, monitor.events.PY_RETURN, _return_event)             # <<<<<<<<<<<<<<
  * 
  *     else:
  */
-    __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_monitor); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1902, __pyx_L1_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_monitor); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1897, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
-    __pyx_t_14 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_register_callback); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1902, __pyx_L1_error)
+    __pyx_t_14 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_register_callback); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1897, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_14);
     __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-    __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_DEBUGGER_ID); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1902, __pyx_L1_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_DEBUGGER_ID); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1897, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
-    __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_monitor); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1902, __pyx_L1_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_monitor); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1897, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_4);
-    __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_events); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1902, __pyx_L1_error)
+    __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_events); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1897, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
     __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-    __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_PY_RETURN); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1902, __pyx_L1_error)
+    __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_PY_RETURN); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1897, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_4);
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-    __pyx_t_2 = __Pyx_CFunc_4904d5__29_pydevd_sys_monitoring_cython_object__lParen__etc_to_py_4code_11instruction_6retval(__pyx_f_29_pydevd_sys_monitoring_cython__return_event); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1902, __pyx_L1_error)
+    __pyx_t_2 = __Pyx_CFunc_4904d5__29_pydevd_sys_monitoring_cython_object__lParen__etc_to_py_4code_11instruction_6retval(__pyx_f_29_pydevd_sys_monitoring_cython__return_event); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1897, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
     __pyx_t_15 = NULL;
     __pyx_t_5 = 0;
@@ -31277,13 +31201,13 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
       __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
       __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
       __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-      if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1902, __pyx_L1_error)
+      if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1897, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_3);
       __Pyx_DECREF(__pyx_t_14); __pyx_t_14 = 0;
     }
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
 
-    /* "_pydevd_sys_monitoring_cython.pyx":1891
+    /* "_pydevd_sys_monitoring_cython.pyx":1886
  *                     break
  * 
  *     if has_breaks or suspend_requested:             # <<<<<<<<<<<<<<
@@ -31293,7 +31217,7 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
     goto __pyx_L34;
   }
 
-  /* "_pydevd_sys_monitoring_cython.pyx":1905
+  /* "_pydevd_sys_monitoring_cython.pyx":1900
  * 
  *     else:
  *         monitor.register_callback(DEBUGGER_ID, monitor.events.PY_START, None)             # <<<<<<<<<<<<<<
@@ -31301,19 +31225,19 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
  *         monitor.register_callback(DEBUGGER_ID, monitor.events.LINE, None)
  */
   /*else*/ {
-    __Pyx_GetModuleGlobalName(__pyx_t_14, __pyx_n_s_monitor); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1905, __pyx_L1_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_14, __pyx_n_s_monitor); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1900, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_14);
-    __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_14, __pyx_n_s_register_callback); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1905, __pyx_L1_error)
+    __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_14, __pyx_n_s_register_callback); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1900, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
     __Pyx_DECREF(__pyx_t_14); __pyx_t_14 = 0;
-    __Pyx_GetModuleGlobalName(__pyx_t_14, __pyx_n_s_DEBUGGER_ID); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1905, __pyx_L1_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_14, __pyx_n_s_DEBUGGER_ID); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1900, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_14);
-    __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_monitor); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1905, __pyx_L1_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_monitor); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1900, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_4);
-    __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_events); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1905, __pyx_L1_error)
+    __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_events); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1900, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
     __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-    __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_PY_START); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1905, __pyx_L1_error)
+    __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_PY_START); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1900, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_4);
     __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
     __pyx_t_1 = NULL;
@@ -31336,32 +31260,32 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
       __Pyx_XDECREF(__pyx_t_1); __pyx_t_1 = 0;
       __Pyx_DECREF(__pyx_t_14); __pyx_t_14 = 0;
       __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-      if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1905, __pyx_L1_error)
+      if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1900, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_3);
       __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
     }
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
 
-    /* "_pydevd_sys_monitoring_cython.pyx":1906
+    /* "_pydevd_sys_monitoring_cython.pyx":1901
  *     else:
  *         monitor.register_callback(DEBUGGER_ID, monitor.events.PY_START, None)
  *         monitor.register_callback(DEBUGGER_ID, monitor.events.PY_RESUME, None)             # <<<<<<<<<<<<<<
  *         monitor.register_callback(DEBUGGER_ID, monitor.events.LINE, None)
  *         monitor.register_callback(DEBUGGER_ID, monitor.events.JUMP, None)
  */
-    __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_monitor); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1906, __pyx_L1_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_monitor); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1901, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
-    __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_register_callback); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1906, __pyx_L1_error)
+    __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_register_callback); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1901, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_4);
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-    __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_DEBUGGER_ID); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1906, __pyx_L1_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_DEBUGGER_ID); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1901, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
-    __Pyx_GetModuleGlobalName(__pyx_t_14, __pyx_n_s_monitor); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1906, __pyx_L1_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_14, __pyx_n_s_monitor); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1901, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_14);
-    __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_14, __pyx_n_s_events); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1906, __pyx_L1_error)
+    __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_14, __pyx_n_s_events); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1901, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
     __Pyx_DECREF(__pyx_t_14); __pyx_t_14 = 0;
-    __pyx_t_14 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_PY_RESUME); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1906, __pyx_L1_error)
+    __pyx_t_14 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_PY_RESUME); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1901, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_14);
     __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
     __pyx_t_1 = NULL;
@@ -31384,32 +31308,32 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
       __Pyx_XDECREF(__pyx_t_1); __pyx_t_1 = 0;
       __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
       __Pyx_DECREF(__pyx_t_14); __pyx_t_14 = 0;
-      if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1906, __pyx_L1_error)
+      if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1901, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_3);
       __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
     }
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
 
-    /* "_pydevd_sys_monitoring_cython.pyx":1907
+    /* "_pydevd_sys_monitoring_cython.pyx":1902
  *         monitor.register_callback(DEBUGGER_ID, monitor.events.PY_START, None)
  *         monitor.register_callback(DEBUGGER_ID, monitor.events.PY_RESUME, None)
  *         monitor.register_callback(DEBUGGER_ID, monitor.events.LINE, None)             # <<<<<<<<<<<<<<
  *         monitor.register_callback(DEBUGGER_ID, monitor.events.JUMP, None)
  *         monitor.register_callback(DEBUGGER_ID, monitor.events.PY_RETURN, None)
  */
-    __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_monitor); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1907, __pyx_L1_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_monitor); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1902, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_4);
-    __pyx_t_14 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_register_callback); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1907, __pyx_L1_error)
+    __pyx_t_14 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_register_callback); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1902, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_14);
     __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-    __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_DEBUGGER_ID); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1907, __pyx_L1_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_DEBUGGER_ID); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1902, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_4);
-    __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_monitor); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1907, __pyx_L1_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_monitor); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1902, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
-    __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_events); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1907, __pyx_L1_error)
+    __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_events); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1902, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-    __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_LINE); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1907, __pyx_L1_error)
+    __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_LINE); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1902, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
     __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
     __pyx_t_1 = NULL;
@@ -31432,32 +31356,32 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
       __Pyx_XDECREF(__pyx_t_1); __pyx_t_1 = 0;
       __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
       __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-      if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1907, __pyx_L1_error)
+      if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1902, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_3);
       __Pyx_DECREF(__pyx_t_14); __pyx_t_14 = 0;
     }
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
 
-    /* "_pydevd_sys_monitoring_cython.pyx":1908
+    /* "_pydevd_sys_monitoring_cython.pyx":1903
  *         monitor.register_callback(DEBUGGER_ID, monitor.events.PY_RESUME, None)
  *         monitor.register_callback(DEBUGGER_ID, monitor.events.LINE, None)
  *         monitor.register_callback(DEBUGGER_ID, monitor.events.JUMP, None)             # <<<<<<<<<<<<<<
  *         monitor.register_callback(DEBUGGER_ID, monitor.events.PY_RETURN, None)
  * 
  */
-    __Pyx_GetModuleGlobalName(__pyx_t_14, __pyx_n_s_monitor); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1908, __pyx_L1_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_14, __pyx_n_s_monitor); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1903, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_14);
-    __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_14, __pyx_n_s_register_callback); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1908, __pyx_L1_error)
+    __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_14, __pyx_n_s_register_callback); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1903, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
     __Pyx_DECREF(__pyx_t_14); __pyx_t_14 = 0;
-    __Pyx_GetModuleGlobalName(__pyx_t_14, __pyx_n_s_DEBUGGER_ID); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1908, __pyx_L1_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_14, __pyx_n_s_DEBUGGER_ID); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1903, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_14);
-    __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_monitor); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1908, __pyx_L1_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_monitor); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1903, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_4);
-    __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_events); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1908, __pyx_L1_error)
+    __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_events); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1903, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
     __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-    __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_JUMP); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1908, __pyx_L1_error)
+    __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_JUMP); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1903, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_4);
     __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
     __pyx_t_1 = NULL;
@@ -31480,32 +31404,32 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
       __Pyx_XDECREF(__pyx_t_1); __pyx_t_1 = 0;
       __Pyx_DECREF(__pyx_t_14); __pyx_t_14 = 0;
       __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-      if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1908, __pyx_L1_error)
+      if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1903, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_3);
       __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
     }
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
 
-    /* "_pydevd_sys_monitoring_cython.pyx":1909
+    /* "_pydevd_sys_monitoring_cython.pyx":1904
  *         monitor.register_callback(DEBUGGER_ID, monitor.events.LINE, None)
  *         monitor.register_callback(DEBUGGER_ID, monitor.events.JUMP, None)
  *         monitor.register_callback(DEBUGGER_ID, monitor.events.PY_RETURN, None)             # <<<<<<<<<<<<<<
  * 
  *     monitor.set_events(DEBUGGER_ID, required_events)
  */
-    __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_monitor); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1909, __pyx_L1_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_monitor); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1904, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
-    __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_register_callback); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1909, __pyx_L1_error)
+    __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_register_callback); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1904, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_4);
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-    __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_DEBUGGER_ID); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1909, __pyx_L1_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_DEBUGGER_ID); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1904, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
-    __Pyx_GetModuleGlobalName(__pyx_t_14, __pyx_n_s_monitor); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1909, __pyx_L1_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_14, __pyx_n_s_monitor); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1904, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_14);
-    __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_14, __pyx_n_s_events); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1909, __pyx_L1_error)
+    __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_14, __pyx_n_s_events); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1904, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
     __Pyx_DECREF(__pyx_t_14); __pyx_t_14 = 0;
-    __pyx_t_14 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_PY_RETURN); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1909, __pyx_L1_error)
+    __pyx_t_14 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_PY_RETURN); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1904, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_14);
     __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
     __pyx_t_1 = NULL;
@@ -31528,7 +31452,7 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
       __Pyx_XDECREF(__pyx_t_1); __pyx_t_1 = 0;
       __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
       __Pyx_DECREF(__pyx_t_14); __pyx_t_14 = 0;
-      if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1909, __pyx_L1_error)
+      if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1904, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_3);
       __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
     }
@@ -31536,19 +31460,19 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
   }
   __pyx_L34:;
 
-  /* "_pydevd_sys_monitoring_cython.pyx":1911
+  /* "_pydevd_sys_monitoring_cython.pyx":1906
  *         monitor.register_callback(DEBUGGER_ID, monitor.events.PY_RETURN, None)
  * 
  *     monitor.set_events(DEBUGGER_ID, required_events)             # <<<<<<<<<<<<<<
  * 
  * 
  */
-  __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_monitor); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1911, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_monitor); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1906, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
-  __pyx_t_14 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_set_events); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1911, __pyx_L1_error)
+  __pyx_t_14 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_set_events); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 1906, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_14);
   __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-  __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_DEBUGGER_ID); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1911, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_DEBUGGER_ID); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1906, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
   __pyx_t_2 = NULL;
   __pyx_t_5 = 0;
@@ -31569,13 +31493,13 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
     __pyx_t_3 = __Pyx_PyObject_FastCall(__pyx_t_14, __pyx_callargs+1-__pyx_t_5, 2+__pyx_t_5);
     __Pyx_XDECREF(__pyx_t_2); __pyx_t_2 = 0;
     __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-    if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1911, __pyx_L1_error)
+    if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1906, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_3);
     __Pyx_DECREF(__pyx_t_14); __pyx_t_14 = 0;
   }
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
 
-  /* "_pydevd_sys_monitoring_cython.pyx":1826
+  /* "_pydevd_sys_monitoring_cython.pyx":1821
  * 
  * 
  * def update_monitor_events(suspend_requested: Optional[bool]=None) -> None:             # <<<<<<<<<<<<<<
@@ -31611,7 +31535,7 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_14update_monitor_event
   return __pyx_r;
 }
 
-/* "_pydevd_sys_monitoring_cython.pyx":1914
+/* "_pydevd_sys_monitoring_cython.pyx":1909
  * 
  * 
  * def restart_events() -> None:             # <<<<<<<<<<<<<<
@@ -31647,16 +31571,16 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_16restart_events(CYTHO
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("restart_events", 1);
 
-  /* "_pydevd_sys_monitoring_cython.pyx":1918
+  /* "_pydevd_sys_monitoring_cython.pyx":1913
  *     # called first, then the line event tracing must be set for existing frames
  *     # and then this function must be called at the end.
  *     monitor.restart_events()             # <<<<<<<<<<<<<<
  * 
  * 
  */
-  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_monitor); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1918, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_monitor); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1913, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_restart_events); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1918, __pyx_L1_error)
+  __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_restart_events); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1913, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
   __pyx_t_2 = NULL;
@@ -31677,13 +31601,13 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_16restart_events(CYTHO
     PyObject *__pyx_callargs[2] = {__pyx_t_2, NULL};
     __pyx_t_1 = __Pyx_PyObject_FastCall(__pyx_t_3, __pyx_callargs+1-__pyx_t_4, 0+__pyx_t_4);
     __Pyx_XDECREF(__pyx_t_2); __pyx_t_2 = 0;
-    if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1918, __pyx_L1_error)
+    if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1913, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
   }
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-  /* "_pydevd_sys_monitoring_cython.pyx":1914
+  /* "_pydevd_sys_monitoring_cython.pyx":1909
  * 
  * 
  * def restart_events() -> None:             # <<<<<<<<<<<<<<
@@ -31706,7 +31630,7 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_16restart_events(CYTHO
   return __pyx_r;
 }
 
-/* "_pydevd_sys_monitoring_cython.pyx":1923
+/* "_pydevd_sys_monitoring_cython.pyx":1918
  * # fmt: off
  * # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
  * cdef _is_same_frame(PyDBAdditionalThreadInfo info, target_frame, current_frame):             # <<<<<<<<<<<<<<
@@ -31728,7 +31652,7 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__is_same_frame(struct _
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("_is_same_frame", 1);
 
-  /* "_pydevd_sys_monitoring_cython.pyx":1928
+  /* "_pydevd_sys_monitoring_cython.pyx":1923
  * # ENDIF
  * # fmt: on
  *     if target_frame is current_frame:             # <<<<<<<<<<<<<<
@@ -31738,7 +31662,7 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__is_same_frame(struct _
   __pyx_t_1 = (__pyx_v_target_frame == __pyx_v_current_frame);
   if (__pyx_t_1) {
 
-    /* "_pydevd_sys_monitoring_cython.pyx":1929
+    /* "_pydevd_sys_monitoring_cython.pyx":1924
  * # fmt: on
  *     if target_frame is current_frame:
  *         return True             # <<<<<<<<<<<<<<
@@ -31750,7 +31674,7 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__is_same_frame(struct _
     __pyx_r = Py_True;
     goto __pyx_L0;
 
-    /* "_pydevd_sys_monitoring_cython.pyx":1928
+    /* "_pydevd_sys_monitoring_cython.pyx":1923
  * # ENDIF
  * # fmt: on
  *     if target_frame is current_frame:             # <<<<<<<<<<<<<<
@@ -31759,7 +31683,7 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__is_same_frame(struct _
  */
   }
 
-  /* "_pydevd_sys_monitoring_cython.pyx":1931
+  /* "_pydevd_sys_monitoring_cython.pyx":1926
  *         return True
  * 
  *     if info.pydev_use_scoped_step_frame:             # <<<<<<<<<<<<<<
@@ -31768,7 +31692,7 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__is_same_frame(struct _
  */
   if (__pyx_v_info->pydev_use_scoped_step_frame) {
 
-    /* "_pydevd_sys_monitoring_cython.pyx":1934
+    /* "_pydevd_sys_monitoring_cython.pyx":1929
  *         # If using scoped step we don't check the target, we just need to check
  *         # if the current matches the same heuristic where the target was defined.
  *         if target_frame is not None and current_frame is not None:             # <<<<<<<<<<<<<<
@@ -31786,43 +31710,43 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__is_same_frame(struct _
     __pyx_L6_bool_binop_done:;
     if (__pyx_t_1) {
 
-      /* "_pydevd_sys_monitoring_cython.pyx":1935
+      /* "_pydevd_sys_monitoring_cython.pyx":1930
  *         # if the current matches the same heuristic where the target was defined.
  *         if target_frame is not None and current_frame is not None:
  *             if target_frame.f_code.co_filename == current_frame.f_code.co_filename:             # <<<<<<<<<<<<<<
  *                 # The co_name may be different (it may include the line number), but
  *                 # the filename must still be the same.
  */
-      __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_v_target_frame, __pyx_n_s_f_code); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1935, __pyx_L1_error)
+      __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_v_target_frame, __pyx_n_s_f_code); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1930, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_3);
-      __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_co_filename); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1935, __pyx_L1_error)
+      __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_co_filename); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1930, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_4);
       __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-      __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_v_current_frame, __pyx_n_s_f_code); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1935, __pyx_L1_error)
+      __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_v_current_frame, __pyx_n_s_f_code); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1930, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_3);
-      __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_co_filename); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 1935, __pyx_L1_error)
+      __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_co_filename); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 1930, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_5);
       __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-      __pyx_t_3 = PyObject_RichCompare(__pyx_t_4, __pyx_t_5, Py_EQ); __Pyx_XGOTREF(__pyx_t_3); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1935, __pyx_L1_error)
+      __pyx_t_3 = PyObject_RichCompare(__pyx_t_4, __pyx_t_5, Py_EQ); __Pyx_XGOTREF(__pyx_t_3); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1930, __pyx_L1_error)
       __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
       __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-      __pyx_t_1 = __Pyx_PyObject_IsTrue(__pyx_t_3); if (unlikely((__pyx_t_1 < 0))) __PYX_ERR(0, 1935, __pyx_L1_error)
+      __pyx_t_1 = __Pyx_PyObject_IsTrue(__pyx_t_3); if (unlikely((__pyx_t_1 < 0))) __PYX_ERR(0, 1930, __pyx_L1_error)
       __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
       if (__pyx_t_1) {
 
-        /* "_pydevd_sys_monitoring_cython.pyx":1938
+        /* "_pydevd_sys_monitoring_cython.pyx":1933
  *                 # The co_name may be different (it may include the line number), but
  *                 # the filename must still be the same.
  *                 f = current_frame.f_back             # <<<<<<<<<<<<<<
  *                 if f is not None and f.f_code.co_name == PYDEVD_IPYTHON_CONTEXT[1]:
  *                     f = f.f_back
  */
-        __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_v_current_frame, __pyx_n_s_f_back); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1938, __pyx_L1_error)
+        __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_v_current_frame, __pyx_n_s_f_back); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1933, __pyx_L1_error)
         __Pyx_GOTREF(__pyx_t_3);
         __pyx_v_f = __pyx_t_3;
         __pyx_t_3 = 0;
 
-        /* "_pydevd_sys_monitoring_cython.pyx":1939
+        /* "_pydevd_sys_monitoring_cython.pyx":1934
  *                 # the filename must still be the same.
  *                 f = current_frame.f_back
  *                 if f is not None and f.f_code.co_name == PYDEVD_IPYTHON_CONTEXT[1]:             # <<<<<<<<<<<<<<
@@ -31835,38 +31759,38 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__is_same_frame(struct _
           __pyx_t_1 = __pyx_t_2;
           goto __pyx_L10_bool_binop_done;
         }
-        __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_v_f, __pyx_n_s_f_code); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1939, __pyx_L1_error)
+        __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_v_f, __pyx_n_s_f_code); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1934, __pyx_L1_error)
         __Pyx_GOTREF(__pyx_t_3);
-        __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_co_name); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 1939, __pyx_L1_error)
+        __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_co_name); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 1934, __pyx_L1_error)
         __Pyx_GOTREF(__pyx_t_5);
         __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-        __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_PYDEVD_IPYTHON_CONTEXT); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1939, __pyx_L1_error)
+        __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_PYDEVD_IPYTHON_CONTEXT); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1934, __pyx_L1_error)
         __Pyx_GOTREF(__pyx_t_3);
-        __pyx_t_4 = __Pyx_GetItemInt(__pyx_t_3, 1, long, 1, __Pyx_PyInt_From_long, 0, 0, 1); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1939, __pyx_L1_error)
+        __pyx_t_4 = __Pyx_GetItemInt(__pyx_t_3, 1, long, 1, __Pyx_PyInt_From_long, 0, 0, 1); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1934, __pyx_L1_error)
         __Pyx_GOTREF(__pyx_t_4);
         __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-        __pyx_t_3 = PyObject_RichCompare(__pyx_t_5, __pyx_t_4, Py_EQ); __Pyx_XGOTREF(__pyx_t_3); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1939, __pyx_L1_error)
+        __pyx_t_3 = PyObject_RichCompare(__pyx_t_5, __pyx_t_4, Py_EQ); __Pyx_XGOTREF(__pyx_t_3); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1934, __pyx_L1_error)
         __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
         __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-        __pyx_t_2 = __Pyx_PyObject_IsTrue(__pyx_t_3); if (unlikely((__pyx_t_2 < 0))) __PYX_ERR(0, 1939, __pyx_L1_error)
+        __pyx_t_2 = __Pyx_PyObject_IsTrue(__pyx_t_3); if (unlikely((__pyx_t_2 < 0))) __PYX_ERR(0, 1934, __pyx_L1_error)
         __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
         __pyx_t_1 = __pyx_t_2;
         __pyx_L10_bool_binop_done:;
         if (__pyx_t_1) {
 
-          /* "_pydevd_sys_monitoring_cython.pyx":1940
+          /* "_pydevd_sys_monitoring_cython.pyx":1935
  *                 f = current_frame.f_back
  *                 if f is not None and f.f_code.co_name == PYDEVD_IPYTHON_CONTEXT[1]:
  *                     f = f.f_back             # <<<<<<<<<<<<<<
  *                     if f is not None and f.f_code.co_name == PYDEVD_IPYTHON_CONTEXT[2]:
  *                         return True
  */
-          __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_v_f, __pyx_n_s_f_back); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1940, __pyx_L1_error)
+          __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_v_f, __pyx_n_s_f_back); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1935, __pyx_L1_error)
           __Pyx_GOTREF(__pyx_t_3);
           __Pyx_DECREF_SET(__pyx_v_f, __pyx_t_3);
           __pyx_t_3 = 0;
 
-          /* "_pydevd_sys_monitoring_cython.pyx":1941
+          /* "_pydevd_sys_monitoring_cython.pyx":1936
  *                 if f is not None and f.f_code.co_name == PYDEVD_IPYTHON_CONTEXT[1]:
  *                     f = f.f_back
  *                     if f is not None and f.f_code.co_name == PYDEVD_IPYTHON_CONTEXT[2]:             # <<<<<<<<<<<<<<
@@ -31879,26 +31803,26 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__is_same_frame(struct _
             __pyx_t_1 = __pyx_t_2;
             goto __pyx_L13_bool_binop_done;
           }
-          __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_v_f, __pyx_n_s_f_code); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1941, __pyx_L1_error)
+          __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_v_f, __pyx_n_s_f_code); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1936, __pyx_L1_error)
           __Pyx_GOTREF(__pyx_t_3);
-          __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_co_name); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1941, __pyx_L1_error)
+          __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_co_name); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 1936, __pyx_L1_error)
           __Pyx_GOTREF(__pyx_t_4);
           __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-          __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_PYDEVD_IPYTHON_CONTEXT); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1941, __pyx_L1_error)
+          __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_PYDEVD_IPYTHON_CONTEXT); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1936, __pyx_L1_error)
           __Pyx_GOTREF(__pyx_t_3);
-          __pyx_t_5 = __Pyx_GetItemInt(__pyx_t_3, 2, long, 1, __Pyx_PyInt_From_long, 0, 0, 1); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 1941, __pyx_L1_error)
+          __pyx_t_5 = __Pyx_GetItemInt(__pyx_t_3, 2, long, 1, __Pyx_PyInt_From_long, 0, 0, 1); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 1936, __pyx_L1_error)
           __Pyx_GOTREF(__pyx_t_5);
           __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-          __pyx_t_3 = PyObject_RichCompare(__pyx_t_4, __pyx_t_5, Py_EQ); __Pyx_XGOTREF(__pyx_t_3); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1941, __pyx_L1_error)
+          __pyx_t_3 = PyObject_RichCompare(__pyx_t_4, __pyx_t_5, Py_EQ); __Pyx_XGOTREF(__pyx_t_3); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 1936, __pyx_L1_error)
           __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
           __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-          __pyx_t_2 = __Pyx_PyObject_IsTrue(__pyx_t_3); if (unlikely((__pyx_t_2 < 0))) __PYX_ERR(0, 1941, __pyx_L1_error)
+          __pyx_t_2 = __Pyx_PyObject_IsTrue(__pyx_t_3); if (unlikely((__pyx_t_2 < 0))) __PYX_ERR(0, 1936, __pyx_L1_error)
           __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
           __pyx_t_1 = __pyx_t_2;
           __pyx_L13_bool_binop_done:;
           if (__pyx_t_1) {
 
-            /* "_pydevd_sys_monitoring_cython.pyx":1942
+            /* "_pydevd_sys_monitoring_cython.pyx":1937
  *                     f = f.f_back
  *                     if f is not None and f.f_code.co_name == PYDEVD_IPYTHON_CONTEXT[2]:
  *                         return True             # <<<<<<<<<<<<<<
@@ -31910,7 +31834,7 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__is_same_frame(struct _
             __pyx_r = Py_True;
             goto __pyx_L0;
 
-            /* "_pydevd_sys_monitoring_cython.pyx":1941
+            /* "_pydevd_sys_monitoring_cython.pyx":1936
  *                 if f is not None and f.f_code.co_name == PYDEVD_IPYTHON_CONTEXT[1]:
  *                     f = f.f_back
  *                     if f is not None and f.f_code.co_name == PYDEVD_IPYTHON_CONTEXT[2]:             # <<<<<<<<<<<<<<
@@ -31919,7 +31843,7 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__is_same_frame(struct _
  */
           }
 
-          /* "_pydevd_sys_monitoring_cython.pyx":1939
+          /* "_pydevd_sys_monitoring_cython.pyx":1934
  *                 # the filename must still be the same.
  *                 f = current_frame.f_back
  *                 if f is not None and f.f_code.co_name == PYDEVD_IPYTHON_CONTEXT[1]:             # <<<<<<<<<<<<<<
@@ -31928,7 +31852,7 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__is_same_frame(struct _
  */
         }
 
-        /* "_pydevd_sys_monitoring_cython.pyx":1935
+        /* "_pydevd_sys_monitoring_cython.pyx":1930
  *         # if the current matches the same heuristic where the target was defined.
  *         if target_frame is not None and current_frame is not None:
  *             if target_frame.f_code.co_filename == current_frame.f_code.co_filename:             # <<<<<<<<<<<<<<
@@ -31937,7 +31861,7 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__is_same_frame(struct _
  */
       }
 
-      /* "_pydevd_sys_monitoring_cython.pyx":1934
+      /* "_pydevd_sys_monitoring_cython.pyx":1929
  *         # If using scoped step we don't check the target, we just need to check
  *         # if the current matches the same heuristic where the target was defined.
  *         if target_frame is not None and current_frame is not None:             # <<<<<<<<<<<<<<
@@ -31946,7 +31870,7 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__is_same_frame(struct _
  */
     }
 
-    /* "_pydevd_sys_monitoring_cython.pyx":1931
+    /* "_pydevd_sys_monitoring_cython.pyx":1926
  *         return True
  * 
  *     if info.pydev_use_scoped_step_frame:             # <<<<<<<<<<<<<<
@@ -31955,7 +31879,7 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__is_same_frame(struct _
  */
   }
 
-  /* "_pydevd_sys_monitoring_cython.pyx":1944
+  /* "_pydevd_sys_monitoring_cython.pyx":1939
  *                         return True
  * 
  *     return False             # <<<<<<<<<<<<<<
@@ -31967,7 +31891,7 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__is_same_frame(struct _
   __pyx_r = Py_False;
   goto __pyx_L0;
 
-  /* "_pydevd_sys_monitoring_cython.pyx":1923
+  /* "_pydevd_sys_monitoring_cython.pyx":1918
  * # fmt: off
  * # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
  * cdef _is_same_frame(PyDBAdditionalThreadInfo info, target_frame, current_frame):             # <<<<<<<<<<<<<<
@@ -31989,7 +31913,7 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__is_same_frame(struct _
   return __pyx_r;
 }
 
-/* "_pydevd_sys_monitoring_cython.pyx":1949
+/* "_pydevd_sys_monitoring_cython.pyx":1944
  * # fmt: off
  * # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
  * def _do_wait_suspend(py_db, ThreadInfo thread_info, frame, event, arg):             # <<<<<<<<<<<<<<
@@ -32062,7 +31986,7 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
           (void)__Pyx_Arg_NewRef_FASTCALL(values[0]);
           kw_args--;
         }
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 1949, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 1944, __pyx_L3_error)
         else goto __pyx_L5_argtuple_error;
         CYTHON_FALLTHROUGH;
         case  1:
@@ -32070,9 +31994,9 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
           (void)__Pyx_Arg_NewRef_FASTCALL(values[1]);
           kw_args--;
         }
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 1949, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 1944, __pyx_L3_error)
         else {
-          __Pyx_RaiseArgtupleInvalid("_do_wait_suspend", 1, 5, 5, 1); __PYX_ERR(0, 1949, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("_do_wait_suspend", 1, 5, 5, 1); __PYX_ERR(0, 1944, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  2:
@@ -32080,9 +32004,9 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
           (void)__Pyx_Arg_NewRef_FASTCALL(values[2]);
           kw_args--;
         }
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 1949, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 1944, __pyx_L3_error)
         else {
-          __Pyx_RaiseArgtupleInvalid("_do_wait_suspend", 1, 5, 5, 2); __PYX_ERR(0, 1949, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("_do_wait_suspend", 1, 5, 5, 2); __PYX_ERR(0, 1944, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  3:
@@ -32090,9 +32014,9 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
           (void)__Pyx_Arg_NewRef_FASTCALL(values[3]);
           kw_args--;
         }
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 1949, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 1944, __pyx_L3_error)
         else {
-          __Pyx_RaiseArgtupleInvalid("_do_wait_suspend", 1, 5, 5, 3); __PYX_ERR(0, 1949, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("_do_wait_suspend", 1, 5, 5, 3); __PYX_ERR(0, 1944, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  4:
@@ -32100,14 +32024,14 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
           (void)__Pyx_Arg_NewRef_FASTCALL(values[4]);
           kw_args--;
         }
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 1949, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 1944, __pyx_L3_error)
         else {
-          __Pyx_RaiseArgtupleInvalid("_do_wait_suspend", 1, 5, 5, 4); __PYX_ERR(0, 1949, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("_do_wait_suspend", 1, 5, 5, 4); __PYX_ERR(0, 1944, __pyx_L3_error)
         }
       }
       if (unlikely(kw_args > 0)) {
         const Py_ssize_t kwd_pos_args = __pyx_nargs;
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "_do_wait_suspend") < 0)) __PYX_ERR(0, 1949, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "_do_wait_suspend") < 0)) __PYX_ERR(0, 1944, __pyx_L3_error)
       }
     } else if (unlikely(__pyx_nargs != 5)) {
       goto __pyx_L5_argtuple_error;
@@ -32126,7 +32050,7 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   }
   goto __pyx_L6_skip;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("_do_wait_suspend", 1, 5, 5, __pyx_nargs); __PYX_ERR(0, 1949, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("_do_wait_suspend", 1, 5, 5, __pyx_nargs); __PYX_ERR(0, 1944, __pyx_L3_error)
   __pyx_L6_skip:;
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L3_error:;
@@ -32140,7 +32064,7 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   __Pyx_RefNannyFinishContext();
   return NULL;
   __pyx_L4_argument_unpacking_done:;
-  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_thread_info), __pyx_ptype_29_pydevd_sys_monitoring_cython_ThreadInfo, 1, "thread_info", 0))) __PYX_ERR(0, 1949, __pyx_L1_error)
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_thread_info), __pyx_ptype_29_pydevd_sys_monitoring_cython_ThreadInfo, 1, "thread_info", 0))) __PYX_ERR(0, 1944, __pyx_L1_error)
   __pyx_r = __pyx_pf_29_pydevd_sys_monitoring_cython_18_do_wait_suspend(__pyx_self, __pyx_v_py_db, __pyx_v_thread_info, __pyx_v_frame, __pyx_v_event, __pyx_v_arg);
 
   /* function exit code */
@@ -32170,7 +32094,7 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_18_do_wait_suspend(CYT
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("_do_wait_suspend", 1);
 
-  /* "_pydevd_sys_monitoring_cython.pyx":1954
+  /* "_pydevd_sys_monitoring_cython.pyx":1949
  * # ENDIF
  * # fmt: on
  *     thread_info.additional_info.trace_suspend_type = "sys_monitor"             # <<<<<<<<<<<<<<
@@ -32183,14 +32107,14 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_18_do_wait_suspend(CYT
   __Pyx_DECREF(__pyx_v_thread_info->additional_info->trace_suspend_type);
   __pyx_v_thread_info->additional_info->trace_suspend_type = __pyx_n_s_sys_monitor;
 
-  /* "_pydevd_sys_monitoring_cython.pyx":1955
+  /* "_pydevd_sys_monitoring_cython.pyx":1950
  * # fmt: on
  *     thread_info.additional_info.trace_suspend_type = "sys_monitor"
  *     py_db.do_wait_suspend(thread_info.thread, frame, event, arg)             # <<<<<<<<<<<<<<
  * 
  * # This can be used to diagnose exceptions inside of the debugger itself.
  */
-  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_py_db, __pyx_n_s_do_wait_suspend_2); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1955, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_py_db, __pyx_n_s_do_wait_suspend_2); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1950, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __pyx_t_3 = NULL;
   __pyx_t_4 = 0;
@@ -32210,13 +32134,13 @@ static PyObject *__pyx_pf_29_pydevd_sys_monitoring_cython_18_do_wait_suspend(CYT
     PyObject *__pyx_callargs[5] = {__pyx_t_3, __pyx_v_thread_info->thread, __pyx_v_frame, __pyx_v_event, __pyx_v_arg};
     __pyx_t_1 = __Pyx_PyObject_FastCall(__pyx_t_2, __pyx_callargs+1-__pyx_t_4, 4+__pyx_t_4);
     __Pyx_XDECREF(__pyx_t_3); __pyx_t_3 = 0;
-    if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1955, __pyx_L1_error)
+    if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1950, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
   }
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-  /* "_pydevd_sys_monitoring_cython.pyx":1949
+  /* "_pydevd_sys_monitoring_cython.pyx":1944
  * # fmt: off
  * # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
  * def _do_wait_suspend(py_db, ThreadInfo thread_info, frame, event, arg):             # <<<<<<<<<<<<<<
@@ -35980,7 +35904,6 @@ static int __Pyx_CreateStringTabAndInitStrings(void) {
     {&__pyx_n_s_make_io_message, __pyx_k_make_io_message, sizeof(__pyx_k_make_io_message), 0, 0, 1, 1},
     {&__pyx_n_s_max, __pyx_k_max, sizeof(__pyx_k_max), 0, 0, 1, 1},
     {&__pyx_n_s_metaclass, __pyx_k_metaclass, sizeof(__pyx_k_metaclass), 0, 0, 1, 1},
-    {&__pyx_n_s_method, __pyx_k_method, sizeof(__pyx_k_method), 0, 0, 1, 1},
     {&__pyx_n_s_min, __pyx_k_min, sizeof(__pyx_k_min), 0, 0, 1, 1},
     {&__pyx_kp_s_module, __pyx_k_module, sizeof(__pyx_k_module), 0, 0, 1, 0},
     {&__pyx_n_s_module_2, __pyx_k_module_2, sizeof(__pyx_k_module_2), 0, 0, 1, 1},
@@ -36413,77 +36336,77 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
  */
   __pyx_codeobj__51 = (PyObject*)__Pyx_PyCode_New(2, 0, 0, 2, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__32, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_stringsource, __pyx_n_s_setstate_cython, 16, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__51)) __PYX_ERR(1, 16, __pyx_L1_error)
 
-  /* "_pydevd_sys_monitoring_cython.pyx":1756
+  /* "_pydevd_sys_monitoring_cython.pyx":1751
  * # fmt: off
  * # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
  * cpdef _ensure_monitoring():             # <<<<<<<<<<<<<<
  * # ELSE
  * # def _ensure_monitoring():
  */
-  __pyx_codeobj__52 = (PyObject*)__Pyx_PyCode_New(0, 0, 0, 0, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_pydevd_sys_monitoring__pydevd_s, __pyx_n_s_ensure_monitoring, 1756, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__52)) __PYX_ERR(0, 1756, __pyx_L1_error)
+  __pyx_codeobj__52 = (PyObject*)__Pyx_PyCode_New(0, 0, 0, 0, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_pydevd_sys_monitoring__pydevd_s, __pyx_n_s_ensure_monitoring, 1751, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__52)) __PYX_ERR(0, 1751, __pyx_L1_error)
 
-  /* "_pydevd_sys_monitoring_cython.pyx":1770
+  /* "_pydevd_sys_monitoring_cython.pyx":1765
  * # fmt: off
  * # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
  * cpdef start_monitoring(bint all_threads=False):             # <<<<<<<<<<<<<<
  *     cdef ThreadInfo thread_info
  * # ELSE
  */
-  __pyx_tuple__53 = PyTuple_Pack(1, __pyx_n_s_all_threads); if (unlikely(!__pyx_tuple__53)) __PYX_ERR(0, 1770, __pyx_L1_error)
+  __pyx_tuple__53 = PyTuple_Pack(1, __pyx_n_s_all_threads); if (unlikely(!__pyx_tuple__53)) __PYX_ERR(0, 1765, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__53);
   __Pyx_GIVEREF(__pyx_tuple__53);
-  __pyx_codeobj__54 = (PyObject*)__Pyx_PyCode_New(1, 0, 0, 1, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__53, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_pydevd_sys_monitoring__pydevd_s, __pyx_n_s_start_monitoring, 1770, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__54)) __PYX_ERR(0, 1770, __pyx_L1_error)
-  __pyx_tuple__55 = PyTuple_Pack(1, Py_False); if (unlikely(!__pyx_tuple__55)) __PYX_ERR(0, 1770, __pyx_L1_error)
+  __pyx_codeobj__54 = (PyObject*)__Pyx_PyCode_New(1, 0, 0, 1, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__53, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_pydevd_sys_monitoring__pydevd_s, __pyx_n_s_start_monitoring, 1765, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__54)) __PYX_ERR(0, 1765, __pyx_L1_error)
+  __pyx_tuple__55 = PyTuple_Pack(1, Py_False); if (unlikely(!__pyx_tuple__55)) __PYX_ERR(0, 1765, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__55);
   __Pyx_GIVEREF(__pyx_tuple__55);
 
-  /* "_pydevd_sys_monitoring_cython.pyx":1798
+  /* "_pydevd_sys_monitoring_cython.pyx":1793
  * # fmt: off
  * # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
  * cpdef stop_monitoring(all_threads=False):             # <<<<<<<<<<<<<<
  *     cdef ThreadInfo thread_info
  * # ELSE
  */
-  __pyx_codeobj__56 = (PyObject*)__Pyx_PyCode_New(1, 0, 0, 1, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__53, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_pydevd_sys_monitoring__pydevd_s, __pyx_n_s_stop_monitoring, 1798, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__56)) __PYX_ERR(0, 1798, __pyx_L1_error)
-  __pyx_tuple__57 = PyTuple_Pack(1, Py_False); if (unlikely(!__pyx_tuple__57)) __PYX_ERR(0, 1798, __pyx_L1_error)
+  __pyx_codeobj__56 = (PyObject*)__Pyx_PyCode_New(1, 0, 0, 1, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__53, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_pydevd_sys_monitoring__pydevd_s, __pyx_n_s_stop_monitoring, 1793, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__56)) __PYX_ERR(0, 1793, __pyx_L1_error)
+  __pyx_tuple__57 = PyTuple_Pack(1, Py_False); if (unlikely(!__pyx_tuple__57)) __PYX_ERR(0, 1793, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__57);
   __Pyx_GIVEREF(__pyx_tuple__57);
 
-  /* "_pydevd_sys_monitoring_cython.pyx":1826
+  /* "_pydevd_sys_monitoring_cython.pyx":1821
  * 
  * 
  * def update_monitor_events(suspend_requested: Optional[bool]=None) -> None:             # <<<<<<<<<<<<<<
  *     """
  *     This should be called when breakpoints change.
  */
-  __pyx_tuple__58 = PyTuple_Pack(10, __pyx_n_s_suspend_requested, __pyx_n_s_py_db, __pyx_n_s_t, __pyx_n_s_additional_info, __pyx_n_s_required_events, __pyx_n_s_has_caught_exception_breakpoint, __pyx_n_s_break_on_uncaught_exceptions, __pyx_n_s_has_breaks, __pyx_n_s_file_to_line_to_breakpoints, __pyx_n_s_line_to_breakpoints); if (unlikely(!__pyx_tuple__58)) __PYX_ERR(0, 1826, __pyx_L1_error)
+  __pyx_tuple__58 = PyTuple_Pack(10, __pyx_n_s_suspend_requested, __pyx_n_s_py_db, __pyx_n_s_t, __pyx_n_s_additional_info, __pyx_n_s_required_events, __pyx_n_s_has_caught_exception_breakpoint, __pyx_n_s_break_on_uncaught_exceptions, __pyx_n_s_has_breaks, __pyx_n_s_file_to_line_to_breakpoints, __pyx_n_s_line_to_breakpoints); if (unlikely(!__pyx_tuple__58)) __PYX_ERR(0, 1821, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__58);
   __Pyx_GIVEREF(__pyx_tuple__58);
-  __pyx_codeobj__59 = (PyObject*)__Pyx_PyCode_New(1, 0, 0, 10, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__58, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_pydevd_sys_monitoring__pydevd_s, __pyx_n_s_update_monitor_events, 1826, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__59)) __PYX_ERR(0, 1826, __pyx_L1_error)
-  __pyx_tuple__60 = PyTuple_Pack(1, Py_None); if (unlikely(!__pyx_tuple__60)) __PYX_ERR(0, 1826, __pyx_L1_error)
+  __pyx_codeobj__59 = (PyObject*)__Pyx_PyCode_New(1, 0, 0, 10, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__58, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_pydevd_sys_monitoring__pydevd_s, __pyx_n_s_update_monitor_events, 1821, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__59)) __PYX_ERR(0, 1821, __pyx_L1_error)
+  __pyx_tuple__60 = PyTuple_Pack(1, Py_None); if (unlikely(!__pyx_tuple__60)) __PYX_ERR(0, 1821, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__60);
   __Pyx_GIVEREF(__pyx_tuple__60);
 
-  /* "_pydevd_sys_monitoring_cython.pyx":1914
+  /* "_pydevd_sys_monitoring_cython.pyx":1909
  * 
  * 
  * def restart_events() -> None:             # <<<<<<<<<<<<<<
  *     # Note: if breakpoints change, update_monitor_events usually needs to be
  *     # called first, then the line event tracing must be set for existing frames
  */
-  __pyx_codeobj__61 = (PyObject*)__Pyx_PyCode_New(0, 0, 0, 0, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_pydevd_sys_monitoring__pydevd_s, __pyx_n_s_restart_events, 1914, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__61)) __PYX_ERR(0, 1914, __pyx_L1_error)
+  __pyx_codeobj__61 = (PyObject*)__Pyx_PyCode_New(0, 0, 0, 0, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_pydevd_sys_monitoring__pydevd_s, __pyx_n_s_restart_events, 1909, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__61)) __PYX_ERR(0, 1909, __pyx_L1_error)
 
-  /* "_pydevd_sys_monitoring_cython.pyx":1949
+  /* "_pydevd_sys_monitoring_cython.pyx":1944
  * # fmt: off
  * # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
  * def _do_wait_suspend(py_db, ThreadInfo thread_info, frame, event, arg):             # <<<<<<<<<<<<<<
  * # ELSE
  * # def _do_wait_suspend(py_db, thread_info, frame, event, arg):
  */
-  __pyx_tuple__62 = PyTuple_Pack(5, __pyx_n_s_py_db, __pyx_n_s_thread_info, __pyx_n_s_frame, __pyx_n_s_event, __pyx_n_s_arg); if (unlikely(!__pyx_tuple__62)) __PYX_ERR(0, 1949, __pyx_L1_error)
+  __pyx_tuple__62 = PyTuple_Pack(5, __pyx_n_s_py_db, __pyx_n_s_thread_info, __pyx_n_s_frame, __pyx_n_s_event, __pyx_n_s_arg); if (unlikely(!__pyx_tuple__62)) __PYX_ERR(0, 1944, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__62);
   __Pyx_GIVEREF(__pyx_tuple__62);
-  __pyx_codeobj__63 = (PyObject*)__Pyx_PyCode_New(5, 0, 0, 5, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__62, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_pydevd_sys_monitoring__pydevd_s, __pyx_n_s_do_wait_suspend, 1949, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__63)) __PYX_ERR(0, 1949, __pyx_L1_error)
+  __pyx_codeobj__63 = (PyObject*)__Pyx_PyCode_New(5, 0, 0, 5, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__62, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_pydevd_sys_monitoring__pydevd_s, __pyx_n_s_do_wait_suspend, 1944, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__63)) __PYX_ERR(0, 1944, __pyx_L1_error)
 
   /* "(tree fragment)":1
  * def __pyx_unpickle_ThreadInfo(__pyx_type, long __pyx_checksum, __pyx_state):             # <<<<<<<<<<<<<<
@@ -38192,90 +38115,90 @@ if (!__Pyx_RefNanny) {
   __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
   PyType_Modified(__pyx_ptype_29_pydevd_sys_monitoring_cython__TryExceptContainerObj);
 
-  /* "_pydevd_sys_monitoring_cython.pyx":1756
+  /* "_pydevd_sys_monitoring_cython.pyx":1751
  * # fmt: off
  * # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
  * cpdef _ensure_monitoring():             # <<<<<<<<<<<<<<
  * # ELSE
  * # def _ensure_monitoring():
  */
-  __pyx_t_7 = __Pyx_CyFunction_New(&__pyx_mdef_29_pydevd_sys_monitoring_cython_9_ensure_monitoring, 0, __pyx_n_s_ensure_monitoring, NULL, __pyx_n_s_pydevd_sys_monitoring_cython, __pyx_d, ((PyObject *)__pyx_codeobj__52)); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 1756, __pyx_L1_error)
+  __pyx_t_7 = __Pyx_CyFunction_New(&__pyx_mdef_29_pydevd_sys_monitoring_cython_9_ensure_monitoring, 0, __pyx_n_s_ensure_monitoring, NULL, __pyx_n_s_pydevd_sys_monitoring_cython, __pyx_d, ((PyObject *)__pyx_codeobj__52)); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 1751, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_7);
-  if (PyDict_SetItem(__pyx_d, __pyx_n_s_ensure_monitoring, __pyx_t_7) < 0) __PYX_ERR(0, 1756, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_d, __pyx_n_s_ensure_monitoring, __pyx_t_7) < 0) __PYX_ERR(0, 1751, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
 
-  /* "_pydevd_sys_monitoring_cython.pyx":1770
+  /* "_pydevd_sys_monitoring_cython.pyx":1765
  * # fmt: off
  * # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
  * cpdef start_monitoring(bint all_threads=False):             # <<<<<<<<<<<<<<
  *     cdef ThreadInfo thread_info
  * # ELSE
  */
-  __pyx_t_7 = __Pyx_CyFunction_New(&__pyx_mdef_29_pydevd_sys_monitoring_cython_11start_monitoring, 0, __pyx_n_s_start_monitoring, NULL, __pyx_n_s_pydevd_sys_monitoring_cython, __pyx_d, ((PyObject *)__pyx_codeobj__54)); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 1770, __pyx_L1_error)
+  __pyx_t_7 = __Pyx_CyFunction_New(&__pyx_mdef_29_pydevd_sys_monitoring_cython_11start_monitoring, 0, __pyx_n_s_start_monitoring, NULL, __pyx_n_s_pydevd_sys_monitoring_cython, __pyx_d, ((PyObject *)__pyx_codeobj__54)); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 1765, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_7);
   __Pyx_CyFunction_SetDefaultsTuple(__pyx_t_7, __pyx_tuple__55);
-  if (PyDict_SetItem(__pyx_d, __pyx_n_s_start_monitoring, __pyx_t_7) < 0) __PYX_ERR(0, 1770, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_d, __pyx_n_s_start_monitoring, __pyx_t_7) < 0) __PYX_ERR(0, 1765, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
 
-  /* "_pydevd_sys_monitoring_cython.pyx":1798
+  /* "_pydevd_sys_monitoring_cython.pyx":1793
  * # fmt: off
  * # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
  * cpdef stop_monitoring(all_threads=False):             # <<<<<<<<<<<<<<
  *     cdef ThreadInfo thread_info
  * # ELSE
  */
-  __pyx_t_7 = __Pyx_CyFunction_New(&__pyx_mdef_29_pydevd_sys_monitoring_cython_13stop_monitoring, 0, __pyx_n_s_stop_monitoring, NULL, __pyx_n_s_pydevd_sys_monitoring_cython, __pyx_d, ((PyObject *)__pyx_codeobj__56)); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 1798, __pyx_L1_error)
+  __pyx_t_7 = __Pyx_CyFunction_New(&__pyx_mdef_29_pydevd_sys_monitoring_cython_13stop_monitoring, 0, __pyx_n_s_stop_monitoring, NULL, __pyx_n_s_pydevd_sys_monitoring_cython, __pyx_d, ((PyObject *)__pyx_codeobj__56)); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 1793, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_7);
   __Pyx_CyFunction_SetDefaultsTuple(__pyx_t_7, __pyx_tuple__57);
-  if (PyDict_SetItem(__pyx_d, __pyx_n_s_stop_monitoring, __pyx_t_7) < 0) __PYX_ERR(0, 1798, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_d, __pyx_n_s_stop_monitoring, __pyx_t_7) < 0) __PYX_ERR(0, 1793, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
 
-  /* "_pydevd_sys_monitoring_cython.pyx":1826
+  /* "_pydevd_sys_monitoring_cython.pyx":1821
  * 
  * 
  * def update_monitor_events(suspend_requested: Optional[bool]=None) -> None:             # <<<<<<<<<<<<<<
  *     """
  *     This should be called when breakpoints change.
  */
-  __pyx_t_7 = __Pyx_PyDict_NewPresized(2); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 1826, __pyx_L1_error)
+  __pyx_t_7 = __Pyx_PyDict_NewPresized(2); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 1821, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_7);
-  if (PyDict_SetItem(__pyx_t_7, __pyx_n_s_suspend_requested, __pyx_kp_s_Optional_bool) < 0) __PYX_ERR(0, 1826, __pyx_L1_error)
-  if (PyDict_SetItem(__pyx_t_7, __pyx_n_s_return, __pyx_n_s_None) < 0) __PYX_ERR(0, 1826, __pyx_L1_error)
-  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_29_pydevd_sys_monitoring_cython_15update_monitor_events, 0, __pyx_n_s_update_monitor_events, NULL, __pyx_n_s_pydevd_sys_monitoring_cython, __pyx_d, ((PyObject *)__pyx_codeobj__59)); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1826, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_t_7, __pyx_n_s_suspend_requested, __pyx_kp_s_Optional_bool) < 0) __PYX_ERR(0, 1821, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_t_7, __pyx_n_s_return, __pyx_n_s_None) < 0) __PYX_ERR(0, 1821, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_29_pydevd_sys_monitoring_cython_15update_monitor_events, 0, __pyx_n_s_update_monitor_events, NULL, __pyx_n_s_pydevd_sys_monitoring_cython, __pyx_d, ((PyObject *)__pyx_codeobj__59)); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1821, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_CyFunction_SetDefaultsTuple(__pyx_t_2, __pyx_tuple__60);
   __Pyx_CyFunction_SetAnnotationsDict(__pyx_t_2, __pyx_t_7);
   __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
-  if (PyDict_SetItem(__pyx_d, __pyx_n_s_update_monitor_events, __pyx_t_2) < 0) __PYX_ERR(0, 1826, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_d, __pyx_n_s_update_monitor_events, __pyx_t_2) < 0) __PYX_ERR(0, 1821, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-  /* "_pydevd_sys_monitoring_cython.pyx":1914
+  /* "_pydevd_sys_monitoring_cython.pyx":1909
  * 
  * 
  * def restart_events() -> None:             # <<<<<<<<<<<<<<
  *     # Note: if breakpoints change, update_monitor_events usually needs to be
  *     # called first, then the line event tracing must be set for existing frames
  */
-  __pyx_t_2 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1914, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1909, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  if (PyDict_SetItem(__pyx_t_2, __pyx_n_s_return, __pyx_n_s_None) < 0) __PYX_ERR(0, 1914, __pyx_L1_error)
-  __pyx_t_7 = __Pyx_CyFunction_New(&__pyx_mdef_29_pydevd_sys_monitoring_cython_17restart_events, 0, __pyx_n_s_restart_events, NULL, __pyx_n_s_pydevd_sys_monitoring_cython, __pyx_d, ((PyObject *)__pyx_codeobj__61)); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 1914, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_t_2, __pyx_n_s_return, __pyx_n_s_None) < 0) __PYX_ERR(0, 1909, __pyx_L1_error)
+  __pyx_t_7 = __Pyx_CyFunction_New(&__pyx_mdef_29_pydevd_sys_monitoring_cython_17restart_events, 0, __pyx_n_s_restart_events, NULL, __pyx_n_s_pydevd_sys_monitoring_cython, __pyx_d, ((PyObject *)__pyx_codeobj__61)); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 1909, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_7);
   __Pyx_CyFunction_SetAnnotationsDict(__pyx_t_7, __pyx_t_2);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  if (PyDict_SetItem(__pyx_d, __pyx_n_s_restart_events, __pyx_t_7) < 0) __PYX_ERR(0, 1914, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_d, __pyx_n_s_restart_events, __pyx_t_7) < 0) __PYX_ERR(0, 1909, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
 
-  /* "_pydevd_sys_monitoring_cython.pyx":1949
+  /* "_pydevd_sys_monitoring_cython.pyx":1944
  * # fmt: off
  * # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
  * def _do_wait_suspend(py_db, ThreadInfo thread_info, frame, event, arg):             # <<<<<<<<<<<<<<
  * # ELSE
  * # def _do_wait_suspend(py_db, thread_info, frame, event, arg):
  */
-  __pyx_t_7 = __Pyx_CyFunction_New(&__pyx_mdef_29_pydevd_sys_monitoring_cython_19_do_wait_suspend, 0, __pyx_n_s_do_wait_suspend, NULL, __pyx_n_s_pydevd_sys_monitoring_cython, __pyx_d, ((PyObject *)__pyx_codeobj__63)); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 1949, __pyx_L1_error)
+  __pyx_t_7 = __Pyx_CyFunction_New(&__pyx_mdef_29_pydevd_sys_monitoring_cython_19_do_wait_suspend, 0, __pyx_n_s_do_wait_suspend, NULL, __pyx_n_s_pydevd_sys_monitoring_cython, __pyx_d, ((PyObject *)__pyx_codeobj__63)); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 1944, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_7);
-  if (PyDict_SetItem(__pyx_d, __pyx_n_s_do_wait_suspend, __pyx_t_7) < 0) __PYX_ERR(0, 1949, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_d, __pyx_n_s_do_wait_suspend, __pyx_t_7) < 0) __PYX_ERR(0, 1944, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
 
   /* "(tree fragment)":1

@@ -1699,11 +1699,6 @@ def _start_method_event(code, instruction_offset):
         #     print('disable (always skip)')
         return monitor.DISABLE
 
-    if thread_info.additional_info.pydev_state == STATE_SUSPEND:
-        # We're already suspended, don't handle any more events on this thread.
-        _do_wait_suspend(py_db, thread_info, frame, "method", None)
-        return
-
     keep_enabled: bool = _enable_code_tracing(py_db, thread_info.additional_info, func_code_info, code, frame, True)
 
     if func_code_info.function_breakpoint_found:
