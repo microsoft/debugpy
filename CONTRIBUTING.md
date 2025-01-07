@@ -171,6 +171,10 @@ That will generate a log from the test run.
 
 Logging the test output can be tricky so here's some information on how to debug the tests.
 
+#### Running pydevd tests inside of VS code
+
+You can also run the pydevd tests inside of VS code using the test explorer (and debug the pytest code). To do so, set PYTHONPATH=. and open the `src/debugpy/_vendored/pydevd` folder in VS code. The test explorer should find all of the pydevd tests.
+
 #### How to add more logging
 
 The pydevd tests log everything to the console and to a text file during the test. If you scroll up in the console, it should show the log file it read the logs from:
