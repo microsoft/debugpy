@@ -152,8 +152,8 @@ def test_source_reference(tmpdir):
 
         pydevd_file_utils.setup_client_server_paths([("C:\\foo", "/bar")])
 
-        assert pydevd_file_utils.map_file_to_client("/bar/my") == ("c:\\foo\\my", True)
-        assert pydevd_file_utils.get_client_filename_source_reference("c:\\foo\\my") == 0
+        assert pydevd_file_utils.map_file_to_client("/bar/my") == ("C:\\foo\\my", True)
+        assert pydevd_file_utils.get_client_filename_source_reference("C:\\foo\\my") == 0
 
         assert pydevd_file_utils.map_file_to_client("/another/my") == ("\\another\\my", False)
         source_reference = pydevd_file_utils.get_client_filename_source_reference("\\another\\my")
