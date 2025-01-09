@@ -653,12 +653,6 @@ def _fix_path(path, sep, add_end_sep=False):
 
     if sep != "/":
         path = path.replace("/", sep)
-
-    if path.startswith("."):
-        # We need the full path if this relative because all comparisons below
-        # check if the path is substring of another
-        path = os.path.realpath(path)
-
     return path
 
 
@@ -753,16 +747,6 @@ def setup_client_server_paths(paths):
         initial_paths_with_end_sep.append((path0, path1))
         paths_from_eclipse_to_python_with_end_sep.append((_normcase_from_client(path0), normcase(path1)))
 
-    if DEBUG_CLIENT_SERVER_TRANSLATION:
-        pydev_log.critical(
-            "pydev debugger: paths_from_eclipse_to_python %s",
-            ", ".join(
-                [
-                    '"%s=>%s"' % (x[0], x[1])
-                    for x in paths_from_eclipse_to_python
-                ]
-            ),
-        )
     # Fix things so that we always match the versions with a slash in the end first.
     initial_paths = initial_paths_with_end_sep + initial_paths
     paths_from_eclipse_to_python = paths_from_eclipse_to_python_with_end_sep + paths_from_eclipse_to_python
