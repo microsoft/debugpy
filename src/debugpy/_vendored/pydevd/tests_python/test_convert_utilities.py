@@ -165,8 +165,9 @@ def test_source_reference(tmpdir):
         root = os.getcwd()
         server_path = os.path.join(root, "bar/my")
 
-        assert pydevd_file_utils.map_file_to_client(server_path) == ("c:\\foo\\my", True)
-        assert pydevd_file_utils.get_client_filename_source_reference("c:\\foo\\my") == 0
+        assert pydevd_file_utils.map_file_to_client(server_path) == ("C:\\foo\\my", True)
+        assert pydevd_file_utils.get_client_filename_source_reference("C:\\foo\\my") == 0
+        assert pydevd_file_utils.map_file_to_server("c:\\foo\\my") == (serverPath, True)
 
 
 @pytest.mark.skipif(sys.platform != "win32", reason="Windows-only test.")
