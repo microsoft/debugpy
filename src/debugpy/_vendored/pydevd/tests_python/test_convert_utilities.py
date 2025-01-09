@@ -150,15 +150,24 @@ def test_source_reference(tmpdir):
         # Client on windows and server on unix
         pydevd_file_utils.set_ide_os("WINDOWS")
 
-        pydevd_file_utils.setup_client_server_paths([("c:\\foo", "/bar")])
+        pydevd_file_utils.setup_client_server_paths([("C:\\foo", "/bar")])
 
-        assert pydevd_file_utils.map_file_to_client("/bar/my") == ("c:\\foo\\my", True)
-        assert pydevd_file_utils.get_client_filename_source_reference("c:\\foo\\my") == 0
+        assert pydevd_file_utils.map_file_to_client("/bar/my") == ("C:\\foo\\my", True)
+        assert pydevd_file_utils.get_client_filename_source_reference("C:\\foo\\my") == 0
 
         assert pydevd_file_utils.map_file_to_client("/another/my") == ("\\another\\my", False)
         source_reference = pydevd_file_utils.get_client_filename_source_reference("\\another\\my")
         assert source_reference != 0
         assert pydevd_file_utils.get_server_filename_from_source_reference(source_reference) == "/another/my"
+
+        # Allow relative paths in the server path
+        pydevd_file_utils.setup_client_server_paths([("C:\\foo", "./bar")])
+        root = os.getcwd()
+        server_path = os.path.join(root, "bar/my")
+
+        assert pydevd_file_utils.map_file_to_client(server_path) == ("C:\\foo\\my", True)
+        assert pydevd_file_utils.get_client_filename_source_reference("C:\\foo\\my") == 0
+        assert pydevd_file_utils.map_file_to_server("c:\\foo\\my") == server_path
 
 
 @pytest.mark.skipif(sys.platform != "win32", reason="Windows-only test.")
