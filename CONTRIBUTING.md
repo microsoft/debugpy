@@ -201,7 +201,7 @@ If you have an existing test failing, you can investigate it by running the test
 - Clone the repo a second time
 - Change the code in `tests_python/debugger_unittest.py` so that the test prints out logs on success too (by default it only logs the output on a failure)
 - Run the failing test in the second clone
-- Run the failing test in your original clone
+- Run the failing test in your original clone (with the --capture=tee-sys so that it outputs the log)
 - Diff the results by finding the log file name in the output and diffing those two files
 - Add more logging around where the differences first appear
 - Repeat running and diffing

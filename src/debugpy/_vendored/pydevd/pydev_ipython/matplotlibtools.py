@@ -12,6 +12,21 @@ backends = {
     "osx": "MacOSX",
 }
 
+lowercase_convert = {
+    "tkagg": "TkAgg",
+    "gtkagg": "GTKAgg",
+    "wxagg": "WXAgg",
+    "qtagg": "QtAgg",
+    "qt4agg": "Qt4Agg",
+    "qt5agg": "Qt5Agg",
+    "qt6agg": "Qt6Agg",
+    "macosx": "MacOSX",
+    "gtk": "GTK",
+    "gtkcairo": "GTKCairo",
+    "wx": "WX",
+    "cocoaagg": "CocoaAgg",
+}
+
 # We also need a reverse backends2guis mapping that will properly choose which
 # GUI support to activate based on the desired matplotlib backend.  For the
 # most part it's just a reverse of the above dict, but we also need to add a
@@ -47,9 +62,14 @@ def find_gui_and_backend():
     matplotlib = sys.modules["matplotlib"]
     # WARNING: this assumes matplotlib 1.1 or newer!!
     backend = matplotlib.rcParams["backend"]
+
+    # Translate to the real case as in 3.9 the case was forced to lowercase
+    # but our internal mapping is in the original case.
+    realcase_backend = lowercase_convert.get(backend, backend)
+
     # In this case, we need to find what the appropriate gui selection call
     # should be for IPython, so we can activate inputhook accordingly
-    gui = backend2gui.get(backend, None)
+    gui = backend2gui.get(realcase_backend, None)
     return gui, backend
 
 
