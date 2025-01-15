@@ -517,7 +517,6 @@ class DebuggerRunner(object):
 
     @contextmanager
     def run_process(self, args, writer):
-        print("RCHIODO -- Running test")
         process = self.create_process(args, writer)
         writer.process = process
         stdout = []
