@@ -191,6 +191,7 @@ class Client(components.Component):
             "supportsSetExpression": True,
             "supportsSetVariable": True,
             "supportsValueFormattingOptions": True,
+            "supportsTerminateDebuggee": True,
             "supportsTerminateRequest": True,
             "supportsGotoTargetsRequest": True,
             "supportsClipboardContext": True,
