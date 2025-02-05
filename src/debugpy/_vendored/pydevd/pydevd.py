@@ -2556,6 +2556,8 @@ class PyDB(object):
         finally:
             if self._client_socket:
                 self._client_socket.close()
+                self._client_socket = None
+
             pydev_log.debug("PyDB.dispose_and_kill_all_pydevd_threads: finished")
 
     def prepare_to_run(self):
