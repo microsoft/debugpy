@@ -726,6 +726,8 @@ class PyDB(object):
 
         self._local_thread_trace_func = threading.local()
 
+        self._client_socket = None
+
         self._server_socket_ready_event = ThreadingEvent()
         self._server_socket_name = None
 
@@ -1504,6 +1506,7 @@ class PyDB(object):
     def connect(self, host, port):
         if host:
             s = start_client(host, port)
+            self._client_socket = s
         else:
             s = start_server(port)
 
@@ -2551,6 +2554,10 @@ class PyDB(object):
             except:
                 pass
         finally:
+            if self._client_socket:
+                self._client_socket.close()
+                self._client_socket = None
+
             pydev_log.debug("PyDB.dispose_and_kill_all_pydevd_threads: finished")
 
     def prepare_to_run(self):
