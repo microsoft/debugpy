@@ -80,7 +80,7 @@ class NetCommand(_BaseNetCommand):
             try:
                 text = json.dumps(as_dict)
             except TypeError:
-                text = json.dumps(as_dict, default=lambda o: str(o))
+                text = json.dumps(as_dict, default=str)
 
         assert isinstance(text, str)
 
