@@ -170,6 +170,8 @@ try:
         # uncomment to generate pdbs for visual studio.
         # extra_compile_args=["-Zi", "/Od"]
         # extra_link_args=["-debug"]
+        extra_compile_args = ["/guard:cf"]
+        extra_link_args = ["/guard:cf", "/DYNAMICBASE"]
 
     kwargs = {}
     if extra_link_args:

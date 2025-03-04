@@ -8,4 +8,4 @@ case $ARCH in
 esac
 
 SRC="$(dirname "$0")/.."
-g++ -std=c++11 -shared -fPIC -nostartfiles $SRC/linux_and_mac/attach.cpp -o $SRC/attach_linux_$SUFFIX.so
+g++ -std=c++11 -shared -fPIC -D_FORTIFY_SOURCE=2 -nostartfiles $SRC/linux_and_mac/attach.cpp -o $SRC/attach_linux_$SUFFIX.so
