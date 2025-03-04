@@ -5,6 +5,6 @@
 ::   [wsl2]
 ::   kernelCommandLine = vsyscall=emulate
 
-docker run --rm -v %~dp0/..:/src quay.io/pypa/manylinux1_x86_64 g++ -std=c++11 -shared -o /src/attach_linux_amd64.so -fPIC -nostartfiles /src/linux_and_mac/attach.cpp
+docker run --rm -v %~dp0/..:/src quay.io/pypa/manylinux1_x86_64 g++ -std=c++11 -D_FORTIFY_SOURCE=2 -shared -o /src/attach_linux_amd64.so -fPIC -nostartfiles /src/linux_and_mac/attach.cpp
 
-docker run --rm -v %~dp0/..:/src quay.io/pypa/manylinux1_i686 g++ -std=c++11 -shared -o /src/attach_linux_x86.so -fPIC -nostartfiles /src/linux_and_mac/attach.cpp
+docker run --rm -v %~dp0/..:/src quay.io/pypa/manylinux1_i686 g++ -std=c++11 -D_FORTIFY_SOURCE=2 -shared -o /src/attach_linux_x86.so -fPIC -nostartfiles /src/linux_and_mac/attach.cpp
