@@ -1223,14 +1223,6 @@ class JsonMessageChannel(object):
             yield seq
             self.stream.write_json(message)
 
-        # Close connection after Debugpy acknowledges a disconnect request.
-        if (
-            message.get("type") == "response"
-            and message.get("command") == "disconnect"
-            and message.get("success", False)
-        ):
-            self.stream.close()
-
     def send_request(self, command, arguments=None, on_before_send=None):
         """Sends a new request, and returns the OutgoingRequest object for it.
 
