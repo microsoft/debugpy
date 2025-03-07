@@ -700,6 +700,12 @@ class Client(components.Component):
                 except Exception:
                     log.swallow_exception()
 
+        # Close the client channel since we disconnected from the client.
+        try:
+            self.channel.close()
+        except Exception:
+            log.swallow_exception(level="warning")
+
     def disconnect(self):
         super().disconnect()
 
