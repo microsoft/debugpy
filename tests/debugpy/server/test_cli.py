@@ -50,7 +50,10 @@ def cli(pyfile):
         }
 
         # Serialize the command line args and the options to stdout
-        os.write(1, pickle.dumps([sys.argv[1:], options]))
+        serialized_data = pickle.dumps([sys.argv[1:], options])
+        os.write(1, serialized_data)
+        # Ensure all data is written before process exits
+        sys.stdout.flush()
 
     def parse(args):
         log.debug("Parsing argv: {0!r}", args)
@@ -58,13 +61,24 @@ def cli(pyfile):
             try:
                 # Run the CLI parser in a subprocess, and capture its output.
                 output = subprocess.check_output(
-                    [sys.executable, "-u", cli_parser.strpath] + args
+                    [sys.executable, "-u", cli_parser.strpath] + args,
+                    stderr=subprocess.PIPE  # Capture stderr to help with debugging
                 )
 
                 # Deserialize the output and return the parsed argv and options.
-                argv, options = pickle.loads(output)
+                try:
+                    argv, options = pickle.loads(output)
+                except Exception as e:
+                    log.debug("Failed to deserialize output: {0}, Output was: {1!r}", e, output)
+                    raise
             except subprocess.CalledProcessError as exc:
-                raise pickle.loads(exc.output)
+                log.debug("Process exited with code {0}. Output: {1!r}, Error: {2!r}", 
+                         exc.returncode, exc.output, exc.stderr)
+                try:
+                    raise pickle.loads(exc.output)
+                except Exception as e:
+                    log.debug("Failed to deserialize error output: {0}, Output was: {1!r}", e, exc.output)
+                    raise
         except EOFError:
             # We may have just been shutting down. If so, return an empty argv and options.
             argv, options = [], {}
