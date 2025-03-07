@@ -74,11 +74,7 @@ def cli(pyfile):
             except subprocess.CalledProcessError as exc:
                 log.debug("Process exited with code {0}. Output: {1!r}, Error: {2!r}", 
                          exc.returncode, exc.output, exc.stderr)
-                try:
-                    raise pickle.loads(exc.output)
-                except Exception as e:
-                    log.debug("Failed to deserialize error output: {0}, Output was: {1!r}", e, exc.output)
-                    raise
+                raise pickle.loads(exc.output)
         except EOFError:
             # We may have just been shutting down. If so, return an empty argv and options.
             argv, options = [], {}
