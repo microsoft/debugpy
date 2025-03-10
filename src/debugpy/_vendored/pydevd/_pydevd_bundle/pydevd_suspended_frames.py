@@ -200,7 +200,7 @@ class _ObjectVariable(_AbstractVariable):
 
         return children_variables
 
-    def change_variable(self, name, value, py_db, fmt=None):
+    def change_variable(self, name, value, py_db, fmt=None, scope: ScopeRequest | None=None):
         children_variable = self.get_child_variable_named(name)
         if children_variable is None:
             return None
@@ -257,7 +257,6 @@ class _FrameVariable(_AbstractVariable):
 
     def change_variable(self, name, value, py_db, fmt=None, scope: ScopeRequest | None=None):
         frame = self.frame
-
         pydevd_vars.change_attr_expression(frame, name, value, py_db, scope=scope)
         return self.get_child_variable_named(name, fmt=fmt, scope=scope)
 
