@@ -200,7 +200,7 @@ class _ObjectVariable(_AbstractVariable):
 
         return children_variables
 
-    def change_variable(self, name, value, py_db, fmt=None):
+    def change_variable(self, name, value, py_db, fmt=None, scope: Optional[ScopeRequest]=None):
         children_variable = self.get_child_variable_named(name)
         if children_variable is None:
             return None
@@ -255,12 +255,10 @@ class _FrameVariable(_AbstractVariable):
         self._register_variable = register_variable
         self._register_variable(self)
 
-    def change_variable(self, name, value, py_db, fmt=None):
+    def change_variable(self, name, value, py_db, fmt=None, scope: Optional[ScopeRequest]=None):
         frame = self.frame
-
-        pydevd_vars.change_attr_expression(frame, name, value, py_db)
-
-        return self.get_child_variable_named(name, fmt=fmt)
+        pydevd_vars.change_attr_expression(frame, name, value, py_db, scope=scope)
+        return self.get_child_variable_named(name, fmt=fmt, scope=scope)
 
     @silence_warnings_decorator
     @overrides(_AbstractVariable.get_children_variables)

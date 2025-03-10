@@ -15,11 +15,12 @@ import sys  # @Reimport
 from _pydev_bundle._pydev_saved_modules import threading
 from _pydevd_bundle import pydevd_save_locals, pydevd_timeout, pydevd_constants
 from _pydev_bundle.pydev_imports import Exec, execfile
-from _pydevd_bundle.pydevd_utils import to_string
+from _pydevd_bundle.pydevd_utils import to_string, ScopeRequest
 import inspect
 from _pydevd_bundle.pydevd_daemon_thread import PyDBDaemonThread
 from _pydevd_bundle.pydevd_save_locals import update_globals_and_locals
 from functools import lru_cache
+from typing import Optional
 
 SENTINEL_VALUE = []
 
@@ -595,10 +596,14 @@ def evaluate_expression(py_db, frame, expression, is_exec):
         del frame
 
 
-def change_attr_expression(frame, attr, expression, dbg, value=SENTINEL_VALUE):
+def change_attr_expression(frame, attr, expression, dbg, value=SENTINEL_VALUE, /, scope: Optional[ScopeRequest]=None):
     """Changes some attribute in a given frame."""
     if frame is None:
         return
+
+    if scope is not None:
+        assert isinstance(scope, ScopeRequest)
+        scope = scope.scope
 
     try:
         expression = expression.replace("@LINE@", "\n")
@@ -608,13 +613,15 @@ def change_attr_expression(frame, attr, expression, dbg, value=SENTINEL_VALUE):
             if result is not dbg.plugin.EMPTY_SENTINEL:
                 return result
 
-        if attr[:7] == "Globals":
-            attr = attr[8:]
+        if attr[:7] == "Globals" or scope == "globals":
+            attr = attr[8:] if attr.startswith("Globals") else attr
             if attr in frame.f_globals:
                 if value is SENTINEL_VALUE:
                     value = eval(expression, frame.f_globals, frame.f_locals)
                 frame.f_globals[attr] = value
                 return frame.f_globals[attr]
+            else:
+                raise VariableError("Attribute %s not found in globals" % attr)
         else:
             if "." not in attr:  # i.e.: if we have a '.', we're changing some attribute of a local var.
                 if pydevd_save_locals.is_save_locals_available():
@@ -631,8 +638,9 @@ def change_attr_expression(frame, attr, expression, dbg, value=SENTINEL_VALUE):
             Exec("%s=%s" % (attr, expression), frame.f_globals, frame.f_locals)
             return result
 
-    except Exception:
-        pydev_log.exception()
+    except Exception as e:
+        pydev_log.exception(e)
+    
 
 
 MAXIMUM_ARRAY_SIZE = 100

@@ -934,7 +934,7 @@ def internal_change_variable_json(py_db, request):
         )
         return
 
-    child_var = variable.change_variable(arguments.name, arguments.value, py_db, fmt=fmt)
+    child_var = variable.change_variable(arguments.name, arguments.value, py_db, fmt=fmt, scope=scope)
 
     if child_var is None:
         _write_variable_response(py_db, request, value="", success=False, message="Unable to change: %s." % (arguments.name,))

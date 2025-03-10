@@ -249,10 +249,10 @@ class Jinja2TemplateSyntaxErrorFrame(object):
         self.f_trace = None
 
 
-def change_variable(frame, attr, expression, default):
+def change_variable(frame, attr, expression, default, scope=None):
     if isinstance(frame, Jinja2TemplateFrame):
         result = eval(expression, frame.f_globals, frame.f_locals)
-        frame._change_variable(frame.f_back, attr, result)
+        frame._change_variable(frame.f_back, attr, result, scope=scope)
         return result
     return default
 
