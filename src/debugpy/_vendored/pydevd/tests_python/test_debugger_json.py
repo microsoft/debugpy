@@ -5931,13 +5931,20 @@ def test_send_json_message(case_setup_dap):
 def test_global_scope(case_setup_dap):
     with case_setup_dap.test_file("_debugger_case_globals.py") as writer:
         json_facade = JsonFacade(writer)
-        json_facade.write_set_breakpoints(writer.get_line_index_with_content("breakpoint here"))
+        break1 = writer.get_line_index_with_content("breakpoint here")
+        break2 = writer.get_line_index_with_content("second breakpoint")
+        json_facade.write_set_breakpoints([break1, break2])
 
         json_facade.write_make_initial_run()
         json_hit = json_facade.wait_for_thread_stopped()
 
         local_var = json_facade.get_global_var(json_hit.frame_id, "in_global_scope")
         assert local_var.value == "'in_global_scope_value'"
+        json_facade.write_set_variable(json_hit.frame_id, "in_global_scope", "'new_value'")
+        json_facade.write_continue()
+        json_hit2 = json_facade.wait_for_thread_stopped()
+        global_var = json_facade.get_global_var(json_hit2.frame_id, "in_global_scope")
+        assert global_var.value == "'in_global_scope_value'"
         json_facade.write_continue()
 
         writer.finished_ok = True

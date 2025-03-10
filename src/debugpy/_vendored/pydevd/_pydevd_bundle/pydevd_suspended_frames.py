@@ -255,12 +255,11 @@ class _FrameVariable(_AbstractVariable):
         self._register_variable = register_variable
         self._register_variable(self)
 
-    def change_variable(self, name, value, py_db, fmt=None):
+    def change_variable(self, name, value, py_db, fmt=None, scope: ScopeRequest | None=None):
         frame = self.frame
 
-        pydevd_vars.change_attr_expression(frame, name, value, py_db)
-
-        return self.get_child_variable_named(name, fmt=fmt)
+        pydevd_vars.change_attr_expression(frame, name, value, py_db, scope=scope)
+        return self.get_child_variable_named(name, fmt=fmt, scope=scope)
 
     @silence_warnings_decorator
     @overrides(_AbstractVariable.get_children_variables)

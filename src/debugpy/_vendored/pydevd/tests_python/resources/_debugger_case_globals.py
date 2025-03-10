@@ -9,4 +9,5 @@ class SomeClass(object):
 
 if __name__ == '__main__':
     SomeClass().method()
+    print('second breakpoint')
     print('TEST SUCEEDED')
