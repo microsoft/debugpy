@@ -5940,11 +5940,19 @@ def test_global_scope(case_setup_dap):
 
         local_var = json_facade.get_global_var(json_hit.frame_id, "in_global_scope")
         assert local_var.value == "'in_global_scope_value'"
-        json_facade.write_set_variable(json_hit.frame_id, "in_global_scope", "'new_value'")
+
+        scopes_request = json_facade.write_request(pydevd_schema.ScopesRequest(pydevd_schema.ScopesArguments(json_hit.frame_id)))
+        scopes_response = json_facade.wait_for_response(scopes_request)
+        assert len(scopes_response.body.scopes) == 2
+        assert scopes_response.body.scopes[0]["name"] == "Locals"
+        assert scopes_response.body.scopes[1]["name"] == "Globals"
+        globals_varreference = scopes_response.body.scopes[1]["variablesReference"]
+
+        json_facade.write_set_variable(globals_varreference, "in_global_scope", "'new_value'")
         json_facade.write_continue()
         json_hit2 = json_facade.wait_for_thread_stopped()
         global_var = json_facade.get_global_var(json_hit2.frame_id, "in_global_scope")
-        assert global_var.value == "'in_global_scope_value'"
+        assert global_var.value == "'new_value'"
         json_facade.write_continue()
 
         writer.finished_ok = True
