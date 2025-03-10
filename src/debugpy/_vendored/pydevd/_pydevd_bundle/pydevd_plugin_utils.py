@@ -201,7 +201,7 @@ class PluginManager(object):
 
     def change_variable(self, frame, attr, expression, scope=None):
         for plugin in self.active_plugins:
-            ret = plugin.change_variable(frame, attr, expression, self.EMPTY_SENTINEL)
+            ret = plugin.change_variable(frame, attr, expression, self.EMPTY_SENTINEL, scope)
             if ret is not self.EMPTY_SENTINEL:
                 return ret
 

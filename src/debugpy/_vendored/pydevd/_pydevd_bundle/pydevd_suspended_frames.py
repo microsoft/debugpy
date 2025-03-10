@@ -11,7 +11,7 @@ from _pydevd_bundle import pydevd_vars
 from _pydev_bundle.pydev_imports import Exec
 from _pydevd_bundle.pydevd_frame_utils import FramesList
 from _pydevd_bundle.pydevd_utils import ScopeRequest, DAPGrouper, Timer
-from typing import Optional, Union
+from typing import Optional
 
 
 class _AbstractVariable(object):
@@ -200,7 +200,7 @@ class _ObjectVariable(_AbstractVariable):
 
         return children_variables
 
-    def change_variable(self, name, value, py_db, fmt=None, scope: Union[ScopeRequest, None]=None):
+    def change_variable(self, name, value, py_db, fmt=None, scope: Optional[ScopeRequest]=None):
         children_variable = self.get_child_variable_named(name)
         if children_variable is None:
             return None
@@ -255,7 +255,7 @@ class _FrameVariable(_AbstractVariable):
         self._register_variable = register_variable
         self._register_variable(self)
 
-    def change_variable(self, name, value, py_db, fmt=None, scope: Union[ScopeRequest, None]=None):
+    def change_variable(self, name, value, py_db, fmt=None, scope: Optional[ScopeRequest]=None):
         frame = self.frame
         pydevd_vars.change_attr_expression(frame, name, value, py_db, scope=scope)
         return self.get_child_variable_named(name, fmt=fmt, scope=scope)

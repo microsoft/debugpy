@@ -430,7 +430,7 @@ class DjangoTemplateSyntaxErrorFrame(object):
 def change_variable(frame, attr, expression, default, scope=None):
     if isinstance(frame, DjangoTemplateFrame):
         result = eval(expression, frame.f_globals, frame.f_locals)
-        frame._change_variable(attr, result)
+        frame._change_variable(attr, result, scope=scope)
         return result
     return default
 

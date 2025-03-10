@@ -20,7 +20,7 @@ import inspect
 from _pydevd_bundle.pydevd_daemon_thread import PyDBDaemonThread
 from _pydevd_bundle.pydevd_save_locals import update_globals_and_locals
 from functools import lru_cache
-from typing import Union
+from typing import Optional
 
 SENTINEL_VALUE = []
 
@@ -596,7 +596,7 @@ def evaluate_expression(py_db, frame, expression, is_exec):
         del frame
 
 
-def change_attr_expression(frame, attr, expression, dbg, value=SENTINEL_VALUE, /, scope: Union[ScopeRequest, None]=None):
+def change_attr_expression(frame, attr, expression, dbg, value=SENTINEL_VALUE, /, scope: Optional[ScopeRequest]=None):
     """Changes some attribute in a given frame."""
     if frame is None:
         return
