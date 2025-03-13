@@ -13,7 +13,9 @@ import sys
 # and should be imported locally inside main() instead.
 
 
-def main(args):
+def main():
+    args = _parse_argv(sys.argv)
+
     # If we're talking DAP over stdio, stderr is not guaranteed to be read from,
     # so disable it to avoid the pipe filling and locking up. This must be done
     # as early as possible, before the logging module starts writing to it.
@@ -230,4 +232,4 @@ if __name__ == "__main__":
         # the default "C" locale if so.
         pass
 
-    main(_parse_argv(sys.argv))
+    main()
