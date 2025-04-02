@@ -1022,6 +1022,9 @@ def patch_new_process_functions():
     monkey_patch_os("spawnvpe", create_spawnve)
     monkey_patch_os("posix_spawn", create_posix_spawn)
 
+    if not IS_WINDOWS:
+        monkey_patch_os("posix_spawnp", create_posix_spawn)
+
     if not IS_JYTHON:
         if not IS_WINDOWS:
             monkey_patch_os("fork", create_fork)
