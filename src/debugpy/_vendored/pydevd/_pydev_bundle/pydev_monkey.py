@@ -13,6 +13,7 @@ from _pydevd_bundle.pydevd_constants import (
     DebugInfoHolder,
     PYDEVD_USE_SYS_MONITORING,
     IS_PY313_OR_GREATER,
+    IS_PY38_OR_GREATER,
 )
 from _pydev_bundle import pydev_log
 from contextlib import contextmanager
@@ -1021,6 +1022,9 @@ def patch_new_process_functions():
     monkey_patch_os("spawnvp", create_spawnv)
     monkey_patch_os("spawnvpe", create_spawnve)
     monkey_patch_os("posix_spawn", create_posix_spawn)
+
+    if IS_PY38_OR_GREATER and not IS_WINDOWS:
+        monkey_patch_os("posix_spawnp", create_posix_spawn)
 
     if not IS_JYTHON:
         if not IS_WINDOWS:
