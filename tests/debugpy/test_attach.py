@@ -14,8 +14,9 @@ from tests.patterns import some
 @pytest.mark.parametrize("stop_method", ["breakpoint", "pause"])
 @pytest.mark.skipif(IS_PY312_OR_GREATER, reason="Flakey test on 312 and higher")
 @pytest.mark.parametrize("is_client_connected", ["is_client_connected", ""])
+@pytest.mark.parametrize("host", ["127.0.0.1", "::1"])
 @pytest.mark.parametrize("wait_for_client", ["wait_for_client", pytest.param("", marks=pytest.mark.skipif(sys.platform.startswith("darwin"), reason="Flakey test on Mac"))])
-def test_attach_api(pyfile, wait_for_client, is_client_connected, stop_method):
+def test_attach_api(pyfile, host, wait_for_client, is_client_connected, stop_method):
     @pyfile
     def code_to_debug():
         import debuggee
@@ -58,7 +59,8 @@ def test_attach_api(pyfile, wait_for_client, is_client_connected, stop_method):
                 time.sleep(0.1)
 
     with debug.Session() as session:
-        host, port = runners.attach_connect.host, runners.attach_connect.port
+        host = runners.attach_connect.host if host == "127.0.0.1" else host
+        port = runners.attach_connect.port
         session.config.update({"connect": {"host": host, "port": port}})
 
         backchannel = session.open_backchannel()
@@ -102,7 +104,8 @@ def test_attach_api(pyfile, wait_for_client, is_client_connected, stop_method):
 
         session.request_continue()
 
-def test_multiple_listen_raises_exception(pyfile):
+@pytest.mark.parametrize("host", ["127.0.0.1", "::1"])
+def test_multiple_listen_raises_exception(pyfile, host):
     @pyfile
     def code_to_debug():
         import debuggee
@@ -124,7 +127,8 @@ def test_multiple_listen_raises_exception(pyfile):
         debugpy.breakpoint()
         print("break")  # @breakpoint
 
-    host, port = runners.attach_connect.host, runners.attach_connect.port
+    host = runners.attach_connect.host if host == "127.0.0.1" else host
+    port = runners.attach_connect.port
     with debug.Session() as session:
         backchannel = session.open_backchannel()
         session.spawn_debuggee(
@@ -146,7 +150,6 @@ def test_multiple_listen_raises_exception(pyfile):
         )
         assert backchannel.receive() == "listen_exception"
         session.request_continue()
-
 
 @pytest.mark.parametrize("run", runners.all_attach_connect)
 def test_reattach(pyfile, target, run):
@@ -265,7 +268,8 @@ def test_attach_pid_client(pyfile, target, pid_type):
         session2.request_continue()
 
 
-def test_cancel_wait(pyfile):
+@pytest.mark.parametrize("host", ["127.0.0.1", "::1"])
+def test_cancel_wait(pyfile, host):
     @pyfile
     def code_to_debug():
         import debugpy
@@ -287,7 +291,8 @@ def test_cancel_wait(pyfile):
         backchannel.send("exit")
 
     with debug.Session() as session:
-        host, port = runners.attach_connect.host, runners.attach_connect.port
+        host = runners.attach_connect.host if host == "127.0.0.1" else host
+        port = runners.attach_connect.port
         session.config.update({"connect": {"host": host, "port": port}})
         session.expected_exit_code = None
 

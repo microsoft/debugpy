@@ -395,7 +395,7 @@ def serve(host="127.0.0.1", port=0):
     global listener
     listener = sockets.serve("Server", Connection, host, port)
     sessions.report_sockets()
-    return listener.getsockname()
+    return listener.getsockname()[:2]
 
 
 def is_serving():
@@ -475,7 +475,7 @@ def dont_wait_for_first_connection():
 
 
 def inject(pid, debugpy_args, on_output):
-    host, port = listener.getsockname()
+    host, port = listener.getsockname()[:2]
 
     cmdline = [
         sys.executable,
