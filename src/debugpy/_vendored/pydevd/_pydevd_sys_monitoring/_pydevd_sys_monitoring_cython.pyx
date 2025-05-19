@@ -19,6 +19,7 @@ from typing import Dict, Optional, Tuple, Any
 from os.path import basename, splitext
 
 from _pydev_bundle import pydev_log
+from _pydev_bundle.pydev_is_thread_alive import is_thread_alive as pydevd_is_thread_alive
 from _pydevd_bundle import pydevd_dont_trace
 from _pydevd_bundle.pydevd_constants import (
     IS_PY313_OR_GREATER,
@@ -273,7 +274,7 @@ cdef class ThreadInfo:
         if self._use_is_stopped:
             return not self.thread._is_stopped
         else:
-            return not self.thread._handle.is_done()
+            return pydevd_is_thread_alive(self.thread)
 
 
 class _DeleteDummyThreadOnDel:
