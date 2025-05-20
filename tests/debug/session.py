@@ -464,7 +464,7 @@ class Session(object):
 
         self.expected_adapter_sockets["client"]["port"] = port
 
-        ipv6 = True if host.count(":") > 1 else False
+        ipv6 = host.count(":") > 1
         sock = sockets.create_client(ipv6)
         sock.connect(address)
 

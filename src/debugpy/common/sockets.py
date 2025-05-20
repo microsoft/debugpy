@@ -15,7 +15,7 @@ def can_bind_ipv4_localhost():
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         # Try to bind to IPv4 localhost on port 0 (any available port)
-        sock.bind(('127.0.0.1', 0))
+        sock.bind(("127.0.0.1", 0))
         sock.close()
         return True
     except (socket.error, OSError):
@@ -27,28 +27,27 @@ def can_bind_ipv6_localhost():
         sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         # Try to bind to IPv6 localhost on port 0 (any available port)
-        sock.bind(('::1', 0))
+        sock.bind(("::1", 0))
         sock.close()
         return True
     except (socket.error, OSError, AttributeError):
         return False
 
 def get_default_localhost():
-    """
-    Get the default localhost address.
+    """Get the default localhost address.
     Defaults to IPv4 '127.0.0.1', but falls back to IPv6 '::1' if IPv4 is unavailable.
     """
     # First try IPv4 (preferred default)
     if can_bind_ipv4_localhost():
-        return '127.0.0.1'
+        return "127.0.0.1"
 
     # Fall back to IPv6 if IPv4 is not available
     if can_bind_ipv6_localhost():
-        return '::1'
+        return "::1"
     
     # If neither works, still return IPv4 as a last resort
     # (this is a very unusual situation)
-    return '127.0.0.1'
+    return "127.0.0.1"
 
 
 def create_server(host, port=0, backlog=socket.SOMAXCONN, timeout=None):
@@ -59,7 +58,7 @@ def create_server(host, port=0, backlog=socket.SOMAXCONN, timeout=None):
         host = get_default_localhost()
     if port is None:
         port = 0
-    ipv6 = True if host.count(":") > 1 else False
+    ipv6 = host.count(":") > 1
 
     try:
         server = _new_sock(ipv6)
@@ -84,7 +83,7 @@ def create_server(host, port=0, backlog=socket.SOMAXCONN, timeout=None):
     return server
 
 
-def create_client(ipv6 = False):
+def create_client(ipv6=False):
     """Return a client socket that may be connected to a remote address."""
     return _new_sock(ipv6)
 

@@ -81,7 +81,7 @@ def main():
         )
 
         try:
-            ipv6 = True if localhost.count(":") > 1 else False
+            ipv6 = localhost.count(":") > 1
             sock = sockets.create_client(ipv6)
             try:
                 sock.settimeout(None)

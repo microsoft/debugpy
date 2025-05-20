@@ -762,7 +762,7 @@ class Client(components.Component):
             body["connect"] = {}
         if "host" not in body["connect"]:
             localhost = sockets.get_default_localhost()
-            body["connect"]["host"] = host if host is not None else localhost
+            body["connect"]["host"] = host or localhost
         if "port" not in body["connect"]:
             if port is None:
                 _, port = listener.getsockname()[:2]
