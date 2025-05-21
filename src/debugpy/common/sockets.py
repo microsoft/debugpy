@@ -88,7 +88,7 @@ def create_client(ipv6=False):
     return _new_sock(ipv6)
 
 
-def _new_sock(ipv6 = False):
+def _new_sock(ipv6=False):
     address_family = socket.AF_INET6 if ipv6 else socket.AF_INET
     sock = socket.socket(address_family, socket.SOCK_STREAM, socket.IPPROTO_TCP)
 
