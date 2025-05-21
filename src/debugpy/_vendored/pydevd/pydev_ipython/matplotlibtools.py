@@ -140,11 +140,11 @@ def activate_matplotlib(enable_gui_function):
     if is_interactive:
         enable_gui_function(gui)
         if not matplotlib.is_interactive():
-            sys.stdout.write("Backend %s is interactive backend. Turning interactive mode on.\n" % backend)
+            sys.stderr.write("Backend %s is interactive backend. Turning interactive mode on.\n" % backend)
         matplotlib.interactive(True)
     else:
         if matplotlib.is_interactive():
-            sys.stdout.write("Backend %s is non-interactive backend. Turning interactive mode off.\n" % backend)
+            sys.stderr.write("Backend %s is non-interactive backend. Turning interactive mode off.\n" % backend)
         matplotlib.interactive(False)
     patch_use(enable_gui_function)
     patch_is_interactive()
