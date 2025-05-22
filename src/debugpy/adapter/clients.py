@@ -487,7 +487,7 @@ class Client(components.Component):
         else:
             if not servers.is_serving():
                 servers.serve(localhost)
-            host, port = servers.listener.getsockname()[:2]
+            host, port = sockets.get_address(servers.listener)
 
         # There are four distinct possibilities here.
         #
@@ -712,7 +712,7 @@ class Client(components.Component):
         super().disconnect()
 
     def report_sockets(self):
-        sockets = [
+        socks = [
             {
                 "host": host,
                 "port": port,
@@ -720,12 +720,12 @@ class Client(components.Component):
             }
             for listener in [clients.listener, launchers.listener, servers.listener]
             if listener is not None
-            for (host, port) in [listener.getsockname()[:2]]
+            for (host, port) in [sockets.get_address(listener)]
         ]
         self.channel.send_event(
             "debugpySockets",
             {
-                "sockets": sockets
+                "sockets": socks
             },
         )
 
@@ -765,7 +765,7 @@ class Client(components.Component):
             body["connect"]["host"] = host or localhost
         if "port" not in body["connect"]:
             if port is None:
-                _, port = listener.getsockname()[:2]
+                _, port = sockets.get_address(listener)
             body["connect"]["port"] = port
 
         if self.capabilities["supportsStartDebuggingRequest"]:
@@ -782,7 +782,7 @@ def serve(host, port):
     global listener
     listener = sockets.serve("Client", Client, host, port)
     sessions.report_sockets()
-    return listener.getsockname()[:2]
+    return sockets.get_address(listener)
 
 
 def stop_serving():

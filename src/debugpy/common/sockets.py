@@ -49,6 +49,15 @@ def get_default_localhost():
     # (this is a very unusual situation)
     return "127.0.0.1"
 
+def get_address(sock):
+    """Gets the socket address host and port."""
+    try:
+        host, port = sock.getsockname()[:2]
+    except Exception as exc:
+        log.swallow_exception("Failed to get socket address:")
+        raise RuntimeError(f"Failed to get socket address: {exc}") from exc
+
+    return host, port
 
 def create_server(host, port=0, backlog=socket.SOMAXCONN, timeout=None):
     """Return a local server socket listening on the given port."""
@@ -144,7 +153,7 @@ def serve(name, handler, host, port=0, backlog=socket.SOMAXCONN, timeout=None):
         log.reraise_exception(
             "Error listening for incoming {0} connections on {1}:{2}:", name, host, port
         )
-    host, port = listener.getsockname()[:2]
+    host, port = get_address(listener)
     log.info("Listening for incoming {0} connections on {1}:{2}...", name, host, port)
 
     def accept_worker():
