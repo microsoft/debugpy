@@ -473,12 +473,12 @@ class Client(components.Component):
                 '"processId" and "subProcessId" are mutually exclusive'
             )
 
+        localhost = sockets.get_default_localhost()
         if listen != ():
             if servers.is_serving():
                 raise request.isnt_valid(
                     'Multiple concurrent "listen" sessions are not supported'
                 )
-            localhost = sockets.get_default_localhost()
             host = listen("host", localhost)
             port = listen("port", int)
             adapter.access_token = None
@@ -486,7 +486,7 @@ class Client(components.Component):
             host, port = servers.serve(host, port)
         else:
             if not servers.is_serving():
-                servers.serve(host)
+                servers.serve(localhost)
             host, port = servers.listener.getsockname()[:2]
 
         # There are four distinct possibilities here.

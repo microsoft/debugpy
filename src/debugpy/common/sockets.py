@@ -18,7 +18,7 @@ def can_bind_ipv4_localhost():
         sock.bind(("127.0.0.1", 0))
         sock.close()
         return True
-    except (socket.error, OSError):
+    except (socket.error, OSError, AttributeError):
         return False
 
 def can_bind_ipv6_localhost():
