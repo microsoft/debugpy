@@ -25,7 +25,7 @@ class BackChannel(object):
 
     def listen(self):
         self._server_socket = sockets.create_server("127.0.0.1", 0, self.TIMEOUT)
-        _, self.port = self._server_socket.getsockname()
+        _, self.port = sockets.get_address(self._server_socket)
         self._server_socket.listen(0)
 
         def accept_worker():

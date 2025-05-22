@@ -14,7 +14,7 @@ import sys
 
 def main():
     from debugpy import launcher
-    from debugpy.common import log
+    from debugpy.common import log, sockets
     from debugpy.launcher import debuggee
 
     log.to_file(prefix="debugpy.launcher")
@@ -38,9 +38,10 @@ def main():
     # The first argument specifies the host/port on which the adapter is waiting
     # for launcher to connect. It's either host:port, or just port.
     adapter = launcher_argv[0]
-    host, sep, port = adapter.partition(":")
+    host, sep, port = adapter.rpartition(":")
+    host.strip("[]")
     if not sep:
-        host = "127.0.0.1"
+        host = sockets.get_default_localhost()
         port = adapter
     port = int(port)
 

@@ -464,7 +464,8 @@ class Session(object):
 
         self.expected_adapter_sockets["client"]["port"] = port
 
-        sock = sockets.create_client()
+        ipv6 = host.count(":") > 1
+        sock = sockets.create_client(ipv6)
         sock.connect(address)
 
         stream = messaging.JsonIOStream.from_socket(sock, name=self.adapter_id)

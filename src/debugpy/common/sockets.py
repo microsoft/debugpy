@@ -9,18 +9,68 @@ import threading
 from debugpy.common import log
 from debugpy.common.util import hide_thread_from_debugger
 
+def can_bind_ipv4_localhost():
+    """Check if we can bind to IPv4 localhost."""
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        # Try to bind to IPv4 localhost on port 0 (any available port)
+        sock.bind(("127.0.0.1", 0))
+        sock.close()
+        return True
+    except (socket.error, OSError, AttributeError):
+        return False
+
+def can_bind_ipv6_localhost():
+    """Check if we can bind to IPv6 localhost."""
+    try:
+        sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        # Try to bind to IPv6 localhost on port 0 (any available port)
+        sock.bind(("::1", 0))
+        sock.close()
+        return True
+    except (socket.error, OSError, AttributeError):
+        return False
+
+def get_default_localhost():
+    """Get the default localhost address.
+    Defaults to IPv4 '127.0.0.1', but falls back to IPv6 '::1' if IPv4 is unavailable.
+    """
+    # First try IPv4 (preferred default)
+    if can_bind_ipv4_localhost():
+        return "127.0.0.1"
+
+    # Fall back to IPv6 if IPv4 is not available
+    if can_bind_ipv6_localhost():
+        return "::1"
+    
+    # If neither works, still return IPv4 as a last resort
+    # (this is a very unusual situation)
+    return "127.0.0.1"
+
+def get_address(sock):
+    """Gets the socket address host and port."""
+    try:
+        host, port = sock.getsockname()[:2]
+    except Exception as exc:
+        log.swallow_exception("Failed to get socket address:")
+        raise RuntimeError(f"Failed to get socket address: {exc}") from exc
+
+    return host, port
 
 def create_server(host, port=0, backlog=socket.SOMAXCONN, timeout=None):
     """Return a local server socket listening on the given port."""
 
     assert backlog > 0
     if host is None:
-        host = "127.0.0.1"
+        host = get_default_localhost()
     if port is None:
         port = 0
+    ipv6 = host.count(":") > 1
 
     try:
-        server = _new_sock()
+        server = _new_sock(ipv6)
         if port != 0:
             # If binding to a specific port, make sure that the user doesn't have
             # to wait until the OS times out the socket to be able to use that port
@@ -42,13 +92,14 @@ def create_server(host, port=0, backlog=socket.SOMAXCONN, timeout=None):
     return server
 
 
-def create_client():
+def create_client(ipv6=False):
     """Return a client socket that may be connected to a remote address."""
-    return _new_sock()
+    return _new_sock(ipv6)
 
 
-def _new_sock():
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP)
+def _new_sock(ipv6=False):
+    address_family = socket.AF_INET6 if ipv6 else socket.AF_INET
+    sock = socket.socket(address_family, socket.SOCK_STREAM, socket.IPPROTO_TCP)
 
     # Set TCP keepalive on an open socket.
     # It activates after 1 second (TCP_KEEPIDLE,) of idleness,
@@ -102,13 +153,14 @@ def serve(name, handler, host, port=0, backlog=socket.SOMAXCONN, timeout=None):
         log.reraise_exception(
             "Error listening for incoming {0} connections on {1}:{2}:", name, host, port
         )
-    host, port = listener.getsockname()
+    host, port = get_address(listener)
     log.info("Listening for incoming {0} connections on {1}:{2}...", name, host, port)
 
     def accept_worker():
         while True:
             try:
-                sock, (other_host, other_port) = listener.accept()
+                sock, address = listener.accept()
+                other_host, other_port = address[:2]
             except (OSError, socket.error):
                 # Listener socket has been closed.
                 break

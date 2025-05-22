@@ -20,7 +20,7 @@ from _pydevd_bundle import pydevd_runpy as runpy
 
 import debugpy
 import debugpy.server
-from debugpy.common import log
+from debugpy.common import log, sockets
 from debugpy.server import api
 
 
@@ -104,9 +104,10 @@ def set_address(mode):
 
         # It's either host:port, or just port.
         value = next(it)
-        host, sep, port = value.partition(":")
+        host, sep, port = value.rpartition(":")
+        host = host.strip("[]")
         if not sep:
-            host = "127.0.0.1"
+            host = sockets.get_default_localhost()
             port = value
         try:
             port = int(port)

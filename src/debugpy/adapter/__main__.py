@@ -65,9 +65,10 @@ def main():
     else:
         endpoints["client"] = {"host": client_host, "port": client_port}
 
+    localhost = sockets.get_default_localhost()
     if args.for_server is not None:
         try:
-            server_host, server_port = servers.serve()
+            server_host, server_port = servers.serve(localhost)
         except Exception as exc:
             endpoints = {"error": "Can't listen for server connections: " + str(exc)}
         else:
@@ -80,10 +81,11 @@ def main():
         )
 
         try:
-            sock = sockets.create_client()
+            ipv6 = localhost.count(":") > 1
+            sock = sockets.create_client(ipv6)
             try:
                 sock.settimeout(None)
-                sock.connect(("127.0.0.1", args.for_server))
+                sock.connect((localhost, args.for_server))
                 sock_io = sock.makefile("wb", 0)
                 try:
                     sock_io.write(json.dumps(endpoints).encode("utf-8"))
@@ -137,6 +139,10 @@ def main():
 
 
 def _parse_argv(argv):
+    from debugpy.common import sockets
+
+    host = sockets.get_default_localhost()
+
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
@@ -154,7 +160,7 @@ def _parse_argv(argv):
     parser.add_argument(
         "--host",
         type=str,
-        default="127.0.0.1",
+        default=host,
         metavar="HOST",
         help="start the adapter in debugServer mode on the specified host",
     )

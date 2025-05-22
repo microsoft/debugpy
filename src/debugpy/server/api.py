@@ -100,7 +100,8 @@ def _starts_debugging(func):
             _, port = address
         except Exception:
             port = address
-            address = ("127.0.0.1", port)
+            localhost = sockets.get_default_localhost()
+            address = (localhost, port)
         try:
             port.__index__()  # ensure it's int-like
         except Exception:
@@ -143,8 +144,8 @@ def listen(address, settrace_kwargs, in_process_debug_adapter=False):
         # Multiple calls to listen() cause the debuggee to hang
         raise RuntimeError("debugpy.listen() has already been called on this process")
 
+    host, port = address
     if in_process_debug_adapter:
-        host, port = address
         log.info("Listening: pydevd without debugpy adapter: {0}:{1}", host, port)
         settrace_kwargs["patch_multiprocessing"] = False
         _settrace(
@@ -161,13 +162,14 @@ def listen(address, settrace_kwargs, in_process_debug_adapter=False):
     server_access_token = codecs.encode(os.urandom(32), "hex").decode("ascii")
 
     try:
-        endpoints_listener = sockets.create_server("127.0.0.1", 0, timeout=30)
+        localhost = sockets.get_default_localhost()
+        endpoints_listener = sockets.create_server(localhost, 0, timeout=30)
     except Exception as exc:
         log.swallow_exception("Can't listen for adapter endpoints:")
         raise RuntimeError("can't listen for adapter endpoints: " + str(exc))
 
     try:
-        endpoints_host, endpoints_port = endpoints_listener.getsockname()
+        endpoints_host, endpoints_port = sockets.get_address(endpoints_listener)
         log.info(
             "Waiting for adapter endpoints on {0}:{1}...",
             endpoints_host,

@@ -404,7 +404,8 @@ class Client(components.Component):
             self._forward_terminate_request = on_terminate == "KeyboardInterrupt"
 
         launcher_path = request("debugLauncherPath", os.path.dirname(launcher.__file__))
-        adapter_host = request("debugAdapterHost", "127.0.0.1")
+        localhost = sockets.get_default_localhost()
+        adapter_host = request("debugAdapterHost", localhost)
 
         try:
             servers.serve(adapter_host)
@@ -472,20 +473,21 @@ class Client(components.Component):
                 '"processId" and "subProcessId" are mutually exclusive'
             )
 
+        localhost = sockets.get_default_localhost()
         if listen != ():
             if servers.is_serving():
                 raise request.isnt_valid(
                     'Multiple concurrent "listen" sessions are not supported'
                 )
-            host = listen("host", "127.0.0.1")
+            host = listen("host", localhost)
             port = listen("port", int)
             adapter.access_token = None
             self.restart_requested = request("restart", False)
             host, port = servers.serve(host, port)
         else:
             if not servers.is_serving():
-                servers.serve()
-            host, port = servers.listener.getsockname()
+                servers.serve(localhost)
+            host, port = sockets.get_address(servers.listener)
 
         # There are four distinct possibilities here.
         #
@@ -710,7 +712,7 @@ class Client(components.Component):
         super().disconnect()
 
     def report_sockets(self):
-        sockets = [
+        socks = [
             {
                 "host": host,
                 "port": port,
@@ -718,12 +720,12 @@ class Client(components.Component):
             }
             for listener in [clients.listener, launchers.listener, servers.listener]
             if listener is not None
-            for (host, port) in [listener.getsockname()]
+            for (host, port) in [sockets.get_address(listener)]
         ]
         self.channel.send_event(
             "debugpySockets",
             {
-                "sockets": sockets
+                "sockets": socks
             },
         )
 
@@ -759,10 +761,11 @@ class Client(components.Component):
         if "connect" not in body:
             body["connect"] = {}
         if "host" not in body["connect"]:
-            body["connect"]["host"] = host if host is not None else "127.0.0.1"
+            localhost = sockets.get_default_localhost()
+            body["connect"]["host"] = host or localhost
         if "port" not in body["connect"]:
             if port is None:
-                _, port = listener.getsockname()
+                _, port = sockets.get_address(listener)
             body["connect"]["port"] = port
 
         if self.capabilities["supportsStartDebuggingRequest"]:
@@ -779,7 +782,7 @@ def serve(host, port):
     global listener
     listener = sockets.serve("Client", Client, host, port)
     sessions.report_sockets()
-    return listener.getsockname()
+    return sockets.get_address(listener)
 
 
 def stop_serving():

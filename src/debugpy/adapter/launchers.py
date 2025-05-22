@@ -89,7 +89,7 @@ def spawn_debuggee(
 
     arguments = dict(start_request.arguments)
     if not session.no_debug:
-        _, arguments["port"] = servers.listener.getsockname()
+        _, arguments["port"] = sockets.get_address(servers.listener)
         arguments["adapterAccessToken"] = adapter.access_token
 
     def on_launcher_connected(sock):
@@ -108,10 +108,11 @@ def spawn_debuggee(
     sessions.report_sockets()
 
     try:
-        launcher_host, launcher_port = listener.getsockname()
+        launcher_host, launcher_port = sockets.get_address(listener)
+        localhost = sockets.get_default_localhost()
         launcher_addr = (
             launcher_port
-            if launcher_host == "127.0.0.1"
+            if launcher_host == localhost
             else f"{launcher_host}:{launcher_port}"
         )
         cmdline += [str(launcher_addr), "--"]
