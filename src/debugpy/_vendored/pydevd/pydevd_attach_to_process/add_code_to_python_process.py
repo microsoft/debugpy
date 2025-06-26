@@ -183,7 +183,7 @@ def get_target_filename(is_target_process_64=None, prefix=None, extension=None):
         print("Unable to attach to process in platform: %s", sys.platform)
         return None
 
-    if arch.lower() not in ("amd64", "x86", "x86_64", "i386", "x86"):
+    if arch.lower() not in ("arm64", "amd64", "x86", "x86_64", "i386", "x86"):
         # We don't support this processor by default. Still, let's support the case where the
         # user manually compiled it himself with some heuristics.
         #
@@ -237,8 +237,11 @@ def get_target_filename(is_target_process_64=None, prefix=None, extension=None):
 
         if not prefix:
             # Default is looking for the attach_ / attach_linux
-            if IS_WINDOWS or IS_MAC:  # just the extension changes
+            if IS_WINDOWS:  # just the extension changes
                 prefix = "attach_"
+            elif IS_MAC:
+                prefix = "attach"
+                suffix = ""
             elif IS_LINUX:
                 prefix = "attach_linux_"  # historically it has a different name
             else:
@@ -525,7 +528,7 @@ def run_python_code_mac(pid, python_code, connect_debugger_tracing=False, show_d
     cmd.extend(
         [
             "-o 'process detach'",
-            "-o 'script import os; os._exit(1)'",
+            "-o 'script import os; os._exit(0)'",
         ]
     )
 

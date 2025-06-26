@@ -1,6 +1,7 @@
 # This script is used for building the pydevd binaries
 import argparse
 import os
+import platform
 
 def build_pydevd_binaries(force: bool):
     os.environ["PYDEVD_USE_CYTHON"] = "yes"
@@ -20,16 +21,19 @@ def build_pydevd_binaries(force: bool):
 
     # Run the appropriate batch script to build the binaries if necessary.
     pydevd_attach_to_process_root = os.path.join(pydevd_root, "pydevd_attach_to_process")
-    if os.name == "nt":
+    if platform.system() == "Windows":
         if not os.path.exists(os.path.join(pydevd_attach_to_process_root, "attach_amd64.dll")) or force:
             os.system(os.path.join(pydevd_attach_to_process_root, "windows", "compile_windows.bat"))
-    elif os.name == "posix":
+    elif platform.system() == "Linux":
         if not os.path.exists(os.path.join(pydevd_attach_to_process_root, "attach_linux_amd64.so")) or force:
             os.system(os.path.join(pydevd_attach_to_process_root, "linux_and_mac", "compile_linux.sh"))
-    else:
-        if not os.path.exists(os.path.join(pydevd_attach_to_process_root, "attach_x86_64.dylib")) or force:
+    elif platform.system() == "Darwin":
+        if not os.path.exists(os.path.join(pydevd_attach_to_process_root, "attach.dylib")) or force:
             os.system(os.path.join(pydevd_attach_to_process_root, "linux_and_mac", "compile_mac.sh"))
-    
+    else:
+        print("unsupported platform.system(): {}".format(platform.system()))
+        exit(1)
+
 
 if __name__ == "__main__":
     arg_parser = argparse.ArgumentParser(description="Build the pydevd binaries.")
