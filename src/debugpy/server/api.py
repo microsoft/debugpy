@@ -293,9 +293,9 @@ listen.called = False
 
 
 @_starts_debugging
-def connect(address, settrace_kwargs, access_token=None):
+def connect(address, settrace_kwargs, access_token=None, parent_session_pid=None):
     host, port = address
-    _settrace(host=host, port=port, client_access_token=access_token, **settrace_kwargs)
+    _settrace(host=host, port=port, client_access_token=access_token, ppid=parent_session_pid or 0, **settrace_kwargs)
 
 
 class wait_for_client:
