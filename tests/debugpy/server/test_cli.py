@@ -45,6 +45,7 @@ def cli(pyfile):
                 "target",
                 "target_kind",
                 "wait_for_client",
+                "parent_session_pid",
             ]
         }
 
@@ -71,7 +72,7 @@ def cli(pyfile):
                     log.debug("Failed to deserialize output: {0}, Output was: {1!r}", e, output)
                     raise
             except subprocess.CalledProcessError as exc:
-                log.debug("Process exited with code {0}. Output: {1!r}, Error: {2!r}", 
+                log.debug("Process exited with code {0}. Output: {1!r}, Error: {2!r}",
                          exc.returncode, exc.output, exc.stderr)
                 raise pickle.loads(exc.output)
         except EOFError:
@@ -163,20 +164,20 @@ def test_configure_subProcess_from_environment(cli, value):
 def test_unsupported_switch(cli):
     with pytest.raises(ValueError) as ex:
         cli(["--listen", "8888", "--xyz", "123", "spam.py"])
-    
+
     assert "unrecognized switch --xyz" in str(ex.value)
 
 def test_unsupported_switch_from_environment(cli):
     with pytest.raises(ValueError) as ex:
         with mock.patch.dict(os.environ, {"DEBUGPY_EXTRA_ARGV": "--xyz 123"}):
             cli(["--listen", "8888", "spam.py"])
-    
+
     assert "unrecognized switch --xyz" in str(ex.value)
 
 def test_unsupported_configure(cli):
     with pytest.raises(ValueError) as ex:
         cli(["--connect", "127.0.0.1:8888", "--configure-xyz", "123", "spam.py"])
-    
+
     assert "unknown property 'xyz'" in str(ex.value)
 
 def test_unsupported_configure_from_environment(cli):
@@ -189,26 +190,26 @@ def test_unsupported_configure_from_environment(cli):
 def test_address_required(cli):
     with pytest.raises(ValueError) as ex:
         cli(["-m", "spam"])
-    
+
     assert "either --listen or --connect is required" in str(ex.value)
 
 def test_missing_target(cli):
     with pytest.raises(ValueError) as ex:
         cli(["--listen", "8888"])
-    
+
     assert "missing target" in str(ex.value)
 
 def test_duplicate_switch(cli):
     with pytest.raises(ValueError) as ex:
         cli(["--listen", "8888", "--listen", "9999", "spam.py"])
-    
+
     assert "duplicate switch on command line: --listen" in str(ex.value)
 
 def test_duplicate_switch_from_environment(cli):
     with pytest.raises(ValueError) as ex:
         with mock.patch.dict(os.environ, {"DEBUGPY_EXTRA_ARGV": "--listen 8888 --listen 9999"}):
             cli(["spam.py"])
-    
+
     assert "duplicate switch from environment: --listen" in str(ex.value)
 
 # Test that switches can be read from the environment
@@ -240,3 +241,10 @@ def test_script_args(cli):
 
     assert argv == ["arg1", "arg2"]
     assert options["target"] == "spam.py"
+
+# Tests that --parent-session-pid fails with --listen
+def test_script_parent_pid_with_listen_failure(cli):
+    with pytest.raises(ValueError) as ex:
+        cli(["--listen", "8888", "--parent-session-pid", "1234", "spam.py"])
+
+    assert "--parent-session-pid requires --connect" in str(ex.value)

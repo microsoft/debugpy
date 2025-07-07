@@ -120,7 +120,7 @@ def listen(
     ...
 
 @_api()
-def connect(__endpoint: Endpoint | int, *, access_token: str | None = None) -> Endpoint:
+def connect(__endpoint: Endpoint | int, *, access_token: str | None = None, parent_session_pid: int | None = None) -> Endpoint:
     """Tells an existing debug adapter instance that is listening on the
     specified address to debug this process.
 
@@ -130,6 +130,10 @@ def connect(__endpoint: Endpoint | int, *, access_token: str | None = None) -> E
 
     `access_token` must be the same value that was passed to the adapter
     via the `--server-access-token` command-line switch.
+
+    `parent_session_pid` is the PID of the parent session to associate
+    with. This is useful if running in a process that is not an immediate
+    child of the parent process being debugged.
 
     This function does't wait for a client to connect to the debug
     adapter that it connects to. Use `wait_for_client` to block

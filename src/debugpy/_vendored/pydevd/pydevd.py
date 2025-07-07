@@ -2947,6 +2947,7 @@ def settrace(
     client_access_token=None,
     notify_stdin=True,
     protocol=None,
+    ppid=0,
     **kwargs,
 ):
     """Sets the tracing function with the pydev debug function and initializes needed facilities.
@@ -3006,6 +3007,11 @@ def settrace(
         When using in Eclipse the protocol should not be passed, but when used in VSCode
         or some other IDE/editor that accepts the Debug Adapter Protocol then 'dap' should
         be passed.
+
+    :param ppid:
+        Override the parent process id (PPID) for the current debugging session. This PPID is
+        reported to the debug client (IDE) and can be used to act like a child process of an
+        existing debugged process without being a child process.
     """
     if protocol and protocol.lower() == "dap":
         pydevd_defaults.PydevdCustomization.DEFAULT_PROTOCOL = pydevd_constants.HTTP_JSON_PROTOCOL
@@ -3034,6 +3040,7 @@ def settrace(
             client_access_token,
             __setup_holder__=__setup_holder__,
             notify_stdin=notify_stdin,
+            ppid=ppid,
         )
 
 
@@ -3057,6 +3064,7 @@ def _locked_settrace(
     client_access_token,
     __setup_holder__,
     notify_stdin,
+    ppid,
 ):
     if patch_multiprocessing:
         try:
@@ -3088,6 +3096,7 @@ def _locked_settrace(
                 "port": int(port),
                 "multiprocess": patch_multiprocessing,
                 "skip-notify-stdin": not notify_stdin,
+                pydevd_constants.ARGUMENT_PPID: ppid,
             }
             SetupHolder.setup = setup
 

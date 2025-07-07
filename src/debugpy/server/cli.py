@@ -34,6 +34,7 @@ Usage: debugpy --listen | --connect
                [--wait-for-client]
                [--configure-<name> <value>]...
                [--log-to <path>] [--log-to-stderr]
+               [--parent-session-pid <pid>]]
                {1}
                [<arg>]...
 """.format(
@@ -51,6 +52,7 @@ class Options(object):
     wait_for_client = False
     adapter_access_token = None
     config: Dict[str, Any] = {}
+    parent_session_pid: Union[int, None] = None
 
 
 options = Options()
@@ -179,6 +181,7 @@ switches = [
     ("--connect",               "<address>",        set_address("connect")),
     ("--wait-for-client",       None,               set_const("wait_for_client", True)),
     ("--configure-.+",          "<value>",          set_config),
+    ("--parent-session-pid",    "<pid>",            set_arg("parent_session_pid", lambda x: int(x) if x else None)),
 
     # Switches that are used internally by the client or debugpy itself.
     ("--adapter-access-token",   "<token>",         set_arg("adapter_access_token")),
@@ -230,6 +233,8 @@ def parse_args():
         raise ValueError("either --listen or --connect is required")
     if options.adapter_access_token is not None and options.mode != "connect":
         raise ValueError("--adapter-access-token requires --connect")
+    if options.parent_session_pid is not None and options.mode != "connect":
+        raise ValueError("--parent-session-pid requires --connect")
     if options.target_kind == "pid" and options.wait_for_client:
         raise ValueError("--pid does not support --wait-for-client")
 
@@ -321,7 +326,7 @@ def start_debugging(argv_0):
         if options.mode == "listen" and options.address is not None:
             debugpy.listen(options.address)
         elif options.mode == "connect" and options.address is not None:
-            debugpy.connect(options.address, access_token=options.adapter_access_token)
+            debugpy.connect(options.address, access_token=options.adapter_access_token, parent_session_pid=options.parent_session_pid)
         else:
             raise AssertionError(repr(options.mode))
 
