@@ -263,7 +263,7 @@ cdef class ThreadInfo:
         self.additional_info = additional_info
         self.trace = trace
         self._use_is_stopped = hasattr(thread, '_is_stopped')
-        
+
     # fmt: off
     # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
     cdef bint is_thread_alive(self):
@@ -761,6 +761,16 @@ cpdef enable_code_tracing(unsigned long thread_ident, code, frame):
 
     return _enable_code_tracing(py_db, additional_info, func_code_info, code, frame, False)
 
+# fmt: off
+# IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
+cpdef reset_thread_local_info():
+# ELSE
+# def reset_thread_local_info():
+# ENDIF
+# fmt: on
+    """Resets the thread local info TLS store for use after a fork()."""
+    global _thread_local_info
+    _thread_local_info = threading.local()
 
 # fmt: off
 # IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
@@ -948,7 +958,7 @@ cdef _raise_event(code, instruction, exc):
         thread_info = _get_thread_info(True, 1)
         if thread_info is None:
             return
-        
+
     py_db: object = GlobalDebuggerHolder.global_dbg
     if py_db is None or py_db.pydb_disposed:
         return
@@ -1091,12 +1101,12 @@ cdef _return_event(code, instruction, retval):
         if func_code_info.plugin_return_stepping:
             _plugin_stepping(py_db, step_cmd, "return", frame, thread_info)
         return
-    
+
     if info.pydev_state == STATE_SUSPEND:
         # We're already suspended, don't handle any more events on this thread.
         _do_wait_suspend(py_db, thread_info, frame, "return", None)
         return
-    
+
     # Python line stepping
     stop_frame = info.pydev_step_stop
     if step_cmd in (CMD_STEP_INTO, CMD_STEP_INTO_MY_CODE, CMD_STEP_INTO_COROUTINE):
@@ -1459,7 +1469,7 @@ cdef _line_event(code, int line):
         # For thread-related stuff we can't disable the code tracing because other
         # threads may still want it...
         return
-    
+
     func_code_info: FuncCodeInfo = _get_func_code_info(code, 1)
     if func_code_info.always_skip_code or func_code_info.always_filtered_out:
         return monitor.DISABLE
@@ -1893,7 +1903,7 @@ def update_monitor_events(suspend_requested: Optional[bool]=None) -> None:
         monitor.register_callback(DEBUGGER_ID, monitor.events.LINE, _line_event)
         if not IS_PY313_OR_GREATER:
             # In Python 3.13+ jump_events aren't necessary as we have a line_event for every
-            # jump location. 
+            # jump location.
             monitor.register_callback(DEBUGGER_ID, monitor.events.JUMP, _jump_event)
         monitor.register_callback(DEBUGGER_ID, monitor.events.PY_RETURN, _return_event)
 

@@ -3354,6 +3354,9 @@ def settrace_forked(setup_tracing=True):
             if clear_thread_local_info is not None:
                 clear_thread_local_info()
 
+            if PYDEVD_USE_SYS_MONITORING:
+                pydevd_sys_monitoring.reset_thread_local_info()
+
             settrace(
                 host,
                 port=port,

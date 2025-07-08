@@ -108,21 +108,21 @@ Pydevd (at src/debugpy/_vendored/pydevd) is a subrepo of https://github.com/fabi
 In order to update the source, you would:
 - git checkout -b "branch name"
 - python subrepo.py pull
-- git push 
+- git push
 - Fix any debugpy tests that are failing as a result of the pull
 - Create a PR from your branch
 
 You might need to regenerate the Cython modules after any changes. This can be done by:
 
 - Install Python latest (3.12 as of this writing)
-- pip install cython, django>=1.9, setuptools>=0.9, wheel>0.21, twine
+- pip install cython 'django>=1.9' 'setuptools>=0.9' 'wheel>0.21' twine
 - On a windows machine:
   - set FORCE_PYDEVD_VC_VARS=C:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\VC\Auxiliary\Build\vcvars64.bat
   - in the pydevd folder: python .\build_tools\build.py
 
 ## Pushing pydevd back to PyDev.Debugger
 
-If you've made changes to pydevd (at src/debugpy/_vendored/pydevd), you'll want to push back changes to pydevd so as Fabio makes changes to pydevd we can continue to share updates. 
+If you've made changes to pydevd (at src/debugpy/_vendored/pydevd), you'll want to push back changes to pydevd so as Fabio makes changes to pydevd we can continue to share updates.
 
 To do this, you would:
 
@@ -148,13 +148,13 @@ You run all of the tests with (from the root folder):
 
 - python -m pytest -n auto -rfE
 
-That will run all of the tests in parallel and output any failures. 
+That will run all of the tests in parallel and output any failures.
 
 If you want to just see failures you can do this:
 
 - python -m pytest -n auto -q
 
-That should generate output that just lists the tests which failed. 
+That should generate output that just lists the tests which failed.
 
 ```
 =============================================== short test summary info ===============================================
@@ -167,7 +167,7 @@ With that you can then run individual tests like so:
 
 - python -m pytest -n auto tests_python/test_debugger.py::test_path_translation[False]
 
-That will generate a log from the test run. 
+That will generate a log from the test run.
 
 Logging the test output can be tricky so here's some information on how to debug the tests.
 
@@ -194,7 +194,7 @@ Make sure if you add this in a module that gets `cythonized`, that you turn off 
 
 #### How to use logs to debug failures
 
-Investigating log failures can be done in multiple ways. 
+Investigating log failures can be done in multiple ways.
 
 If you have an existing test failing, you can investigate it by running the test with the main branch and comparing the results. To do so you would:
 
@@ -238,7 +238,7 @@ Breakpoint command
 0.00s - Received command: CMD_SET_BREAK 111     3       1       python-line     C:\Users\rchiodo\source\repos\PyDev.Debugger\tests_python\resources\_debugger_case_remove_breakpoint.py 7       None    None    None
 ```
 
-In order to investigate a failure you'd look for the CMDs you expect and then see where the CMDs deviate. At that point you'd add logging around what might have happened next. 
+In order to investigate a failure you'd look for the CMDs you expect and then see where the CMDs deviate. At that point you'd add logging around what might have happened next.
 
 ## Using modified debugpy in Visual Studio Code
 To test integration between debugpy and Visual Studio Code, the latter can be directed to use a custom version of debugpy in lieu of the one bundled with the Python extension. This is done by specifying `"debugAdapterPath"` in `launch.json` - it must point at the root directory of the *package*, which is `src/debugpy` inside the repository:
@@ -257,7 +257,7 @@ https://github.com/microsoft/debugpy/wiki/Enable-debugger-logs
 
 ## Debugging native code (Windows)
 
-To debug the native components of `debugpy`, such as `attach.cpp`, you can use Visual Studio's native debugging feature. 
+To debug the native components of `debugpy`, such as `attach.cpp`, you can use Visual Studio's native debugging feature.
 
 Follow these steps to set up native debugging in Visual Studio:
 
