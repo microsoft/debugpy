@@ -87,7 +87,7 @@ def test_multiprocessing(pyfile, target, run, start_method):
             p.join()
 
         def child(q, a):
-            print("entering child")
+            print("entering child")  # @bp
             assert q.get() == "foo?"
             a.put(Foo())
 
@@ -136,7 +136,20 @@ def test_multiprocessing(pyfile, target, run, start_method):
 
         with debug.Session(child_config) as child_session:
             with child_session.start():
-                pass
+                child_session.set_breakpoints(code_to_debug, all)
+
+            expected_frame = some.dap.frame(code_to_debug, line="bp")
+            stop = child_session.wait_for_stop(
+                "breakpoint",
+                expected_frames=[expected_frame],
+            )
+            child_session.request('stepIn', {"threadId": stop.thread_id})
+
+            stop = child_session.wait_for_stop(
+                "step",
+                expected_frames=[some.dap.frame(code_to_debug, line=expected_frame.items['line'] + 1)],
+            )
+            child_session.request_continue()
 
             expected_grandchild_config = expected_subprocess_config(child_session)
             grandchild_config = child_session.wait_for_next_event("debugpyAttach")

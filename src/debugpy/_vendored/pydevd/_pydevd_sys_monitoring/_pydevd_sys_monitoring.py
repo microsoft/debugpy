@@ -755,6 +755,16 @@ def enable_code_tracing(thread_ident: Optional[int], code, frame) -> bool:
 
     return _enable_code_tracing(py_db, additional_info, func_code_info, code, frame, False)
 
+# fmt: off
+# IFDEF CYTHON
+# cpdef reset_thread_local_info():
+# ELSE
+def reset_thread_local_info():
+# ENDIF
+# fmt: on
+    """Resets the thread local info TLS store for use after a fork()."""
+    global _thread_local_info
+    _thread_local_info = threading.local()
 
 # fmt: off
 # IFDEF CYTHON
