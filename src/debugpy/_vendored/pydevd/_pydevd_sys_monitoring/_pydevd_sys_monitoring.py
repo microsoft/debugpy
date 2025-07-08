@@ -257,6 +257,7 @@ class ThreadInfo:
         self.additional_info = additional_info
         self.trace = trace
         self._use_is_stopped = hasattr(thread, '_is_stopped')
+        
 
     # fmt: off
     # IFDEF CYTHON
@@ -952,6 +953,7 @@ def _raise_event(code, instruction, exc):
         thread_info = _get_thread_info(True, 1)
         if thread_info is None:
             return
+        
 
     py_db: object = GlobalDebuggerHolder.global_dbg
     if py_db is None or py_db.pydb_disposed:
@@ -1095,11 +1097,13 @@ def _return_event(code, instruction, retval):
         if func_code_info.plugin_return_stepping:
             _plugin_stepping(py_db, step_cmd, "return", frame, thread_info)
         return
+    
 
     if info.pydev_state == STATE_SUSPEND:
         # We're already suspended, don't handle any more events on this thread.
         _do_wait_suspend(py_db, thread_info, frame, "return", None)
         return
+    
 
     # Python line stepping
     stop_frame = info.pydev_step_stop
@@ -1463,6 +1467,7 @@ def _line_event(code, line):
         # For thread-related stuff we can't disable the code tracing because other
         # threads may still want it...
         return
+    
 
     func_code_info: FuncCodeInfo = _get_func_code_info(code, 1)
     if func_code_info.always_skip_code or func_code_info.always_filtered_out:
@@ -1897,7 +1902,7 @@ def update_monitor_events(suspend_requested: Optional[bool]=None) -> None:
         monitor.register_callback(DEBUGGER_ID, monitor.events.LINE, _line_event)
         if not IS_PY313_OR_GREATER:
             # In Python 3.13+ jump_events aren't necessary as we have a line_event for every
-            # jump location.
+            # jump location. 
             monitor.register_callback(DEBUGGER_ID, monitor.events.JUMP, _jump_event)
         monitor.register_callback(DEBUGGER_ID, monitor.events.PY_RETURN, _return_event)
 
