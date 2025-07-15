@@ -24,7 +24,7 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo
             });
-            return issue.data.assignees[0].login || '';
+            return (issue.data.assignees && issue.data.assignees[0].login) || '';
       - name: Dump last assigned
         env:
           LAST_ASSIGNED: ${{ steps.assigned.outputs.result }}
