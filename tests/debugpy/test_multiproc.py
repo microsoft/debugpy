@@ -630,7 +630,7 @@ def test_subprocess_with_parent_pid(pyfile, target, run):
         import subprocess
         import sys
 
-        from debugpy.server import cli as debugpy_cli
+        import debugpy
 
         debuggee.setup()
 
@@ -642,8 +642,11 @@ def test_subprocess_with_parent_pid(pyfile, target, run):
         else:
             argv = ["/bin/sh", "-c"]
 
-        host, port = debugpy_cli.options.address
-        access_token = debugpy_cli.options.adapter_access_token
+        cli_opts = debugpy.get_cli_options()
+        assert cli_opts, "No CLI options found"
+
+        host, port = cli_opts.address
+        access_token = cli_opts.adapter_access_token
 
         shell_args = [
             sys.executable,
