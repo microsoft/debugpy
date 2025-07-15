@@ -35,6 +35,7 @@ Usage: debugpy --listen | --connect
                [--configure-<name> <value>]...
                [--log-to <path>] [--log-to-stderr]
                [--parent-session-pid <pid>]]
+               [--adapter-access-token <token>]
                {1}
                [<arg>]...
 """.format(
@@ -182,8 +183,6 @@ switches = [
     ("--wait-for-client",       None,               set_const("wait_for_client", True)),
     ("--configure-.+",          "<value>",          set_config),
     ("--parent-session-pid",    "<pid>",            set_arg("parent_session_pid", lambda x: int(x) if x else None)),
-
-    # Switches that are used internally by the client or debugpy itself.
     ("--adapter-access-token",   "<token>",         set_arg("adapter_access_token")),
 
     # Targets. The "" entry corresponds to positional command line arguments,
