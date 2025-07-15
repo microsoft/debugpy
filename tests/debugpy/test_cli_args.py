@@ -15,13 +15,14 @@ def test_cli_options_with_no_debugger():
 def test_cli_options_under_file_connect(pyfile, target, run):
     @pyfile
     def code_to_debug():
+        import dataclasses
         import debugpy
 
         import debuggee
         from debuggee import backchannel
 
         debuggee.setup()
-        backchannel.send(debugpy.get_cli_options())
+        backchannel.send(dataclasses.asdict(debugpy.get_cli_options()))
 
     with debug.Session() as session:
         backchannel = session.open_backchannel()
