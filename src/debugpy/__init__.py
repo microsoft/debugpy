@@ -25,6 +25,13 @@ __all__ = [  # noqa
 
 import sys
 
+try:
+    import debugpy._vendored  # noqa
+
+    is_pydevd_bundled = True
+except ImportError:
+    is_pydevd_bundled = False
+
 assert sys.version_info >= (3, 7), (
     "Python 3.6 and below is not supported by this version of debugpy; "
     "use debugpy 1.5.1 or earlier."
