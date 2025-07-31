@@ -24,7 +24,7 @@ The following tools are required to work on debugpy:
 - [Black](https://black.readthedocs.io/en/stable/)
 - [tox](https://tox.readthedocs.io/en/latest/)
 
-We recommend using [Visual Studio Code](https://code.visualstudio.com/) with the (Python extension)[https://marketplace.visualstudio.com/items?itemName=ms-python.python] to work on debugpy, but it's not a requirement. A workspace file, [debugpy.code-workspace], is provided for the convenience of VSCode users, and sets it up to use the other tools listed above properly.
+We recommend using [Visual Studio Code](https://code.visualstudio.com/) with the [Python extension](https://marketplace.visualstudio.com/items?itemName=ms-python.python) to work on debugpy, but it's not a requirement. A workspace file, [debugpy.code-workspace], is provided for the convenience of VSCode users, and sets it up to use the other tools listed above properly.
 
 Tools that are Python packages should be installed via pip corresponding to the Python 3 installation. On Windows:
 ```
