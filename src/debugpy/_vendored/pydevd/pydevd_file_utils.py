@@ -88,7 +88,11 @@ def _get_library_dir():
                 break
 
     if library_dir is None or not os_path_exists(library_dir):
-        library_dir = os.path.dirname(os.__file__)
+        if hasattr(os, "__file__"):
+            library_dir = os.path.dirname(os.__file__)
+
+    if library_dir is None:
+        library_dir = ""  # not possible to detect library_dir
 
     return library_dir
 
