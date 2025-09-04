@@ -114,7 +114,7 @@ In order to update the source, you would:
 
 You might need to regenerate the Cython modules after any changes. This can be done by:
 
-- Install Python latest (3.12 as of this writing)
+- Install Python latest (3.14 as of this writing)
 - pip install cython 'django>=1.9' 'setuptools>=0.9' 'wheel>0.21' twine
 - On a windows machine:
   - set FORCE_PYDEVD_VC_VARS=C:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\VC\Auxiliary\Build\vcvars64.bat

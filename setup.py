@@ -78,14 +78,12 @@ def override_build_py(cmds):
             "Compiling pydevd Cython extension modules (set SKIP_CYTHON_BUILD=1 to omit)."
         )
         try:
-            subprocess.check_call(
-                [
-                    sys.executable,
-                    os.path.join(PYDEVD_ROOT, "setup_pydevd_cython.py"),
-                    "build_ext",
-                    "--inplace",
-                ]
-            )
+            subprocess.check_call([
+                sys.executable,
+                os.path.join(PYDEVD_ROOT, "setup_pydevd_cython.py"),
+                "build_ext",
+                "--inplace",
+            ])
         except subprocess.SubprocessError:
             # pydevd Cython extensions are optional performance enhancements, and debugpy is
             # usable without them. Thus, we want to ignore build errors here by default, so
@@ -170,6 +168,8 @@ if __name__ == "__main__":
             "Programming Language :: Python :: 3.10",
             "Programming Language :: Python :: 3.11",
             "Programming Language :: Python :: 3.12",
+            "Programming Language :: Python :: 3.13",
+            "Programming Language :: Python :: 3.14",
             "Topic :: Software Development :: Debuggers",
             "Operating System :: Microsoft :: Windows",
             "Operating System :: MacOS",
@@ -202,5 +202,5 @@ if __name__ == "__main__":
                 "debugpy-adapter = debugpy.adapter.__main__:main",
             ],
         },
-        **extras
+        **extras,
     )
