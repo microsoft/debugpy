@@ -142,9 +142,8 @@ stages:
             python.version: 3.12
           py313:
             python.version: 3.13
-          ${{ if eq(parameters.includeHostedPy314, true) }}:
-            py314:
-              python.version: 3.14
+          py314:
+            python.version: 3.14.0-rc.2
 
       steps:
 
