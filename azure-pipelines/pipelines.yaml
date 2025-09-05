@@ -14,13 +14,6 @@ pr:
     include:
       - '*'
 
-# Parameter to optionally include hosted Python 3.14 in matrices once images support it.
-parameters:
-  - name: includeHostedPy314
-    type: boolean
-    default: false
-    # Set to true after hosted agents list Python 3.14 in software inventory.
-
 variables:
   architecture: x64
   PYDEVD_ATTACH_TO_PROCESS: src/debugpy/_vendored/pydevd/pydevd_attach_to_process
@@ -169,65 +162,6 @@ stages:
 
         - template: templates/run_tests.yml
 
-    # Experimental Python 3.14 job (Linux only) until hosted agents include 3.14.
-    # Uses official python:3.14 (or rc) container image so we don't need system preinstall.
-    - job: Tests_Linux_Py314_Experimental
-      displayName: Tests - Linux (py314 experimental)
-      timeoutInMinutes: 45
-      pool:
-        vmImage: ubuntu-latest
-      container: python:3.14-rc
-      continueOnError: true   # Allow pipeline success even if experimental version fails
-      variables:
-        python.version: 3.14
-      steps:
-        - script: |
-            echo "Python in container:" && python --version
-            python -m pip install -U pip
-          displayName: Initialize Python 3.14
-
-        # Optional: install gdb & enable ptrace for tests needing debugger attach (keep lightweight)
-        - script: |
-            apt-get update
-            apt-get --yes install gdb
-            sysctl kernel.yama.ptrace_scope=0 || true
-          displayName: (Optional) Enable gdb / ptrace
-          continueOnError: true
-
-        - download: current
-          displayName: Download pydevd binaries
-          artifact: pydevd binaries
-
-        - task: CopyFiles@2
-          displayName: Copy pydevd binaries
-          inputs:
-            SourceFolder: $(Pipeline.Workspace)/pydevd binaries
-            TargetFolder: $(Build.SourcesDirectory)/$(PYDEVD_ATTACH_TO_PROCESS)
-
-        - script: |
-            python -m pip install tox
-            echo "tox environment: py314"
-            python -m tox -e py314 -- --junitxml=$(Build.ArtifactStagingDirectory)/tests.xml --debugpy-log-dir=$(Build.ArtifactStagingDirectory)/logs tests
-          displayName: Run tests (py314 experimental)
-          env:
-            DEBUGPY_PROCESS_SPAWN_TIMEOUT: 60
-            DEBUGPY_LAUNCH_TIMEOUT: 60
-
-        - task: PublishBuildArtifacts@1
-          displayName: Publish test logs (py314 experimental)
-          inputs:
-            artifactName: Test logs py314
-            pathToPublish: $(Build.ArtifactStagingDirectory)/logs
-          condition: failed()
-
-        - task: PublishTestResults@2
-          displayName: Publish test results (py314 experimental)
-          inputs:
-            testRunTitle: $(Agent.JobName)
-            testResultsFiles: tests.xml
-            searchFolder: $(Build.ArtifactStagingDirectory)
-          condition: always()
-
     - job: Tests_Mac
       timeoutInMinutes: 30
       displayName: Tests - macOS
@@ -246,9 +180,8 @@ stages:
             python.version: 3.12
           py313:
             python.version: 3.13
-          ${{ if eq(parameters.includeHostedPy314, true) }}:
-            py314:
-              python.version: 3.14
+          py314:
+            python.version: 3.14.0-rc.2
 
       steps:
 
@@ -295,9 +228,8 @@ stages:
             python.version: 3.12
           py313:
             python.version: 3.13
-          ${{ if eq(parameters.includeHostedPy314, true) }}:
-            py314:
-              python.version: 3.14
+          py314:
+            python.version: 3.14.0-rc.2
 
       steps:
 
