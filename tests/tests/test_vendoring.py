@@ -3,6 +3,12 @@
 # for license information.
 
 
+import pytest
+
+import debugpy
+
+
+@pytest.mark.skipif(not debugpy.is_pydevd_bundled, reason="pydevd is not bundled")
 def test_vendoring(pyfile):
     @pyfile
     def import_debugpy():

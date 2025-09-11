@@ -6,6 +6,7 @@
 
 import os
 
+import debugpy
 
 __file__ = os.path.abspath(__file__)
 _debugpy_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
@@ -28,25 +29,29 @@ def attach(setup):
                 def on_critical(msg):
                     print(msg, file=sys.stderr)
 
-                pydevd_attach_to_process_path = os.path.join(
-                    _debugpy_dir,
-                    "debugpy",
-                    "_vendored",
-                    "pydevd",
-                    "pydevd_attach_to_process",
-                )
-                assert os.path.exists(pydevd_attach_to_process_path)
-                sys.path.insert(0, pydevd_attach_to_process_path)
+                if not debugpy.is_pydevd_bundled:
+                    from pydevd_attach_to_process import attach_script
+                else:
+                    pydevd_attach_to_process_path = os.path.join(
+                        _debugpy_dir,
+                        "debugpy",
+                        "_vendored",
+                        "pydevd",
+                        "pydevd_attach_to_process",
+                    )
+                    assert os.path.exists(pydevd_attach_to_process_path)
+                    sys.path.insert(0, pydevd_attach_to_process_path)
 
-                # NOTE: that it's not a part of the pydevd PYTHONPATH
-                import attach_script
+                    # NOTE: that it's not a part of the pydevd PYTHONPATH
+                    import attach_script
 
                 attach_script.fix_main_thread_id(
                     on_warn=on_warn, on_exception=on_exception, on_critical=on_critical
                 )
 
-                # NOTE: At this point it should be safe to remove this.
-                sys.path.remove(pydevd_attach_to_process_path)
+                if debugpy.is_pydevd_bundled:
+                    # NOTE: At this point it should be safe to remove this.
+                    sys.path.remove(pydevd_attach_to_process_path)
             except:
                 import traceback
 
