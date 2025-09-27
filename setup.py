@@ -186,7 +186,7 @@ if __name__ == "__main__":
             "debugpy._vendored",
         ],
         package_data={
-            "debugpy": ["ThirdPartyNotices.txt"],
+            "debugpy": ["ThirdPartyNotices.txt", "py.typed"],
             "debugpy._vendored": [
                 # pydevd extensions must be built before this list can be computed properly,
                 # so it is populated in the overridden build_py.finalize_options().
