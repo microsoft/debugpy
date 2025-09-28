@@ -1,7 +1,16 @@
+from __future__ import annotations
+
+import sys
+from types import MappingProxyType
+from typing import TYPE_CHECKING
+from collections import UserDict, UserList
+
+import pytest
 from _pydevd_bundle.pydevd_constants import IS_PY36_OR_GREATER, GENERATED_LEN_ATTR_NAME
 from _pydevd_bundle import pydevd_constants, pydevd_frame_utils
-import pytest
-import sys
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping, Sequence
 
 
 def check_len_entry(len_entry, first_2_params):
@@ -10,12 +19,13 @@ def check_len_entry(len_entry, first_2_params):
     assert len_entry[2]("check") == "len(check)"
 
 
-def test_dict_resolver():
-    from _pydevd_bundle.pydevd_resolver import DictResolver
+@pytest.mark.parametrize("map_cls", [dict, MappingProxyType, UserDict])
+def test_mapping_resolver(map_cls: type[Mapping]):
+    from _pydevd_bundle.pydevd_resolver import MappingResolver
 
-    dict_resolver = DictResolver()
-    dct = {(1, 2): 2, "22": 22}
-    contents_debug_adapter_protocol = clear_contents_debug_adapter_protocol(dict_resolver.get_contents_debug_adapter_protocol(dct))
+    mapping_resolver = MappingResolver()
+    dct = map_cls({(1, 2): 2, "22": 22})
+    contents_debug_adapter_protocol = clear_contents_debug_adapter_protocol(mapping_resolver.get_contents_debug_adapter_protocol(dct))
     len_entry = contents_debug_adapter_protocol.pop(-1)
     check_len_entry(len_entry, (GENERATED_LEN_ATTR_NAME, 2))
     if IS_PY36_OR_GREATER:
@@ -25,13 +35,13 @@ def test_dict_resolver():
         assert contents_debug_adapter_protocol == [("'22'", 22, "['22']"), ("(1, 2)", 2, "[(1, 2)]")]
 
 
-def test_dict_resolver_hex():
-    from _pydevd_bundle.pydevd_resolver import DictResolver
+def test_mapping_resolver_hex():
+    from _pydevd_bundle.pydevd_resolver import MappingResolver
 
-    dict_resolver = DictResolver()
+    mapping_resolver = MappingResolver()
     dct = {(1, 10, 100): (10000, 100000, 100000)}
     contents_debug_adapter_protocol = clear_contents_debug_adapter_protocol(
-        dict_resolver.get_contents_debug_adapter_protocol(dct, fmt={"hex": True})
+        mapping_resolver.get_contents_debug_adapter_protocol(dct, fmt={"hex": True})
     )
     len_entry = contents_debug_adapter_protocol.pop(-1)
     check_len_entry(len_entry, (GENERATED_LEN_ATTR_NAME, 1))
@@ -164,13 +174,14 @@ def clear_contents_dictionary(dictionary):
     return dictionary
 
 
-def test_tuple_resolver():
-    from _pydevd_bundle.pydevd_resolver import TupleResolver
+@pytest.mark.parametrize("seq_cls", [list, tuple, UserList])
+def test_sequence_resolver(seq_cls: type[Sequence]):
+    from _pydevd_bundle.pydevd_resolver import SequenceResolver
 
-    tuple_resolver = TupleResolver()
+    seq_resolver = SequenceResolver()
     fmt = {"hex": True}
-    lst = tuple(range(11))
-    contents_debug_adapter_protocol = clear_contents_debug_adapter_protocol(tuple_resolver.get_contents_debug_adapter_protocol(lst))
+    lst = seq_cls(range(11))
+    contents_debug_adapter_protocol = clear_contents_debug_adapter_protocol(seq_resolver.get_contents_debug_adapter_protocol(lst))
     len_entry = contents_debug_adapter_protocol.pop(-1)
     assert contents_debug_adapter_protocol == [
         ("00", 0, "[0]"),
@@ -187,7 +198,7 @@ def test_tuple_resolver():
     ]
     check_len_entry(len_entry, (GENERATED_LEN_ATTR_NAME, 11))
 
-    assert clear_contents_dictionary(tuple_resolver.get_dictionary(lst)) == {
+    assert clear_contents_dictionary(seq_resolver.get_dictionary(lst)) == {
         "00": 0,
         "01": 1,
         "02": 2,
@@ -202,9 +213,9 @@ def test_tuple_resolver():
         GENERATED_LEN_ATTR_NAME: 11,
     }
 
-    lst = tuple(range(17))
+    lst = seq_cls(range(17))
     contents_debug_adapter_protocol = clear_contents_debug_adapter_protocol(
-        tuple_resolver.get_contents_debug_adapter_protocol(lst, fmt=fmt)
+        seq_resolver.get_contents_debug_adapter_protocol(lst, fmt=fmt)
     )
     len_entry = contents_debug_adapter_protocol.pop(-1)
     assert contents_debug_adapter_protocol == [
@@ -228,7 +239,7 @@ def test_tuple_resolver():
     ]
     check_len_entry(len_entry, (GENERATED_LEN_ATTR_NAME, 17))
 
-    assert clear_contents_dictionary(tuple_resolver.get_dictionary(lst, fmt=fmt)) == {
+    assert clear_contents_dictionary(seq_resolver.get_dictionary(lst, fmt=fmt)) == {
         "0x00": 0,
         "0x01": 1,
         "0x02": 2,
@@ -249,8 +260,8 @@ def test_tuple_resolver():
         GENERATED_LEN_ATTR_NAME: 17,
     }
 
-    lst = tuple(range(10))
-    contents_debug_adapter_protocol = clear_contents_debug_adapter_protocol(tuple_resolver.get_contents_debug_adapter_protocol(lst))
+    lst = seq_cls(range(10))
+    contents_debug_adapter_protocol = clear_contents_debug_adapter_protocol(seq_resolver.get_contents_debug_adapter_protocol(lst))
     len_entry = contents_debug_adapter_protocol.pop(-1)
     assert contents_debug_adapter_protocol == [
         ("0", 0, "[0]"),
@@ -266,7 +277,7 @@ def test_tuple_resolver():
     ]
     check_len_entry(len_entry, (GENERATED_LEN_ATTR_NAME, 10))
 
-    assert clear_contents_dictionary(tuple_resolver.get_dictionary(lst)) == {
+    assert clear_contents_dictionary(seq_resolver.get_dictionary(lst)) == {
         "0": 0,
         "1": 1,
         "2": 2,
@@ -281,7 +292,7 @@ def test_tuple_resolver():
     }
 
     contents_debug_adapter_protocol = clear_contents_debug_adapter_protocol(
-        tuple_resolver.get_contents_debug_adapter_protocol(lst, fmt=fmt)
+        seq_resolver.get_contents_debug_adapter_protocol(lst, fmt=fmt)
     )
     len_entry = contents_debug_adapter_protocol.pop(-1)
     assert contents_debug_adapter_protocol == [
@@ -298,7 +309,7 @@ def test_tuple_resolver():
     ]
     check_len_entry(len_entry, (GENERATED_LEN_ATTR_NAME, 10))
 
-    assert clear_contents_dictionary(tuple_resolver.get_dictionary(lst, fmt=fmt)) == {
+    assert clear_contents_dictionary(seq_resolver.get_dictionary(lst, fmt=fmt)) == {
         "0x0": 0,
         "0x1": 1,
         "0x2": 2,
@@ -313,17 +324,17 @@ def test_tuple_resolver():
     }
 
 
-def test_tuple_resolver_mixed():
-    from _pydevd_bundle.pydevd_resolver import TupleResolver
+def test_sequence_resolver_mixed():
+    from _pydevd_bundle.pydevd_resolver import SequenceResolver
 
-    tuple_resolver = TupleResolver()
+    seq_resolver = SequenceResolver()
 
     class CustomTuple(tuple):
         pass
 
     my_tuple = CustomTuple([1, 2])
     my_tuple.some_value = 10
-    contents_debug_adapter_protocol = clear_contents_debug_adapter_protocol(tuple_resolver.get_contents_debug_adapter_protocol(my_tuple))
+    contents_debug_adapter_protocol = clear_contents_debug_adapter_protocol(seq_resolver.get_contents_debug_adapter_protocol(my_tuple))
     len_entry = contents_debug_adapter_protocol.pop(-1)
     check_len_entry(len_entry, (GENERATED_LEN_ATTR_NAME, 2))
     assert contents_debug_adapter_protocol == [
@@ -333,7 +344,7 @@ def test_tuple_resolver_mixed():
     ]
 
 
-def test_tuple_resolver_ctypes():
+def test_sequence_resolver_ctypes():
     import ctypes
     from _pydevd_bundle.pydevd_xml import get_type
 
