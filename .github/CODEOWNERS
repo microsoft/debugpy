@@ -5,3 +5,4 @@
 
 # The default owners for everything that is not overridden by specific patterns below.
 *   @microsoft/debugpy-CodeReviewers
+*   @microsoft/pyrx-admins
