@@ -88,7 +88,14 @@ def _get_library_dir():
                 break
 
     if library_dir is None or not os_path_exists(library_dir):
-        library_dir = os.path.dirname(os.__file__)
+        if hasattr(os, "__file__"):
+            # "os" is a frozen import an thus "os.__file__" is not always set.
+            # See https://github.com/python/cpython/pull/28656
+            library_dir = os.path.dirname(os.__file__)
+        else:
+            # "threading" is not a frozen import an thus "threading.__file__" is always set.
+            import threading
+            library_dir = os.path.dirname(threading.__file__)
 
     return library_dir
 
