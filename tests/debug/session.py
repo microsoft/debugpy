@@ -372,22 +372,16 @@ class Session(object):
                 s = s.strpath
             else:
                 s = str(s)
-            # Strip surrounding quotes if requested (for launcher args only)
-            if strip_quotes and len(s) >= 2 and (s[0] == s[-1] == '"' or s[0] == s[-1] == "'"):
+            # Strip surrounding quotes if requested
+            if strip_quotes and len(s) >= 2 and " " in s and (s[0] == s[-1] == '"' or s[0] == s[-1] == "'"):
                 s = s[1:-1]
             return s
 
-        # Strip quotes from exe and args before '--', but not from debuggee args after '--'
-        # (exe and launcher paths may be quoted when argsCanBeInterpretedByShell is set)
+        # Strip quotes from exe
         result = [normalize(exe, strip_quotes=True)]
-        found_separator = False
         for arg in args:
-            if arg == "--":
-                found_separator = True
-                result.append(arg)
-            else:
-                # Strip quotes before '--', but not after (debuggee args)
-                result.append(normalize(arg, strip_quotes=not found_separator))
+            # Don't strip quotes on anything except the exe
+            result.append(normalize(arg, strip_quotes=False))
         return result
 
     def spawn_debuggee(self, args, cwd=None, exe=sys.executable, setup=None):
