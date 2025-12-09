@@ -366,9 +366,18 @@ class Session(object):
         return env
 
     def _make_python_cmdline(self, exe, *args):
-        return [
-            str(s.strpath if isinstance(s, py.path.local) else s) for s in [exe, *args]
-        ]
+        def normalize(s):
+            # Convert py.path.local to string
+            if isinstance(s, py.path.local):
+                s = s.strpath
+            else:
+                s = str(s)
+            # Strip surrounding quotes if present
+            if len(s) >= 2 and (s[0] == s[-1] == '"' or s[0] == s[-1] == "'"):
+                s = s[1:-1]
+            return s
+
+        return [normalize(x) for x in (exe, *args)]
 
     def spawn_debuggee(self, args, cwd=None, exe=sys.executable, setup=None):
         assert self.debuggee is None

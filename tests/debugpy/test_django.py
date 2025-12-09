@@ -25,7 +25,6 @@ class lines:
 
 
 @pytest.fixture
-@pytest.mark.parametrize("run", [runners.launch, runners.attach_connect["cli"]])
 def start_django(run):
     def start(session, multiprocess=False):
         # No clean way to kill Django server, expect non-zero exit code
