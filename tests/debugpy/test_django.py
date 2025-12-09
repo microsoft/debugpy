@@ -5,7 +5,7 @@
 import pytest
 
 from tests import code, debug, log, net, test_data
-from tests.debug import runners, targets
+from tests.debug import targets
 from tests.patterns import some
 
 pytestmark = pytest.mark.timeout(60)
