@@ -156,7 +156,7 @@ def spawn_debuggee(
 
                 # VS Code debugger extension may pass us an argument indicating the 
                 # quoting character to use in the terminal. Otherwise default based on platform.
-                default_quote = "'" if os.name != "nt" else '"'
+                default_quote = '"' if os.name != "nt" else "'"
                 quote_char = arguments["terminalQuoteCharacter"] if "terminalQuoteCharacter" in arguments else default_quote
 
                 # VS code doesn't quote arguments if `argsCanBeInterpretedByShell` is true,
