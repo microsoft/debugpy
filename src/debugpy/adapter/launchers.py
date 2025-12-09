@@ -166,7 +166,7 @@ def spawn_debuggee(
                     if args[i] == "--":
                         break
                     s = args[i]
-                    if " " in s and not (s.startswith('"') and s.endswith('"')) or (s.startswith("'") and s.endswith("'")):
+                    if " " in s and not ((s.startswith('"') and s.endswith('"')) or (s.startswith("'") and s.endswith("'"))):
                         s = f"{quote_char}{s}{quote_char}"
                     args[i] = s
 

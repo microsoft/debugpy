@@ -366,18 +366,29 @@ class Session(object):
         return env
 
     def _make_python_cmdline(self, exe, *args):
-        def normalize(s):
+        def normalize(s, strip_quotes=False):
             # Convert py.path.local to string
             if isinstance(s, py.path.local):
                 s = s.strpath
             else:
                 s = str(s)
-            # Strip surrounding quotes if present
-            if len(s) >= 2 and (s[0] == s[-1] == '"' or s[0] == s[-1] == "'"):
+            # Strip surrounding quotes if requested (for launcher args only)
+            if strip_quotes and len(s) >= 2 and (s[0] == s[-1] == '"' or s[0] == s[-1] == "'"):
                 s = s[1:-1]
             return s
 
-        return [normalize(x) for x in (exe, *args)]
+        # Strip quotes from exe and args before '--', but not from debuggee args after '--'
+        # (exe and launcher paths may be quoted when argsCanBeInterpretedByShell is set)
+        result = [normalize(exe, strip_quotes=True)]
+        found_separator = False
+        for arg in args:
+            if arg == "--":
+                found_separator = True
+                result.append(arg)
+            else:
+                # Strip quotes before '--', but not after (debuggee args)
+                result.append(normalize(arg, strip_quotes=not found_separator))
+        return result
 
     def spawn_debuggee(self, args, cwd=None, exe=sys.executable, setup=None):
         assert self.debuggee is None
