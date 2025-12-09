@@ -46,19 +46,27 @@ def test_wrapper(request, long_tmpdir):
 
     session.Session.reset_counter()
 
-    session.Session.tmpdir = long_tmpdir
+    # Add worker-specific isolation for tmpdir and log directory
+    try:
+        worker_id = os.environ.get("PYTEST_XDIST_WORKER", "gw0")
+        worker_suffix = f"_{worker_id}"
+    except Exception:
+        worker_suffix = ""
+
+    session.Session.tmpdir = long_tmpdir / f"session{worker_suffix}"
+    session.Session.tmpdir.ensure(dir=True)
     original_log_dir = log.log_dir
 
     failed = True
     try:
         if log.log_dir is None:
-            log.log_dir = (long_tmpdir / "debugpy_logs").strpath
+            log.log_dir = (long_tmpdir / f"debugpy_logs{worker_suffix}").strpath
         else:
             log_subdir = request.node.nodeid
             log_subdir = log_subdir.replace("::", "/")
             for ch in r":?*|<>":
                 log_subdir = log_subdir.replace(ch, f"&#{ord(ch)};")
-            log.log_dir += "/" + log_subdir
+            log.log_dir += "/" + log_subdir + worker_suffix
 
         try:
             py.path.local(log.log_dir).remove()

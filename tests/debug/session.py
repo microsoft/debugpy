@@ -281,7 +281,11 @@ class Session(object):
 
         if self.adapter_endpoints is not None and self.expected_exit_code is not None:
             log.info("Waiting for {0} to close listener ports ...", self.adapter_id)
+            timeout_start = time.time()
             while self.adapter_endpoints.check():
+                if time.time() - timeout_start > 10:
+                    log.warning("{0} listener ports did not close within 10 seconds", self.adapter_id)
+                    break
                 time.sleep(0.1)
 
         if self.adapter is not None:
@@ -290,8 +294,20 @@ class Session(object):
                 self.adapter_id,
                 self.adapter.pid,
             )
-            self.adapter.wait()
-            watchdog.unregister_spawn(self.adapter.pid, self.adapter_id)
+            try:
+                self.adapter.wait(timeout=10)
+            except Exception:
+                log.warning("{0} did not exit gracefully within 10 seconds, force-killing", self.adapter_id)
+                try:
+                    self.adapter.kill()
+                    self.adapter.wait(timeout=5)
+                except Exception as e:
+                    log.error("Failed to force-kill {0}: {1}", self.adapter_id, e)
+            
+            try:
+                watchdog.unregister_spawn(self.adapter.pid, self.adapter_id)
+            except Exception as e:
+                log.warning("Failed to unregister adapter spawn: {0}", e)
             self.adapter = None
 
         if self.backchannel is not None:
