@@ -6,7 +6,7 @@ import pytest
 import sys
 
 from tests import code, debug, log, net, test_data
-from tests.debug import runners, targets
+from tests.debug import targets
 from tests.patterns import some
 
 pytestmark = pytest.mark.timeout(60)
@@ -27,7 +27,6 @@ class lines:
 
 
 @pytest.fixture
-@pytest.mark.parametrize("run", [runners.launch, runners.attach_connect["cli"]])
 def start_flask(run):
     def start(session, multiprocess=False):
         # No clean way to kill Flask server, expect non-zero exit code

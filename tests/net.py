@@ -17,7 +17,7 @@ from tests.patterns import some
 
 used_ports = set()
     
-def get_test_server_port():
+def get_test_server_port(max_retries=10):
     """Returns a server port number that can be safely used for listening without
     clashing with another test worker process, when running with pytest-xdist.
 
@@ -27,6 +27,9 @@ def get_test_server_port():
 
     Note that if multiple test workers invoke this function with different ranges
     that overlap, conflicts are possible!
+    
+    Args:
+        max_retries: Number of times to retry finding an available port
     """
 
     try:
@@ -39,11 +42,32 @@ def get_test_server_port():
         ), "Unrecognized PYTEST_XDIST_WORKER format"
         n = int(worker_id[2:])
 
+    # Try multiple times to find an available port, with retry logic
+    for attempt in range(max_retries):
+        port = 5678 + (n * 300) + attempt
+        while port in used_ports:
+            port += 1
+        
+        # Verify the port is actually available by trying to bind to it
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            sock.bind(("127.0.0.1", port))
+            sock.close()
+            used_ports.add(port)
+            log.info("Allocated port {0} for worker {1}", port, n)
+            return port
+        except OSError as e:
+            log.warning("Port {0} unavailable (attempt {1}/{2}): {3}", port, attempt + 1, max_retries, e)
+            sock.close()
+            time.sleep(0.1 * (attempt + 1))  # Exponential backoff
+    
+    # Fall back to original behavior if all retries fail
     port = 5678 + (n * 300)
     while port in used_ports:
         port += 1
     used_ports.add(port)
-
+    log.warning("Using fallback port {0} after {1} retries", port, max_retries)
     return port
 
 

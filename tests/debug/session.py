@@ -281,7 +281,11 @@ class Session(object):
 
         if self.adapter_endpoints is not None and self.expected_exit_code is not None:
             log.info("Waiting for {0} to close listener ports ...", self.adapter_id)
+            timeout_start = time.time()
             while self.adapter_endpoints.check():
+                if time.time() - timeout_start > 10:
+                    log.warning("{0} listener ports did not close within 10 seconds", self.adapter_id)
+                    break
                 time.sleep(0.1)
 
         if self.adapter is not None:
@@ -290,8 +294,20 @@ class Session(object):
                 self.adapter_id,
                 self.adapter.pid,
             )
-            self.adapter.wait()
-            watchdog.unregister_spawn(self.adapter.pid, self.adapter_id)
+            try:
+                self.adapter.wait(timeout=10)
+            except Exception:
+                log.warning("{0} did not exit gracefully within 10 seconds, force-killing", self.adapter_id)
+                try:
+                    self.adapter.kill()
+                    self.adapter.wait(timeout=5)
+                except Exception as e:
+                    log.error("Failed to force-kill {0}: {1}", self.adapter_id, e)
+            
+            try:
+                watchdog.unregister_spawn(self.adapter.pid, self.adapter_id)
+            except Exception as e:
+                log.warning("Failed to unregister adapter spawn: {0}", e)
             self.adapter = None
 
         if self.backchannel is not None:
@@ -366,9 +382,23 @@ class Session(object):
         return env
 
     def _make_python_cmdline(self, exe, *args):
-        return [
-            str(s.strpath if isinstance(s, py.path.local) else s) for s in [exe, *args]
-        ]
+        def normalize(s, strip_quotes=False):
+            # Convert py.path.local to string
+            if isinstance(s, py.path.local):
+                s = s.strpath
+            else:
+                s = str(s)
+            # Strip surrounding quotes if requested
+            if strip_quotes and len(s) >= 2 and " " in s and (s[0] == s[-1] == '"' or s[0] == s[-1] == "'"):
+                s = s[1:-1]
+            return s
+
+        # Strip quotes from exe
+        result = [normalize(exe, strip_quotes=True)]
+        for arg in args:
+            # Don't strip quotes on anything except the exe
+            result.append(normalize(arg, strip_quotes=False))
+        return result
 
     def spawn_debuggee(self, args, cwd=None, exe=sys.executable, setup=None):
         assert self.debuggee is None

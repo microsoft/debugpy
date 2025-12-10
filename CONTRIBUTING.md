@@ -93,6 +93,8 @@ The tests are run concurrently, and the default number of workers is 8. You can 
 
 While tox is the recommended way to run the test suite, pytest can also be invoked directly from the root of the repository. This requires packages in tests/requirements.txt to be installed first.
 
+Using a venv created by tox in the '.tox' folder can make it easier to get the pytest configuration correct. Debugpy needs to be installed into the venv for the tests to run, so using the tox generated .venv makes that easier.
+
 #### Keeping logs on test success
 
 There's an internal setting `debugpy_log_passed` that if set to true will not erase the logs after a successful test run. Just search for this in the code and remove the code that deletes the logs on success.
