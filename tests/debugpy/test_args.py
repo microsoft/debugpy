@@ -41,6 +41,13 @@ def test_args(pyfile, target, run):
 def test_shell_expansion(pyfile, tmpdir, target, run, expansion, python_with_space):
     if expansion == "expand" and run.console == "internalConsole":
         pytest.skip('Shell expansion is not supported for "internalConsole"')
+    
+    # Skip tests with python_with_space=True and target="code" on Windows with runInTerminal
+    # because cmd.exe cannot properly handle multiline string arguments when invoking a .cmd wrapper
+    if (python_with_space and target == targets.Code and 
+        run.console in ("integratedTerminal", "externalTerminal") and 
+        sys.platform == "win32"):
+        pytest.skip('Windows cmd.exe cannot handle multiline code arguments with .cmd wrapper')
 
     @pyfile
     def code_to_debug():
