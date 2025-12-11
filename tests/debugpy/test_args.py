@@ -6,7 +6,7 @@ import os
 import sys
 import pytest
 
-from debugpy.common import json, log
+from debugpy.common import log
 from tests import debug
 from tests.debug import runners, targets
 from tests.patterns import some
