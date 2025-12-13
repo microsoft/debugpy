@@ -594,25 +594,78 @@ class Session(object):
 
     def run_in_terminal(self, args, cwd, env):
         exe = args.pop(0)
+        if getattr(self, "_run_in_terminal_args_can_be_interpreted_by_shell", False):
+            exe = self._shell_unquote(exe)
+            args = [self._shell_unquote(a) for a in args]
         self.spawn_debuggee.env.update(env)
         self.spawn_debuggee(args, cwd, exe=exe)
         return {}
+
+    @staticmethod
+    def _shell_unquote(s):
+        s = str(s)
+        if len(s) >= 2 and s[0] == s[-1] and s[0] in ("\"", "'"):
+            return s[1:-1]
+        return s
+
+    @classmethod
+    def _split_shell_arg_string(cls, s):
+        """Split a shell argument string into args, honoring simple single/double quotes.
+
+        This is intentionally minimal: it matches how terminals remove surrounding quotes
+        before passing args to the spawned process, which our tests need to emulate.
+        """
+        s = str(s)
+        args = []
+        current = []
+        quote = None
+
+        def flush():
+            if current:
+                args.append("".join(current))
+                current.clear()
+
+        for ch in s:
+            if quote is None:
+                if ch.isspace():
+                    flush()
+                    continue
+                if ch in ("\"", "'"):
+                    quote = ch
+                    continue
+                current.append(ch)
+            else:
+                if ch == quote:
+                    quote = None
+                    continue
+                current.append(ch)
+        flush()
+
+        return [cls._shell_unquote(a) for a in args]
 
     def _process_request(self, request):
         self.timeline.record_request(request, block=False)
         if request.command == "runInTerminal":
             args = request("args", json.array(str, vectorize=True))
-            if len(args) > 0 and request("argsCanBeInterpretedByShell", False):
+            args_can_be_interpreted_by_shell = request("argsCanBeInterpretedByShell", False)
+            if len(args) > 0 and args_can_be_interpreted_by_shell:
                 # The final arg is a string that contains multiple actual arguments.
+                # Split it like a shell would, but keep the rest of the args (including
+                # any quoting) intact so tests can inspect the raw runInTerminal argv.
                 last_arg = args.pop()
-                args += last_arg.split()
+                args += self._split_shell_arg_string(last_arg)
             cwd = request("cwd", ".")
             env = request("env", json.object(str))
             try:
+                self._run_in_terminal_args_can_be_interpreted_by_shell = (
+                    args_can_be_interpreted_by_shell
+                )
                 return self.run_in_terminal(args, cwd, env)
             except Exception as exc:
                 log.swallow_exception('"runInTerminal" failed:')
                 raise request.cant_handle(str(exc))
+            finally:
+                self._run_in_terminal_args_can_be_interpreted_by_shell = False
 
         elif request.command == "startDebugging":
             pid = request("configuration", dict)("subProcessId", int)
