@@ -4,7 +4,7 @@ ARCH="$(uname -m)"
 case $ARCH in
     i*86) SUFFIX=x86;;
     x86_64*) SUFFIX=amd64;;
-    *) echo >&2 "unsupported: $ARCH"; exit 1;;
+    *) echo >&2 "unsupported: $ARCH, this script may not work";;
 esac
 
 SRC="$(dirname "$0")/.."
