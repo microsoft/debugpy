@@ -37,6 +37,7 @@ Usage: debugpy --listen | --connect
                [--log-to <path>] [--log-to-stderr]
                [--parent-session-pid <pid>]]
                [--adapter-access-token <token>]
+               [--disable-sys-remote-exec]]
                {1}
                [<arg>]...
 """.format(
