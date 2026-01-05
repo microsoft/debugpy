@@ -2,6 +2,7 @@
 import argparse
 import os
 import platform
+import re
 
 def build_pydevd_binaries(force: bool):
     os.environ["PYDEVD_USE_CYTHON"] = "yes"
@@ -25,7 +26,12 @@ def build_pydevd_binaries(force: bool):
         if not os.path.exists(os.path.join(pydevd_attach_to_process_root, "attach_amd64.dll")) or force:
             os.system(os.path.join(pydevd_attach_to_process_root, "windows", "compile_windows.bat"))
     elif platform.system() == "Linux":
-        if not os.path.exists(os.path.join(pydevd_attach_to_process_root, "attach_linux_amd64.so")) or force:
+        arch = platform.machine()
+        if re.match(r'^i.*86$', arch):
+            arch = 'x86'
+        if arch == "x86_64":
+            arch = "amd64"
+        if not os.path.exists(os.path.join(pydevd_attach_to_process_root, f"attach_linux_{arch}.so")) or force:
             os.system(os.path.join(pydevd_attach_to_process_root, "linux_and_mac", "compile_linux.sh"))
     elif platform.system() == "Darwin":
         if not os.path.exists(os.path.join(pydevd_attach_to_process_root, "attach.dylib")) or force:
