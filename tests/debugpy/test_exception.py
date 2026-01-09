@@ -5,7 +5,7 @@
 import pytest
 import sys
 
-from _pydevd_bundle.pydevd_constants import IS_PY312_OR_GREATER
+from _pydevd_bundle.pydevd_constants import IS_PY312_OR_GREATER, IS_PY314_OR_GREATER
 from tests import debug
 from tests.debug import runners, targets
 from tests.patterns import some
@@ -390,3 +390,54 @@ def test_exception_stack(pyfile, target, run, max_frames):
         assert min_expected_lines <= stack_line_count <= max_expected_lines
 
         session.request_continue()
+
+
+@pytest.mark.skipif(not IS_PY314_OR_GREATER, reason="Test requires Python 3.14+")
+def test_annotate_function_not_treated_as_user_exception(pyfile, target, run):
+    """
+    Test that __annotate__ functions (PEP 649) are treated as library code.
+    In Python 3.14+, compiler-generated __annotate__ functions can raise
+    NotImplementedError when called by inspect.call_annotate_function with
+    unsupported format arguments. These should not be reported as user exceptions.
+    """
+    @pyfile
+    def code_to_debug():
+        import debuggee
+        from typing import get_type_hints
+
+        debuggee.setup()
+
+        # Define a class with annotations that will trigger __annotate__ function generation
+        class AnnotatedClass:
+            value: int = 42
+            name: str = "test"
+
+        # This will trigger the __annotate__ function to be called by the runtime
+        # which may raise NotImplementedError internally (expected behavior)
+        try:
+            hints = get_type_hints(AnnotatedClass)
+            print(f"Type hints: {hints}")  # @bp
+        except Exception as e:
+            print(f"Exception: {e}")
+
+    with debug.Session() as session:
+        session.config["justMyCode"] = True
+        
+        with run(session, target(code_to_debug)):
+            # Set exception breakpoints for user uncaught exceptions
+            session.request(
+                "setExceptionBreakpoints",
+                {"filters": ["userUnhandled"]}
+            )
+            session.set_breakpoints(code_to_debug, all)
+
+        # Wait for the breakpoint
+        stop = session.wait_for_stop(
+            "breakpoint",
+            expected_frames=[some.dap.frame(code_to_debug, "bp")]
+        )
+        
+        # The test passes if we reach here without stopping on a NotImplementedError
+        # from __annotate__ function
+        session.request_continue()
+

@@ -1292,6 +1292,13 @@ class PyDB(object):
             if file_type == self.PYDEV_FILE:
                 cache[cache_key] = False
 
+            elif frame.f_code.co_name == "__annotate__":
+                # Special handling for __annotate__ functions (PEP 649 in Python 3.14+).
+                # These are compiler-generated functions that can raise NotImplementedError
+                # when called with unsupported format arguments by inspect.call_annotate_function.
+                # They should be treated as library code to avoid false positives in exception handling.
+                cache[cache_key] = False
+
             elif absolute_filename == "<string>":
                 # Special handling for '<string>'
                 if file_type == self.LIB_FILE:
