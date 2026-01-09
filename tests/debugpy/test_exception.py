@@ -432,7 +432,7 @@ def test_annotate_function_not_treated_as_user_exception(pyfile, target, run):
             session.set_breakpoints(code_to_debug, all)
 
         # Wait for the breakpoint
-        stop = session.wait_for_stop(
+        session.wait_for_stop(
             "breakpoint",
             expected_frames=[some.dap.frame(code_to_debug, "bp")]
         )
