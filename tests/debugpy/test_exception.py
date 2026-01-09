@@ -422,7 +422,7 @@ def test_annotate_function_not_treated_as_user_exception(pyfile, target, run):
 
     with debug.Session() as session:
         session.config["justMyCode"] = True
-        
+
         with run(session, target(code_to_debug)):
             # Set exception breakpoints for user uncaught exceptions
             session.request(

@@ -93,6 +93,7 @@ from _pydevd_bundle.pydevd_constants import (
     PYDEVD_IPYTHON_COMPATIBLE_DEBUGGING,
     PYDEVD_IPYTHON_CONTEXT,
     PYDEVD_USE_SYS_MONITORING,
+    IS_PY314_OR_GREATER,
 )
 from _pydevd_bundle.pydevd_defaults import PydevdCustomization  # Note: import alias used on pydev_monkey.
 from _pydevd_bundle.pydevd_custom_frames import CustomFramesContainer, custom_frames_container_init
@@ -1292,7 +1293,7 @@ class PyDB(object):
             if file_type == self.PYDEV_FILE:
                 cache[cache_key] = False
 
-            elif frame.f_code.co_name == "__annotate__":
+            elif IS_PY314_OR_GREATER and frame.f_code.co_name == "__annotate__":
                 # Special handling for __annotate__ functions (PEP 649 in Python 3.14+).
                 # These are compiler-generated functions that can raise NotImplementedError
                 # when called with unsupported format arguments by inspect.call_annotate_function.
