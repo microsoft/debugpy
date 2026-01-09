@@ -436,7 +436,7 @@ def test_annotate_function_not_treated_as_user_exception(pyfile, target, run):
             "breakpoint",
             expected_frames=[some.dap.frame(code_to_debug, "bp")]
         )
-        
+
         # The test passes if we reach here without stopping on a NotImplementedError
         # from __annotate__ function
         session.request_continue()
