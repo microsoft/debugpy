@@ -1298,6 +1298,9 @@ class PyDB(object):
                 # These are compiler-generated functions that can raise NotImplementedError
                 # when called with unsupported format arguments by inspect.call_annotate_function.
                 # They should be treated as library code to avoid false positives in exception handling.
+                # Note: PEP 649 reserves the __annotate__ name for compiler-generated functions,
+                # so user-defined functions with this name are discouraged and will also be treated
+                # as library code to maintain consistency with the language design.
                 cache[cache_key] = False
 
             elif absolute_filename == "<string>":
