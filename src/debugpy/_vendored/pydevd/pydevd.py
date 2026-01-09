@@ -93,6 +93,7 @@ from _pydevd_bundle.pydevd_constants import (
     PYDEVD_IPYTHON_COMPATIBLE_DEBUGGING,
     PYDEVD_IPYTHON_CONTEXT,
     PYDEVD_USE_SYS_MONITORING,
+    IS_PY314_OR_GREATER,
 )
 from _pydevd_bundle.pydevd_defaults import PydevdCustomization  # Note: import alias used on pydev_monkey.
 from _pydevd_bundle.pydevd_custom_frames import CustomFramesContainer, custom_frames_container_init
@@ -1290,6 +1291,16 @@ class PyDB(object):
             # pydevd files are never considered to be in the project scope.
             file_type = self.get_file_type(frame, abs_real_path_and_basename)
             if file_type == self.PYDEV_FILE:
+                cache[cache_key] = False
+
+            elif IS_PY314_OR_GREATER and frame.f_code.co_name == "__annotate__":
+                # Special handling for __annotate__ functions (PEP 649 in Python 3.14+).
+                # These are compiler-generated functions that can raise NotImplementedError
+                # when called with unsupported format arguments by inspect.call_annotate_function.
+                # They should be treated as library code to avoid false positives in exception handling.
+                # Note: PEP 649 reserves the __annotate__ name for compiler-generated functions,
+                # so user-defined functions with this name are discouraged and will also be treated
+                # as library code to maintain consistency with the language design.
                 cache[cache_key] = False
 
             elif absolute_filename == "<string>":
