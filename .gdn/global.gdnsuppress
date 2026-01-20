@@ -1,0 +1,29 @@
+
+{
+  "58a87fd4d7371ece41c06d9d8ef960a90be375cf25621fdddc0f69ed70a8b6f4": {
+    "signature": "58a87fd4d7371ece41c06d9d8ef960a90be375cf25621fdddc0f69ed70a8b6f4",
+    "alternativeSignatures": [
+      "86f6ccbed316821fbcca7e2f0daafcc164b6df645a491d850e1ac16b39eb747e"
+    ],
+    "target": "pydevd/inject_dll_amd64.exe",
+    "memberOf": [
+      "default"
+    ],
+    "tool": "binskim",
+    "ruleId": "BA2007",
+    "createdDate": "2026-01-20 21:21:03Z"
+  },
+  "2b82071ec3bb1a8e80b1615d79febb69084008a4b5a19e66dbeac590b39d4c55": {
+    "signature": "2b82071ec3bb1a8e80b1615d79febb69084008a4b5a19e66dbeac590b39d4c55",
+    "alternativeSignatures": [
+      "3e5a1d789a42983ae1541ba91e20f10f388886a5ba62833ec66e0a358adc1174"
+    ],
+    "target": "pydevd/inject_dll_x86.exe",
+    "memberOf": [
+      "default"
+    ],
+    "tool": "binskim",
+    "ruleId": "BA2007",
+    "createdDate": "2026-01-20 21:21:03Z"
+  }
+}
