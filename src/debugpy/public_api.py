@@ -213,8 +213,9 @@ def trace_this_thread(__should_trace: bool):
 
 
 @_api()
-def postmortem(
-    __excinfo: typing.Tuple[type, BaseException, typing.Any] | None = None
+def post_mortem(
+    __excinfo: typing.Tuple[type, BaseException, typing.Any] | None = None,
+    as_uncaught: bool = True,
 ) -> None:
     """Stops the debugger on an unhandled exception.
 
