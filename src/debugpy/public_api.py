@@ -212,6 +212,32 @@ def trace_this_thread(__should_trace: bool):
     """
 
 
+@_api()
+def postmortem(
+    __excinfo: typing.Tuple[type, BaseException, typing.Any] | None = None
+) -> None:
+    """Stops the debugger on an unhandled exception.
+
+    If a debug client is connected, pauses execution as if an
+    unhandled exception was caught. This allows inspection of the
+    exception and call stack at the point of failure.
+
+    If no exception info is provided, uses sys.exc_info() to get
+    the current exception. If there is no current exception and no
+    argument is provided, does nothing.
+
+    Safe to call when no debugger is connected (returns immediately).
+
+    Example::
+
+        try:
+            risky_operation()
+        except Exception:
+            debugpy.postmortem()  # Uses current exception
+            raise
+    """
+
+
 def get_cli_options() -> CliOptions | None:
     """Returns the CLI options that were processed by debugpy.
     

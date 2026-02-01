@@ -19,6 +19,7 @@ __all__ = [  # noqa
     "is_client_connected",
     "listen",
     "log_to",
+    "postmortem",
     "trace_this_thread",
     "wait_for_client",
 ]

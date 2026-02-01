@@ -364,3 +364,51 @@ def trace_this_thread(should_trace):
         pydb.enable_tracing()
     else:
         pydb.disable_tracing()
+
+
+def postmortem(excinfo=None):
+    ensure_logging()
+
+    if excinfo is None:
+        excinfo = sys.exc_info()
+
+    exctype, value, tb = excinfo
+    if exctype is None or value is None or tb is None:
+        log.debug("postmortem() ignored - no exception info")
+        return
+
+    if not is_client_connected():
+        log.info("postmortem() ignored - debugger not attached")
+        return
+
+    log.debug("postmortem({0!r})", excinfo)
+
+    pydb = get_global_debugger()
+    if pydb is None:
+        log.warning("postmortem() ignored - no global debugger")
+        return
+
+    thread = threading.current_thread()
+    additional_info = pydb.set_additional_thread_info(thread)
+
+    # Save states for restoration
+    saved_is_tracing = additional_info.is_tracing
+    saved_sys_monitoring_trace = None
+
+    try:
+        # Prevent recursive tracing (settrace protection)
+        additional_info.is_tracing += 1
+
+        # For Python 3.12+, suspend sys.monitoring tracing
+        if hasattr(sys, 'monitoring'):
+            from _pydevd_sys_monitoring import pydevd_sys_monitoring
+            saved_sys_monitoring_trace = pydevd_sys_monitoring.suspend_current_thread_tracing()
+
+        from _pydevd_bundle.pydevd_breakpoints import stop_on_unhandled_exception
+        stop_on_unhandled_exception(pydb, thread, additional_info, excinfo)
+
+    finally:
+        additional_info.is_tracing = saved_is_tracing
+        if saved_sys_monitoring_trace is not None:
+            from _pydevd_sys_monitoring import pydevd_sys_monitoring
+            pydevd_sys_monitoring.set_current_thread_tracing_state(saved_sys_monitoring_trace)
