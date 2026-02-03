@@ -48,6 +48,46 @@ def test_post_mortem_basic(pyfile, target, run):
 
         session.request_continue()
 
+def test_post_mortem_basic_with_exception(pyfile, target, run):
+    """Can call post_mortem(e) with an exception alone."""
+
+    @pyfile
+    def code_to_debug():
+        import debuggee
+        debuggee.setup()
+
+        import debugpy
+
+        def risky_operation():
+            raise ValueError("something went wrong")  # @raise
+
+        try:
+            risky_operation()
+        except ValueError as e:
+            debugpy.post_mortem(e)
+
+    with debug.Session() as session:
+        with run(session, target(code_to_debug)):
+            session.request("setExceptionBreakpoints", {"filters": ["uncaught"]})
+
+        occ = session.wait_for_next(
+            Event("stopped") | Event("terminated"),
+        )
+
+        if occ.event == "terminated":
+            pytest.fail("Debuggee exited without hitting breakpoint")
+        
+        exc_info = session.request("exceptionInfo", {"threadId": occ.body['threadId']})
+        assert exc_info == some.dict.containing(
+            {
+                "exceptionId": some.str.matching(r"(.+\.)?ValueError"),
+                "description": "something went wrong",
+                "breakMode": "unhandled",
+            }
+        )
+
+        session.request_continue()
+
 def test_post_mortem_basic_no_uncaught_breakpoint(pyfile, target, run):
     """We don't stop if the uncaught exception breakpoint isn't set."""
 

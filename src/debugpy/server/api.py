@@ -372,6 +372,9 @@ def post_mortem(excinfo=None, as_uncaught=True):
     if excinfo is None:
         excinfo = sys.exc_info()
 
+    if isinstance(excinfo, BaseException):
+        excinfo = (type(excinfo), excinfo, excinfo.__traceback__)
+
     exctype, value, tb = excinfo
     if exctype is None or value is None or tb is None:
         log.debug("postmortem() ignored - no exception info")
