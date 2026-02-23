@@ -966,17 +966,14 @@ def get_abs_path_real_path_and_base_from_frame(frame, NORM_PATHS_AND_BASE_CONTAI
 
 
 def get_fullname(mod_name):
-    import pkgutil
-
     try:
-        loader = pkgutil.get_loader(mod_name)
-    except:
-        return None
-    if loader is not None:
-        for attr in ("get_filename", "_get_filename"):
-            meth = getattr(loader, attr, None)
-            if meth is not None:
-                return meth(mod_name)
+        import importlib.util
+
+        spec = importlib.util.find_spec(mod_name)
+        if spec is not None and spec.origin is not None and spec.has_location:
+            return spec.origin
+    except (ImportError, ModuleNotFoundError, ValueError):
+        pass
     return None
 
 
