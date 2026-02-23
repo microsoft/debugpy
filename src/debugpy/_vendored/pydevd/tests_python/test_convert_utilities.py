@@ -560,3 +560,34 @@ _MAPPING_CONFLICT_TO_SERVER = [
     {"remoteRoot": "/var/home/p3", "localRoot": "/opt/v2/path"},
     {"remoteRoot": "/var/home/p4", "localRoot": "/opt/v2/pathsomething"},
 ]
+
+
+def test_get_fullname(tmp_path):
+    """Test that get_fullname correctly resolves module names to file paths.
+
+    This is a regression test for the fix that replaced pkgutil.get_loader
+    (removed in Python 3.14) with importlib.util.find_spec.
+    """
+    from pydevd_file_utils import get_fullname
+
+    # Create a temporary module file
+    mod_file = tmp_path / "my_test_mod.py"
+    mod_file.write_text("x = 1\n")
+
+    # Add tmp_path to sys.path so the module can be found
+    sys.path.insert(0, str(tmp_path))
+    try:
+        result = get_fullname("my_test_mod")
+        assert result is not None
+        assert result.endswith("my_test_mod.py")
+
+        # Non-existent module should return None
+        result = get_fullname("nonexistent_module_xyz_12345")
+        assert result is None
+
+        # A stdlib package with __init__.py should be found
+        result = get_fullname("json")
+        assert result is not None
+        assert result.endswith("__init__.py")
+    finally:
+        sys.path.remove(str(tmp_path))
