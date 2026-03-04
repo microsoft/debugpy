@@ -895,36 +895,43 @@ def _unwind_event(code, instruction, exc):
 
     # print('_unwind_event', code, exc)
     frame = _getframe(1)
-    arg = (type(exc), exc, exc.__traceback__)
+    try:
+        arg = (type(exc), exc, exc.__traceback__)
 
-    has_caught_exception_breakpoint_in_pydb = (
-        py_db.break_on_caught_exceptions or py_db.break_on_user_uncaught_exceptions or py_db.has_plugin_exception_breaks
-    )
-
-    if has_caught_exception_breakpoint_in_pydb:
-        _should_stop, frame, user_uncaught_exc_info = should_stop_on_exception(
-            py_db, thread_info.additional_info, frame, thread_info.thread, arg, None, is_unwind=True
+        has_caught_exception_breakpoint_in_pydb = (
+            py_db.break_on_caught_exceptions or py_db.break_on_user_uncaught_exceptions or py_db.has_plugin_exception_breaks
         )
-        if user_uncaught_exc_info:
-            # TODO: Check: this may no longer be needed as in the unwind we know it's
-            # an exception bubbling up (wait for all tests to pass to check it).
-            if func_code_info.try_except_container_obj is None:
-                container_obj = _TryExceptContainerObj(py_db.collect_try_except_info(frame.f_code))
-                func_code_info.try_except_container_obj = container_obj
 
-            is_unhandled = is_unhandled_exception(
-                func_code_info.try_except_container_obj, py_db, frame, user_uncaught_exc_info[1], user_uncaught_exc_info[2]
+        if has_caught_exception_breakpoint_in_pydb:
+            _should_stop, frame, user_uncaught_exc_info = should_stop_on_exception(
+                py_db, thread_info.additional_info, frame, thread_info.thread, arg, None, is_unwind=True
             )
+            if user_uncaught_exc_info:
+                # TODO: Check: this may no longer be needed as in the unwind we know it's
+                # an exception bubbling up (wait for all tests to pass to check it).
+                if func_code_info.try_except_container_obj is None:
+                    container_obj = _TryExceptContainerObj(py_db.collect_try_except_info(frame.f_code))
+                    func_code_info.try_except_container_obj = container_obj
 
-            if is_unhandled:
-                handle_exception(py_db, thread_info.thread, frame, user_uncaught_exc_info[0], EXCEPTION_TYPE_USER_UNHANDLED)
+                is_unhandled = is_unhandled_exception(
+                    func_code_info.try_except_container_obj, py_db, frame, user_uncaught_exc_info[1], user_uncaught_exc_info[2]
+                )
+
+                if is_unhandled:
+                    handle_exception(py_db, thread_info.thread, frame, user_uncaught_exc_info[0], EXCEPTION_TYPE_USER_UNHANDLED)
+                    return
+
+        break_on_uncaught_exceptions = py_db.break_on_uncaught_exceptions
+        if break_on_uncaught_exceptions:
+            if frame is _get_unhandled_exception_frame(exc, 1):
+                stop_on_unhandled_exception(py_db, thread_info.thread, thread_info.additional_info, arg)
                 return
-
-    break_on_uncaught_exceptions = py_db.break_on_uncaught_exceptions
-    if break_on_uncaught_exceptions:
-        if frame is _get_unhandled_exception_frame(exc, 1):
-            stop_on_unhandled_exception(py_db, thread_info.thread, thread_info.additional_info, arg)
-            return
+    finally:
+        # Clear frame and arg references to avoid preventing garbage collection
+        # of objects referenced from the frame's locals. The arg tuple also
+        # contains the traceback which may hold frame references.
+        del frame
+        del arg
 
 
 # fmt: off
@@ -967,21 +974,28 @@ def _raise_event(code, instruction, exc):
         return
 
     frame = _getframe(1)
-    arg = (type(exc), exc, exc.__traceback__)
+    try:
+        arg = (type(exc), exc, exc.__traceback__)
 
-    # Compute the previous exception info (if any). We use it to check if the exception
-    # should be stopped
-    prev_exc_info = _thread_local_info._user_uncaught_exc_info if hasattr(_thread_local_info, "_user_uncaught_exc_info") else None
-    should_stop, frame, _user_uncaught_exc_info = should_stop_on_exception(
-        py_db, thread_info.additional_info, frame, thread_info.thread, arg, prev_exc_info
-    )
+        # Compute the previous exception info (if any). We use it to check if the exception
+        # should be stopped
+        prev_exc_info = _thread_local_info._user_uncaught_exc_info if hasattr(_thread_local_info, "_user_uncaught_exc_info") else None
+        should_stop, frame, _user_uncaught_exc_info = should_stop_on_exception(
+            py_db, thread_info.additional_info, frame, thread_info.thread, arg, prev_exc_info
+        )
 
-    # Save the current exception info for the next raise event.
-    _thread_local_info._user_uncaught_exc_info = _user_uncaught_exc_info
+        # Save the current exception info for the next raise event.
+        _thread_local_info._user_uncaught_exc_info = _user_uncaught_exc_info
 
-    # print('!!!! should_stop (in raise)', should_stop)
-    if should_stop:
-        handle_exception(py_db, thread_info.thread, frame, arg, EXCEPTION_TYPE_HANDLED)
+        # print('!!!! should_stop (in raise)', should_stop)
+        if should_stop:
+            handle_exception(py_db, thread_info.thread, frame, arg, EXCEPTION_TYPE_HANDLED)
+    finally:
+        # Clear frame and arg references to avoid preventing garbage collection
+        # of objects referenced from the frame's locals. The arg tuple also
+        # contains the traceback which may hold frame references.
+        del frame
+        del arg
 
 
 # fmt: off
@@ -1083,12 +1097,15 @@ def _return_event(code, instruction, retval):
 
     info = thread_info.additional_info
 
-    # We know the frame depth.
-    frame = _getframe(1)
-
     step_cmd = info.pydev_step_cmd
     if step_cmd == -1:
         return
+
+    # We know the frame depth.
+    # Note: getting the frame lazily (only when we need it) is important
+    # because obtaining a frame creates a reference that will keep all
+    # objects in that frame alive until this callback returns.
+    frame = _getframe(1)
 
     if info.suspend_type != PYTHON_SUSPEND:
         # Plugin stepping
@@ -1703,12 +1720,19 @@ def _start_method_event(code, instruction_offset):
         # threads may still want it...
         return
 
-    frame = _getframe(1)
-    func_code_info = _get_func_code_info(code, frame)
+    # Note: passing depth=1 instead of the frame avoids creating a frame reference
+    # unnecessarily in the fast path (cache hit). The frame will only be obtained
+    # inside _get_func_code_info if needed (cache miss).
+    func_code_info = _get_func_code_info(code, 1)
     if func_code_info.always_skip_code:
         # if DEBUG:
         #     print('disable (always skip)')
         return monitor.DISABLE
+
+    # Only get the frame when we actually need it (after the always_skip_code check).
+    # Obtaining a frame creates a reference that keeps all objects in that frame
+    # alive until this callback returns.
+    frame = _getframe(1)
 
     keep_enabled: bool = _enable_code_tracing(py_db, thread_info.additional_info, func_code_info, code, frame, True)
 

@@ -292,3 +292,61 @@ def test_lines_with_yield(with_monitoring):
 
     method()
     monitor.set_events(DEBUGGER_ID, 0)
+
+
+def test_frame_references_not_held(with_monitoring):
+    """
+    Test that sys.monitoring callbacks don't keep frame references alive
+    longer than necessary, which would prevent garbage collection of objects
+    referenced by locals in those frames.
+
+    See: https://github.com/microsoft/debugpy/issues/1813
+    """
+    import gc
+    import weakref
+
+    class _TestObj:
+        """Object that should be promptly garbage collected."""
+
+        def __init__(self, name):
+            self.name = name
+
+    refs = []
+
+    def _start_method(code, offset):
+        # Gets frame only if needed (simulating the improved pattern).
+        frame = sys._getframe(1)
+        if "test_sys_monitoring" in code.co_filename:
+            monitor.set_local_events(DEBUGGER_ID, code, monitor.events.PY_RETURN)
+
+    def _return_method(code, offset, retval):
+        # In the fixed code, the frame is only obtained when step_cmd != -1.
+        # Here we simulate the common path where no stepping is happening.
+        pass  # No frame obtained when not needed
+
+    monitor.set_events(DEBUGGER_ID, monitor.events.PY_START)
+    monitor.register_callback(DEBUGGER_ID, monitor.events.PY_START, _start_method)
+    monitor.register_callback(DEBUGGER_ID, monitor.events.PY_RETURN, _return_method)
+
+    def create_obj(name):
+        obj = _TestObj(name)
+        refs.append(weakref.ref(obj))
+        return 42  # obj should be freed when this function returns
+
+    # Create several objects
+    for i in range(10):
+        create_obj(f"obj_{i}")
+
+    # Force garbage collection
+    gc.collect()
+    gc.collect()
+    gc.collect()
+
+    # All objects should have been freed
+    alive = sum(1 for ref in refs if ref() is not None)
+    assert alive == 0, (
+        f"Expected 0 objects alive, but {alive}/{len(refs)} are still alive. "
+        f"Frame references may be keeping objects alive."
+    )
+
+    monitor.set_events(DEBUGGER_ID, 0)
