@@ -314,15 +314,15 @@ def test_frame_references_not_held(with_monitoring):
     refs = []
 
     def _start_method(code, offset):
-        # Gets frame only if needed (simulating the improved pattern).
-        frame = sys._getframe(1)
+        # Only obtain the frame when actually needed (e.g., to enable local events).
         if "test_sys_monitoring" in code.co_filename:
+            frame = sys._getframe(1)
             monitor.set_local_events(DEBUGGER_ID, code, monitor.events.PY_RETURN)
 
     def _return_method(code, offset, retval):
-        # In the fixed code, the frame is only obtained when step_cmd != -1.
-        # Here we simulate the common path where no stepping is happening.
-        pass  # No frame obtained when not needed
+        # Simulate the common path where no stepping is happening:
+        # the frame should NOT be obtained when not needed.
+        pass
 
     monitor.set_events(DEBUGGER_ID, monitor.events.PY_START)
     monitor.register_callback(DEBUGGER_ID, monitor.events.PY_START, _start_method)

@@ -936,8 +936,8 @@ cdef _unwind_event(code, instruction, exc):
         # Clear frame and arg references to avoid preventing garbage collection
         # of objects referenced from the frame's locals. The arg tuple also
         # contains the traceback which may hold frame references.
-        del frame
-        del arg
+        frame = None
+        arg = None
 
 
 # fmt: off
@@ -1000,8 +1000,8 @@ cdef _raise_event(code, instruction, exc):
         # Clear frame and arg references to avoid preventing garbage collection
         # of objects referenced from the frame's locals. The arg tuple also
         # contains the traceback which may hold frame references.
-        del frame
-        del arg
+        frame = None
+        arg = None
 
 
 # fmt: off

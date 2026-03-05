@@ -2560,9 +2560,6 @@ static CYTHON_INLINE void __Pyx__ExceptionSwap(PyThreadState *tstate, PyObject *
 static CYTHON_INLINE void __Pyx_ExceptionSwap(PyObject **type, PyObject **value, PyObject **tb);
 #endif
 
-/* RaiseUnboundLocalError.proto */
-static void __Pyx_RaiseUnboundLocalError(const char *varname);
-
 /* PyUnicode_Unicode.proto */
 static CYTHON_INLINE PyObject* __Pyx_PyUnicode_Unicode(PyObject *obj);
 
@@ -2587,6 +2584,9 @@ static CYTHON_INLINE PyObject* __Pyx_CallUnboundCMethod1(__Pyx_CachedCFunction* 
 #else
 #define __Pyx_CallUnboundCMethod1(cfunc, self, arg)  __Pyx__CallUnboundCMethod1(cfunc, self, arg)
 #endif
+
+/* RaiseUnboundLocalError.proto */
+static void __Pyx_RaiseUnboundLocalError(const char *varname);
 
 /* SliceObject.proto */
 static CYTHON_INLINE PyObject* __Pyx_PyObject_GetSlice(
@@ -16246,22 +16246,24 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__unwind_event(PyObject 
   /* "_pydevd_sys_monitoring_cython.pyx":939
  *         # of objects referenced from the frame's locals. The arg tuple also
  *         # contains the traceback which may hold frame references.
- *         del frame             # <<<<<<<<<<<<<<
- *         del arg
+ *         frame = None             # <<<<<<<<<<<<<<
+ *         arg = None
  * 
 */
   /*finally:*/ {
     /*normal exit:*/{
-      __Pyx_DECREF(__pyx_v_frame); __pyx_v_frame = 0;
+      __Pyx_INCREF(Py_None);
+      __Pyx_DECREF_SET(__pyx_v_frame, Py_None);
 
       /* "_pydevd_sys_monitoring_cython.pyx":940
  *         # contains the traceback which may hold frame references.
- *         del frame
- *         del arg             # <<<<<<<<<<<<<<
+ *         frame = None
+ *         arg = None             # <<<<<<<<<<<<<<
  * 
  * 
 */
-      __Pyx_DECREF(__pyx_v_arg); __pyx_v_arg = 0;
+      __Pyx_INCREF(Py_None);
+      __Pyx_DECREF_SET(__pyx_v_arg, ((PyObject*)Py_None));
       goto __pyx_L21;
     }
     __pyx_L20_error:;
@@ -16288,21 +16290,22 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__unwind_event(PyObject 
         /* "_pydevd_sys_monitoring_cython.pyx":939
  *         # of objects referenced from the frame's locals. The arg tuple also
  *         # contains the traceback which may hold frame references.
- *         del frame             # <<<<<<<<<<<<<<
- *         del arg
+ *         frame = None             # <<<<<<<<<<<<<<
+ *         arg = None
  * 
 */
-        __Pyx_DECREF(__pyx_v_frame); __pyx_v_frame = 0;
+        __Pyx_INCREF(Py_None);
+        __Pyx_DECREF_SET(__pyx_v_frame, Py_None);
 
         /* "_pydevd_sys_monitoring_cython.pyx":940
  *         # contains the traceback which may hold frame references.
- *         del frame
- *         del arg             # <<<<<<<<<<<<<<
+ *         frame = None
+ *         arg = None             # <<<<<<<<<<<<<<
  * 
  * 
 */
-        if (unlikely(!__pyx_v_arg)) { __Pyx_RaiseUnboundLocalError("arg"); __PYX_ERR(0, 940, __pyx_L34_error) }
-        __Pyx_DECREF(__pyx_v_arg); __pyx_v_arg = 0;
+        __Pyx_INCREF(Py_None);
+        __Pyx_XDECREF_SET(__pyx_v_arg, ((PyObject*)Py_None));
       }
       __Pyx_XGIVEREF(__pyx_t_18);
       __Pyx_XGIVEREF(__pyx_t_19);
@@ -16315,16 +16318,6 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__unwind_event(PyObject 
       __pyx_t_3 = 0; __pyx_t_2 = 0; __pyx_t_1 = 0; __pyx_t_18 = 0; __pyx_t_19 = 0; __pyx_t_20 = 0;
       __pyx_lineno = __pyx_t_15; __pyx_clineno = __pyx_t_16; __pyx_filename = __pyx_t_17;
       goto __pyx_L1_error;
-      __pyx_L34_error:;
-      __Pyx_XGIVEREF(__pyx_t_18);
-      __Pyx_XGIVEREF(__pyx_t_19);
-      __Pyx_XGIVEREF(__pyx_t_20);
-      __Pyx_ExceptionReset(__pyx_t_18, __pyx_t_19, __pyx_t_20);
-      __Pyx_XDECREF(__pyx_t_3); __pyx_t_3 = 0;
-      __Pyx_XDECREF(__pyx_t_2); __pyx_t_2 = 0;
-      __Pyx_XDECREF(__pyx_t_1); __pyx_t_1 = 0;
-      __pyx_t_18 = 0; __pyx_t_19 = 0; __pyx_t_20 = 0;
-      goto __pyx_L1_error;
     }
     __pyx_L19_return: {
       __pyx_t_20 = __pyx_r;
@@ -16333,20 +16326,22 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__unwind_event(PyObject 
       /* "_pydevd_sys_monitoring_cython.pyx":939
  *         # of objects referenced from the frame's locals. The arg tuple also
  *         # contains the traceback which may hold frame references.
- *         del frame             # <<<<<<<<<<<<<<
- *         del arg
+ *         frame = None             # <<<<<<<<<<<<<<
+ *         arg = None
  * 
 */
-      __Pyx_DECREF(__pyx_v_frame); __pyx_v_frame = 0;
+      __Pyx_INCREF(Py_None);
+      __Pyx_DECREF_SET(__pyx_v_frame, Py_None);
 
       /* "_pydevd_sys_monitoring_cython.pyx":940
  *         # contains the traceback which may hold frame references.
- *         del frame
- *         del arg             # <<<<<<<<<<<<<<
+ *         frame = None
+ *         arg = None             # <<<<<<<<<<<<<<
  * 
  * 
 */
-      __Pyx_DECREF(__pyx_v_arg); __pyx_v_arg = 0;
+      __Pyx_INCREF(Py_None);
+      __Pyx_DECREF_SET(__pyx_v_arg, ((PyObject*)Py_None));
       __pyx_r = __pyx_t_20;
       __pyx_t_20 = 0;
       goto __pyx_L0;
@@ -16964,22 +16959,24 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__raise_event(PyObject *
   /* "_pydevd_sys_monitoring_cython.pyx":1003
  *         # of objects referenced from the frame's locals. The arg tuple also
  *         # contains the traceback which may hold frame references.
- *         del frame             # <<<<<<<<<<<<<<
- *         del arg
+ *         frame = None             # <<<<<<<<<<<<<<
+ *         arg = None
  * 
 */
   /*finally:*/ {
     /*normal exit:*/{
-      __Pyx_DECREF(__pyx_v_frame); __pyx_v_frame = 0;
+      __Pyx_INCREF(Py_None);
+      __Pyx_DECREF_SET(__pyx_v_frame, Py_None);
 
       /* "_pydevd_sys_monitoring_cython.pyx":1004
  *         # contains the traceback which may hold frame references.
- *         del frame
- *         del arg             # <<<<<<<<<<<<<<
+ *         frame = None
+ *         arg = None             # <<<<<<<<<<<<<<
  * 
  * 
 */
-      __Pyx_DECREF(__pyx_v_arg); __pyx_v_arg = 0;
+      __Pyx_INCREF(Py_None);
+      __Pyx_DECREF_SET(__pyx_v_arg, ((PyObject*)Py_None));
       goto __pyx_L21;
     }
     __pyx_L20_error:;
@@ -17006,21 +17003,22 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__raise_event(PyObject *
         /* "_pydevd_sys_monitoring_cython.pyx":1003
  *         # of objects referenced from the frame's locals. The arg tuple also
  *         # contains the traceback which may hold frame references.
- *         del frame             # <<<<<<<<<<<<<<
- *         del arg
+ *         frame = None             # <<<<<<<<<<<<<<
+ *         arg = None
  * 
 */
-        __Pyx_DECREF(__pyx_v_frame); __pyx_v_frame = 0;
+        __Pyx_INCREF(Py_None);
+        __Pyx_DECREF_SET(__pyx_v_frame, Py_None);
 
         /* "_pydevd_sys_monitoring_cython.pyx":1004
  *         # contains the traceback which may hold frame references.
- *         del frame
- *         del arg             # <<<<<<<<<<<<<<
+ *         frame = None
+ *         arg = None             # <<<<<<<<<<<<<<
  * 
  * 
 */
-        if (unlikely(!__pyx_v_arg)) { __Pyx_RaiseUnboundLocalError("arg"); __PYX_ERR(0, 1004, __pyx_L26_error) }
-        __Pyx_DECREF(__pyx_v_arg); __pyx_v_arg = 0;
+        __Pyx_INCREF(Py_None);
+        __Pyx_XDECREF_SET(__pyx_v_arg, ((PyObject*)Py_None));
       }
       __Pyx_XGIVEREF(__pyx_t_18);
       __Pyx_XGIVEREF(__pyx_t_19);
@@ -17032,16 +17030,6 @@ static PyObject *__pyx_f_29_pydevd_sys_monitoring_cython__raise_event(PyObject *
       __Pyx_ErrRestore(__pyx_t_3, __pyx_t_2, __pyx_t_1);
       __pyx_t_3 = 0; __pyx_t_2 = 0; __pyx_t_1 = 0; __pyx_t_18 = 0; __pyx_t_19 = 0; __pyx_t_20 = 0;
       __pyx_lineno = __pyx_t_15; __pyx_clineno = __pyx_t_16; __pyx_filename = __pyx_t_17;
-      goto __pyx_L1_error;
-      __pyx_L26_error:;
-      __Pyx_XGIVEREF(__pyx_t_18);
-      __Pyx_XGIVEREF(__pyx_t_19);
-      __Pyx_XGIVEREF(__pyx_t_20);
-      __Pyx_ExceptionReset(__pyx_t_18, __pyx_t_19, __pyx_t_20);
-      __Pyx_XDECREF(__pyx_t_3); __pyx_t_3 = 0;
-      __Pyx_XDECREF(__pyx_t_2); __pyx_t_2 = 0;
-      __Pyx_XDECREF(__pyx_t_1); __pyx_t_1 = 0;
-      __pyx_t_18 = 0; __pyx_t_19 = 0; __pyx_t_20 = 0;
       goto __pyx_L1_error;
     }
     __pyx_L21:;
@@ -39344,11 +39332,6 @@ static CYTHON_INLINE void __Pyx_ExceptionSwap(PyObject **type, PyObject **value,
 }
 #endif
 
-/* RaiseUnboundLocalError */
-static void __Pyx_RaiseUnboundLocalError(const char *varname) {
-    PyErr_Format(PyExc_UnboundLocalError, "local variable '%s' referenced before assignment", varname);
-}
-
 /* PyUnicode_Unicode */
 static CYTHON_INLINE PyObject* __Pyx_PyUnicode_Unicode(PyObject *obj) {
     if (unlikely(obj == Py_None))
@@ -39456,6 +39439,11 @@ static PyObject* __Pyx_PyDict_GetItemDefault(PyObject* d, PyObject* key, PyObjec
             value = __Pyx_CallUnboundCMethod2(&__pyx_mstate_global->__pyx_umethod_PyDict_Type_get, d, key, default_value);
     }
     return value;
+}
+
+/* RaiseUnboundLocalError */
+static void __Pyx_RaiseUnboundLocalError(const char *varname) {
+    PyErr_Format(PyExc_UnboundLocalError, "local variable '%s' referenced before assignment", varname);
 }
 
 /* SliceObject */
