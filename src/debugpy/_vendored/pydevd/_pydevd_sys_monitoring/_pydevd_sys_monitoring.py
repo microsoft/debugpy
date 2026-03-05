@@ -171,6 +171,21 @@ def _get_bootstrap_frame(depth: int) -> Tuple[Optional[FrameType], bool]:
 
 # fmt: off
 # IFDEF CYTHON
+# cdef _clear_unhandled_exception_frame():
+# ELSE
+def _clear_unhandled_exception_frame():
+# ENDIF
+# fmt: on
+    # Invalidate the cache to prevent bugs on id reuse
+    try:
+        del _thread_local_info.f_unhandled_frame
+        del _thread_local_info.f_unhandled_exc_id
+    except AttributeError:
+        pass
+
+
+# fmt: off
+# IFDEF CYTHON
 # cdef _get_unhandled_exception_frame(exc, int depth):
 # ELSE
 def _get_unhandled_exception_frame(exc, depth: int) -> Optional[FrameType]:
@@ -178,11 +193,10 @@ def _get_unhandled_exception_frame(exc, depth: int) -> Optional[FrameType]:
 # fmt: on
     try:
         # Unhandled frame has to be from the same exception.
-        if _thread_local_info.f_unhandled_exc is exc:
+        if _thread_local_info.f_unhandled_exc_id is id(exc):
             return _thread_local_info.f_unhandled_frame
         else:
-            del _thread_local_info.f_unhandled_frame
-            del _thread_local_info.f_unhandled_exc
+            _clear_unhandled_exception_frame()
             raise AttributeError('Not the same exception')
     except:
         f_unhandled = _getframe(depth)
@@ -222,7 +236,7 @@ def _get_unhandled_exception_frame(exc, depth: int) -> Optional[FrameType]:
 
         if f_unhandled is not None:
             _thread_local_info.f_unhandled_frame = f_unhandled
-            _thread_local_info.f_unhandled_exc = exc
+            _thread_local_info.f_unhandled_exc_id = id(exc)
             return _thread_local_info.f_unhandled_frame
 
         return f_unhandled
@@ -966,22 +980,29 @@ def _raise_event(code, instruction, exc):
     if func_code_info.always_skip_code:
         return
 
-    frame = _getframe(1)
-    arg = (type(exc), exc, exc.__traceback__)
+    _clear_unhandled_exception_frame()
 
-    # Compute the previous exception info (if any). We use it to check if the exception
-    # should be stopped
-    prev_exc_info = _thread_local_info._user_uncaught_exc_info if hasattr(_thread_local_info, "_user_uncaught_exc_info") else None
-    should_stop, frame, _user_uncaught_exc_info = should_stop_on_exception(
-        py_db, thread_info.additional_info, frame, thread_info.thread, arg, prev_exc_info
+    has_caught_exception_breakpoint_in_pydb = (
+        py_db.break_on_caught_exceptions or py_db.break_on_user_uncaught_exceptions or py_db.has_plugin_exception_breaks
     )
 
-    # Save the current exception info for the next raise event.
-    _thread_local_info._user_uncaught_exc_info = _user_uncaught_exc_info
+    if has_caught_exception_breakpoint_in_pydb:
+        frame = _getframe(1)
+        arg = (type(exc), exc, exc.__traceback__)
 
-    # print('!!!! should_stop (in raise)', should_stop)
-    if should_stop:
-        handle_exception(py_db, thread_info.thread, frame, arg, EXCEPTION_TYPE_HANDLED)
+        # Compute the previous exception info (if any). We use it to check if the exception
+        # should be stopped
+        prev_exc_info = _thread_local_info._user_uncaught_exc_info if hasattr(_thread_local_info, "_user_uncaught_exc_info") else None
+        should_stop, frame, _user_uncaught_exc_info = should_stop_on_exception(
+            py_db, thread_info.additional_info, frame, thread_info.thread, arg, prev_exc_info
+        )
+
+        # Save the current exception info for the next raise event.
+        _thread_local_info._user_uncaught_exc_info = _user_uncaught_exc_info
+
+        # print('!!!! should_stop (in raise)', should_stop)
+        if should_stop:
+            handle_exception(py_db, thread_info.thread, frame, arg, EXCEPTION_TYPE_HANDLED)
 
 
 # fmt: off
@@ -1869,13 +1890,13 @@ def update_monitor_events(suspend_requested: Optional[bool]=None) -> None:
         # print('track RAISE')
         monitor.register_callback(DEBUGGER_ID, monitor.events.RAISE, _raise_event)
         monitor.register_callback(DEBUGGER_ID, monitor.events.PY_UNWIND, _unwind_event)
+    elif break_on_uncaught_exceptions:
+        required_events |= monitor.events.RAISE | monitor.events.PY_UNWIND
+        monitor.register_callback(DEBUGGER_ID, monitor.events.RAISE, _raise_event)
+        monitor.register_callback(DEBUGGER_ID, monitor.events.PY_UNWIND, _unwind_event)
     else:
-        if break_on_uncaught_exceptions:
-            required_events |= monitor.events.PY_UNWIND
-            monitor.register_callback(DEBUGGER_ID, monitor.events.PY_UNWIND, _unwind_event)
-        else:
-            monitor.register_callback(DEBUGGER_ID, monitor.events.RAISE, None)
-            monitor.register_callback(DEBUGGER_ID, monitor.events.PY_UNWIND, None)
+        monitor.register_callback(DEBUGGER_ID, monitor.events.RAISE, None)
+        monitor.register_callback(DEBUGGER_ID, monitor.events.PY_UNWIND, None)
 
     has_breaks = py_db.has_plugin_line_breaks
     if not has_breaks:
