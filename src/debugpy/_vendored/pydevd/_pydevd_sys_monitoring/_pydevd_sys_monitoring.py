@@ -980,29 +980,32 @@ def _raise_event(code, instruction, exc):
     if func_code_info.always_skip_code:
         return
 
-    _clear_unhandled_exception_frame()
+    frame = _getframe(1)
+    arg = (type(exc), exc, exc.__traceback__)
 
-    has_caught_exception_breakpoint_in_pydb = (
-        py_db.break_on_caught_exceptions or py_db.break_on_user_uncaught_exceptions or py_db.has_plugin_exception_breaks
+    # Compute the previous exception info (if any). We use it to check if the exception
+    # should be stopped
+    prev_exc_info = _thread_local_info._user_uncaught_exc_info if hasattr(_thread_local_info, "_user_uncaught_exc_info") else None
+    should_stop, frame, _user_uncaught_exc_info = should_stop_on_exception(
+        py_db, thread_info.additional_info, frame, thread_info.thread, arg, prev_exc_info
     )
 
-    if has_caught_exception_breakpoint_in_pydb:
-        frame = _getframe(1)
-        arg = (type(exc), exc, exc.__traceback__)
+    # Save the current exception info for the next raise event.
+    _thread_local_info._user_uncaught_exc_info = _user_uncaught_exc_info
 
-        # Compute the previous exception info (if any). We use it to check if the exception
-        # should be stopped
-        prev_exc_info = _thread_local_info._user_uncaught_exc_info if hasattr(_thread_local_info, "_user_uncaught_exc_info") else None
-        should_stop, frame, _user_uncaught_exc_info = should_stop_on_exception(
-            py_db, thread_info.additional_info, frame, thread_info.thread, arg, prev_exc_info
-        )
+    # print('!!!! should_stop (in raise)', should_stop)
+    if should_stop:
+        handle_exception(py_db, thread_info.thread, frame, arg, EXCEPTION_TYPE_HANDLED)
 
-        # Save the current exception info for the next raise event.
-        _thread_local_info._user_uncaught_exc_info = _user_uncaught_exc_info
 
-        # print('!!!! should_stop (in raise)', should_stop)
-        if should_stop:
-            handle_exception(py_db, thread_info.thread, frame, arg, EXCEPTION_TYPE_HANDLED)
+# fmt: off
+# IFDEF CYTHON
+# cdef _raise_event_uncaught(code, instruction, exc):
+# ELSE
+def _raise_event_uncaught(code, instruction, exc):
+# ENDIF
+# fmt: on
+    _clear_unhandled_exception_frame()
 
 
 # fmt: off
@@ -1892,7 +1895,7 @@ def update_monitor_events(suspend_requested: Optional[bool]=None) -> None:
         monitor.register_callback(DEBUGGER_ID, monitor.events.PY_UNWIND, _unwind_event)
     elif break_on_uncaught_exceptions:
         required_events |= monitor.events.RAISE | monitor.events.PY_UNWIND
-        monitor.register_callback(DEBUGGER_ID, monitor.events.RAISE, _raise_event)
+        monitor.register_callback(DEBUGGER_ID, monitor.events.RAISE, _raise_event_uncaught)
         monitor.register_callback(DEBUGGER_ID, monitor.events.PY_UNWIND, _unwind_event)
     else:
         monitor.register_callback(DEBUGGER_ID, monitor.events.RAISE, None)
