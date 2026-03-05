@@ -199,7 +199,7 @@ cdef _get_unhandled_exception_frame(exc, int depth):
 # fmt: on
     try:
         # Unhandled frame has to be from the same exception.
-        if _thread_local_info.f_unhandled_exc_id is id(exc):
+        if _thread_local_info.f_unhandled_exc_id == id(exc):
             return _thread_local_info.f_unhandled_frame
         else:
             _clear_unhandled_exception_frame()
