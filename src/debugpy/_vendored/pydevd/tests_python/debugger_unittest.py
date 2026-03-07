@@ -631,8 +631,8 @@ class DebuggerRunner(object):
             msg = "TimeoutError"
             try:
                 writer.write_dump_threads()
-            except:
-                msg += " (note: error trying to dump threads on timeout)."
+            except Exception as e:
+                msg += " (note: error trying to dump threads on timeout: " + str(e) + ")."
             time.sleep(0.2)
             self.fail_with_message(msg, stdout, stderr, writer)
         except Exception as e:

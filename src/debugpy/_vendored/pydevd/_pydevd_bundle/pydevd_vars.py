@@ -1,13 +1,14 @@
-""" pydevd_vars deals with variables:
-    resolution/conversion to XML.
+"""pydevd_vars deals with variables:
+resolution/conversion to XML.
 """
+
 import pickle
 from _pydevd_bundle.pydevd_constants import get_frame, get_current_thread_id, iter_chars, silence_warnings_decorator, get_global_debugger
 
 from _pydevd_bundle.pydevd_xml import ExceptionOnEvaluate, get_type, var_to_xml
 from _pydev_bundle import pydev_log
 import functools
-from _pydevd_bundle.pydevd_thread_lifecycle import resume_threads, mark_thread_suspended, suspend_all_threads
+from _pydevd_bundle.pydevd_thread_lifecycle import resume_threads, mark_thread_suspended, suspend_all_threads, suspend_threads_lock
 from _pydevd_bundle.pydevd_comm_constants import CMD_SET_BREAK
 
 import sys  # @Reimport
@@ -338,10 +339,11 @@ def _run_with_unblock_threads(original_func, py_db, curr_thread, frame, expressi
 
     finally:
         if on_timeout_unblock_threads is not None and on_timeout_unblock_threads.called:
-            mark_thread_suspended(curr_thread, CMD_SET_BREAK)
-            py_db.threads_suspended_single_notification.increment_suspend_time()
-            suspend_all_threads(py_db, except_thread=curr_thread)
-            py_db.threads_suspended_single_notification.on_thread_suspend(tid, curr_thread, CMD_SET_BREAK)
+            with suspend_threads_lock:
+                mark_thread_suspended(curr_thread, CMD_SET_BREAK)
+                py_db.threads_suspended_single_notification.increment_suspend_time()
+                suspend_all_threads(py_db, except_thread=curr_thread)
+                py_db.threads_suspended_single_notification.on_thread_suspend(tid, curr_thread, CMD_SET_BREAK)
 
 
 def _evaluate_with_timeouts(original_func):
@@ -596,7 +598,7 @@ def evaluate_expression(py_db, frame, expression, is_exec):
         del frame
 
 
-def change_attr_expression(frame, attr, expression, dbg, value=SENTINEL_VALUE, /, scope: Optional[ScopeRequest]=None):
+def change_attr_expression(frame, attr, expression, dbg, value=SENTINEL_VALUE, scope: Optional[ScopeRequest] = None):
     """Changes some attribute in a given frame."""
     if frame is None:
         return
@@ -640,7 +642,6 @@ def change_attr_expression(frame, attr, expression, dbg, value=SENTINEL_VALUE, /
 
     except Exception as e:
         pydev_log.exception(e)
-    
 
 
 MAXIMUM_ARRAY_SIZE = 100

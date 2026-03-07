@@ -1,4 +1,4 @@
-""" pydevd - a debugging daemon
+"""pydevd - a debugging daemon
 This is the daemon you launch for python remote debugging.
 
 Protocol:
@@ -1528,13 +1528,14 @@ def build_exception_info_response(dbg, thread_id, thread, request_seq, set_addit
                                 if line_col_info.end_lineno is not None and lineno < line_col_info.end_lineno:
                                     line_text = "\n".join(linecache.getlines(filename_in_utf8)[lineno : line_col_info.end_lineno + 1])
                                 frame_summary = traceback.FrameSummary(
-                                    filename_in_utf8, 
-                                    lineno, 
-                                    method_name, 
-                                    line=line_text, 
-                                    end_lineno=line_col_info.end_lineno, 
-                                    colno=line_col_info.colno, 
-                                    end_colno=line_col_info.end_colno)
+                                    filename_in_utf8,
+                                    lineno,
+                                    method_name,
+                                    line=line_text,
+                                    end_lineno=line_col_info.end_lineno,
+                                    colno=line_col_info.colno,
+                                    end_colno=line_col_info.end_colno,
+                                )
                                 stack_summary.append(frame_summary)
                             else:
                                 frame_summary = traceback.FrameSummary(filename_in_utf8, lineno, method_name, line=line_text)

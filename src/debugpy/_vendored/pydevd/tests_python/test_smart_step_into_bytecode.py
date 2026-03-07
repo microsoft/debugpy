@@ -1,6 +1,6 @@
 import sys
 from _pydevd_bundle.pydevd_constants import IS_PY312_OR_GREATER, \
-    IS_PY311_OR_GREATER, IS_PY313_OR_GREATER
+    IS_PY311_OR_GREATER, IS_PY313_OR_GREATER, IS_PY314_OR_GREATER
 try:
     from _pydevd_bundle import pydevd_bytecode_utils
 except ImportError:
@@ -585,7 +585,17 @@ def test_smart_step_into_bytecode_info_023a():
     found = collect_smart_step_into_variants(
         frame, 0, 99999, base=function.__code__.co_firstlineno)
 
-    if IS_PY311_OR_GREATER:
+    if IS_PY314_OR_GREATER:
+        # 3.14 reports generator expr and tuple as separate step-into targets
+        check_name_and_line(found, [
+            ('sys._getframe()', 1),
+            ('(\n            x for x in\n             c()\n             if x == d()\n        )', 2),
+            ('tuple', 2),
+            ('tuple(\n            x for x in\n             c()\n             if x == d()\n        )', 2),
+            ('c()', 4),
+            ('d() (in (\n            x for x in\n             c()\n             if x == d()\n        ))', 5)
+        ])
+    elif IS_PY311_OR_GREATER:
         check_name_and_line(found, [
             ('sys._getframe()', 1),
             ('tuple(\n            x for x in\n             c()\n             if x == d()\n        )', 2),

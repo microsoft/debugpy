@@ -16,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-20.04]
+        os: [ubuntu-latest]
     steps:
       - uses: actions/checkout@v4
 
@@ -35,7 +35,7 @@ jobs:
           CIBW_SKIP: pp* cp36-* cp37-*
           CIBW_BUILD_VERBOSITY: 1
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           path: ./wheelhouse/*.whl
           

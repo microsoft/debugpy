@@ -160,7 +160,7 @@ class _ExcVerifier(object):
             if update_try_except_infos is not None:
                 update_try_except_infos(try_except_infos)
 
-            if sys.version_info[:2] not in ((3, 10), (3, 11), (3, 12), (3, 13)):
+            if sys.version_info[:2] not in ((3, 10), (3, 11), (3, 12), (3, 13), (3, 14)):
                 assert str(try_except_infos) == expected_as_str
             from _pydevd_bundle.pydevd_collect_bytecode_info import collect_try_except_info_from_source
 
@@ -192,7 +192,7 @@ def test_collect_try_except_info(data_regression, pyfile):
             info = collect_try_except_info(method.__code__, use_func_first_line=True)
             method_to_info[key] = sorted(str(x) for x in info)
 
-    if sys.version_info[:2] not in ((3, 10), (3, 11), (3, 12), (3, 13)):
+    if sys.version_info[:2] not in ((3, 10), (3, 11), (3, 12), (3, 13), (3, 14)):
         data_regression.check(method_to_info)
 
     data_regression.check(method_to_info_from_source)

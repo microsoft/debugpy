@@ -153,7 +153,7 @@ from _pydevd_bundle.pydevd_suspended_frames import SuspendedFramesManager
 from socket import SHUT_RDWR
 from _pydevd_bundle.pydevd_api import PyDevdAPI
 from _pydevd_bundle.pydevd_timeout import TimeoutTracker
-from _pydevd_bundle.pydevd_thread_lifecycle import suspend_all_threads, mark_thread_suspended
+from _pydevd_bundle.pydevd_thread_lifecycle import suspend_all_threads, mark_thread_suspended, suspend_threads_lock
 
 if PYDEVD_USE_SYS_MONITORING:
     from _pydevd_sys_monitoring import pydevd_sys_monitoring
@@ -174,7 +174,7 @@ if SUPPORT_GEVENT:
 if USE_CUSTOM_SYS_CURRENT_FRAMES_MAP:
     from _pydevd_bundle.pydevd_constants import constructed_tid_to_last_frame
 
-__version_info__ = (3, 2, 3)
+__version_info__ = (3, 4, 1)
 __version_info_str__ = []
 for v in __version_info__:
     __version_info_str__.append(str(v))
@@ -1967,7 +1967,16 @@ class PyDB(object):
         if is_pause:
             self._threads_suspended_single_notification.on_pause()
 
-        info = mark_thread_suspended(thread, stop_reason, original_step_cmd=original_step_cmd)
+        with suspend_threads_lock:
+            info = mark_thread_suspended(thread, stop_reason, original_step_cmd=original_step_cmd)
+            if not suspend_other_threads and self.multi_threads_single_notification:
+                # In the mode which gives a single notification when all threads are
+                # stopped, stop all threads whenever a set_suspend is issued.
+                suspend_other_threads = True
+
+            if suspend_other_threads:
+                # Suspend all except the current one (which we're currently suspending already).
+                suspend_all_threads(self, except_thread=thread)
 
         if (suspend_requested or is_pause) and PYDEVD_USE_SYS_MONITORING:
             pydevd_sys_monitoring.update_monitor_events(suspend_requested=True)
@@ -1988,15 +1997,6 @@ class PyDB(object):
             conditional_breakpoint_exception_tuple = info.conditional_breakpoint_exception
             info.conditional_breakpoint_exception = None
             self._send_breakpoint_condition_exception(thread, conditional_breakpoint_exception_tuple)
-
-        if not suspend_other_threads and self.multi_threads_single_notification:
-            # In the mode which gives a single notification when all threads are
-            # stopped, stop all threads whenever a set_suspend is issued.
-            suspend_other_threads = True
-
-        if suspend_other_threads:
-            # Suspend all except the current one (which we're currently suspending already).
-            suspend_all_threads(self, except_thread=thread)
 
         if PYDEVD_USE_SYS_MONITORING:
             pydevd_sys_monitoring.restart_events()

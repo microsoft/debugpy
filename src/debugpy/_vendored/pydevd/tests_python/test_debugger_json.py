@@ -51,6 +51,7 @@ from _pydevd_bundle.pydevd_constants import (
     IS_PY312_OR_GREATER,
     SUPPORT_ATTACH_TO_PID,
     IS_PY313_OR_GREATER,
+    IS_PY314_OR_GREATER,
 )
 from tests_python import debugger_unittest
 from tests_python.debug_constants import TEST_CHERRYPY, TEST_DJANGO, TEST_FLASK, IS_CPYTHON, TEST_GEVENT, TEST_CYTHON, IS_PY311
@@ -73,12 +74,14 @@ MAX_EXPECTED_ID = 10000
 
 
 class _MessageWithMark(object):
+
     def __init__(self, msg):
         self.msg = msg
         self.marked = False
 
 
 class JsonFacade(object):
+
     def __init__(self, writer):
         self.writer = writer
         if hasattr(writer, "reader_thread"):
@@ -97,6 +100,7 @@ class JsonFacade(object):
         return ret
 
     def wait_for_json_message(self, expected_class, accept_message=lambda obj: True):
+
         def accept_json_message(msg):
             if msg.startswith("{"):
                 decoded_msg = from_json(msg)
@@ -298,7 +302,7 @@ class JsonFacade(object):
         assert not self._sent_launch_or_attach
         self._sent_launch_or_attach = True
         arguments["noDebug"] = False
-        request = {"type": "request", "command": command, "arguments": arguments, "seq": -1}
+        request = {"type": "request", "command": command, "arguments": arguments, "seq":-1}
         self.wait_for_response(self.write_request(request))
 
     def _auto_write_launch(self):
@@ -816,6 +820,7 @@ def test_case_handled_exception_no_break_on_generator(case_setup_dap):
 
 
 def test_case_throw_exc_reason(case_setup_dap):
+
     def check_test_suceeded_msg(self, stdout, stderr):
         return "TEST SUCEEDED" in "".join(stderr)
 
@@ -883,6 +888,7 @@ def test_case_throw_exc_reason(case_setup_dap):
 
 
 def test_case_throw_exc_reason_shown(case_setup_dap):
+
     def check_test_suceeded_msg(self, stdout, stderr):
         return "TEST SUCEEDED" in "".join(stderr)
 
@@ -974,6 +980,7 @@ def _check_current_line(json_hit, current_line):
 
 @pytest.mark.parametrize("stop", [False, True])
 def test_case_user_unhandled_exception(case_setup_dap, stop):
+
     def get_environ(self):
         env = os.environ.copy()
 
@@ -1082,8 +1089,10 @@ def test_case_user_unhandled_exception_dont_stop(case_setup_dap):
 
 
 def test_case_user_unhandled_exception_stop_on_yield(case_setup_dap, pyfile):
+
     @pyfile
     def case_error_on_yield():
+
         def on_yield():
             yield
             raise AssertionError()  # raise here
@@ -1139,6 +1148,7 @@ def test_case_user_unhandled_exception_stop_on_yield(case_setup_dap, pyfile):
     ],
 )
 def test_case_unhandled_exception_just_my_code(case_setup_dap, target, just_my_code):
+
     def check_test_suceeded_msg(writer, stdout, stderr):
         # Don't call super (we have an unhandled exception in the stack trace).
         return "TEST SUCEEDED" in "".join(stderr)
@@ -1201,6 +1211,7 @@ def test_case_unhandled_exception_just_my_code(case_setup_dap, target, just_my_c
 
 @pytest.mark.skipif(not IS_PY36_OR_GREATER, reason="Python 3.6 onwards required for test.")
 def test_case_stop_async_iteration_exception(case_setup_dap):
+
     def get_environ(self):
         env = os.environ.copy()
         env["IDE_PROJECT_ROOTS"] = os.path.dirname(self.TEST_FILE) + os.pathsep + os.path.abspath(".")
@@ -1231,6 +1242,7 @@ def test_case_stop_async_iteration_exception(case_setup_dap):
     ],
 )
 def test_case_unhandled_exception(case_setup_dap, target_file):
+
     def check_test_suceeded_msg(writer, stdout, stderr):
         # Don't call super (we have an unhandled exception in the stack trace).
         return "TEST SUCEEDED" in "".join(stdout) and "TEST SUCEEDED" in "".join(stderr)
@@ -1274,6 +1286,7 @@ def test_case_unhandled_exception(case_setup_dap, target_file):
     ],
 )
 def test_case_unhandled_exception_generator(case_setup_dap, target_file):
+
     def check_test_suceeded_msg(writer, stdout, stderr):
         # Don't call super (we have an unhandled exception in the stack trace).
         return "TEST SUCEEDED" in "".join(stdout) and "TEST SUCEEDED" in "".join(stderr)
@@ -1373,7 +1386,6 @@ def test_case_sys_exit_0_handled_exception(case_setup_dap, break_on_system_exit_
     sys.platform == "darwin" or not SUPPORT_ATTACH_TO_PID or IS_PYPY,
     reason="https://github.com/microsoft/ptvsd/issues/1988",
 )
-@pytest.mark.flaky(retries=2, delay=1)
 @pytest.mark.parametrize("raised", ["raised", ""])
 @pytest.mark.parametrize("uncaught", ["uncaught", ""])
 @pytest.mark.parametrize("zero", ["zero", ""])
@@ -1943,6 +1955,7 @@ def test_dict_ordered(case_setup_dap):
 
 
 def test_dict_contents(case_setup_dap, pyfile):
+
     @pyfile
     def check():
         dct = {"a": 1, "_b_": 2, "__c__": 3}
@@ -2176,6 +2189,7 @@ def test_getattr_warning(case_setup_dap):
 
 
 def test_warning_on_repl(case_setup_dap):
+
     def additional_output_checks(writer, stdout, stderr):
         assert "WarningCalledOnRepl" in stderr
 
@@ -2196,6 +2210,7 @@ def test_warning_on_repl(case_setup_dap):
 
 
 def test_evaluate_none(case_setup_dap, pyfile):
+
     @pyfile
     def eval_none():
         print("TEST SUCEEDED")  # break here
@@ -2293,9 +2308,12 @@ def test_evaluate_numpy(case_setup_dap, pyfile):
 
 
 def test_evaluate_name_mangling(case_setup_dap, pyfile):
+
     @pyfile
     def target():
+
         class SomeObj(object):
+
             def __init__(self):
                 self.__value = 10
                 print("here")  # Break here
@@ -2395,11 +2413,13 @@ def test_evaluate_block_repl(case_setup_dap):
 
 
 def test_evaluate_block_clipboard(case_setup_dap, pyfile):
+
     @pyfile
     def target():
         MAX_LIMIT = 65538
 
         class SomeObj(object):
+
             def __str__(self):
                 return var1
 
@@ -2628,6 +2648,7 @@ def test_evaluate_unicode(case_setup_dap):
 
 
 def test_evaluate_exec_unicode(case_setup_dap):
+
     def get_environ(writer):
         env = os.environ.copy()
 
@@ -2709,8 +2730,10 @@ def test_evaluate_repl_redirect(case_setup_dap):
 
 
 def test_evaluate_no_double_exec(case_setup_dap, pyfile):
+
     @pyfile
     def exec_code():
+
         def print_and_raise():
             print("Something")
             raise RuntimeError()
@@ -3030,8 +3053,10 @@ def test_set_variable_multiple_cases(case_setup_dap, _check_func):
 
 
 def test_get_variables_corner_case(case_setup_dap, pyfile):
+
     @pyfile
     def case_with_class_as_object():
+
         class ClassField(object):
             __name__ = "name?"
 
@@ -3546,9 +3571,12 @@ def test_evaluate_failures(case_setup_dap):
 
 
 def test_evaluate_exception_trace(case_setup_dap, pyfile):
+
     @pyfile
     def exception_trace_file():
+
         class A(object):
+
             def __init__(self, a):
                 pass
 
@@ -4113,6 +4141,7 @@ cherrypy.quickstart(HelloWorld())
             _sequence = -1
 
         class SecondaryProcessThreadCommunication(threading.Thread):
+
             def run(self):
                 try:
                     from tests_python.debugger_unittest import ReaderThread
@@ -4338,6 +4367,7 @@ def test_wait_for_attach_gevent(case_setup_remote_attach_to_dap):
 @pytest.mark.skipif(not TEST_GEVENT, reason="Gevent not installed.")
 @pytest.mark.parametrize("show", [True, False])
 def test_gevent_show_paused_greenlets(case_setup_dap, show):
+
     def get_environ(writer):
         env = os.environ.copy()
         env["GEVENT_SUPPORT"] = "True"
@@ -4383,6 +4413,7 @@ def test_gevent_show_paused_greenlets(case_setup_dap, show):
 @pytest.mark.skipif(not TEST_GEVENT, reason="Gevent not installed.")
 @pytest.mark.skipif(sys.platform == "win32", reason="tput requires Linux.")
 def test_gevent_subprocess_not_python(case_setup_dap):
+
     def get_environ(writer):
         env = os.environ.copy()
         env["GEVENT_SUPPORT"] = "True"
@@ -4430,6 +4461,7 @@ def test_gevent_subprocess_python(case_setup_multiprocessing_dap):
             _sequence = -1
 
         class SecondaryProcessThreadCommunication(threading.Thread):
+
             def run(self):
                 from tests_python.debugger_unittest import ReaderThread
 
@@ -4475,6 +4507,7 @@ def test_gevent_subprocess_python(case_setup_multiprocessing_dap):
     reason="Gevent not installed / Sometimes the debugger crashes on Windows as the compiled extensions conflict with gevent.",
 )
 def test_notify_gevent(case_setup_dap, pyfile):
+
     def get_environ(writer):
         # I.e.: Make sure that gevent support is disabled
         env = os.environ.copy()
@@ -4514,6 +4547,7 @@ def test_notify_gevent(case_setup_dap, pyfile):
 
 
 def test_ppid(case_setup_dap, pyfile):
+
     @pyfile
     def case_ppid():
         from pydevd import get_global_debugger
@@ -5042,6 +5076,7 @@ def test_case_flask_exceptions(case_setup_flask_dap, jmc):
 
 @pytest.mark.skipif(IS_APPVEYOR or IS_JYTHON, reason="Flaky on appveyor / Jython encoding issues (needs investigation).")
 def test_redirect_output(case_setup_dap):
+
     def get_environ(writer):
         env = os.environ.copy()
 
@@ -5263,6 +5298,7 @@ def test_subprocess_pydevd_customization(case_setup_remote_dap, command_line_arg
             _sequence = -1
 
         class SecondaryProcessThreadCommunication(threading.Thread):
+
             def run(self):
                 from tests_python.debugger_unittest import ReaderThread
 
@@ -5328,6 +5364,7 @@ def test_subprocess_then_fork(case_setup_multiprocessing_dap):
             _sequence = -1
 
         class SecondaryProcessThreadCommunication(threading.Thread):
+
             def run(self):
                 from tests_python.debugger_unittest import ReaderThread
 
@@ -5414,6 +5451,7 @@ def test_no_subprocess_patching(case_setup_multiprocessing_dap, apply_multiproce
             _sequence = -1
 
         class SecondaryProcessThreadCommunication(threading.Thread):
+
             def run(self):
                 from tests_python.debugger_unittest import ReaderThread
 
@@ -5644,6 +5682,7 @@ def test_terminate(case_setup_dap, scenario, check_subprocesses):
 
 
 def test_access_token(case_setup_dap):
+
     def update_command_line_args(self, args):
         args.insert(1, "--json-dap-http")
         args.insert(2, "--access-token")
@@ -6004,6 +6043,7 @@ def test_variable_presentation(case_setup_dap, var_presentation, check_func):
 
 
 def test_debugger_case_deadlock_thread_eval(case_setup_dap):
+
     def get_environ(self):
         env = os.environ.copy()
         env["PYDEVD_UNBLOCK_THREADS_TIMEOUT"] = "0.5"
@@ -6095,8 +6135,10 @@ def test_debugger_case_unblock_manually(case_setup_dap):
 
 
 def test_debugger_case_deadlock_notify_evaluate_timeout(case_setup_dap, pyfile):
+
     @pyfile
     def case_slow_evaluate():
+
         def slow_evaluate():
             import time
 
@@ -6129,8 +6171,10 @@ def test_debugger_case_deadlock_notify_evaluate_timeout(case_setup_dap, pyfile):
 
 
 def test_debugger_case_deadlock_interrupt_thread(case_setup_dap, pyfile):
+
     @pyfile
     def case_infinite_evaluate():
+
         def infinite_evaluate():
             import time
 
@@ -6265,6 +6309,7 @@ print('TEST SUCEEDED')
     reason="Windows only test and only Python 3.6 onwards.",
 )
 def test_native_threads(case_setup_dap, pyfile):
+
     @pyfile
     def case_native_thread():
         from ctypes import windll, WINFUNCTYPE, c_uint32, c_void_p, c_size_t
@@ -6301,6 +6346,7 @@ def test_native_threads(case_setup_dap, pyfile):
 
 @pytest.mark.skipif(not IS_PY313_OR_GREATER, reason="3.13 onwards only test.")
 def test_internal_thread(case_setup_dap, pyfile):
+
     @pyfile
     def case_native_thread():
         import _thread
@@ -6335,6 +6381,7 @@ def test_internal_thread(case_setup_dap, pyfile):
 
 
 def test_code_reload(case_setup_dap, pyfile):
+
     @pyfile
     def mod1():
         import mod2
@@ -6353,6 +6400,7 @@ def test_code_reload(case_setup_dap, pyfile):
 
     @pyfile
     def mod2():
+
         def do_something():
             return False
 
@@ -6471,8 +6519,10 @@ def test_step_into_target_genexpr(case_setup_dap):
 
 
 def test_function_breakpoints_basic(case_setup_dap, pyfile):
+
     @pyfile
     def module():
+
         def do_something():  # break here
             print("TEST SUCEEDED")
 
@@ -6515,6 +6565,7 @@ except:
 
 @pytest.mark.skipif(pandas is None, reason="Pandas not installed.")
 def test_pandas(case_setup_dap, pyfile):
+
     @pyfile
     def pandas_mod():
         import pandas as pd
@@ -6593,8 +6644,10 @@ def test_pandas(case_setup_dap, pyfile):
 
 @pytest.mark.skipif(not IS_PY38_OR_GREATER, reason="Python 3.8 onwards required for test.")
 def test_same_lineno_and_filename(case_setup_dap, pyfile):
+
     @pyfile
     def target():
+
         def some_code():
             print("1")  # Break here
 
@@ -6653,6 +6706,7 @@ def test_replace_process(case_setup_multiprocessing_dap):
             _sequence = -1
 
         class SecondaryProcessThreadCommunication(threading.Thread):
+
             def run(self):
                 from tests_python.debugger_unittest import ReaderThread
 
@@ -6746,6 +6800,7 @@ except ImportError:
 
 @pytest.mark.skipif(not _TOP_LEVEL_AWAIT_AVAILABLE, reason="Top-level await required.")
 def test_ipython_stepping_basic(case_setup_dap):
+
     def get_environ(self):
         env = os.environ.copy()
 
@@ -6780,6 +6835,7 @@ def test_ipython_stepping_basic(case_setup_dap):
 
 @pytest.mark.skipif(not _TOP_LEVEL_AWAIT_AVAILABLE, reason="Top-level await required.")
 def test_ipython_stepping_step_in(case_setup_dap):
+
     def get_environ(self):
         env = os.environ.copy()
 
@@ -6819,6 +6875,7 @@ def test_ipython_stepping_step_in(case_setup_dap):
 
 @pytest.mark.skipif(not _TOP_LEVEL_AWAIT_AVAILABLE, reason="Top-level await required.")
 def test_ipython_stepping_step_in_justmycode(case_setup_dap):
+
     def get_environ(self):
         env = os.environ.copy()
 
@@ -6882,6 +6939,7 @@ def test_logging_api(case_setup_multiprocessing_dap, tmpdir):
             _sequence = -1
 
         class SecondaryProcessThreadCommunication(threading.Thread):
+
             def run(self):
                 from tests_python.debugger_unittest import ReaderThread
 
@@ -6976,6 +7034,46 @@ def test_soft_terminate(case_setup_dap, pyfile, soft_kill):
                 OutputEvent, lambda output_event: "raised from within the callback set" in output_event.body.output
             )
 
+        writer.finished_ok = True
+
+
+def test_annotate_function_not_treated_as_user_exception(case_setup_dap, pyfile):
+    """
+    Test that __annotate__ functions (PEP 649) are treated as library code.
+    In Python 3.14+, compiler-generated __annotate__ functions can raise
+    NotImplementedError when called by inspect.call_annotate_function with
+    unsupported format arguments. These should not be reported as user exceptions.
+    """
+
+    @pyfile
+    def target():
+        from typing import get_type_hints
+
+        # Define a class with annotations that will trigger __annotate__ function generation
+        class AnnotatedClass:
+            value: int = 42
+            name: str = "test"
+
+        # This will trigger the __annotate__ function to be called by the runtime
+        # which may raise NotImplementedError internally (expected behavior)
+        hints = get_type_hints(AnnotatedClass)
+        _ = f"Type hints: {hints}"  # break here
+        print("TEST SUCEEDED!")
+
+    with case_setup_dap.test_file(target) as writer:
+        json_facade = JsonFacade(writer)
+        json_facade.write_launch(justMyCode=True)
+        
+        break_line = writer.get_line_index_with_content("break here")
+        json_facade.write_set_breakpoints(break_line)
+        json_facade.write_set_exception_breakpoints(["userUnhandled"])
+        json_facade.write_make_initial_run()
+
+        json_hit = json_facade.wait_for_thread_stopped(
+            line=break_line, file=writer.get_main_filename()
+        )
+
+        json_facade.write_continue()
         writer.finished_ok = True
 
 
