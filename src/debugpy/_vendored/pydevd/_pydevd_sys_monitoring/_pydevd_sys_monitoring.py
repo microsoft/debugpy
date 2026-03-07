@@ -171,61 +171,42 @@ def _get_bootstrap_frame(depth: int) -> Tuple[Optional[FrameType], bool]:
 
 # fmt: off
 # IFDEF CYTHON
-# cdef _get_unhandled_exception_frame(exc, int depth):
+# cdef _is_uncaught_exception_base_frame(frame):
 # ELSE
-def _get_unhandled_exception_frame(exc, depth: int) -> Optional[FrameType]:
+def _is_uncaught_exception_base_frame(frame) -> bool:
 # ENDIF
 # fmt: on
-    try:
-        # Unhandled frame has to be from the same exception.
-        if _thread_local_info.f_unhandled_exc is exc:
-            return _thread_local_info.f_unhandled_frame
-        else:
-            del _thread_local_info.f_unhandled_frame
-            del _thread_local_info.f_unhandled_exc
-            raise AttributeError('Not the same exception')
-    except:
-        f_unhandled = _getframe(depth)
 
-        while f_unhandled is not None and f_unhandled.f_back is not None:
-            f_back = f_unhandled.f_back
-            filename = f_back.f_code.co_filename
-            name = splitext(basename(filename))[0]
+    filename = frame.f_code.co_filename
+    name = splitext(basename(filename))[0]
 
-            # When the back frame is the bootstrap (or if we have no back
-            # frame) then use this frame as the one to track.
-            if name == "threading":
-                if f_back.f_code.co_name in ("__bootstrap", "_bootstrap", "__bootstrap_inner", "_bootstrap_inner", "run"):
-                    break
+    # When the back frame is the bootstrap (or if we have no back
+    # frame) then use this frame as the one to track.
+    if name == "threading":
+        if frame.f_code.co_name in ("__bootstrap", "_bootstrap", "__bootstrap_inner", "_bootstrap_inner", "run"):
+            return True
 
-            elif name == "pydev_monkey":
-                if f_back.f_code.co_name == "__call__":
-                    break
+    elif name == "pydev_monkey":
+        if frame.f_code.co_name == "__call__":
+            return True
 
-            elif name == "pydevd":
-                if f_back.f_code.co_name in ("_exec", "run", "main"):
-                    break
+    elif name == "pydevd":
+        if frame.f_code.co_name in ("_exec", "run", "main"):
+            return True
 
-            elif name == "pydevd_runpy":
-                if f_back.f_code.co_name.startswith(("run", "_run")):
-                    break
+    elif name == "pydevd_runpy":
+        if frame.f_code.co_name.startswith(("run", "_run")):
+            return True
 
-            elif name == "<frozen runpy>":
-                if f_back.f_code.co_name.startswith(("run", "_run")):
-                    break
+    elif name == "<frozen runpy>":
+        if frame.f_code.co_name.startswith(("run", "_run")):
+            return True
 
-            elif name == "runpy":
-                if f_back.f_code.co_name.startswith(("run", "_run")):
-                    break
+    elif name == "runpy":
+        if frame.f_code.co_name.startswith(("run", "_run")):
+            return True
 
-            f_unhandled = f_back
-
-        if f_unhandled is not None:
-            _thread_local_info.f_unhandled_frame = f_unhandled
-            _thread_local_info.f_unhandled_exc = exc
-            return _thread_local_info.f_unhandled_frame
-
-        return f_unhandled
+    return False
 
 
 # fmt: off
@@ -922,7 +903,8 @@ def _unwind_event(code, instruction, exc):
 
     break_on_uncaught_exceptions = py_db.break_on_uncaught_exceptions
     if break_on_uncaught_exceptions:
-        if frame is _get_unhandled_exception_frame(exc, 1):
+        if not hasattr(_thread_local_info, 'f_exception_escaped') and _is_uncaught_exception_base_frame(frame):
+            _thread_local_info.f_exception_escaped = True
             stop_on_unhandled_exception(py_db, thread_info.thread, thread_info.additional_info, arg)
             return
 
