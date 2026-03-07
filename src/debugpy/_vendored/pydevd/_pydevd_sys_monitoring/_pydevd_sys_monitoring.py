@@ -184,10 +184,7 @@ def _get_unhandled_exception_frame(exc, depth: int) -> Optional[FrameType]:
 # ENDIF
 # fmt: on
     try:
-        tag = getattr(exc, '__pydevd_tag__', None)
-        if tag is None:
-            tag = UnhandledExceptionTag()
-            exc.__pydevd_tag__ = tag
+        tag = exc.__dict__.setdefault('__pydevd_tag__', UnhandledExceptionTag())
     except:
         tag = exc
 
