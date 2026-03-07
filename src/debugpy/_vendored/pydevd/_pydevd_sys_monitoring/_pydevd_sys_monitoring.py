@@ -189,8 +189,6 @@ def _get_unhandled_exception_frame(exc, depth: int) -> Optional[FrameType]:
             tag = UnhandledExceptionTag()
             exc.__pydevd_tag__ = tag
     except:
-        # todo what should we do if an object is raised that has no __dict__?
-        # this keeps basically the old behavior of a strong ref to the exception
         tag = exc
 
     try:
