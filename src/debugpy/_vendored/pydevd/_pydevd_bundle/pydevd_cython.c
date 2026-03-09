@@ -1490,7 +1490,7 @@ static const char *__pyx_f[] = {
   "_pydevd_bundle\\\\pydevd_cython.pyx",
   "_pydevd_bundle\\\\pydevd_cython.pxd",
   "<stringsource>",
-  ".venv\\\\Lib\\\\site-packages\\\\Cython\\\\Includes\\\\cpython\\\\type.pxd",
+  "type.pxd",
 };
 /* #### Code section: utility_code_proto_before_types ### */
 /* ForceInitThreads.proto */
