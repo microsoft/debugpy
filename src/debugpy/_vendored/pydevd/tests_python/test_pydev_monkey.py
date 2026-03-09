@@ -132,13 +132,13 @@ def test_separate_future_imports():
     found = pydev_monkey._separate_future_imports("""from __future__ import (\nprint_function);print(1)""")
     assert found == ("from __future__ import (\nprint_function);", "print(1)")
 
-    found = pydev_monkey._separate_future_imports(""""line";from __future__ import (\n\nprint_function, absolute_imports\n);print(1)""")
-    assert found == ('"line";from __future__ import (\n\nprint_function, absolute_imports\n);', "print(1)")
+    found = pydev_monkey._separate_future_imports(""""line";from __future__ import (\n\nprint_function, absolute_import\n);print(1)""")
+    assert found == ('"line";from __future__ import (\n\nprint_function, absolute_import\n);', "print(1)")
 
     found = pydev_monkey._separate_future_imports(
-        """from __future__ import bar\nfrom __future__ import (\n\nprint_function, absolute_imports\n);print(1)"""
+        """from __future__ import division\nfrom __future__ import (\n\nprint_function, absolute_import\n);print(1)"""
     )
-    assert found == ("from __future__ import bar\nfrom __future__ import (\n\nprint_function, absolute_imports\n);", "print(1)")
+    assert found == ("from __future__ import division\nfrom __future__ import (\n\nprint_function, absolute_import\n);", "print(1)")
 
 
 def test_monkey_patch_args_indc_future_import():

@@ -26,12 +26,14 @@ jobs:
           "windows-py312-cython-checkbin",
           "ubuntu-py313-cython", 
           "windows-py313-cython",
+          "ubuntu-py314-cython",
+          "windows-py314-cython",
         ]
         
         include:
           - name: "ubuntu-pypy3"
             python: "pypy3.10"
-            os: ubuntu-20.04
+            os: ubuntu-latest
             PYDEVD_USE_CYTHON: NO
 #           - name: "macos-py37-cython"
 #             python: "3.7"
@@ -39,7 +41,7 @@ jobs:
 #             PYDEVD_USE_CYTHON: YES
           - name: "ubuntu-py38-cython-checkbin"
             python: "3.8"
-            os: ubuntu-20.04
+            os: ubuntu-latest
             PYDEVD_USE_CYTHON: YES
           - name: "windows-py39-cython"
             python: "3.9"
@@ -56,11 +58,11 @@ jobs:
             PYDEVD_USE_CYTHON: YES
           - name: "ubuntu-py311-cython"
             python: "3.11.0"
-            os: ubuntu-20.04
+            os: ubuntu-latest
             PYDEVD_USE_CYTHON: YES
           - name: "ubuntu-py312-cython-checkbin"
             python: "3.12.0"
-            os: ubuntu-20.04
+            os: ubuntu-latest
             PYDEVD_USE_CYTHON: YES
           - name: "windows-py312-cython-checkbin"
             python: "3.12"
@@ -68,10 +70,18 @@ jobs:
             PYDEVD_USE_CYTHON: YES
           - name: "ubuntu-py313-cython"
             python: "3.13"
-            os: ubuntu-20.04
+            os: ubuntu-latest
             PYDEVD_USE_CYTHON: YES
           - name: "windows-py313-cython"
             python: "3.13"
+            os: windows-latest
+            PYDEVD_USE_CYTHON: YES
+          - name: "ubuntu-py314-cython"
+            python: "3.14-dev"
+            os: ubuntu-latest
+            PYDEVD_USE_CYTHON: YES
+          - name: "windows-py314-cython"
+            python: "3.14"
             os: windows-latest
             PYDEVD_USE_CYTHON: YES
 
@@ -105,7 +115,7 @@ jobs:
         pip install untangle --no-warn-script-location
         pip install importlib-metadata --no-warn-script-location
     - name: Install Python 3.x deps
-      if: contains(matrix.name, 'py3') && !contains(matrix.name, 'pypy') && !contains(matrix.name, 'py312') && !contains(matrix.name, 'py311') && !contains(matrix.name, 'py313')
+      if: contains(matrix.name, 'py3') && !contains(matrix.name, 'pypy') && !contains(matrix.name, 'py312') && !contains(matrix.name, 'py311') && !contains(matrix.name, 'py313') && !contains(matrix.name, 'py314')
       run: |
         pip install PySide2 --no-warn-script-location
         pip install "numpy<2" --force --no-warn-script-location

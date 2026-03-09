@@ -651,6 +651,11 @@ map_file_to_server = _original_map_file_to_server
 
 
 def _fix_path(path, sep, add_end_sep=False):
+    if path.startswith("."):
+        # We need the full path if this relative because all other comparisons
+        # check if the path is substring of another
+        path = os.path.abspath(path)
+
     if add_end_sep:
         if not path.endswith("/") and not path.endswith("\\"):
             path += "/"
