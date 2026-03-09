@@ -156,6 +156,7 @@ DONT_TRACE['codecs.py'] = LIB_FILE
     exclude_dirs = [
         ".git",
         ".settings",
+        ".venv",
         "build",
         "build_tools",
         "dist",

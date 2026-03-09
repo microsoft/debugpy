@@ -1214,11 +1214,8 @@ def internal_evaluate_expression_json(py_db, request, thread_id):
             eval_result = pydevd_vars.evaluate_expression(py_db, frame, expression, is_exec=False)
             is_error = isinstance_checked(eval_result, ExceptionOnEvaluate)
             if is_error:
-                if context == "hover":  # In a hover it doesn't make sense to do an exec.
-                    _evaluate_response(py_db, request, result="", error_message="Exception occurred during evaluation.")
-                    return
-                elif context == "watch":
-                    # If it's a watch, don't show it as an exception object, rather, format
+                if context in ["watch", "hover"]:
+                    # If it's hover or watch, don't show it as an exception object, rather, format
                     # it and show it as a string (with success=False).
                     msg = "%s: %s" % (
                         eval_result.result.__class__.__name__,

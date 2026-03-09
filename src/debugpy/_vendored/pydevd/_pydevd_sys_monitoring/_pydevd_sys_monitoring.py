@@ -190,6 +190,13 @@ def _get_bootstrap_frame(depth: int) -> Tuple[Optional[FrameType], bool]:
         return f_bootstrap, is_bootstrap_frame_internal
 
 
+class UnhandledExceptionTag:
+    """
+    Tag that is attached to exceptions so we can compare the instance without a strong reference
+    See issue https://github.com/microsoft/debugpy/issues/1999
+    """
+
+
 # fmt: off
 # IFDEF CYTHON
 # cdef _get_unhandled_exception_frame(exc, int depth):
@@ -198,12 +205,16 @@ def _get_unhandled_exception_frame(exc, depth: int) -> Optional[FrameType]:
 # ENDIF
 # fmt: on
     try:
-        # Unhandled frame has to be from the same exception.
-        if _thread_local_info.f_unhandled_exc is exc:
+        tag = exc.__dict__.setdefault('__pydevd_tag__', UnhandledExceptionTag())
+    except:
+        tag = exc
+
+    try:
+        if _thread_local_info.f_unhandled_exc_tag is tag:
             return _thread_local_info.f_unhandled_frame
         else:
             del _thread_local_info.f_unhandled_frame
-            del _thread_local_info.f_unhandled_exc
+            del _thread_local_info.f_unhandled_exc_tag
             raise AttributeError('Not the same exception')
     except:
         f_unhandled = _getframe(depth)
@@ -243,7 +254,7 @@ def _get_unhandled_exception_frame(exc, depth: int) -> Optional[FrameType]:
 
         if f_unhandled is not None:
             _thread_local_info.f_unhandled_frame = f_unhandled
-            _thread_local_info.f_unhandled_exc = exc
+            _thread_local_info.f_unhandled_exc_tag = tag
             return _thread_local_info.f_unhandled_frame
 
         return f_unhandled
