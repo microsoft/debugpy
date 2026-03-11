@@ -564,7 +564,9 @@ class PyDevJsonCommandProcessor(object):
         # unless singleThread is explicitly true (and the capability
         # supportsSingleThreadExecutionRequests is advertised). Only use the
         # specific threadId when singleThread is set; otherwise resume all.
-        single_thread = arguments.singleThread
+        # Use getattr with a default of False since most DAP clients omit this
+        # optional field entirely.
+        single_thread = getattr(arguments, "singleThread", False)
         if not single_thread or py_db.multi_threads_single_notification:
             thread_id = "*"
 
