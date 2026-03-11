@@ -390,12 +390,16 @@ class JsonFacade(object):
             ret[msg.__class__] = msg
         return ret
 
-    def write_continue(self, wait_for_response=True, thread_id="*"):
-        continue_request = self.write_request(pydevd_schema.ContinueRequest(pydevd_schema.ContinueArguments(threadId=thread_id)))
+    def write_continue(self, wait_for_response=True, thread_id="*", single_thread=False):
+        arguments = pydevd_schema.ContinueArguments(threadId=thread_id)
+        if single_thread:
+            arguments.singleThread = True
+        continue_request = self.write_request(pydevd_schema.ContinueRequest(arguments))
 
         if wait_for_response:
-            if thread_id != "*":
-                # event, response may be sent in any order
+            if single_thread:
+                # When singleThread=True, only the specified thread resumes.
+                # ContinuedEvent and ContinueResponse may arrive in any order.
                 msg1 = self.wait_for_json_message((ContinuedEvent, ContinueResponse))
                 msg2 = self.wait_for_json_message((ContinuedEvent, ContinueResponse))
                 by_type = self._by_type(msg1, msg2)
@@ -406,8 +410,10 @@ class JsonFacade(object):
                 assert continued_ev.body.allThreadsContinued == False
                 assert continue_response.body.allThreadsContinued == False
             else:
-                # The continued event is received before the response.
-                self.wait_for_continued_event(all_threads_continued=True)
+                # Default: all threads resume regardless of the threadId sent.
+                # Per the DAP spec, singleThread must be explicitly True to
+                # resume only one thread. Wait for the continue response with
+                # allThreadsContinued=True.
                 continue_response = self.wait_for_response(continue_request)
                 assert continue_response.body.allThreadsContinued
 
@@ -800,10 +806,40 @@ def test_case_json_suspend_notification(case_setup_dap):
         json_facade.write_make_initial_run()
 
         json_hit = json_facade.wait_for_thread_stopped(line=break1_line)
+        # Per the DAP spec, a ContinueRequest without singleThread=True must resume
+        # all threads even when a specific threadId is provided. Verify the response
+        # has allThreadsContinued=True (the correct behavior).
         json_facade.write_continue(thread_id=json_hit.thread_id)
 
         json_hit = json_facade.wait_for_thread_stopped(line=break1_line)
         json_facade.write_continue(thread_id=json_hit.thread_id, wait_for_response=False)
+
+        writer.finished_ok = True
+
+
+def test_case_json_continue_all_threads(case_setup_dap):
+    """Regression test: ContinueRequest with a specific threadId (no singleThread=True)
+    must resume ALL threads, not just the requested one. This tests the fix for the
+    in-process debug adapter scenario where the adapter does not transform threadId to '*'.
+    """
+    with case_setup_dap.test_file("_debugger_case_multi_threads_continue.py") as writer:
+        json_facade = JsonFacade(writer)
+        # Simulate the in-process adapter: disable single notification mode.
+        # In this mode the server receives a specific threadId (not '*') directly
+        # from the client without the adapter transforming it.
+        json_facade.writer.write_multi_threads_single_notification(False)
+        break_line = writer.get_line_index_with_content("Break here")
+        json_facade.write_launch()
+        json_facade.write_set_breakpoints(break_line)
+        json_facade.write_make_initial_run()
+
+        # Wait for the breakpoint to be hit.
+        json_hit = json_facade.wait_for_thread_stopped(line=break_line)
+
+        # Send ContinueRequest with the specific thread's id (no singleThread=True).
+        # Per the DAP spec this must resume ALL threads, not just the specified one.
+        # The response must have allThreadsContinued=True.
+        json_facade.write_continue(thread_id=json_hit.thread_id)
 
         writer.finished_ok = True
 
