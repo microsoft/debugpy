@@ -839,6 +839,9 @@ def test_case_json_continue_all_threads(case_setup_dap):
         # Send ContinueRequest with the specific thread's id (no singleThread=True).
         # Per the DAP spec this must resume ALL threads, not just the specified one.
         # The response must have allThreadsContinued=True.
+        # NOTE: If the fix regresses, the secondary thread stays blocked on
+        # stop_event.wait() and the debuggee hangs on t.join(), causing a test
+        # timeout rather than an explicit assertion failure.
         json_facade.write_continue(thread_id=json_hit.thread_id)
 
         writer.finished_ok = True
