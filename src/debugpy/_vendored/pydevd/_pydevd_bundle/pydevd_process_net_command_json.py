@@ -559,7 +559,15 @@ class PyDevJsonCommandProcessor(object):
         """
         arguments = request.arguments  # : :type arguments: ContinueArguments
         thread_id = arguments.threadId
-        if py_db.multi_threads_single_notification:
+
+        # Per the DAP spec, the continue request resumes execution of all threads
+        # unless singleThread is explicitly true (and the capability
+        # supportsSingleThreadExecutionRequests is advertised). Only use the
+        # specific threadId when singleThread is set; otherwise resume all.
+        # Use getattr with a default of False since most DAP clients omit this
+        # optional field entirely.
+        single_thread = getattr(arguments, "singleThread", False)
+        if not single_thread or py_db.multi_threads_single_notification:
             thread_id = "*"
 
         def on_resumed():
