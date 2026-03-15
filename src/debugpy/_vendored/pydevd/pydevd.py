@@ -2392,6 +2392,51 @@ class PyDB(object):
             remove_exception_from_frame(frame)
             frame = None
 
+    def post_mortem(self, excinfo, as_uncaught=True):
+        """
+        Triggers post-mortem debugging as if handling an uncaught exception.
+
+        If as_uncaught is True (default), respects exception breakpoint configuration and applies breakpoint filters.
+
+        :param excinfo: A tuple of (exc_type, exc_value, exc_traceback).
+        """
+        if not as_uncaught:
+            exctype, value, tb = excinfo
+
+            # Walk traceback to build frames list and find user frame
+            frames = []
+            user_frame = None
+            while tb is not None:
+                frame = tb.tb_frame
+                # Skip debugger-internal frames, use last user frame
+                if self.get_file_type(frame) is None:
+                    user_frame = frame
+                frames.append(frame)
+                tb = tb.tb_next
+
+            if user_frame is None:
+                pydev_log.debug("post_mortem: no user frame found in traceback")
+                return
+
+            frames_byid = dict([(id(frame), frame) for frame in frames])
+
+        if PYDEVD_USE_SYS_MONITORING:
+            saved_sys_monitoring_trace = pydevd_sys_monitoring.suspend_current_thread_tracing()
+        thread = threading.current_thread()
+        additional_info = self.set_additional_thread_info(thread)
+        additional_info.is_tracing += 1
+
+        try:
+            if as_uncaught:
+                self.stop_on_unhandled_exception(self, thread, additional_info, excinfo)
+            else:
+                self.do_stop_on_unhandled_exception(thread, user_frame, frames_byid, excinfo)
+        finally:
+            if PYDEVD_USE_SYS_MONITORING:
+                if saved_sys_monitoring_trace:
+                    pydevd_sys_monitoring.resume_current_thread_tracing()
+            additional_info.is_tracing -= 1
+
     def set_trace_for_frame_and_parents(self, thread_ident: Optional[int], frame, **kwargs):
         disable = kwargs.pop("disable", False)
         assert not kwargs

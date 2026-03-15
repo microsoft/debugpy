@@ -100,6 +100,22 @@ while True:
     ...
 ```
 
+### `post_mortem()` function
+Debugpy supports a `post_mortem()` function similar to `pdb.post_mortem()`. Call `debugpy.post_mortem(e)` with an exception or `(type(e),e,e.__traceback__)` tuple; or with no arguments in an except block. If the debugger is attached, it will pause execution and start post-mortem debugging of the exception stack as-if an uncaught exception. This respects breakpoint filters set by the debugger by default. When resuming afterward, the program will continue executing as normal (including unwinding the stack further if post_mortem() was invoked in a context manager's `__exit__` for example, or the exception is re-raised). If there's no client attached, this function does nothing, as breakpoint().
+
+```python
+import debugpy
+debugpy.listen(...)
+
+...
+def risky_function():
+    raise ValueError("threw an exception")
+try:
+    risky_function()
+except Exception as e:
+    debugpy.post_mortem(e)
+```
+
 ## Debugger logging
 
 To enable debugger internal logging via CLI, the `--log-to` switch can be used:
