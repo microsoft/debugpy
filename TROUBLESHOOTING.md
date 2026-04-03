@@ -30,9 +30,9 @@ You can control exactly which `SystemExit` codes the debugger breaks on using th
 
 ```js
 // Never break on any SystemExit:
-{
-    "breakOnSystemExit": []
-}
+    {
+        "breakOnSystemExit": []
+    }
 
 // Only break on specific exit codes:
 {
