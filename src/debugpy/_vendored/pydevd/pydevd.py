@@ -774,7 +774,7 @@ class PyDB(object):
         self._exclude_by_filter_cache = {}
         self._apply_filter_cache = {}
         self._ignore_system_exit_codes = set()
-        self._ignore_all_system_exit_codes = False
+        self._break_on_system_exit = None  # None = default behavior, tuple = (codes_set, ranges_list)
 
         # DAP related
         self._dap_messages_listeners = []
@@ -927,16 +927,30 @@ class PyDB(object):
         assert isinstance(ignore_system_exit_codes, (list, tuple, set))
         self._ignore_system_exit_codes = set(ignore_system_exit_codes)
 
-    def set_ignore_all_system_exit_codes(self, ignore_all):
-        self._ignore_all_system_exit_codes = ignore_all
+    def set_break_on_system_exit(self, codes, ranges):
+        """Set explicit list of SystemExit codes to break on.
+
+        :param set codes:
+            Set of specific exit codes (ints, None) to break on.
+        :param list ranges:
+            List of (from_code, to_code) tuples (inclusive) to break on.
+        """
+        self._break_on_system_exit = (codes, ranges)
 
     def ignore_system_exit_code(self, system_exit_exc):
-        if self._ignore_all_system_exit_codes:
+        code = system_exit_exc.code if hasattr(system_exit_exc, "code") else system_exit_exc
+
+        if self._break_on_system_exit is not None:
+            codes_set, ranges_list = self._break_on_system_exit
+            if code in codes_set:
+                return False
+            if isinstance(code, int):
+                for range_from, range_to in ranges_list:
+                    if range_from <= code <= range_to:
+                        return False
             return True
-        if hasattr(system_exit_exc, "code"):
-            return system_exit_exc.code in self._ignore_system_exit_codes
-        else:
-            return system_exit_exc in self._ignore_system_exit_codes
+
+        return code in self._ignore_system_exit_codes
 
     def block_until_configuration_done(self, cancel=None):
         if cancel is None:

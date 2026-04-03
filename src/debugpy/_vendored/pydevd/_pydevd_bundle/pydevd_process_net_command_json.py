@@ -433,8 +433,20 @@ class PyDevJsonCommandProcessor(object):
 
         self.api.set_show_return_values(py_db, self._options.show_return_value)
 
-        if self._options.ignore_all_system_exit_codes:
-            self.api.set_ignore_all_system_exit_codes(py_db, True)
+        break_on_system_exit = args.get("breakOnSystemExit", None)
+        if break_on_system_exit is not None:
+            codes = set()
+            ranges = []
+            for item in break_on_system_exit:
+                if item is None:
+                    codes.add(None)
+                elif isinstance(item, int):
+                    codes.add(item)
+                elif isinstance(item, dict):
+                    range_from = item.get("from", 0)
+                    range_to = item.get("to", 0)
+                    ranges.append((range_from, range_to))
+            self.api.set_break_on_system_exit(py_db, codes, ranges)
         elif not self._options.break_system_exit_zero:
             ignore_system_exit_codes = [0, None]
             if self._options.django_debug or self._options.flask_debug:

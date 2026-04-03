@@ -336,7 +336,7 @@ def test_success_exitcodes(
 @pytest.mark.parametrize("target", targets.all_named)
 @pytest.mark.parametrize("run", runners.all)
 @pytest.mark.parametrize("exit_code", [0, 1, 3])
-def test_ignore_all_systemexit(pyfile, target, run, exit_code):
+def test_break_on_system_exit_empty(pyfile, target, run, exit_code):
     @pyfile
     def code_to_debug():
         import debuggee
@@ -349,15 +349,68 @@ def test_ignore_all_systemexit(pyfile, target, run, exit_code):
 
     with debug.Session() as session:
         session.expected_exit_code = some.int
-        session.config["ignoreAllSystemExitCodes"] = True
+        session.config["breakOnSystemExit"] = []
 
         with run(session, target(code_to_debug, args=[repr(exit_code)])):
             session.request(
                 "setExceptionBreakpoints", {"filters": ["raised", "uncaught"]}
             )
 
-        # With ignoreAllSystemExitCodes=True, no SystemExit should cause a break,
+        # With breakOnSystemExit=[], no SystemExit should cause a break,
         # regardless of exit code. The session should end without stopping.
+
+
+@pytest.mark.parametrize("target", targets.all_named)
+@pytest.mark.parametrize("run", runners.all)
+def test_break_on_system_exit_specific_codes(pyfile, target, run):
+    @pyfile
+    def code_to_debug():
+        import debuggee
+        import sys
+
+        debuggee.setup()
+        exit_code = eval(sys.argv[1])
+        print("sys.exit(%r)" % (exit_code,))
+        sys.exit(exit_code)
+
+    # Exit code 1 is in the break list, so should break.
+    with debug.Session() as session:
+        session.expected_exit_code = some.int
+        session.config["breakOnSystemExit"] = [1]
+
+        with run(session, target(code_to_debug, args=["1"])):
+            session.request(
+                "setExceptionBreakpoints", {"filters": ["uncaught"]}
+            )
+
+        session.wait_for_stop("exception")
+        session.request_continue()
+
+
+@pytest.mark.parametrize("target", targets.all_named)
+@pytest.mark.parametrize("run", runners.all)
+def test_break_on_system_exit_skips_unlisted_codes(pyfile, target, run):
+    @pyfile
+    def code_to_debug():
+        import debuggee
+        import sys
+
+        debuggee.setup()
+        exit_code = eval(sys.argv[1])
+        print("sys.exit(%r)" % (exit_code,))
+        sys.exit(exit_code)
+
+    # Exit code 2 is NOT in the break list, so should not break.
+    with debug.Session() as session:
+        session.expected_exit_code = some.int
+        session.config["breakOnSystemExit"] = [1]
+
+        with run(session, target(code_to_debug, args=["2"])):
+            session.request(
+                "setExceptionBreakpoints", {"filters": ["uncaught"]}
+            )
+
+        # Should not break - exit code 2 is not in the break list.
 
 
 @pytest.mark.parametrize("max_frames", ["default", "all", 10])

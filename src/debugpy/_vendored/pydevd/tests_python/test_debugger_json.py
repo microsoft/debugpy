@@ -5837,7 +5837,6 @@ def test_debug_options(case_setup_dap, val):
             redirectOutput=True,  # Always redirect the output regardless of other values.
             showReturnValue=val,
             breakOnSystemExitZero=val,
-            ignoreAllSystemExitCodes=val,
             django=val,
             flask=val,
             stopOnEntry=val,
@@ -5865,7 +5864,6 @@ def test_debug_options(case_setup_dap, val):
             "redirectOutput": "redirect_output",
             "showReturnValue": "show_return_value",
             "breakOnSystemExitZero": "break_system_exit_zero",
-            "ignoreAllSystemExitCodes": "ignore_all_system_exit_codes",
             "stopOnEntry": "stop_on_entry",
             "maxExceptionStackFrames": "max_exception_stack_frames",
             "guiEventLoop": "gui_event_loop",

@@ -27,7 +27,7 @@ class DebugConfig(MutableMapping):
     PROPERTIES = {
         # Common
         "breakOnSystemExitZero": False,
-        "ignoreAllSystemExitCodes": False,
+        "breakOnSystemExit": (),
         "debugOptions": [],
         "django": False,
         "jinja": False,

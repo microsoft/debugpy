@@ -8,7 +8,6 @@ class DebugOptions(object):
         "redirect_output",
         "show_return_value",
         "break_system_exit_zero",
-        "ignore_all_system_exit_codes",
         "django_debug",
         "flask_debug",
         "stop_on_entry",
@@ -22,7 +21,6 @@ class DebugOptions(object):
         self.redirect_output = False
         self.show_return_value = False
         self.break_system_exit_zero = False
-        self.ignore_all_system_exit_codes = False
         self.django_debug = False
         self.flask_debug = False
         self.stop_on_entry = False
@@ -48,9 +46,6 @@ class DebugOptions(object):
 
         if "BREAK_SYSTEMEXIT_ZERO" in debug_options:
             self.break_system_exit_zero = debug_options.get("BREAK_SYSTEMEXIT_ZERO")
-
-        if "IGNORE_ALL_SYSTEM_EXIT_CODES" in debug_options:
-            self.ignore_all_system_exit_codes = debug_options.get("IGNORE_ALL_SYSTEM_EXIT_CODES")
 
         if "DJANGO_DEBUG" in debug_options:
             self.django_debug = debug_options.get("DJANGO_DEBUG")
@@ -82,9 +77,6 @@ class DebugOptions(object):
 
         if "breakOnSystemExitZero" in args:
             self.break_system_exit_zero = bool_parser(args["breakOnSystemExitZero"])
-
-        if "ignoreAllSystemExitCodes" in args:
-            self.ignore_all_system_exit_codes = bool_parser(args["ignoreAllSystemExitCodes"])
 
         if "django" in args:
             self.django_debug = bool_parser(args["django"])
@@ -126,7 +118,6 @@ DEBUG_OPTIONS_PARSER = {
     "WAIT_ON_ABNORMAL_EXIT": bool_parser,
     "WAIT_ON_NORMAL_EXIT": bool_parser,
     "BREAK_SYSTEMEXIT_ZERO": bool_parser,
-    "IGNORE_ALL_SYSTEM_EXIT_CODES": bool_parser,
     "REDIRECT_OUTPUT": bool_parser,
     "DJANGO_DEBUG": bool_parser,
     "FLASK_DEBUG": bool_parser,
@@ -143,7 +134,6 @@ DEBUG_OPTIONS_BY_FLAG = {
     "WaitOnNormalExit": "WAIT_ON_NORMAL_EXIT=True",
     "WaitOnAbnormalExit": "WAIT_ON_ABNORMAL_EXIT=True",
     "BreakOnSystemExitZero": "BREAK_SYSTEMEXIT_ZERO=True",
-    "IgnoreAllSystemExitCodes": "IGNORE_ALL_SYSTEM_EXIT_CODES=True",
     "Django": "DJANGO_DEBUG=True",
     "Flask": "FLASK_DEBUG=True",
     "Jinja": "FLASK_DEBUG=True",
