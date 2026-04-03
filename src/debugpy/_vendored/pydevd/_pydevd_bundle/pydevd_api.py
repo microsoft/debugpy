@@ -994,6 +994,9 @@ class PyDevdAPI(object):
     def set_ignore_system_exit_codes(self, py_db, ignore_system_exit_codes):
         py_db.set_ignore_system_exit_codes(ignore_system_exit_codes)
 
+    def set_ignore_all_system_exit_codes(self, py_db, ignore_all):
+        py_db.set_ignore_all_system_exit_codes(ignore_all)
+
     SourceMappingEntry = pydevd_source_mapping.SourceMappingEntry
 
     def set_source_mapping(self, py_db, source_filename, mapping):

@@ -333,6 +333,33 @@ def test_success_exitcodes(
             session.request_continue()
 
 
+@pytest.mark.parametrize("target", targets.all_named)
+@pytest.mark.parametrize("run", runners.all)
+@pytest.mark.parametrize("exit_code", [0, 1, 3])
+def test_ignore_all_systemexit(pyfile, target, run, exit_code):
+    @pyfile
+    def code_to_debug():
+        import debuggee
+        import sys
+
+        debuggee.setup()
+        exit_code = eval(sys.argv[1])
+        print("sys.exit(%r)" % (exit_code,))
+        sys.exit(exit_code)
+
+    with debug.Session() as session:
+        session.expected_exit_code = some.int
+        session.config["ignoreAllSystemExitCodes"] = True
+
+        with run(session, target(code_to_debug, args=[repr(exit_code)])):
+            session.request(
+                "setExceptionBreakpoints", {"filters": ["raised", "uncaught"]}
+            )
+
+        # With ignoreAllSystemExitCodes=True, no SystemExit should cause a break,
+        # regardless of exit code. The session should end without stopping.
+
+
 @pytest.mark.parametrize("max_frames", ["default", "all", 10])
 def test_exception_stack(pyfile, target, run, max_frames):
     @pyfile

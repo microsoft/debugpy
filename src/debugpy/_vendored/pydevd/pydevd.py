@@ -774,6 +774,7 @@ class PyDB(object):
         self._exclude_by_filter_cache = {}
         self._apply_filter_cache = {}
         self._ignore_system_exit_codes = set()
+        self._ignore_all_system_exit_codes = False
 
         # DAP related
         self._dap_messages_listeners = []
@@ -926,7 +927,12 @@ class PyDB(object):
         assert isinstance(ignore_system_exit_codes, (list, tuple, set))
         self._ignore_system_exit_codes = set(ignore_system_exit_codes)
 
+    def set_ignore_all_system_exit_codes(self, ignore_all):
+        self._ignore_all_system_exit_codes = ignore_all
+
     def ignore_system_exit_code(self, system_exit_exc):
+        if self._ignore_all_system_exit_codes:
+            return True
         if hasattr(system_exit_exc, "code"):
             return system_exit_exc.code in self._ignore_system_exit_codes
         else:
