@@ -435,6 +435,11 @@ class PyDevJsonCommandProcessor(object):
 
         break_on_system_exit = args.get("breakOnSystemExit", None)
         if break_on_system_exit is not None:
+            if not isinstance(break_on_system_exit, (list, tuple)):
+                pydev_log.info("Expected breakOnSystemExit to be a list. Received: %s" % (break_on_system_exit,))
+                break_on_system_exit = None
+
+        if break_on_system_exit is not None:
             codes = set()
             ranges = []
             for item in break_on_system_exit:
