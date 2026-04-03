@@ -46,4 +46,3 @@ Apply this skill when writing and organizing tests with pytest — fixtures, par
 -   Don't use `session`-scoped fixtures for mutable state.
 -   Don't assert on implementation details — test observable behavior.
 -   Avoid test interdependence; each test should be runnable in isolation.
-

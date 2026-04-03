@@ -39,4 +39,3 @@ Apply this skill when building Flask web applications or APIs — routing, bluep
 -   Never use the development server (`app.run()`) in production — use Gunicorn or uWSGI.
 -   Avoid storing mutable state on the `app` object; use `g` for request-scoped data.
 -   Never hardcode `SECRET_KEY` — load from environment variables.
-

@@ -35,4 +35,3 @@ Apply this skill when rendering templates with Jinja2 — HTML pages, emails, co
 -   Don't use `Template(string)` directly — it bypasses the environment's loader and settings.
 -   Watch for undefined variable errors — use `undefined=StrictUndefined` during development.
 -   Avoid complex logic in templates — keep them focused on presentation.
-

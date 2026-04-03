@@ -45,4 +45,3 @@ Apply this skill when working with Django projects — models, views, URL routin
 -   Avoid importing models at module level in `settings.py` or `urls.py` (circular imports).
 -   Never store secrets in `settings.py` — use environment variables.
 -   Avoid raw SQL unless the ORM genuinely cannot express the query.
-

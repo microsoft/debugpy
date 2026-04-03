@@ -39,4 +39,3 @@ Apply this skill when doing numerical computing with NumPy — arrays, broadcast
 -   Don't compare floats with `==`; use `np.allclose()` or `np.isclose()`.
 -   Beware of silent integer overflow in integer arrays.
 -   Avoid `np.matrix` — it's deprecated; use 2D `np.ndarray`.
-

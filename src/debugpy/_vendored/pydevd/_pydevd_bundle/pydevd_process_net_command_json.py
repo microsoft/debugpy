@@ -119,6 +119,51 @@ def _convert_rules_to_exclude_filters(rules, on_error):
     return exclude_filters
 
 
+def _parse_break_on_system_exit(args):
+    """Parse the ``breakOnSystemExit`` launch/attach argument.
+
+    :returns:
+        ``(codes_set, ranges_list)`` when the setting is present and valid,
+        or ``None`` when it is absent or completely invalid.
+    """
+    break_on_system_exit = args.get("breakOnSystemExit", None)
+    if break_on_system_exit is None:
+        return None
+
+    if not isinstance(break_on_system_exit, (list, tuple)):
+        pydev_log.info("Expected breakOnSystemExit to be a list. Received: %s" % (break_on_system_exit,))
+        return None
+
+    codes = set()
+    ranges = []
+    for item in break_on_system_exit:
+        if item is None:
+            codes.add(None)
+        elif isinstance(item, int):
+            codes.add(item)
+        elif isinstance(item, dict):
+            range_from = item.get("from", 0)
+            range_to = item.get("to", 0)
+            if not isinstance(range_from, int) or not isinstance(range_to, int):
+                pydev_log.info(
+                    "Expected 'from' and 'to' in breakOnSystemExit range to be integers. "
+                    "Received: from=%s, to=%s" % (range_from, range_to)
+                )
+                continue
+            if range_from > range_to:
+                pydev_log.info(
+                    "breakOnSystemExit range has 'from' > 'to' (matches nothing): "
+                    "from=%s, to=%s" % (range_from, range_to)
+                )
+            ranges.append((range_from, range_to))
+        else:
+            pydev_log.info(
+                "Unexpected item type in breakOnSystemExit (expected int, None, or dict): %s" % (item,)
+            )
+
+    return (codes, ranges)
+
+
 class IDMap(object):
     def __init__(self):
         self._value_to_key = {}
@@ -433,24 +478,9 @@ class PyDevJsonCommandProcessor(object):
 
         self.api.set_show_return_values(py_db, self._options.show_return_value)
 
-        break_on_system_exit = args.get("breakOnSystemExit", None)
-        if break_on_system_exit is not None:
-            if not isinstance(break_on_system_exit, (list, tuple)):
-                pydev_log.info("Expected breakOnSystemExit to be a list. Received: %s" % (break_on_system_exit,))
-                break_on_system_exit = None
-
-        if break_on_system_exit is not None:
-            codes = set()
-            ranges = []
-            for item in break_on_system_exit:
-                if item is None:
-                    codes.add(None)
-                elif isinstance(item, int):
-                    codes.add(item)
-                elif isinstance(item, dict):
-                    range_from = item.get("from", 0)
-                    range_to = item.get("to", 0)
-                    ranges.append((range_from, range_to))
+        parsed = _parse_break_on_system_exit(args)
+        if parsed is not None:
+            codes, ranges = parsed
             self.api.set_break_on_system_exit(py_db, codes, ranges)
         elif not self._options.break_system_exit_zero:
             ignore_system_exit_codes = [0, None]

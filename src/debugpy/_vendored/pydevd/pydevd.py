@@ -936,8 +936,19 @@ class PyDB(object):
             List of (from_code, to_code) tuples (inclusive) to break on.
         """
         self._break_on_system_exit = (codes, ranges)
+        self._ignore_system_exit_codes = set()  # Clear legacy state to prevent conflicts
 
     def ignore_system_exit_code(self, system_exit_exc):
+        """Determine whether to ignore (not break on) a SystemExit exception.
+
+        Returns True to ignore (skip the break), False to break.
+
+        When ``_break_on_system_exit`` is set, the semantics are inverted:
+        the configuration specifies which codes TO BREAK ON, and this method
+        returns False (don't ignore) if the code matches.  Non-int, non-None
+        codes (e.g. strings passed to ``sys.exit("error")``) are treated as
+        "always break" to avoid silently suppressing unexpected exits.
+        """
         code = system_exit_exc.code if hasattr(system_exit_exc, "code") else system_exit_exc
 
         if self._break_on_system_exit is not None:
@@ -948,7 +959,11 @@ class PyDB(object):
                 for range_from, range_to in ranges_list:
                     if range_from <= code <= range_to:
                         return False
-            return True
+                return True
+            if code is None:
+                return True
+            # Non-int, non-None codes (e.g. strings): always break.
+            return False
 
         return code in self._ignore_system_exit_codes
 

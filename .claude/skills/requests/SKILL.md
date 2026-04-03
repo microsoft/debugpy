@@ -39,4 +39,3 @@ Apply this skill when making HTTP requests with the Requests library — session
 -   Don't forget timeouts — they default to None (infinite wait).
 -   Don't use `requests.get()` for high-throughput — use sessions.
 -   Close responses from streaming requests (`stream=True`) to release connections.
-

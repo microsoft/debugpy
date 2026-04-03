@@ -39,4 +39,3 @@ Apply this skill when building command-line interfaces with Click — commands, 
 -   Don't use `sys.exit()` — use `click.exceptions.Exit` or return from the command.
 -   Don't use `print()` — use `click.echo()` for proper encoding handling.
 -   Always handle `KeyboardInterrupt` / abort prompts gracefully.
-
