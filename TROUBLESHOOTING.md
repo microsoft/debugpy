@@ -23,6 +23,41 @@ If you want to debug library files, you have to disable `justMyCode` in `launch.
 },
 ```
 
+### Debugger breaks on SystemExit
+By default, the debugger treats `SystemExit` with a non-zero exit code as an uncaught exception and breaks on it. If you use `sys.exit()` intentionally (e.g. in CLI tools, test runners like pytest, or frameworks like Django/Flask), this can be unwanted.
+
+You can control exactly which `SystemExit` codes the debugger breaks on using the `breakOnSystemExit` setting in `launch.json`. It accepts an array of exit codes and/or ranges:
+
+```js
+// Never break on any SystemExit:
+    {
+        "breakOnSystemExit": []
+    }
+
+// Only break on specific exit codes:
+{
+    "breakOnSystemExit": [1, 2]
+}
+
+// Break on exit codes using ranges (inclusive):
+{
+    "breakOnSystemExit": [{"from": 1, "to": 255}]
+}
+
+// Mix specific codes and ranges:
+{
+    "breakOnSystemExit": [0, {"from": 3, "to": 100}]
+}
+```
+
+When `breakOnSystemExit` is not specified, the default behavior applies:
+- `SystemExit(0)` and `SystemExit(None)` are ignored (successful exit).
+- All other non-zero exit codes cause a break.
+- When **`django`** or **`flask`** is `true`, exit code `3` is also ignored (used for reload signaling).
+- When **`breakOnSystemExitZero`** is `true`, the debugger also breaks on `SystemExit(0)` and `SystemExit(None)`.
+
+When `breakOnSystemExit` is explicitly set, it overrides all of the above — only the listed codes and ranges will cause breaks.
+
 ## Filing an issue
 
 When filing an issue, make sure you do the following:
