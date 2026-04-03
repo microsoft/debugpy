@@ -413,6 +413,59 @@ def test_break_on_system_exit_skips_unlisted_codes(pyfile, target, run):
         # Should not break - exit code 2 is not in the break list.
 
 
+@pytest.mark.parametrize("target", targets.all_named)
+@pytest.mark.parametrize("run", runners.all)
+def test_break_on_system_exit_range(pyfile, target, run):
+    @pyfile
+    def code_to_debug():
+        import debuggee
+        import sys
+
+        debuggee.setup()
+        exit_code = eval(sys.argv[1])
+        print("sys.exit(%r)" % (exit_code,))
+        sys.exit(exit_code)
+
+    # Exit code 5 is within the range {"from": 3, "to": 10}, so should break.
+    with debug.Session() as session:
+        session.expected_exit_code = some.int
+        session.config["breakOnSystemExit"] = [{"from": 3, "to": 10}]
+
+        with run(session, target(code_to_debug, args=["5"])):
+            session.request(
+                "setExceptionBreakpoints", {"filters": ["uncaught"]}
+            )
+
+        session.wait_for_stop("exception")
+        session.request_continue()
+
+
+@pytest.mark.parametrize("target", targets.all_named)
+@pytest.mark.parametrize("run", runners.all)
+def test_break_on_system_exit_range_skips_outside(pyfile, target, run):
+    @pyfile
+    def code_to_debug():
+        import debuggee
+        import sys
+
+        debuggee.setup()
+        exit_code = eval(sys.argv[1])
+        print("sys.exit(%r)" % (exit_code,))
+        sys.exit(exit_code)
+
+    # Exit code 2 is outside the range {"from": 3, "to": 10}, so should not break.
+    with debug.Session() as session:
+        session.expected_exit_code = some.int
+        session.config["breakOnSystemExit"] = [{"from": 3, "to": 10}]
+
+        with run(session, target(code_to_debug, args=["2"])):
+            session.request(
+                "setExceptionBreakpoints", {"filters": ["uncaught"]}
+            )
+
+        # Should not break - exit code 2 is outside the range.
+
+
 @pytest.mark.parametrize("max_frames", ["default", "all", 10])
 def test_exception_stack(pyfile, target, run, max_frames):
     @pyfile
