@@ -926,6 +926,80 @@ def test_case_throw_exc_reason(case_setup_dap):
         writer.finished_ok = True
 
 
+def test_case_chained_exception_variables(case_setup_dap, pyfile):
+    """
+    When stopped on a chained exception, variable evaluation must work for
+    frames belonging to the chained (cause) exception, not just the primary one.
+    """
+
+    @pyfile
+    def target():
+        def inner():
+            cause_var = "from_cause"  # noqa
+            raise RuntimeError("the cause")
+
+        def outer():
+            outer_var = "from_outer"  # noqa
+            try:
+                inner()
+            except Exception as e:
+                raise ValueError("the effect") from e  # raise line
+
+        outer()
+
+    def check_test_suceeded_msg(self, stdout, stderr):
+        return "the cause" in "".join(stderr)
+
+    def additional_output_checks(writer, stdout, stderr):
+        assert 'raise RuntimeError("the cause")' in stderr
+        assert 'raise ValueError("the effect") from e' in stderr
+
+    with case_setup_dap.test_file(
+        target,
+        EXPECTED_RETURNCODE=1,
+        check_test_suceeded_msg=check_test_suceeded_msg,
+        additional_output_checks=additional_output_checks,
+    ) as writer:
+        json_facade = JsonFacade(writer)
+
+        json_facade.write_launch(justMyCode=False)
+        json_facade.write_set_exception_breakpoints(["uncaught"])
+        json_facade.write_make_initial_run()
+
+        json_hit = json_facade.wait_for_thread_stopped(
+            reason="exception", line=writer.get_line_index_with_content("raise line")
+        )
+
+        stack_frames = json_hit.stack_trace_response.body.stackFrames
+
+        # Find the chained exception frames.
+        chained_frames = [f for f in stack_frames if f["name"].startswith("[Chained Exc:")]
+        assert len(chained_frames) > 0, "Expected chained exception frames in stack trace"
+
+        # Verify variables can be retrieved for chained frames (this is the
+        # operation that previously failed with "Unable to find thread to
+        # evaluate variable reference.").
+        for chained_frame in chained_frames:
+            variables_response = json_facade.get_variables_response(chained_frame["id"])
+            assert variables_response.success
+
+        # Find the inner() chained frame and verify its local variable.
+        inner_frames = [f for f in chained_frames if "inner" in f["name"]]
+        assert len(inner_frames) == 1
+        variables_response = json_facade.get_variables_response(inner_frames[0]["id"])
+        var_names = [v["name"] for v in variables_response.body.variables]
+        assert "cause_var" in var_names, "Expected 'cause_var' in chained frame variables, got: %s" % var_names
+
+        # Also verify that primary frame variables still work.
+        primary_frame_id = json_hit.frame_id
+        variables_response = json_facade.get_variables_response(primary_frame_id)
+        assert variables_response.success
+
+        json_facade.write_continue()
+
+        writer.finished_ok = True
+
+
 def test_case_throw_exc_reason_shown(case_setup_dap):
 
     def check_test_suceeded_msg(self, stdout, stderr):

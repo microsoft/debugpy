@@ -404,6 +404,21 @@ class _FramesTracker(object):
 
                 self._frame_id_to_main_thread_id[frame_id] = thread_id
 
+            # Also track frames from chained exceptions (e.g. __cause__ / __context__)
+            # so that variable evaluation works for chained exception frames displayed
+            # in the call stack.
+            chained = getattr(frames_list, 'chained_frames_list', None)
+            while chained is not None and len(chained) > 0:
+                for frame in chained:
+                    frame_id = id(frame)
+                    self._frame_id_to_frame[frame_id] = frame
+                    _FrameVariable(self.py_db, frame, self._register_variable)
+                    self._suspended_frames_manager._variable_reference_to_frames_tracker[frame_id] = self
+                    frame_ids_from_thread.append(frame_id)
+
+                    self._frame_id_to_main_thread_id[frame_id] = thread_id
+                chained = getattr(chained, 'chained_frames_list', None)
+
             frame = None
 
     def untrack_all(self):
