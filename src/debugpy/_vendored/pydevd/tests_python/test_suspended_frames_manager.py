@@ -156,3 +156,73 @@ def test_get_child_variables():
                 raise AssertionError("Expected to find variable named: %s" % (TOO_LARGE_ATTR,))
             if not found_len:
                 raise AssertionError("Expected to find variable named: len()")
+
+
+def test_chained_exception_frames_tracked():
+    """
+    When an exception has chained causes (__cause__ / __context__), the chained
+    frames are shown in the call stack.  Variable evaluation must also work for
+    those frames, which requires them to be registered in the
+    SuspendedFramesManager.  Uses a 3-level chain to verify all levels are walked.
+    """
+    from _pydevd_bundle.pydevd_suspended_frames import SuspendedFramesManager
+    from _pydevd_bundle.pydevd_constants import EXCEPTION_TYPE_USER_UNHANDLED
+
+    def level0():
+        local0 = "from_level_0"  # noqa
+        raise RuntimeError("level_0")
+
+    def level1():
+        local1 = "from_level_1"  # noqa
+        try:
+            level0()
+        except Exception as e:
+            raise TypeError("level_1") from e
+
+    def level2():
+        local2 = "from_level_2"  # noqa
+        try:
+            level1()
+        except Exception as e:
+            raise ValueError("level_2") from e
+
+    try:
+        level2()
+    except Exception:
+        exc_type, exc_desc, trace_obj = sys.exc_info()
+        frame = sys._getframe()
+        frames_list = pydevd_frame_utils.create_frames_list_from_traceback(
+            trace_obj, frame, exc_type, exc_desc,
+            exception_type=EXCEPTION_TYPE_USER_UNHANDLED,
+        )
+
+    # Collect all chained levels.
+    chained_levels = []
+    cur = frames_list
+    while getattr(cur, "chained_frames_list", None) is not None:
+        chained_levels.append(cur.chained_frames_list)
+        cur = cur.chained_frames_list
+    assert len(chained_levels) == 2
+
+    suspended_frames_manager = SuspendedFramesManager()
+    with suspended_frames_manager.track_frames(_DummyPyDB()) as tracker:
+        thread_id = "thread1"
+        tracker.track(thread_id, frames_list)
+
+        # Primary and all chained frames must be tracked.
+        for f in frames_list:
+            assert suspended_frames_manager.get_thread_id_for_variable_reference(id(f)) == thread_id
+        for level in chained_levels:
+            for f in level:
+                assert suspended_frames_manager.get_thread_id_for_variable_reference(id(f)) == thread_id
+
+        # Variable retrieval must work for the deepest chained frames.
+        for f in chained_levels[-1]:
+            assert suspended_frames_manager.get_variable(id(f)).get_children_variables() is not None
+
+    # After untracking, all references must be gone.
+    for f in frames_list:
+        assert suspended_frames_manager.get_thread_id_for_variable_reference(id(f)) is None
+    for level in chained_levels:
+        for f in level:
+            assert suspended_frames_manager.get_thread_id_for_variable_reference(id(f)) is None
