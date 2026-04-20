@@ -359,7 +359,7 @@ def get_environment_description(header):
         report("Installed packages:\n")
         try:
             for pkg in importlib_metadata.distributions():
-                report("    {0}=={1}\n", pkg.name, pkg.version)
+                report("    {0}=={1}\n", pkg.metadata['Name'], pkg.version)
         except Exception:  # pragma: no cover
             swallow_exception(
                 "Error while enumerating installed packages.", level="info"
