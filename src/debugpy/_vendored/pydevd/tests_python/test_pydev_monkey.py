@@ -1,6 +1,7 @@
 # coding: utf-8
 import os
 import sys
+from typing import Any, Generator
 
 import pytest
 
@@ -16,16 +17,16 @@ except:
 
 
 @pytest.fixture(autouse=True)
-def save_setup_holder():
-    original = SetupHolder.setup
+def save_setup_holder() -> Generator[None, Any, None]:
+    original: None = SetupHolder.setup
     yield
     SetupHolder.setup = original
 
 
-def test_monkey():
+def test_monkey() -> None:
     SetupHolder.setup = {"client": "127.0.0.1", "port": "0", "ppid": os.getpid(), "protocol-quoted-line": True}
     check = """C:\\bin\\python.exe -u -c connect(\\"127.0.0.1\\")"""
-    debug_command = (
+    debug_command: str = (
         "import sys; "
         "sys.path.insert(0, r'%s'); "
         "import pydevd; pydevd.config('quoted-line', ''); "
@@ -35,23 +36,23 @@ def test_monkey():
         'connect("127.0.0.1")'
     ) % (pydev_src_dir, sorted_dict_repr(SetupHolder.setup))
     if sys.platform == "win32":
-        debug_command = debug_command.replace('"', '\\"')
-        debug_command = '"%s"' % debug_command
+        debug_command: str = debug_command.replace('"', '\\"')
+        debug_command: str = '"%s"' % debug_command
 
     assert "C:\\bin\\python.exe -u -c %s" % debug_command == pydev_monkey.patch_arg_str_win(check)
 
 
-def test_str_to_args_windows():
+def test_str_to_args_windows() -> None:
     assert ["a", "b"] == pydev_monkey.str_to_args_windows('a "b"')
 
 
-def test_monkey_patch_return_original_args():
-    check = ["echo", '"my"', '"args"']
+def test_monkey_patch_return_original_args() -> None:
+    check: list[str] = ["echo", '"my"', '"args"']
     res = pydev_monkey.patch_args(check[:])
     assert res == check
 
 
-def test_monkey_patch_pathlib_args():
+def test_monkey_patch_pathlib_args() -> None:
     try:
         import pathlib
     except ImportError:
@@ -62,19 +63,19 @@ def test_monkey_patch_pathlib_args():
     assert res == check
 
 
-def test_monkey_patch_wrong_object_type():
+def test_monkey_patch_wrong_object_type() -> None:
     check = [1, 22, '"my"', '"args"']
     res = pydev_monkey.patch_args(check[:])
     assert res == check
 
 
-def test_monkey_patch_wrong_object_type_2():
+def test_monkey_patch_wrong_object_type_2() -> None:
     check = ["C:\\bin\\python.exe", "-u", 1, '-qcconnect("127.0.0.1")']
     res = pydev_monkey.patch_args(check[:])
     assert res == check
 
 
-def test_monkey_patch_args_module_subprocess_pathlib():
+def test_monkey_patch_args_module_subprocess_pathlib() -> None:
     try:
         import pathlib
     except ImportError:
@@ -106,23 +107,23 @@ def test_monkey_patch_args_module_subprocess_pathlib():
     ]
 
 
-def test_monkey_patch_args_indc():
+def test_monkey_patch_args_indc() -> None:
     SetupHolder.setup = {"client": "127.0.0.1", "port": "0", "ppid": os.getpid(), "protocol-quoted-line": True, "skip-notify-stdin": True}
-    check = ["C:\\bin\\python.exe", "-u", "-c", 'connect("127.0.0.1")']
-    debug_command = (
+    check: list[str] = ["C:\\bin\\python.exe", "-u", "-c", 'connect("127.0.0.1")']
+    debug_command: str = (
         "import sys; sys.path.insert(0, r'%s'); import pydevd; pydevd.config('quoted-line', ''); "
         "pydevd.settrace(host='127.0.0.1', port=0, suspend=False, trace_only_current_thread=False, patch_multiprocessing=True, access_token=None, client_access_token=None, __setup_holder__=%s); "
         ""
         'connect("127.0.0.1")'
     ) % (pydev_src_dir, sorted_dict_repr(SetupHolder.setup))
     if sys.platform == "win32":
-        debug_command = debug_command.replace('"', '\\"')
-        debug_command = '"%s"' % debug_command
+        debug_command: str = debug_command.replace('"', '\\"')
+        debug_command: str = '"%s"' % debug_command
     res = pydev_monkey.patch_args(check)
     assert res == ["C:\\bin\\python.exe", "-u", "-c", debug_command]
 
 
-def test_separate_future_imports():
+def test_separate_future_imports() -> None:
     found = pydev_monkey._separate_future_imports("""from __future__ import print_function\nprint(1)""")
     assert found == ("from __future__ import print_function;", "\nprint(1)")
 
@@ -141,153 +142,153 @@ def test_separate_future_imports():
     assert found == ("from __future__ import division\nfrom __future__ import (\n\nprint_function, absolute_import\n);", "print(1)")
 
 
-def test_monkey_patch_args_indc_future_import():
+def test_monkey_patch_args_indc_future_import() -> None:
     SetupHolder.setup = {"client": "127.0.0.1", "port": "0", "ppid": os.getpid(), "protocol-quoted-line": True, "skip-notify-stdin": True}
-    check = ["C:\\bin\\python.exe", "-u", "-c", 'from __future__ import print_function;connect("127.0.0.1")']
-    debug_command = (
+    check: list[str] = ["C:\\bin\\python.exe", "-u", "-c", 'from __future__ import print_function;connect("127.0.0.1")']
+    debug_command: str = (
         "from __future__ import print_function;import sys; sys.path.insert(0, r'%s'); import pydevd; pydevd.config('quoted-line', ''); "
         "pydevd.settrace(host='127.0.0.1', port=0, suspend=False, trace_only_current_thread=False, patch_multiprocessing=True, access_token=None, client_access_token=None, __setup_holder__=%s); "
         ""
         'connect("127.0.0.1")'
     ) % (pydev_src_dir, sorted_dict_repr(SetupHolder.setup))
     if sys.platform == "win32":
-        debug_command = debug_command.replace('"', '\\"')
-        debug_command = '"%s"' % debug_command
+        debug_command: str = debug_command.replace('"', '\\"')
+        debug_command: str = '"%s"' % debug_command
     res = pydev_monkey.patch_args(check)
     assert res == ["C:\\bin\\python.exe", "-u", "-c", debug_command]
 
 
-def test_monkey_patch_args_indc_future_import2():
+def test_monkey_patch_args_indc_future_import2() -> None:
     SetupHolder.setup = {"client": "127.0.0.1", "port": "0", "ppid": os.getpid(), "protocol-quoted-line": True, "skip-notify-stdin": True}
-    check = ["C:\\bin\\python.exe", "-u", "-c", 'from __future__ import print_function\nconnect("127.0.0.1")']
-    debug_command = (
+    check: list[str] = ["C:\\bin\\python.exe", "-u", "-c", 'from __future__ import print_function\nconnect("127.0.0.1")']
+    debug_command: str = (
         "from __future__ import print_function;import sys; sys.path.insert(0, r'%s'); import pydevd; pydevd.config('quoted-line', ''); "
         "pydevd.settrace(host='127.0.0.1', port=0, suspend=False, trace_only_current_thread=False, patch_multiprocessing=True, access_token=None, client_access_token=None, __setup_holder__=%s); "
         ""
         '\nconnect("127.0.0.1")'
     ) % (pydev_src_dir, sorted_dict_repr(SetupHolder.setup))
     if sys.platform == "win32":
-        debug_command = debug_command.replace('"', '\\"')
-        debug_command = '"%s"' % debug_command
+        debug_command: str = debug_command.replace('"', '\\"')
+        debug_command: str = '"%s"' % debug_command
     res = pydev_monkey.patch_args(check)
     assert res == ["C:\\bin\\python.exe", "-u", "-c", debug_command]
 
 
-def test_monkey_patch_args_indc2():
+def test_monkey_patch_args_indc2() -> None:
     SetupHolder.setup = {"client": "127.0.0.1", "port": "0", "ppid": os.getpid(), "protocol-quoted-line": True, "skip-notify-stdin": True}
-    check = ["C:\\bin\\python.exe", "-u", '-qcconnect("127.0.0.1")']
-    debug_command = (
+    check: list[str] = ["C:\\bin\\python.exe", "-u", '-qcconnect("127.0.0.1")']
+    debug_command: str = (
         "import sys; sys.path.insert(0, r'%s'); import pydevd; pydevd.config('quoted-line', ''); "
         "pydevd.settrace(host='127.0.0.1', port=0, suspend=False, trace_only_current_thread=False, patch_multiprocessing=True, access_token=None, client_access_token=None, __setup_holder__=%s); "
         ""
         'connect("127.0.0.1")'
     ) % (pydev_src_dir, sorted_dict_repr(SetupHolder.setup))
     if sys.platform == "win32":
-        debug_command = debug_command.replace('"', '\\"')
-        debug_command = '"%s"' % debug_command
+        debug_command: str = debug_command.replace('"', '\\"')
+        debug_command: str = '"%s"' % debug_command
     res = pydev_monkey.patch_args(check)
     assert res == ["C:\\bin\\python.exe", "-u", "-qc", debug_command]
 
 
-def test_monkey_patch_args_x_flag():
+def test_monkey_patch_args_x_flag() -> None:
     SetupHolder.setup = {"client": "127.0.0.1", "port": "0", "ppid": os.getpid(), "protocol-quoted-line": True, "skip-notify-stdin": True}
-    check = ["C:\\bin\\python.exe", "-X", "faulthandler", "-c", 'connect("127.0.0.1")']
-    debug_command = (
+    check: list[str] = ["C:\\bin\\python.exe", "-X", "faulthandler", "-c", 'connect("127.0.0.1")']
+    debug_command: str = (
         "import sys; sys.path.insert(0, r'%s'); import pydevd; pydevd.config('quoted-line', ''); "
         "pydevd.settrace(host='127.0.0.1', port=0, suspend=False, trace_only_current_thread=False, patch_multiprocessing=True, access_token=None, client_access_token=None, __setup_holder__=%s); "
         ""
         'connect("127.0.0.1")'
     ) % (pydev_src_dir, sorted_dict_repr(SetupHolder.setup))
     if sys.platform == "win32":
-        debug_command = debug_command.replace('"', '\\"')
-        debug_command = '"%s"' % debug_command
+        debug_command: str = debug_command.replace('"', '\\"')
+        debug_command: str = '"%s"' % debug_command
     res = pydev_monkey.patch_args(check)
     assert res == ["C:\\bin\\python.exe", "-X", "faulthandler", "-c", debug_command]
 
 
-def test_monkey_patch_args_flag_in_single_arg_1():
+def test_monkey_patch_args_flag_in_single_arg_1() -> None:
     SetupHolder.setup = {"client": "127.0.0.1", "port": "0", "ppid": os.getpid(), "protocol-quoted-line": True, "skip-notify-stdin": True}
-    check = ["C:\\bin\\python.exe", "-qX", "faulthandler", "-c", 'connect("127.0.0.1")']
-    debug_command = (
+    check: list[str] = ["C:\\bin\\python.exe", "-qX", "faulthandler", "-c", 'connect("127.0.0.1")']
+    debug_command: str = (
         "import sys; sys.path.insert(0, r'%s'); import pydevd; pydevd.config('quoted-line', ''); "
         "pydevd.settrace(host='127.0.0.1', port=0, suspend=False, trace_only_current_thread=False, patch_multiprocessing=True, access_token=None, client_access_token=None, __setup_holder__=%s); "
         ""
         'connect("127.0.0.1")'
     ) % (pydev_src_dir, sorted_dict_repr(SetupHolder.setup))
     if sys.platform == "win32":
-        debug_command = debug_command.replace('"', '\\"')
-        debug_command = '"%s"' % debug_command
+        debug_command: str = debug_command.replace('"', '\\"')
+        debug_command: str = '"%s"' % debug_command
     res = pydev_monkey.patch_args(check)
     assert res == ["C:\\bin\\python.exe", "-qX", "faulthandler", "-c", debug_command]
 
 
-def test_monkey_patch_args_flag_in_single_arg_2():
+def test_monkey_patch_args_flag_in_single_arg_2() -> None:
     SetupHolder.setup = {"client": "127.0.0.1", "port": "0", "ppid": os.getpid(), "protocol-quoted-line": True, "skip-notify-stdin": True}
-    check = ["C:\\bin\\python.exe", "-qX", "faulthandler", "-c", 'connect("127.0.0.1")']
-    debug_command = (
+    check: list[str] = ["C:\\bin\\python.exe", "-qX", "faulthandler", "-c", 'connect("127.0.0.1")']
+    debug_command: str = (
         "import sys; sys.path.insert(0, r'%s'); import pydevd; pydevd.config('quoted-line', ''); "
         "pydevd.settrace(host='127.0.0.1', port=0, suspend=False, trace_only_current_thread=False, patch_multiprocessing=True, access_token=None, client_access_token=None, __setup_holder__=%s); "
         ""
         'connect("127.0.0.1")'
     ) % (pydev_src_dir, sorted_dict_repr(SetupHolder.setup))
     if sys.platform == "win32":
-        debug_command = debug_command.replace('"', '\\"')
-        debug_command = '"%s"' % debug_command
+        debug_command: str = debug_command.replace('"', '\\"')
+        debug_command: str = '"%s"' % debug_command
     res = pydev_monkey.patch_args(check)
     assert res == ["C:\\bin\\python.exe", "-qX", "faulthandler", "-c", debug_command]
 
 
-def test_monkey_patch_args_flag_in_single_arg_3():
+def test_monkey_patch_args_flag_in_single_arg_3() -> None:
     SetupHolder.setup = {"client": "127.0.0.1", "port": "0", "ppid": os.getpid(), "protocol-quoted-line": True, "skip-notify-stdin": True}
-    check = ["C:\\bin\\python.exe", "-qc", 'connect("127.0.0.1")']
-    debug_command = (
+    check: list[str] = ["C:\\bin\\python.exe", "-qc", 'connect("127.0.0.1")']
+    debug_command: str = (
         "import sys; sys.path.insert(0, r'%s'); import pydevd; pydevd.config('quoted-line', ''); "
         "pydevd.settrace(host='127.0.0.1', port=0, suspend=False, trace_only_current_thread=False, patch_multiprocessing=True, access_token=None, client_access_token=None, __setup_holder__=%s); "
         ""
         'connect("127.0.0.1")'
     ) % (pydev_src_dir, sorted_dict_repr(SetupHolder.setup))
     if sys.platform == "win32":
-        debug_command = debug_command.replace('"', '\\"')
-        debug_command = '"%s"' % debug_command
+        debug_command: str = debug_command.replace('"', '\\"')
+        debug_command: str = '"%s"' % debug_command
     res = pydev_monkey.patch_args(check)
     assert res == ["C:\\bin\\python.exe", "-qc", debug_command]
 
 
-def test_monkey_patch_args_x_flag_inline():
+def test_monkey_patch_args_x_flag_inline() -> None:
     SetupHolder.setup = {"client": "127.0.0.1", "port": "0", "ppid": os.getpid(), "protocol-quoted-line": True, "skip-notify-stdin": True}
-    check = ["C:\\bin\\python.exe", "-Xfaulthandler", "-c", 'connect("127.0.0.1")', "arg1"]
-    debug_command = (
+    check: list[str] = ["C:\\bin\\python.exe", "-Xfaulthandler", "-c", 'connect("127.0.0.1")', "arg1"]
+    debug_command: str = (
         "import sys; sys.path.insert(0, r'%s'); import pydevd; pydevd.config('quoted-line', ''); "
         "pydevd.settrace(host='127.0.0.1', port=0, suspend=False, trace_only_current_thread=False, patch_multiprocessing=True, access_token=None, client_access_token=None, __setup_holder__=%s); "
         ""
         'connect("127.0.0.1")'
     ) % (pydev_src_dir, sorted_dict_repr(SetupHolder.setup))
     if sys.platform == "win32":
-        debug_command = debug_command.replace('"', '\\"')
-        debug_command = '"%s"' % debug_command
+        debug_command: str = debug_command.replace('"', '\\"')
+        debug_command: str = '"%s"' % debug_command
     res = pydev_monkey.patch_args(check)
     assert res == ["C:\\bin\\python.exe", "-Xfaulthandler", "-c", debug_command, "arg1"]
 
 
-def test_monkey_patch_args_c_flag_inline():
+def test_monkey_patch_args_c_flag_inline() -> None:
     SetupHolder.setup = {"client": "127.0.0.1", "port": "0", "ppid": os.getpid(), "protocol-quoted-line": True, "skip-notify-stdin": True}
-    check = ["C:\\bin\\python.exe", "-X", "faulthandler", '-cconnect("127.0.0.1")', "arg1"]
-    debug_command = (
+    check: list[str] = ["C:\\bin\\python.exe", "-X", "faulthandler", '-cconnect("127.0.0.1")', "arg1"]
+    debug_command: str = (
         "import sys; sys.path.insert(0, r'%s'); import pydevd; pydevd.config('quoted-line', ''); "
         "pydevd.settrace(host='127.0.0.1', port=0, suspend=False, trace_only_current_thread=False, patch_multiprocessing=True, access_token=None, client_access_token=None, __setup_holder__=%s); "
         ""
         'connect("127.0.0.1")'
     ) % (pydev_src_dir, sorted_dict_repr(SetupHolder.setup))
     if sys.platform == "win32":
-        debug_command = debug_command.replace('"', '\\"')
-        debug_command = '"%s"' % debug_command
+        debug_command: str = debug_command.replace('"', '\\"')
+        debug_command: str = '"%s"' % debug_command
     res = pydev_monkey.patch_args(check)
     assert res == ["C:\\bin\\python.exe", "-X", "faulthandler", "-c", debug_command, "arg1"]
 
 
-def test_monkey_patch_args_module():
+def test_monkey_patch_args_module() -> None:
     SetupHolder.setup = {"client": "127.0.0.1", "port": "0", "multiprocess": True, "skip-notify-stdin": True}
-    check = ["C:\\bin\\python.exe", "-m", "test"]
+    check: list[str] = ["C:\\bin\\python.exe", "-m", "test"]
     from _pydevd_bundle.pydevd_command_line_handling import get_pydevd_file
 
     assert pydev_monkey.patch_args(check) == [
@@ -308,9 +309,9 @@ def test_monkey_patch_args_module():
     ]
 
 
-def test_monkey_patch_args_unbuffered_module():
+def test_monkey_patch_args_unbuffered_module() -> None:
     SetupHolder.setup = {"client": "127.0.0.1", "port": "0", "multiprocess": True, "skip-notify-stdin": True}
-    check = ["C:\\bin\\python.exe", "-u", "-m", "test"]
+    check: list[str] = ["C:\\bin\\python.exe", "-u", "-m", "test"]
     from _pydevd_bundle.pydevd_command_line_handling import get_pydevd_file
 
     assert pydev_monkey.patch_args(check) == [
@@ -332,9 +333,9 @@ def test_monkey_patch_args_unbuffered_module():
     ]
 
 
-def test_monkey_patch_args_module_inline():
+def test_monkey_patch_args_module_inline() -> None:
     SetupHolder.setup = {"client": "127.0.0.1", "port": "0", "multiprocess": True, "skip-notify-stdin": True}
-    check = ["C:\\bin\\python.exe", "-qOmtest"]
+    check: list[str] = ["C:\\bin\\python.exe", "-qOmtest"]
     from _pydevd_bundle.pydevd_command_line_handling import get_pydevd_file
 
     assert pydev_monkey.patch_args(check) == [
@@ -356,9 +357,9 @@ def test_monkey_patch_args_module_inline():
     ]
 
 
-def test_monkey_patch_args_module_inline2():
+def test_monkey_patch_args_module_inline2() -> None:
     SetupHolder.setup = {"client": "127.0.0.1", "port": "0", "multiprocess": True, "skip-notify-stdin": True}
-    check = ["C:\\bin\\python.exe", "-qOm", "test"]
+    check: list[str] = ["C:\\bin\\python.exe", "-qOm", "test"]
     from _pydevd_bundle.pydevd_command_line_handling import get_pydevd_file
 
     assert pydev_monkey.patch_args(check) == [
@@ -380,9 +381,9 @@ def test_monkey_patch_args_module_inline2():
     ]
 
 
-def test_monkey_patch_args_no_indc():
+def test_monkey_patch_args_no_indc() -> None:
     SetupHolder.setup = {"client": "127.0.0.1", "port": "0"}
-    check = ["C:\\bin\\python.exe", 'connect(\\"127.0.0.1\\")', "with spaces"]
+    check: list[str] = ["C:\\bin\\python.exe", 'connect(\\"127.0.0.1\\")', "with spaces"]
     from _pydevd_bundle.pydevd_command_line_handling import get_pydevd_file
 
     assert pydev_monkey.patch_args(check) == [
@@ -401,18 +402,18 @@ def test_monkey_patch_args_no_indc():
     ]
 
 
-def test_monkey_patch_args_no_indc_with_pydevd():
+def test_monkey_patch_args_no_indc_with_pydevd() -> None:
     SetupHolder.setup = {"client": "127.0.0.1", "port": "0"}
-    check = ["C:\\bin\\python.exe", "pydevd.py", 'connect(\\"127.0.0.1\\")', "bar"]
+    check: list[str] = ["C:\\bin\\python.exe", "pydevd.py", 'connect(\\"127.0.0.1\\")', "bar"]
 
     assert pydev_monkey.patch_args(check) == ["C:\\bin\\python.exe", "pydevd.py", 'connect(\\"127.0.0.1\\")', "bar"]
 
 
-def test_monkey_patch_args_no_indc_without_pydevd():
+def test_monkey_patch_args_no_indc_without_pydevd() -> None:
     from _pydevd_bundle.pydevd_command_line_handling import get_pydevd_file
 
     SetupHolder.setup = {"client": "127.0.0.1", "port": "0"}
-    check = ["C:\\bin\\python.exe", "target.py", 'connect(\\"127.0.0.1\\")', "bar"]
+    check: list[str] = ["C:\\bin\\python.exe", "target.py", 'connect(\\"127.0.0.1\\")', "bar"]
     assert pydev_monkey.patch_args(check) == [
         "C:\\bin\\python.exe",
         get_pydevd_file(),
@@ -431,15 +432,15 @@ def test_monkey_patch_args_no_indc_without_pydevd():
 
 
 @pytest.mark.parametrize("use_bytes", [True, False])
-def test_monkey_patch_c_program_arg(use_bytes):
+def test_monkey_patch_c_program_arg(use_bytes) -> None:
     from _pydevd_bundle.pydevd_command_line_handling import get_pydevd_file
 
     SetupHolder.setup = {"client": "127.0.0.1", "port": "0", "module": "ignore.this"}
-    check = ["C:\\bin\\python.exe", "-u", "target.py", "-c", "-áéíóú"]
+    check: list[str] = ["C:\\bin\\python.exe", "-u", "target.py", "-c", "-áéíóú"]
 
     encode = lambda s: s
     if use_bytes:
-        check = [c.encode("utf-8") for c in check]
+        check: list[bytes] = [c.encode("utf-8") for c in check]
         encode = lambda s: s.encode("utf-8")
 
     assert pydev_monkey.patch_args(check) == [
@@ -460,9 +461,9 @@ def test_monkey_patch_c_program_arg(use_bytes):
     ]
 
 
-def test_monkey_patch_args_module_single_arg():
+def test_monkey_patch_args_module_single_arg() -> None:
     SetupHolder.setup = {"client": "127.0.0.1", "port": "0", "multiprocess": True, "module": "ignore.this"}
-    check = ["C:\\bin\\python.exe", "-mtest", "bar"]
+    check: list[str] = ["C:\\bin\\python.exe", "-mtest", "bar"]
     from _pydevd_bundle.pydevd_command_line_handling import get_pydevd_file
 
     assert pydev_monkey.patch_args(check) == [
@@ -483,8 +484,8 @@ def test_monkey_patch_args_module_single_arg():
     ]
 
 
-def test_monkey_patch_args_stdin():
+def test_monkey_patch_args_stdin() -> None:
     SetupHolder.setup = {"client": "127.0.0.1", "port": "0", "multiprocess": True, "module": "ignore.this"}
-    check = ["C:\\bin\\python.exe", "-Xfaulthandler", "-"]
+    check: list[str] = ["C:\\bin\\python.exe", "-Xfaulthandler", "-"]
     # i.e.: we don't deal with the stdin.
     assert pydev_monkey.patch_args(check) == check
