@@ -158,7 +158,7 @@ def _separate_future_imports(code):
                     offset = i + len(from_future_import_name)
 
         if offset >= 0:
-            for i: int in range(offset, len(code)):
+            for i in range(offset, len(code)):
                 if code[i] in (" ", "\t", ";", ")", "\n"):
                     offset += 1
                 else:
@@ -393,7 +393,7 @@ def patch_args(args, is_exec=False):
         original_args = args
         try:
             unquoted_args = remove_quotes_from_args(args)
-        except InvalidTypeInArgsException as e: InvalidTypeInArgsException:
+        except InvalidTypeInArgsException as e:
             pydev_log.info("Unable to monkey-patch subprocess arguments because a type found in the args is invalid: %s", e)
             return original_args
 
@@ -622,7 +622,7 @@ def str_to_args_windows(args):
     buf: str = ""
 
     args_len: int = len(args)
-    for i: int in range(args_len):
+    for i in range(args_len):
         ch = args[i]
         if ch == "\\":
             backslashes += 1
@@ -1196,7 +1196,7 @@ def patch_thread_module(thread_module) -> None:
     check: list[str] = start_thread_attrs + start_joinable_attrs
 
     replace_attrs = []
-    for attr: str in check:
+    for attr in check:
         if hasattr(thread_module, attr):
             replace_attrs.append(attr)
 
