@@ -1,4 +1,6 @@
 # License: EPL
+from __future__ import annotations
+
 from _thread import _local
 import os
 import re
