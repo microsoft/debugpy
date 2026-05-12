@@ -107,6 +107,28 @@ def test_object_resolver_hasattr_error():
     assert type_name == "MyObject"
 
 
+def test_object_resolver_empty_slot():
+    from _pydevd_bundle.pydevd_resolver import DefaultResolver
+
+    default_resolver = DefaultResolver()
+
+    class MyObject(object):
+        __slots__ = ["a", "b", "c"]
+
+        def __init__(self):
+            self.a = 1
+            self.c = 3
+
+    obj = MyObject()
+    dictionary = default_resolver.get_dictionary(obj)
+
+    dictionary = clear_contents_dictionary(default_resolver.get_dictionary(obj))
+    assert dictionary == {"a": 1, "c": 3}
+
+    contents_debug_adapter_protocol = clear_contents_debug_adapter_protocol(default_resolver.get_contents_debug_adapter_protocol(obj))
+    assert contents_debug_adapter_protocol == [("a", 1, ".a"), ("c", 3, ".c")]
+
+
 def test_object_resolver__dict__non_strings():
     from _pydevd_bundle.pydevd_resolver import DefaultResolver
 
