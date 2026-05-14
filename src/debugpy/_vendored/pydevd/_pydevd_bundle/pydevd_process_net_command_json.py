@@ -1109,10 +1109,17 @@ class PyDevJsonCommandProcessor(object):
         frame_id = request.arguments.frameId
 
         variables_reference = frame_id
-        scopes = [
-            Scope("Locals", ScopeRequest(int(variables_reference), "locals"), False, presentationHint="locals"),
-            Scope("Globals", ScopeRequest(int(variables_reference), "globals"), False),
-        ]
+        try:
+            scopes = [
+                Scope("Locals", ScopeRequest(int(variables_reference), "locals"), False, presentationHint="locals"),
+                Scope("Globals", ScopeRequest(int(variables_reference), "globals"), False),
+            ]
+        except (ValueError, TypeError):
+            pydev_log.info("Failed to create scopes for frame id: %s", frame_id)
+            scopes = []
+        except Exception:
+            pydev_log.exception("Failed to create scopes for frame id: %s", frame_id)
+            scopes = []
         body = ScopesResponseBody(scopes)
         scopes_response = pydevd_base_schema.build_response(request, kwargs={"body": body})
         return NetCommand(CMD_RETURN, 0, scopes_response, is_json=True)
