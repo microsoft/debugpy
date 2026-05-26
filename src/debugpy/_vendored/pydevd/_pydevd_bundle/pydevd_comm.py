@@ -1239,12 +1239,16 @@ def internal_evaluate_expression_json(py_db, request, thread_id):
 
         if try_exec:
             try:
-                pydevd_vars.evaluate_expression(py_db, frame, expression, is_exec=True)
+                exec_result = pydevd_vars.evaluate_expression(py_db, frame, expression, is_exec=True)
             except (Exception, KeyboardInterrupt):
                 _evaluate_response_return_exception(py_db, request, *sys.exc_info())
                 return
-            # No result on exec.
-            _evaluate_response(py_db, request, result="")
+            # Use simple string formatting rather than the richer obtain_as_variable path
+            # (which provides type info, variablesReference, etc.) because the exec path is
+            # typically reached when there is no frameId, meaning thread_id="*" and no
+            # frame_tracker is available to build a structured variable response.
+            result = "%s" % (exec_result,) if exec_result is not None else ""
+            _evaluate_response(py_db, request, result=result)
             return
 
         # Ok, we have the result (could be an error), let's put it into the saved variables.

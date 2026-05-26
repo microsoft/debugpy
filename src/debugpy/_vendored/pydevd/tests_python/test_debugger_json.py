@@ -3633,9 +3633,9 @@ def test_evaluate(case_setup_dap):
         # Ok, 'foo_value' is now set in 'email' module.
         exec_response = json_facade.evaluate("email.foo_value")
 
-        # We don't actually get variables without a frameId, we can just evaluate and observe side effects
-        # (so, the result is always empty -- or an error).
-        assert exec_response.body.result == ""
+        # Without a frameId the exec path is used, which now returns the result
+        # for eval-able expressions.
+        assert exec_response.body.result == "True"
 
         json_facade.write_continue()
 

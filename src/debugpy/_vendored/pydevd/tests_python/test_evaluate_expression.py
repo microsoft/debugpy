@@ -238,21 +238,42 @@ def test_evaluate_expression_async_exec_as_eval(disable_critical_log):
         assert async_call is not None  # Make sure it's in the locals.
         frame = sys._getframe()
         eval_txt = "await async_call(10)"
-        from io import StringIO
+        result = evaluate_expression(py_db, frame, eval_txt, is_exec=True)
 
-        _original_stdout = sys.stdout
-        try:
-            stringio = sys.stdout = StringIO()
-            evaluate_expression(py_db, frame, eval_txt, is_exec=True)
-        finally:
-            sys.stdout = _original_stdout
-
-        # I.e.: Check that we printed the value obtained in the exec.
-        assert "10\n" in stringio.getvalue()
+        # The eval-within-exec path should return the result directly.
+        assert result == 10
 
     import asyncio
 
     asyncio.run(main())
+
+
+@pytest.mark.skipif(IS_PY313_0, reason="Crashes on Python 3.13.0")
+def test_evaluate_expression_sync_exec_as_eval(disable_critical_log):
+    from _pydevd_bundle.pydevd_vars import evaluate_expression
+    from io import StringIO
+
+    frame = next(iter(obtain_frame()))
+
+    # An expression evaluated via the exec path should return the result directly
+    # and must not write to stdout.
+    _original_stdout = sys.stdout
+    try:
+        stringio = sys.stdout = StringIO()
+        result = evaluate_expression(None, frame, "1 + 2", is_exec=True)
+    finally:
+        sys.stdout = _original_stdout
+    assert result == 3
+    assert stringio.getvalue() == ""
+
+    # None results should return None.
+    result = evaluate_expression(None, frame, "None", is_exec=True)
+    assert result is None
+
+    # Statements (pure exec) should return None.
+    result = evaluate_expression(None, frame, "x = 42", is_exec=True)
+    assert result is None
+    assert frame.f_locals["x"] == 42
 
 
 @pytest.mark.skipif(not CAN_EVALUATE_TOP_LEVEL_ASYNC or IS_PY313_0, reason="Requires top-level async evaluation. Crashes on Python 3.13.0")
