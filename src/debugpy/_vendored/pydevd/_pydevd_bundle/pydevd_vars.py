@@ -473,9 +473,9 @@ def evaluate_expression(py_db, frame, expression, is_exec):
         There are some changes in this function depending on whether it's an exec or an eval.
 
         When it's an exec (i.e.: is_exec==True):
-            This function returns None.
+            If the expression can be compiled as an eval, the result of the evaluation is returned.
+            If the expression can only be compiled as an exec (i.e.: a statement), None is returned.
             Any exception that happens during the evaluation is reraised.
-            If the expression could actually be evaluated, the variable is printed to the console if not None.
 
         When it's an eval (i.e.: is_exec==False):
             This function returns the result from the evaluation.
@@ -539,12 +539,13 @@ def evaluate_expression(py_db, frame, expression, is_exec):
 
         if is_exec:
             try:
-                # Try to make it an eval (if it is an eval we can print it, otherwise we'll exec it and
-                # it will have whatever the user actually did)
+                # Try to make it an eval (if it is an eval we can return the result to the caller,
+                # otherwise we'll exec it and it will have whatever the user actually did)
                 compiled = compile_as_eval(expression)
             except Exception:
                 compiled = None
 
+            result = None
             if compiled is None:
                 try:
                     compiled = _compile_as_exec(expression)
@@ -574,9 +575,7 @@ def evaluate_expression(py_db, frame, expression, is_exec):
                         result = t.evaluated_value
                 else:
                     result = eval(compiled, updated_globals, updated_locals)
-                if result is not None:  # Only print if it's not None (as python does)
-                    sys.stdout.write("%s\n" % (result,))
-            return
+            return result
 
         else:
             ret = eval_in_context(expression, updated_globals, updated_locals, py_db)
