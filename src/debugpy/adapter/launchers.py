@@ -148,6 +148,7 @@ def spawn_debuggee(
                 "title": console_title,
                 "args": cmdline,
                 "env": env,
+                "cwd": ""
             }
             if cwd is not None:
                 request_args["cwd"] = cwd
