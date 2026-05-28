@@ -186,6 +186,13 @@ def build_extension(dir_name, extension_name, target_pydevd_name, force_cython, 
                 c_file_contents = c_file_contents.replace(
                     "            memcpy((char *)result_udata + (char_pos << kind_shift), udata, (size_t) (ulength << kind_shift));\n",
                     "            memcpy((char *)result_udata + (char_pos << kind_shift), udata, (size_t) (ulength << kind_shift)); /* Flawfinder: ignore */\n",
+                # Suppress Flawfinder false positive (CWE-120/CWE-20) in the
+                # Cython 3.x ModuleStateLookup boilerplate (`__Pyx_State_ConvertFromInterpIdAsIndex`):
+                # `read` is a bounded pointer iterator (not POSIX read()), and the loop is
+                # guarded by `read < end` where `end = read + data->count`.
+                c_file_contents = c_file_contents.replace(
+                    "    for (; read<end; ++read) {\n",
+                    "    for (; read<end; ++read) { /* Flawfinder: ignore */\n",
                 )
 
                 with open(c_file, "w") as stream:
