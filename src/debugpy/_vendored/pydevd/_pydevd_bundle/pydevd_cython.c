@@ -51785,7 +51785,7 @@ static void __Pyx_State_ConvertFromInterpIdAsIndex(__Pyx_ModuleStateLookupData *
     __Pyx_InterpreterIdAndModule *read = data->table;
     __Pyx_InterpreterIdAndModule *write = data->table;
     __Pyx_InterpreterIdAndModule *end = read + data->count;
-    for (; read<end; ++read) {
+    for (; read<end; ++read) { /* Flawfinder: ignore */
         if (read->module) {
             write->id = read->id;
             write->module = read->module;
