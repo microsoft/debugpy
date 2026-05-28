@@ -177,6 +177,17 @@ def build_extension(dir_name, extension_name, target_pydevd_name, force_cython, 
                 c_file_contents = c_file_contents.replace(r"_pydevd_bundle\\pydevd_cython.pxd", "_pydevd_bundle/pydevd_cython.pxd")
                 c_file_contents = c_file_contents.replace(r"_pydevd_bundle\\pydevd_cython.pyx", "_pydevd_bundle/pydevd_cython.pyx")
 
+                # Suppress Flawfinder false positive (CWE-120) in the Cython 3.x
+                # `__Pyx_PyUnicode_Join` boilerplate: the destination `result_uval` was just
+                # allocated via `PyUnicode_New(result_ulength, max_char)`, and the immediately
+                # preceding `(PY_SSIZE_T_MAX >> kind_shift) - ulength < char_pos` check guards
+                # against char_pos+ulength overflow before the memcpy. The size argument is
+                # `ulength << kind_shift` which is bounded by the pre-allocated buffer length.
+                c_file_contents = c_file_contents.replace(
+                    "            memcpy((char *)result_udata + (char_pos << kind_shift), udata, (size_t) (ulength << kind_shift));\n",
+                    "            memcpy((char *)result_udata + (char_pos << kind_shift), udata, (size_t) (ulength << kind_shift)); /* Flawfinder: ignore */\n",
+                )
+
                 with open(c_file, "w") as stream:
                     stream.write(c_file_contents)
 
