@@ -45633,7 +45633,7 @@ static CYTHON_INLINE PyObject* __Pyx____Pyx_PyUnicode_From_int(int value, Py_ssi
             digit_pos = abs((int)(remaining % (8*8)));
             remaining = (int) (remaining / (8*8));
             dpos -= 2;
-            memcpy(dpos, DIGIT_PAIRS_8 + digit_pos * 2, 2);
+            memcpy(dpos, DIGIT_PAIRS_8 + digit_pos * 2, 2); /* Flawfinder: ignore */
             last_one_off = (digit_pos < 8);
             break;
         case 'd':
