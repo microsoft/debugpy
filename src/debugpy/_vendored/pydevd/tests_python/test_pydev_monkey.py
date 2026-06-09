@@ -440,7 +440,7 @@ def test_monkey_patch_c_program_arg(use_bytes) -> None:
 
     encode = lambda s: s
     if use_bytes:
-        check: list[bytes] = [c.encode("utf-8") for c: bytes in check]
+        check: list[bytes] = [c.encode("utf-8") for c in check]
         encode = lambda s: s.encode("utf-8")
 
     assert pydev_monkey.patch_args(check) == [
@@ -502,10 +502,10 @@ def test_monkey_patch_args_c_with_bytes() -> None:
         b"-c",
         b'from joblib.externals.loky.backend import get_context; get_context().Manager()',
     ]
-    
+
     # Should not raise TypeError about bytes/str mismatch.
     result = pydev_monkey.patch_args(check)
-    
+
     # Result should be a list with bytes elements (since input was bytes)
     assert isinstance(result, list)
     assert all(isinstance(item, (bytes, str)) for item in result)
