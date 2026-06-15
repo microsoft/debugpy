@@ -248,3 +248,29 @@ def test_script_parent_pid_with_listen_failure(cli):
         cli(["--listen", "8888", "--parent-session-pid", "1234", "spam.py"])
 
     assert "--parent-session-pid requires --connect" in str(ex.value)
+
+
+def test_pep768_code_injection_path_with_backslashes():
+    """Test that PEP 768 code injection generates valid Python when the temp
+    path contains backslashes (e.g. on Windows: C:\\Users\\xxx\\AppData\\Local\\Temp\\)."""
+    # Simulate a Windows-style temp file path with backslashes.
+    windows_tmp_path = r"C:\Users\test\AppData\Local\Temp\tmp0_vuee4s"
+
+    # This is the code template used in cli.py attach_to_pid().
+    # Without the fix, this produces a SyntaxError when executed because
+    # backslashes in the string literal are interpreted as escape sequences.
+    code_without_fix = """import os;os.remove("{tmp_file_path}");""".format(
+        tmp_file_path=windows_tmp_path
+    )
+
+    # Verify that the unfixed code is indeed invalid Python syntax.
+    with pytest.raises(SyntaxError):
+        compile(code_without_fix, "<string>", "exec")
+
+    # The fix replaces backslashes with forward slashes (valid on Windows).
+    code_with_fix = """import os;os.remove("{tmp_file_path}");""".format(
+        tmp_file_path=windows_tmp_path.replace("\\", "/")
+    )
+
+    # Verify that the fixed code is valid Python syntax.
+    compile(code_with_fix, "<string>", "exec")

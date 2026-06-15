@@ -466,7 +466,7 @@ attach_pid_injected.attach(setup);
                 tmp_file.write(python_code.encode())
                 tmp_file.write(
                     """import os;os.remove("{tmp_file_path}");""".format(
-                        tmp_file_path=tmp_file_path
+                        tmp_file_path=tmp_file_path.replace("\\", "/")
                     ).encode()
                 )
                 tmp_file.flush()
