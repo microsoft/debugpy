@@ -303,9 +303,9 @@ def test_pep_768_remote_exec_called_with_backslash_path():
         injected_code = b"".join(written_chunks).decode()
         compile(injected_code, "<string>", "exec")
 
-        # The os.remove() call inside the injected code must use forward slashes
-        # so that it is a valid Python string literal (no backslash escape issues).
-        assert 'import os;os.remove("C:/Users/test/AppData/Local/Temp/tmp0_vuee4s");' in injected_code
+        # The os.remove() call inside the injected code must use the repr of the path
+        # so that it is a valid Python string literal on all platforms.
+        assert "import os;os.remove({});".format(repr(mock_windows_tmp_path)) in injected_code
     finally:
         for attr, value in original_options.items():
             setattr(cli.options, attr, value)
