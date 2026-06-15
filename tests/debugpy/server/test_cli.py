@@ -250,32 +250,6 @@ def test_script_parent_pid_with_listen_failure(cli):
     assert "--parent-session-pid requires --connect" in str(ex.value)
 
 
-def test_pep_768_code_injection_path_with_backslashes():
-    """Test that PEP 768 code injection generates valid Python when the temp
-    path contains backslashes (e.g. on Windows: C:\\Users\\xxx\\AppData\\Local\\Temp\\)."""
-    # Simulate a Windows-style temp file path with backslashes.
-    mock_windows_tmp_path = r"C:\Users\test\AppData\Local\Temp\tmp0_vuee4s"
-
-    # This is the code template used in cli.py attach_to_pid().
-    # Without the fix, this produces a SyntaxError when executed because
-    # backslashes in the string literal are interpreted as escape sequences.
-    code_without_fix = """import os;os.remove("{tmp_file_path}");""".format(
-        tmp_file_path=mock_windows_tmp_path
-    )
-
-    # Verify that the unfixed code is indeed invalid Python syntax.
-    with pytest.raises(SyntaxError):
-        compile(code_without_fix, "<string>", "exec")
-
-    # The fix replaces backslashes with forward slashes (valid on Windows).
-    code_with_fix = """import os;os.remove("{tmp_file_path}");""".format(
-        tmp_file_path=mock_windows_tmp_path.replace("\\", "/")
-    )
-
-    # Verify that the fixed code is valid Python syntax.
-    compile(code_with_fix, "<string>", "exec")
-
-
 def test_pep_768_remote_exec_called_with_backslash_path():
     """Test that attach_to_pid() calls sys.remote_exec and writes valid Python
     to the temp file even when the temp path contains backslashes (Windows)."""
@@ -331,10 +305,7 @@ def test_pep_768_remote_exec_called_with_backslash_path():
 
         # The os.remove() call inside the injected code must use forward slashes
         # so that it is a valid Python string literal (no backslash escape issues).
-        assert r"C:\Users" not in injected_code, (
-            "Backslashes must be replaced with forward slashes in the injected os.remove() call"
-        )
-        assert "C:/Users" in injected_code
+        assert 'import os;os.remove("C:/Users/test/AppData/Local/Temp/tmp0_vuee4s");' in injected_code
     finally:
         for attr, value in original_options.items():
             setattr(cli.options, attr, value)
