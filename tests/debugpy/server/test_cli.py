@@ -274,3 +274,67 @@ def test_pep_768_code_injection_path_with_backslashes():
 
     # Verify that the fixed code is valid Python syntax.
     compile(code_with_fix, "<string>", "exec")
+
+
+def test_pep_768_remote_exec_called_with_backslash_path():
+    """Test that attach_to_pid() calls sys.remote_exec and writes valid Python
+    to the temp file even when the temp path contains backslashes (Windows)."""
+    import contextlib
+    from debugpy.server import cli
+
+    mock_windows_tmp_path = r"C:\Users\test\AppData\Local\Temp\tmp0_vuee4s"
+    pid = os.getpid()
+
+    # A fake file object that captures writes via a side_effect list.
+    # Using MagicMock avoids the BytesIO.close() issue where getvalue()
+    # raises ValueError on a closed buffer.
+    written_chunks = []
+    fake_file = mock.MagicMock()
+    fake_file.name = mock_windows_tmp_path
+    fake_file.write.side_effect = written_chunks.append
+
+    fake_file_cm = mock.MagicMock()
+    fake_file_cm.__enter__ = mock.Mock(return_value=fake_file)
+    fake_file_cm.__exit__ = mock.Mock(return_value=False)
+
+    # Configure cli.options with the minimum fields attach_to_pid() needs.
+    original_options = {
+        attr: getattr(cli.options, attr)
+        for attr in ("mode", "address", "wait_for_client", "log_to",
+                     "adapter_access_token", "disable_sys_remote_exec", "target")
+    }
+    try:
+        cli.options.mode = "connect"
+        cli.options.address = ("127.0.0.1", 5678)
+        cli.options.wait_for_client = False
+        cli.options.log_to = None
+        cli.options.adapter_access_token = None
+        cli.options.disable_sys_remote_exec = False
+        cli.options.target = pid
+
+        with contextlib.ExitStack() as stack:
+            stack.enter_context(
+                mock.patch("tempfile.NamedTemporaryFile", return_value=fake_file_cm)
+            )
+            mock_remote_exec = stack.enter_context(
+                mock.patch.object(sys, "remote_exec", create=True)
+            )
+            cli.attach_to_pid()
+
+        # sys.remote_exec must have been called with the original (backslash) path
+        # because that is the actual path created on disk.
+        mock_remote_exec.assert_called_once_with(pid, mock_windows_tmp_path)
+
+        # The Python code written to the temp file must be syntactically valid.
+        injected_code = b"".join(written_chunks).decode()
+        compile(injected_code, "<string>", "exec")
+
+        # The os.remove() call inside the injected code must use forward slashes
+        # so that it is a valid Python string literal (no backslash escape issues).
+        assert r"C:\Users" not in injected_code, (
+            "Backslashes must be replaced with forward slashes in the injected os.remove() call"
+        )
+        assert "C:/Users" in injected_code
+    finally:
+        for attr, value in original_options.items():
+            setattr(cli.options, attr, value)
