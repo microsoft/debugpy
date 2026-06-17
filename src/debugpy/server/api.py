@@ -17,6 +17,7 @@ from pydevd_file_utils import absolute_path
 from debugpy.common.util import hide_debugpy_internals
 
 _tls = threading.local()
+_CAN_DAEMONIZE = os.name == "posix" and hasattr(os, "fork")
 
 # TODO: "gevent", if possible.
 _config = {
@@ -218,11 +219,13 @@ def listen(address, settrace_kwargs, in_process_debug_adapter=False):
                 creationflags=creationflags,
                 env=python_env,
             )
-            if os.name == "posix":
+            if _CAN_DAEMONIZE:
                 # It's going to fork again to daemonize, so we need to wait on it to
-                # clean it up properly.
+                # clean it up properly. If we did not fork, we cannot take this path
+                # because it cannot perform that extra fork; waiting there would just
+                # preserve the broken assumption that a daemonized grandchild exists.
                 _adapter_process.wait()
-            else:
+            elif os.name != "posix":
                 # Suppress misleading warning about child process still being alive when
                 # this process exits (https://bugs.python.org/issue38890).
                 _adapter_process.returncode = 0
