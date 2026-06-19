@@ -225,7 +225,7 @@ def listen(address, settrace_kwargs, in_process_debug_adapter=False):
                 # because it cannot perform that extra fork; waiting there would just
                 # preserve the broken assumption that a daemonized grandchild exists.
                 _adapter_process.wait()
-            elif os.name != "posix":
+            else:
                 # Suppress misleading warning about child process still being alive when
                 # this process exits (https://bugs.python.org/issue38890).
                 _adapter_process.returncode = 0
