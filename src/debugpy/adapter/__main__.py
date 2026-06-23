@@ -12,7 +12,6 @@ import sys
 # WARNING: debugpy and submodules must not be imported on top level in this module,
 # and should be imported locally inside main() instead.
 
-_CAN_DAEMONIZE = os.name == "posix" and hasattr(os, "fork")
 
 def main():
     args = _parse_argv(sys.argv)
@@ -38,7 +37,7 @@ def main():
             # setsid would fail with `operation not permitted`
             if os.getsid(os.getpid()) != os.getpid():
                 os.setsid()
-            if _CAN_DAEMONIZE and os.fork() != 0:
+            if hasattr(os, "fork") and os.fork() != 0:
                 sys.exit(0)
 
         for stdio in sys.stdin, sys.stdout, sys.stderr:

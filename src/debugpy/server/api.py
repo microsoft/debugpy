@@ -17,7 +17,6 @@ from pydevd_file_utils import absolute_path
 from debugpy.common.util import hide_debugpy_internals
 
 _tls = threading.local()
-_CAN_DAEMONIZE = os.name == "posix" and hasattr(os, "fork")
 
 # TODO: "gevent", if possible.
 _config = {
@@ -219,7 +218,7 @@ def listen(address, settrace_kwargs, in_process_debug_adapter=False):
                 creationflags=creationflags,
                 env=python_env,
             )
-            if _CAN_DAEMONIZE:
+            if os.name == "posix" and hasattr(os, "fork"):
                 # It's going to fork again to daemonize, so we need to wait on it to
                 # clean it up properly. If we did not fork, we cannot take this path
                 # because it cannot perform that extra fork; waiting there would just
