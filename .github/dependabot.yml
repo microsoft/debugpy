@@ -1,0 +1,38 @@
+# Dependabot configuration for debugpy.
+#
+# Keeps dependencies up to date and automatically opens pull requests for
+# security (CVE) and version updates. Security updates are always enabled for
+# every ecosystem Dependabot can detect; the entries below also enable regular
+# version updates so dependencies don't drift far enough to accumulate
+# vulnerabilities in the first place.
+#
+# Docs: https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+version: 2
+updates:
+  # Python packages used to run and exercise the test suite.
+  - package-ecosystem: "pip"
+    directory: "/tests"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "python"
+    groups:
+      python-test-dependencies:
+        patterns:
+          - "*"
+
+  # GitHub Actions used by the workflows in .github/workflows.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "github-actions"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
