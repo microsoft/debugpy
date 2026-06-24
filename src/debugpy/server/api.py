@@ -218,9 +218,11 @@ def listen(address, settrace_kwargs, in_process_debug_adapter=False):
                 creationflags=creationflags,
                 env=python_env,
             )
-            if os.name == "posix":
+            if os.name == "posix" and hasattr(os, "fork"):
                 # It's going to fork again to daemonize, so we need to wait on it to
-                # clean it up properly.
+                # clean it up properly. If we did not fork, we cannot take this path
+                # because it cannot perform that extra fork; waiting there would just
+                # preserve the broken assumption that a daemonized grandchild exists.
                 _adapter_process.wait()
             else:
                 # Suppress misleading warning about child process still being alive when

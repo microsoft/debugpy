@@ -31,12 +31,13 @@ def main():
         if os.name == "posix":
             # On POSIX, we need to leave the process group and its session, and then
             # daemonize properly by double-forking (first fork already happened when
-            # this process was spawned).
+            # this process was spawned). Some POSIX runtimes, such as GraalPy, do not
+            # implement fork(), so in that case we settle for a single detached child.
             # NOTE: if process is already the session leader, then
             # setsid would fail with `operation not permitted`
             if os.getsid(os.getpid()) != os.getpid():
                 os.setsid()
-            if os.fork() != 0:
+            if hasattr(os, "fork") and os.fork() != 0:
                 sys.exit(0)
 
         for stdio in sys.stdin, sys.stdout, sys.stderr:

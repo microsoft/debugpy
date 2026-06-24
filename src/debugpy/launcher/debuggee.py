@@ -58,9 +58,12 @@ def spawn(process_name, cmdline, env, redirect_output):
         else:
             kwargs = {}
 
-        if sys.platform != "win32" and sys.implementation.name != 'graalpy':
-            # GraalPy does not support running code between fork and exec
+        # GraalPy does not support running code between fork and exec, but supports the
+        # process_group argument for Popen
+        if sys.platform != "win32" and sys.implementation.name == "graalpy":
+            kwargs.update(process_group=0)
 
+        if sys.platform != "win32" and sys.implementation.name != 'graalpy':
             def preexec_fn():
                 try:
                     # Start the debuggee in a new process group, so that the launcher can
