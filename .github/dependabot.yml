@@ -1,10 +1,13 @@
 # Dependabot configuration for debugpy.
 #
-# Keeps dependencies up to date and automatically opens pull requests for
-# security (CVE) and version updates. Security updates are always enabled for
-# every ecosystem Dependabot can detect; the entries below also enable regular
-# version updates so dependencies don't drift far enough to accumulate
+# This file configures version updates: Dependabot opens pull requests to keep
+# dependencies current so they don't drift far enough to accumulate
 # vulnerabilities in the first place.
+#
+# NOTE: Security (CVE) updates are NOT enabled by this file. They require the
+# separate "Dependabot security updates" toggle in repo Settings -> Code
+# security. Keeping dependencies current here reduces the surface area for
+# those alerts.
 #
 # Docs: https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
 version: 2
@@ -17,7 +20,6 @@ updates:
     open-pull-requests-limit: 10
     labels:
       - "dependencies"
-      - "python"
     groups:
       python-test-dependencies:
         patterns:
@@ -31,7 +33,6 @@ updates:
     open-pull-requests-limit: 10
     labels:
       - "dependencies"
-      - "github-actions"
     groups:
       github-actions:
         patterns:
