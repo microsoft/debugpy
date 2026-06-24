@@ -12,11 +12,15 @@ on:
 
 jobs:
   build:
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.runs-on }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest]
+        include:
+          - runs-on: ubuntu-latest
+            arch: x86_64
+          - runs-on: ubuntu-24.04-arm
+            arch: aarch64
     steps:
       - uses: actions/checkout@v4
 
@@ -34,9 +38,11 @@ jobs:
         env:
           CIBW_SKIP: pp* cp36-* cp37-*
           CIBW_BUILD_VERBOSITY: 1
+          CIBW_ARCHS: ${{ matrix.arch }}
 
       - uses: actions/upload-artifact@v4
         with:
+          name: wheels-${{ matrix.arch }}
           path: ./wheelhouse/*.whl
           
       - name: Upload to PyPI .whl
