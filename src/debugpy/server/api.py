@@ -364,3 +364,32 @@ def trace_this_thread(should_trace):
         pydb.enable_tracing()
     else:
         pydb.disable_tracing()
+
+
+def post_mortem(excinfo=None, as_uncaught=True):
+    ensure_logging()
+
+    if excinfo is None:
+        excinfo = sys.exc_info()
+
+    if isinstance(excinfo, BaseException):
+        excinfo = (type(excinfo), excinfo, excinfo.__traceback__)
+
+    exctype, value, tb = excinfo
+    if exctype is None or value is None or tb is None:
+        log.debug("postmortem() ignored - no exception info")
+        return
+
+    if not is_client_connected():
+        log.info("postmortem() ignored - debugger not attached")
+        return
+
+    log.debug("postmortem({0!r})", excinfo)
+
+    pydb = get_global_debugger()
+    if pydb is None:
+        log.warning("postmortem() ignored - no global debugger")
+        return
+
+    pydb.post_mortem(excinfo, as_uncaught=as_uncaught)
+
