@@ -25,7 +25,7 @@ jobs:
       issues: write
 
     steps:
-      - uses: actions/stale@v5
+      - uses: actions/stale@v10
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           days-before-issue-stale: 30
