@@ -14,7 +14,7 @@ jobs:
     steps:
       - name: Find last assigned
         id: assigned
-        uses: actions/github-script@v6.3.3
+        uses: actions/github-script@v9
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           result-encoding: string
@@ -39,7 +39,7 @@ jobs:
           NEXT_ROTATION: ${{ steps.rotation.outputs.next }}
         run: echo "$NEXT_ROTATION"        
       - name: Assign to next person
-        uses: actions/github-script@v6.3.3
+        uses: actions/github-script@v9
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
@@ -50,7 +50,7 @@ jobs:
               assignees: ['${{ steps.rotation.outputs.next }}']
             })
       - name: Give it the label 'needs repro'
-        uses: actions/github-script@v6.3.3
+        uses: actions/github-script@v9
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
@@ -61,7 +61,7 @@ jobs:
               labels: ['needs repro']
             })
       - name: Save assignment to state
-        uses: actions/github-script@v6.3.3
+        uses: actions/github-script@v9
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
