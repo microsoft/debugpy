@@ -240,9 +240,9 @@ def _does_obj_repr_evaluate_to_obj(obj):
 
 
 # =======================================================================================================================
-# DictResolver
+# MappingResolver
 # =======================================================================================================================
-class DictResolver:
+class MappingResolver:
     sort_keys = not IS_PY36_OR_GREATER
 
     def resolve(self, dct, key):
@@ -454,7 +454,7 @@ class ForwardInternalResolverToObject:
         return var.resolve(attribute)
 
 
-class TupleResolver:  # to enumerate tuples and lists
+class SequenceResolver:
     def resolve(self, var, attribute):
         """
         :param var: that's the original object we're dealing with.
@@ -659,7 +659,7 @@ class JyArrayResolver:
 # =======================================================================================================================
 # MultiValueDictResolver
 # =======================================================================================================================
-class MultiValueDictResolver(DictResolver):
+class MultiValueDictResolver(MappingResolver):
     def resolve(self, dct, key):
         if key in (GENERATED_LEN_ATTR_NAME, TOO_LARGE_ATTR):
             return None
@@ -701,9 +701,9 @@ class DjangoFormResolver(DefaultResolver):
 # =======================================================================================================================
 # DequeResolver
 # =======================================================================================================================
-class DequeResolver(TupleResolver):
+class DequeResolver(SequenceResolver):
     def get_dictionary(self, var):
-        d = TupleResolver.get_dictionary(self, var)
+        d = SequenceResolver.get_dictionary(self, var)
         d["maxlen"] = getattr(var, "maxlen", None)
         return d
 
@@ -711,7 +711,7 @@ class DequeResolver(TupleResolver):
 # =======================================================================================================================
 # OrderedDictResolver
 # =======================================================================================================================
-class OrderedDictResolver(DictResolver):
+class OrderedDictResolver(MappingResolver):
     sort_keys = False
 
     def init_dict(self):
@@ -767,8 +767,8 @@ class FrameResolver:
 
 
 defaultResolver = DefaultResolver()
-dictResolver = DictResolver()
-tupleResolver = TupleResolver()
+mappingResolver = MappingResolver()
+sequenceResolver = SequenceResolver()
 instanceResolver = InstanceResolver()
 jyArrayResolver = JyArrayResolver()
 setResolver = SetResolver()
