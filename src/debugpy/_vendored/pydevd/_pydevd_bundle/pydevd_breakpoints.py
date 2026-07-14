@@ -1,6 +1,6 @@
 from _pydev_bundle import pydev_log
 from _pydevd_bundle import pydevd_import_class
-from _pydevd_bundle.pydevd_frame_utils import add_exception_to_frame
+from _pydevd_bundle.pydevd_frame_utils import add_exception_to_frame, remove_exception_from_frame
 from _pydev_bundle._pydev_saved_modules import threading
 
 
@@ -159,6 +159,9 @@ def stop_on_unhandled_exception(py_db, thread, additional_info, arg):
     if exception_breakpoint.condition is not None:
         eval_result = py_db.handle_breakpoint_condition(additional_info, exception_breakpoint, user_frame)
         if not eval_result:
+            # The thread may keep running (e.g. via PyDB.trigger_exception_handler),
+            # so don't leave __exception__ in the frame's locals.
+            remove_exception_from_frame(user_frame)
             return
 
     if exception_breakpoint.expression is not None:
