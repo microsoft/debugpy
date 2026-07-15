@@ -155,17 +155,19 @@ def stop_on_unhandled_exception(py_db, thread, additional_info, arg):
         return
 
     frames_byid = dict([(id(frame), frame) for frame in frames])
+    # Attach __exception__ so conditions/expressions can reference it; always
+    # detach as the thread may keep running (do_stop re-adds it while suspended).
     add_exception_to_frame(user_frame, arg)
-    if exception_breakpoint.condition is not None:
-        eval_result = py_db.handle_breakpoint_condition(additional_info, exception_breakpoint, user_frame)
-        if not eval_result:
-            # The thread may keep running (e.g. via PyDB.trigger_exception_handler),
-            # so don't leave __exception__ in the frame's locals.
-            remove_exception_from_frame(user_frame)
-            return
+    try:
+        if exception_breakpoint.condition is not None:
+            eval_result = py_db.handle_breakpoint_condition(additional_info, exception_breakpoint, user_frame)
+            if not eval_result:
+                return
 
-    if exception_breakpoint.expression is not None:
-        py_db.handle_breakpoint_expression(exception_breakpoint, additional_info, user_frame)
+        if exception_breakpoint.expression is not None:
+            py_db.handle_breakpoint_expression(exception_breakpoint, additional_info, user_frame)
+    finally:
+        remove_exception_from_frame(user_frame)
 
     try:
         additional_info.pydev_message = exception_breakpoint.qname
