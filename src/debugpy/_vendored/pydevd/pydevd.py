@@ -2452,9 +2452,6 @@ class PyDB(object):
                 pydev_log.debug("trigger_exception_handler: no user frame found in traceback")
                 return
 
-            # do_stop_on_unhandled_exception doesn't use frames_byid.
-            frames_byid = {id(user_frame): user_frame}
-
         thread = threading.current_thread()
         additional_info = self.set_additional_thread_info(thread)
 
@@ -2472,7 +2469,8 @@ class PyDB(object):
                 if as_uncaught:
                     stop_on_unhandled_exception(self, thread, additional_info, excinfo)
                 else:
-                    self.do_stop_on_unhandled_exception(thread, user_frame, frames_byid, excinfo)
+                    # frames_byid is unused; excinfo's traceback keeps the frames alive.
+                    self.do_stop_on_unhandled_exception(thread, user_frame, None, excinfo)
             finally:
                 additional_info.is_tracing -= 1
         finally:
