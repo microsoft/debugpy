@@ -2449,7 +2449,7 @@ class PyDB(object):
                 tb = tb.tb_next
 
             if user_frame is None:
-                pydev_log.debug("trigger_exception_handler: no user frame found in traceback")
+                pydev_log.warn("trigger_exception_handler: no user frame found in traceback")
                 return
 
         thread = threading.current_thread()
