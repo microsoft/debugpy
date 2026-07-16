@@ -63,7 +63,7 @@ class Session(util.Observable):
         self.is_finalizing = False
         """Whether finalize() has been invoked."""
 
-        self.observers += [lambda *_: self.notify_changed()]
+        self.observers = [*self.observers, lambda *_: self.notify_changed()]
 
     def __str__(self):
         return f"Session[{self.id}]"

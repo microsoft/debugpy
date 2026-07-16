@@ -437,6 +437,59 @@ class TestJsonMessageChannel(object):
         assert response4 is request4.response
         assert isinstance(response4.body, messaging.NoMoreMessages)
 
+    def test_wait_for_response_raise_if_failed(self):
+        def iter_responses():
+            yield {
+                "seq": 1,
+                "type": "response",
+                "request_seq": 1,
+                "command": "pause",
+                "success": False,
+                "message": "pause not supported",
+            }
+
+        stream = JsonMemoryStream(iter_responses(), [])
+        channel = messaging.JsonMessageChannel(stream, None)
+        channel.start()
+
+        request = channel.send_request("pause")
+
+        # raise_if_failed=False must return the error body instead of raising, even
+        # though a failed response carries an Exception as its body.
+        body = request.wait_for_response(raise_if_failed=False)
+        assert isinstance(body, messaging.MessageHandlingError)
+        assert body is request.response.body
+        assert "pause not supported" in str(body)
+
+        # raise_if_failed=True (the default) must raise that same error body.
+        with pytest.raises(messaging.MessageHandlingError):
+            request.wait_for_response()
+
+    def test_message_call_no_args_returns_payload(self):
+        EVENTS = [
+            {
+                "seq": 1,
+                "type": "event",
+                "event": "stopped",
+                "body": {"reason": "pause", "threadId": 3},
+            },
+        ]
+
+        captured = []
+
+        class Handlers(object):
+            def stopped_event(self, event):
+                # Calling the message with no arguments returns the whole payload.
+                captured.append(event())
+
+        stream = JsonMemoryStream(EVENTS, [])
+        channel = messaging.JsonMessageChannel(stream, Handlers())
+        channel.start()
+        channel.wait()
+
+        (payload,) = captured
+        assert payload == {"reason": "pause", "threadId": 3}
+
     def test_invalid_request_handling(self):
         REQUESTS = [
             {

@@ -429,11 +429,22 @@ class MessageDict(collections.OrderedDict):
 
 
 class AssociableMessageDict(MessageDict):
+    # When this dict is parsed as part of an incoming message, all dicts that
+    # belong to that message share this list, so associating the top-level dict
+    # associates every nested dict with the same Message. It stays None for
+    # synthesized payloads, which are associated individually.
+    associated_dicts: "list[AssociableMessageDict] | None" = None
+
     def associate_with(self, message: Message):
-        self.message = message
+        if self.associated_dicts is None:
+            self.message = message
+            return
+        for d in self.associated_dicts:
+            d.message = message
+
 
 def is_associable(obj) -> "TypeIs[AssociableMessageDict]":
-    return isinstance(obj, MessageDict) and hasattr(obj, "associate_with")
+    return isinstance(obj, AssociableMessageDict)
 
 def _payload(value):
     """JSON validator for message payload.
@@ -495,7 +506,7 @@ class Message(object):
     def __call__(self, *args, **kwargs) -> MessageDict | Any | int | float:
         """Same as self.payload(...)."""
         assert not isinstance(self.payload, Exception)
-        if args.count == 0 and kwargs == {}:
+        if len(args) == 0 and not kwargs:
             return self.payload
         return self.payload(*args, **kwargs)
 
@@ -793,7 +804,7 @@ class OutgoingRequest(Request):
     def describe(self):
         return f"{self.seq} request {json.repr(self.command)} to {self.channel}"
 
-    def wait_for_response(self, raise_if_failed=True)-> MessageDict:
+    def wait_for_response(self, raise_if_failed=True) -> MessageDict | Exception:
         """Waits until a response is received for this request, records the Response
         object for it in self.response, and returns response.body.
 
@@ -810,8 +821,9 @@ class OutgoingRequest(Request):
 
         if raise_if_failed and not self.response.success and isinstance( self.response.body, BaseException):
             raise self.response.body
-        
-        assert not isinstance(self.response.body, Exception)
+
+        # When raise_if_failed is False, a failed response intentionally returns its
+        # error body (an Exception such as NoMoreMessages), so this must not assert.
         return self.response.body
 
     def on_response(self, response_handler):
@@ -1377,7 +1389,9 @@ class JsonMessageChannel(object):
             d = AssociableMessageDict(None, d)
             if "seq" in d:
                 self._prettify(d)
-            setattr(d, "associate_with", associate_with)
+            # Share the list of all dicts parsed for this message so that
+            # associate_with() on the top-level dict wires up every nested dict.
+            d.associated_dicts = message_dicts
             message_dicts.append(d)
             return d
 
@@ -1386,17 +1400,13 @@ class JsonMessageChannel(object):
         # cannot be done until the actual Message is created - which happens after the
         # dicts are created during deserialization.
         #
-        # So, upon deserialization, every dict in the message payload gets a method
-        # that can be called to set MessageDict.message for *all* dicts belonging to
-        # that message. This method can then be invoked on the top-level dict by the
-        # parser, after it has parsed enough of the dict to create the appropriate
-        # instance of Event, Request, or Response for this message.
-        def associate_with(message):
-            for d in message_dicts:
-                d.message = message
-                del d.associate_with
-
-        message_dicts = []
+        # So, upon deserialization, every dict in the message payload shares the
+        # message_dicts list below. AssociableMessageDict.associate_with() can then be
+        # invoked on the top-level dict by the parser, after it has parsed enough of the
+        # dict to create the appropriate instance of Event, Request, or Response for this
+        # message, and it will set MessageDict.message for *all* dicts belonging to that
+        # message.
+        message_dicts: "list[AssociableMessageDict]" = []
         decoder = self.stream.json_decoder_factory(object_hook=object_hook)
         message_dict = self.stream.read_json(decoder)
         assert isinstance(message_dict, MessageDict)  # make sure stream used decoder

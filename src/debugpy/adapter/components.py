@@ -61,7 +61,7 @@ class Component(util.Observable):
         self.is_connected = True
 
         # Do this last to avoid triggering useless notifications for assignments above.
-        self.observers += [lambda *_: self.session.notify_changed()]
+        self.observers = [*self.observers, lambda *_: self.session.notify_changed()]
 
     def __str__(self):
         return f"{type(self).__name__}[{self.session.id}]"

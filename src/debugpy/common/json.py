@@ -95,6 +95,9 @@ class JsonObject(object):
 
 def _converter(value: str, classinfo) -> Union[int, float, None]:
     """Convert value (str) to number, otherwise return None if is not possible"""
+    # Only int/float are accepted here (DAP number payloads are int or float);
+    # this deliberately narrows from numbers.Number and does not handle
+    # Decimal/complex/Fraction, which never appear in DAP messages.
     for one_info in classinfo:
         if issubclass(one_info, int) or issubclass(one_info, float):
             try:

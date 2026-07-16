@@ -44,12 +44,11 @@ class _settrace():
         log.debug("pydevd.settrace(*{0!r}, **{1!r})", args, kwargs)
         # The stdin in notification is not acted upon in debugpy, so, disable it.
         kwargs.setdefault("notify_stdin", False)
-        try:
-            return pydevd.settrace(*args, **kwargs)
-        except Exception:
-            raise
-        finally:
-            cls.called = True
+        result = pydevd.settrace(*args, **kwargs)
+        # Only latch `called` after settrace has actually succeeded, so that a failed
+        # attempt doesn't permanently block future configure() calls.
+        cls.called = True
+        return result
 
 
 def ensure_logging():

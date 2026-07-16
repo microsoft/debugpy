@@ -174,7 +174,12 @@ class Connection(object):
         auth = self.channel.request(
             "pydevdAuthorize", {"debugServerAccessToken": access_token}
         )
-        if not isinstance(auth, Exception) and auth["clientAccessToken"] != adapter.access_token:
+        # Fail closed: if the authorization request didn't yield a normal result,
+        # treat the server as unauthorized rather than skipping the token check.
+        if isinstance(auth, Exception):
+            self.channel.close()
+            raise RuntimeError("Failed to authorize with debug server.") from auth
+        if auth["clientAccessToken"] != adapter.access_token:
             self.channel.close()
             raise RuntimeError('Mismatched "clientAccessToken"; server not authorized.')
 
