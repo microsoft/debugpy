@@ -89,7 +89,10 @@ def spawn_debuggee(
     env = {}
 
     arguments = dict(start_request.arguments)
-    if not session.no_debug and servers.listener is not None:
+    if not session.no_debug:
+        # For a debug launch the server listener must already be up; fail fast
+        # rather than silently spawning a debuggee that can't connect back.
+        assert servers.listener is not None
         _, arguments["port"] = sockets.get_address(servers.listener)
         arguments["adapterAccessToken"] = adapter.access_token
 
