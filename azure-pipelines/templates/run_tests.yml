@@ -1,30 +1,39 @@
 steps:
-  - script: "python -m pip install tox"
-    displayName: "Setup Python packages"
+  - script: python -m pip install tox
+    displayName: Setup Python packages
 
   - pwsh: |
-      $toxEnv = '$(python.version)'
-      if (-not $toxEnv.startsWith('pypy')) {
-        $toxEnv = 'py' + $toxEnv.Replace('.', '')
+      $raw = '$(python.version)'
+      if ($raw.StartsWith('pypy')) {
+        # For PyPy keep original pattern stripping dots after first two numeric components if needed later.
+        $toxEnv = 'py' + ($raw -replace '^pypy(\d+)\.(\d+).*$','$1$2')
       }
-      echo 'tox environment: $toxEnv'
+      else {
+        # Extract major.minor even from prerelease like 3.14.0-rc.2 -> 3.14
+        $mm = [regex]::Match($raw,'^(\d+)\.(\d+)')
+        if (-not $mm.Success) { throw "Unable to parse python.version '$raw'" }
+        $toxEnv = 'py' + $mm.Groups[1].Value + $mm.Groups[2].Value
+      }
+      Write-Host "python.version raw: $raw"
+      Write-Host "Derived tox environment: $toxEnv"
       python -m tox -e $toxEnv -- --junitxml=$(Build.ArtifactStagingDirectory)/tests.xml --debugpy-log-dir=$(Build.ArtifactStagingDirectory)/logs tests
-    displayName: "Run tests using tox"
+    displayName: Run tests using tox
     env: 
       DEBUGPY_PROCESS_SPAWN_TIMEOUT: 60
       DEBUGPY_LAUNCH_TIMEOUT: 60
 
   - task: PublishBuildArtifacts@1
-    condition: failed()
+    displayName: Publish test logs
     inputs:
-      artifactName: "Test logs"
-      pathToPublish: "$(Build.ArtifactStagingDirectory)/logs"
-    displayName: "Publish test logs"
+      artifactName: Test logs
+      pathToPublish: $(Build.ArtifactStagingDirectory)/logs
+    condition: failed()
 
   - task: PublishTestResults@2
-    condition: always()
+    displayName: Publish test results
     inputs:
-      testRunTitle: "$(Agent.JobName)"
-      testResultsFiles: "tests.xml"
-      searchFolder: "$(Build.ArtifactStagingDirectory)"
-    displayName: "Publish test results"
+      testRunTitle: $(Agent.JobName)
+      testResultsFiles: tests.xml
+      searchFolder: $(Build.ArtifactStagingDirectory)
+    condition: always()
+

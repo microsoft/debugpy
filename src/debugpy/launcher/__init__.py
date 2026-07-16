@@ -23,7 +23,8 @@ def connect(host, port):
 
     log.info("Connecting to adapter at {0}:{1}", host, port)
 
-    sock = sockets.create_client()
+    ipv6 = host.count(":") > 1
+    sock = sockets.create_client(ipv6)
     sock.connect((host, port))
     adapter_host = host
 

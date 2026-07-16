@@ -5,11 +5,14 @@ __pycache__/
 
 # C extensions
 *.so
+*.dylib
+*.dll
+*.pdb
+*.exe
 
 # Distribution / packaging
 .Python
 env/
-build/
 develop-eggs/
 dist/
 downloads/
@@ -24,6 +27,7 @@ var/
 wheels/
 wheelhouse/
 *.egg-info/
+*.dist-info/
 .installed.cfg
 *.egg
 
@@ -85,7 +89,7 @@ celerybeat-schedule
 *.sage.py
 
 # virtualenv
-.venv
+.venv*
 venv/
 ENV/
 

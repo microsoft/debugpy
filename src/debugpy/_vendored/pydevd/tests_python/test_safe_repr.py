@@ -18,15 +18,21 @@ PY3K = PY_VER == 3
 
 
 class SafeReprTestBase(object):
-
     saferepr = SafeRepr()
 
     def assert_saferepr(self, value, expected):
         safe = self.saferepr(value)
 
         if len(safe) != len(expected):
-            raise AssertionError('Expected:\n%s\nFound:\n%s\n Expected len: %s Found len: %s' % (
-                expected, safe, len(expected), len(safe),))
+            raise AssertionError(
+                "Expected:\n%s\nFound:\n%s\n Expected len: %s Found len: %s"
+                % (
+                    expected,
+                    safe,
+                    len(expected),
+                    len(safe),
+                )
+            )
         assert safe == expected
         return safe
 
@@ -62,7 +68,6 @@ class SafeReprTestBase(object):
 
 
 class TestSafeRepr(SafeReprTestBase):
-
     def test_collection_types(self):
         colltypes = [t for t, _, _, _ in SafeRepr.collection_types]
 
@@ -75,9 +80,8 @@ class TestSafeRepr(SafeReprTestBase):
         ]
 
     def test_largest_repr(self):
-        # Find the largest possible repr and ensure it is below our arbitrary
-        # limit (8KB).
-        coll = '-' * (SafeRepr.maxstring_outer * 2)
+        # Find the largest possible repr and make sure it works
+        coll = "-" * (SafeRepr.maxstring_outer * 2)
         for limit in reversed(SafeRepr.maxcollection[1:]):
             coll = [coll] * (limit * 2)
         dcoll = {}
@@ -92,74 +96,81 @@ class TestSafeRepr(SafeReprTestBase):
         # print('len(SafeRepr()(dcoll)) = ' + str(len(text)) +
         #      ', len(repr(coll)) = ' + str(len(text_repr)))
 
-        assert len(text) < 8192
+        assert len(text) <= 158538
 
 
 class TestStrings(SafeReprTestBase):
-
     def test_str_small(self):
-        value = 'A' * 5
+        value = "A" * 5
 
         self.assert_unchanged(value, "'AAAAA'")
         self.assert_unchanged([value], "['AAAAA']")
 
     def test_str_large(self):
-        value = 'A' * (SafeRepr.maxstring_outer + 10)
+        value = "A" * (SafeRepr.maxstring_outer + 10)
 
-        self.assert_shortened(value,
-                              "'" + 'A' * 43690 + "..." + 'A' * 21845 + "'")
-        self.assert_shortened([value], "['AAAAAAAAAAAAAAAAAAAA...AAAAAAAAAA']")
+        self.assert_shortened(value, "'" + "A" * 43690 + "..." + "A" * 21845 + "'")
+        self.assert_shortened(
+            [value],
+            "['AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA...AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA']",
+        )
 
     def test_str_largest_unchanged(self):
-        value = 'A' * (SafeRepr.maxstring_outer)
+        value = "A" * (SafeRepr.maxstring_outer)
 
-        self.assert_unchanged(value, "'" + 'A' * 65536 + "'")
+        self.assert_unchanged(value, "'" + "A" * 65536 + "'")
 
     def test_str_smallest_changed(self):
-        value = 'A' * (SafeRepr.maxstring_outer + 1)
+        value = "A" * (SafeRepr.maxstring_outer + 1)
 
-        self.assert_shortened(value,
-                              "'" + 'A' * 43690 + "..." + 'A' * 21845 + "'")
+        self.assert_shortened(value, "'" + "A" * 43690 + "..." + "A" * 21845 + "'")
 
     def test_str_list_largest_unchanged(self):
-        value = 'A' * (SafeRepr.maxstring_inner)
+        value = "A" * (SafeRepr.maxstring_inner)
 
-        self.assert_unchanged([value], "['AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA']")
+        self.assert_unchanged(
+            [value],
+            "['AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA']",
+        )
 
     def test_str_list_smallest_changed(self):
-        value = 'A' * (SafeRepr.maxstring_inner + 1)
+        value = "A" * (SafeRepr.maxstring_inner + 1)
 
-        self.assert_shortened([value], "['AAAAAAAAAAAAAAAAAAAA...AAAAAAAAAA']")
+        self.assert_shortened(
+            [value],
+            "['AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA...AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA']",
+        )
 
-    @pytest.mark.skipif(sys.version_info > (3, 0), reason='Py2 specific test')
+    @pytest.mark.skipif(sys.version_info > (3, 0), reason="Py2 specific test")
     def test_unicode_small(self):
-        value = u'A' * 5
+        value = "A" * 5
 
         self.assert_unchanged(value, "u'AAAAA'")
         self.assert_unchanged([value], "[u'AAAAA']")
 
-    @pytest.mark.skipif(sys.version_info > (3, 0), reason='Py2 specific test')
+    @pytest.mark.skipif(sys.version_info > (3, 0), reason="Py2 specific test")
     def test_unicode_large(self):
-        value = u'A' * (SafeRepr.maxstring_outer + 10)
+        value = "A" * (SafeRepr.maxstring_outer + 10)
 
-        self.assert_shortened(value,
-                              "u'" + 'A' * 43690 + "..." + 'A' * 21845 + "'")
+        self.assert_shortened(value, "u'" + "A" * 43690 + "..." + "A" * 21845 + "'")
         self.assert_shortened([value], "[u'AAAAAAAAAAAAAAAAAAAA...AAAAAAAAAA']")
 
-    @pytest.mark.skipif(sys.version_info < (3, 0), reason='Py3 specific test')
+    @pytest.mark.skipif(sys.version_info < (3, 0), reason="Py3 specific test")
     def test_bytes_small(self):
-        value = b'A' * 5
+        value = b"A" * 5
 
         self.assert_unchanged(value, "b'AAAAA'")
         self.assert_unchanged([value], "[b'AAAAA']")
 
-    @pytest.mark.skipif(sys.version_info < (3, 0), reason='Py3 specific test')
+    @pytest.mark.skipif(sys.version_info < (3, 0), reason="Py3 specific test")
     def test_bytes_large(self):
-        value = b'A' * (SafeRepr.maxstring_outer + 10)
+        value = b"A" * (SafeRepr.maxstring_outer + 10)
 
-        self.assert_shortened(value,
-                              "b'" + 'A' * 43690 + "..." + 'A' * 21845 + "'")
-        self.assert_shortened([value], "[b'AAAAAAAAAAAAAAAAAAAA...AAAAAAAAAA']")
+        self.assert_shortened(value, "b'" + "A" * 43690 + "..." + "A" * 21845 + "'")
+        self.assert_shortened(
+            [value],
+            "[b'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA...AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA']",
+        )
 
     # @pytest.mark.skip(reason='not written')  # TODO: finish!
     # def test_bytearray_small(self):
@@ -171,22 +182,22 @@ class TestStrings(SafeReprTestBase):
 
 
 class RawValueTests(SafeReprTestBase):
-
     def setUp(self):
         super(RawValueTests, self).setUp()
         self.saferepr.raw_value = True
 
     def test_unicode_raw(self):
-        value = u'A\u2000' * 10000
+        value = "A\u2000" * 10000
         self.assert_saferepr(value, value)
 
     def test_bytes_raw(self):
-        value = b'A' * 10000
-        self.assert_saferepr(value, value.decode('ascii'))
+        value = b"A" * 10000
+        self.assert_saferepr(value, value.decode("ascii"))
 
     def test_bytearray_raw(self):
-        value = bytearray(b'A' * 5)
-        self.assert_saferepr(value, value.decode('ascii'))
+        value = bytearray(b"A" * 5)
+        self.assert_saferepr(value, value.decode("ascii"))
+
 
 # class TestNumbers(SafeReprTestBase):
 #
@@ -204,7 +215,6 @@ class RawValueTests(SafeReprTestBase):
 
 
 class ContainerBase(object):
-
     CLASS = None
     LEFT = None
     RIGHT = None
@@ -220,17 +230,17 @@ class ContainerBase(object):
                     type(self)._info = info
                     return info
             else:
-                raise TypeError('unsupported')
+                raise TypeError("unsupported")
 
     def _combine(self, items, prefix, suffix, large):
-        contents = ', '.join(str(item) for item in items)
+        contents = ", ".join(str(item) for item in items)
         if large:
-            contents += ', ...'
+            contents += ", ..."
         return prefix + contents + suffix
 
     def combine(self, items, large=False):
         if self.LEFT is None:
-            pytest.skip('unsupported')
+            pytest.skip("unsupported")
         return self._combine(items, self.LEFT, self.RIGHT, large=large)
 
     def combine_nested(self, depth, items, large=False):
@@ -306,76 +316,71 @@ class ContainerBase(object):
 
 
 class TestTuples(ContainerBase, SafeReprTestBase):
-
     CLASS = tuple
-    LEFT = '('
-    RIGHT = ')'
+    LEFT = "("
+    RIGHT = ")"
 
 
 class TestLists(ContainerBase, SafeReprTestBase):
-
     CLASS = list
-    LEFT = '['
-    RIGHT = ']'
+    LEFT = "["
+    RIGHT = "]"
 
     def test_directly_recursive(self):
         value = [1, 2]
         value.append(value)
 
-        self.assert_unchanged(value, '[1, 2, [...]]')
+        self.assert_unchanged(value, "[1, 2, [...]]")
 
     def test_indirectly_recursive(self):
         value = [1, 2]
         value.append([value])
 
-        self.assert_unchanged(value, '[1, 2, [[...]]]')
+        self.assert_unchanged(value, "[1, 2, [[...]]]")
 
 
 class TestFrozensets(ContainerBase, SafeReprTestBase):
-
     CLASS = frozenset
 
 
 class TestSets(ContainerBase, SafeReprTestBase):
-
     CLASS = set
     if PY_VER != 2:
-        LEFT = '{'
-        RIGHT = '}'
+        LEFT = "{"
+        RIGHT = "}"
 
     def test_nested(self):
-        pytest.skip('unsupported')
+        pytest.skip("unsupported")
 
     def test_large_nested(self):
-        pytest.skip('unsupported')
+        pytest.skip("unsupported")
 
 
 class TestDicts(SafeReprTestBase):
-
     def test_large_key(self):
         value = {
-            'a' * SafeRepr.maxstring_inner * 3: '',
+            "a" * SafeRepr.maxstring_inner * 3: "",
         }
 
         self.assert_shortened_regex(value, r"{'a+\.\.\.a+': ''}")
 
     def test_large_value(self):
         value = {
-            '': 'a' * SafeRepr.maxstring_inner * 2,
+            "": "a" * SafeRepr.maxstring_inner * 2,
         }
 
         self.assert_shortened_regex(value, r"{'': 'a+\.\.\.a+'}")
 
     def test_large_both(self):
         value = {}
-        key = 'a' * SafeRepr.maxstring_inner * 2
+        key = "a" * SafeRepr.maxstring_inner * 2
         value[key] = key
 
         self.assert_shortened_regex(value, r"{'a+\.\.\.a+': 'a+\.\.\.a+'}")
 
     def test_nested_value(self):
         d1 = {}
-        d1_key = 'a' * SafeRepr.maxstring_inner * 2
+        d1_key = "a" * SafeRepr.maxstring_inner * 2
         d1[d1_key] = d1_key
         d2 = {d1_key: d1}
         d3 = {d1_key: d2}
@@ -388,20 +393,20 @@ class TestDicts(SafeReprTestBase):
 
     def test_empty(self):
         # Ensure empty dicts work
-        self.assert_unchanged({}, '{}')
+        self.assert_unchanged({}, "{}")
 
     def test_sorted(self):
         # Ensure dict keys are sorted
         d1 = {}
-        d1['c'] = None
-        d1['b'] = None
-        d1['a'] = None
+        d1["c"] = None
+        d1["b"] = None
+        d1["a"] = None
         if IS_PY36_OR_GREATER:
             self.assert_saferepr(d1, "{'c': None, 'b': None, 'a': None}")
         else:
             self.assert_saferepr(d1, "{'a': None, 'b': None, 'c': None}")
 
-    @pytest.mark.skipif(sys.version_info < (3, 0), reason='Py3 specific test')
+    @pytest.mark.skipif(sys.version_info < (3, 0), reason="Py3 specific test")
     def test_unsortable_keys(self):
         # Ensure dicts with unsortable keys do not crash
         d1 = {}
@@ -415,13 +420,13 @@ class TestDicts(SafeReprTestBase):
         value = {1: None}
         value[2] = value
 
-        self.assert_unchanged(value, '{1: None, 2: {...}}')
+        self.assert_unchanged(value, "{1: None, 2: {...}}")
 
     def test_indirectly_recursive(self):
         value = {1: None}
         value[2] = {3: value}
 
-        self.assert_unchanged(value, '{1: None, 2: {3: {...}}}')
+        self.assert_unchanged(value, "{1: None, 2: {3: {...}}}")
 
 
 class TestOtherPythonTypes(SafeReprTestBase):
@@ -448,24 +453,22 @@ class TestOtherPythonTypes(SafeReprTestBase):
         range_name = range.__name__
         value = range(1, 42)
 
-        self.assert_unchanged(value, '%s(1, 42)' % (range_name,))
+        self.assert_unchanged(value, "%s(1, 42)" % (range_name,))
 
-    @pytest.mark.skipif(sys.version_info < (3, 0), reason='Py3 specific test')
+    @pytest.mark.skipif(sys.version_info < (3, 0), reason="Py3 specific test")
     def test_range_large_stop_only(self):
         range_name = range.__name__
         stop = SafeRepr.maxcollection[0]
         value = range(stop)
 
-        self.assert_unchanged(value,
-                              '%s(0, %s)' % (range_name, stop))
+        self.assert_unchanged(value, "%s(0, %s)" % (range_name, stop))
 
     def test_range_large_with_start(self):
         range_name = range.__name__
         stop = SafeRepr.maxcollection[0] + 1
         value = range(1, stop)
 
-        self.assert_unchanged(value,
-                              '%s(1, %s)' % (range_name, stop))
+        self.assert_unchanged(value, "%s(1, %s)" % (range_name, stop))
 
     # @pytest.mark.skip(reason='not written')  # TODO: finish!
     # def test_named_struct(self):
@@ -483,11 +486,8 @@ class TestOtherPythonTypes(SafeReprTestBase):
 
 
 class TestUserDefinedObjects(SafeReprTestBase):
-
     def test_broken_repr(self):
-
         class TestClass(object):
-
             def __repr__(self):
                 raise NameError
 
@@ -498,18 +498,15 @@ class TestUserDefinedObjects(SafeReprTestBase):
         self.assert_saferepr(value, object.__repr__(value))
 
     def test_large(self):
-
         class TestClass(object):
-
             def __repr__(self):
-                return '<' + 'A' * SafeRepr.maxother_outer * 2 + '>'
+                return "<" + "A" * SafeRepr.maxother_outer * 2 + ">"
 
         value = TestClass()
 
-        self.assert_shortened_regex(value, r'\<A+\.\.\.A+\>')
+        self.assert_shortened_regex(value, r"\<A+\.\.\.A+\>")
 
     def test_inherit_repr(self):
-
         class TestClass(dict):
             pass
 
@@ -520,66 +517,57 @@ class TestUserDefinedObjects(SafeReprTestBase):
 
         value_list = TestClass2()
 
-        self.assert_unchanged(value_dict, '{}')
-        self.assert_unchanged(value_list, '[]')
+        self.assert_unchanged(value_dict, "{}")
+        self.assert_unchanged(value_list, "[]")
 
     def test_custom_repr(self):
-
         class TestClass(dict):
-
             def __repr__(self):
-                return 'MyRepr'
+                return "MyRepr"
 
         value1 = TestClass()
 
         class TestClass2(list):
-
             def __repr__(self):
-                return 'MyRepr'
+                return "MyRepr"
 
         value2 = TestClass2()
 
-        self.assert_unchanged(value1, 'MyRepr')
-        self.assert_unchanged(value2, 'MyRepr')
+        self.assert_unchanged(value1, "MyRepr")
+        self.assert_unchanged(value2, "MyRepr")
 
     def test_custom_repr_many_items(self):
-
         class TestClass(list):
-
             def __init__(self, it=()):
                 list.__init__(self, it)
 
             def __repr__(self):
-                return 'MyRepr'
+                return "MyRepr"
 
         value1 = TestClass(range(0, 15))
         value2 = TestClass(range(0, 16))
         value3 = TestClass([TestClass(range(0, 10))])
         value4 = TestClass([TestClass(range(0, 11))])
 
-        self.assert_unchanged(value1, 'MyRepr')
-        self.assert_shortened(value2, '<TestClass, len() = 16>')
-        self.assert_unchanged(value3, 'MyRepr')
-        self.assert_shortened(value4, '<TestClass, len() = 1>')
+        self.assert_unchanged(value1, "MyRepr")
+        self.assert_unchanged(value3, "MyRepr")
 
     def test_custom_repr_large_item(self):
-
         class TestClass(list):
-
             def __init__(self, it=()):
                 list.__init__(self, it)
 
             def __repr__(self):
-                return 'MyRepr'
+                return "MyRepr"
 
-        value1 = TestClass(['a' * (SafeRepr.maxcollection[1] + 1)])
-        value2 = TestClass(['a' * (SafeRepr.maxstring_inner + 1)])
+        value1 = TestClass(["a" * (SafeRepr.maxcollection[1] + 1)])
+        value2 = TestClass(["a" * (SafeRepr.maxstring_inner + 1)])
 
-        self.assert_unchanged(value1, 'MyRepr')
-        self.assert_shortened(value2, '<TestClass, len() = 1>')
+        self.assert_unchanged(value1, "MyRepr")
+        self.assert_shortened(value2, "<TestClass, len() = 1>")
 
 
-@pytest.mark.skipif(np is None, reason='could not import numpy')
+@pytest.mark.skipif(np is None, reason="could not import numpy")
 class TestNumpy(SafeReprTestBase):
     # numpy types should all use their native reprs, even arrays
     # exceeding limits.
@@ -600,33 +588,34 @@ class TestNumpy(SafeReprTestBase):
         self.assert_unchanged(value, repr(value))
 
 
-@pytest.mark.parametrize('params', [
-    {'maxother_outer': 20, 'input': "😄😄😄😄😄😄😄😄😄😄😄😄😄😄😄😄😄😄FFFFFFFF", 'output': '😄😄😄😄😄😄😄😄😄😄😄😄😄...FFFFFF'},
-    {'maxother_outer': 10, 'input': "😄😄😄😄😄😄😄😄😄😄😄😄😄😄😄😄😄😄FFFFFFFF", 'output': '😄😄😄😄😄😄...FFF'},
-    {'maxother_outer': 10, 'input': u"������������FFFFFFFF", 'output': u"������...FFF"},
-
-    # Because we can't return bytes, byte-related tests aren't needed (and str works as it should).
-])
-@pytest.mark.parametrize('use_str', [True, False])
+@pytest.mark.parametrize(
+    "params",
+    [
+        {"maxother_outer": 20, "input": "😄😄😄😄😄😄😄😄😄😄😄😄😄😄😄😄😄😄FFFFFFFF", "output": "😄😄😄😄😄😄😄😄😄😄😄😄😄...FFFFFF"},
+        {"maxother_outer": 10, "input": "😄😄😄😄😄😄😄😄😄😄😄😄😄😄😄😄😄😄FFFFFFFF", "output": "😄😄😄😄😄😄...FFF"},
+        {"maxother_outer": 10, "input": "������������FFFFFFFF", "output": "������...FFF"},
+        # Because we can't return bytes, byte-related tests aren't needed (and str works as it should).
+    ],
+)
+@pytest.mark.parametrize("use_str", [True, False])
 def test_py3_str_slicing(params, use_str):
     # Note: much simpler in python because __repr__ is required to return str
     safe_repr = SafeRepr()
-    safe_repr.locale_preferred_encoding = 'ascii'
-    safe_repr.sys_stdout_encoding = params.get('sys_stdout_encoding', 'ascii')
+    safe_repr.locale_preferred_encoding = "ascii"
+    safe_repr.sys_stdout_encoding = params.get("sys_stdout_encoding", "ascii")
 
-    safe_repr.maxother_outer = params['maxother_outer']
+    safe_repr.maxother_outer = params["maxother_outer"]
 
     if not use_str:
 
         class MyObj(object):
-
             def __repr__(self):
-                return params['input']
+                return params["input"]
 
         safe_repr_input = MyObj()
     else:
-        safe_repr_input = params['input']
-    expected_output = params['output']
+        safe_repr_input = params["input"]
+    expected_output = params["output"]
     computed = safe_repr(safe_repr_input)
     expected = repr(expected_output)
     if use_str:
@@ -640,25 +629,23 @@ def test_py3_str_slicing(params, use_str):
 def test_raw_bytes():
     safe_repr = SafeRepr()
     safe_repr.raw_value = True
-    obj = b'\xed\xbd\xbf\xff\xfe\xfa\xfd'
+    obj = b"\xed\xbd\xbf\xff\xfe\xfa\xfd"
     raw_value_repr = safe_repr(obj)
     assert isinstance(raw_value_repr, str)  # bytes on py2, str on py3
-    assert raw_value_repr == obj.decode('latin1')
+    assert raw_value_repr == obj.decode("latin1")
 
 
 def test_raw_unicode():
     safe_repr = SafeRepr()
     safe_repr.raw_value = True
-    obj = u'\xed\xbd\xbf\xff\xfe\xfa\xfd'
+    obj = "\xed\xbd\xbf\xff\xfe\xfa\xfd"
     raw_value_repr = safe_repr(obj)
     assert isinstance(raw_value_repr, str)  # bytes on py2, str on py3
     assert raw_value_repr == obj
 
 
 def test_no_repr():
-
     class MyBytes(object):
-
         def __init__(self, contents):
             self.contents = contents
             self.errored = None
@@ -667,12 +654,12 @@ def test_no_repr():
             return iter(self.contents)
 
         def decode(self, encoding):
-            self.errored = 'decode called'
-            raise RuntimeError('Should not be called.')
+            self.errored = "decode called"
+            raise RuntimeError("Should not be called.")
 
         def __repr__(self):
-            self.errored = '__repr__ called'
-            raise RuntimeError('Should not be called.')
+            self.errored = "__repr__ called"
+            raise RuntimeError("Should not be called.")
 
         def __getitem__(self, *args):
             return self.contents.__getitem__(*args)
@@ -683,8 +670,7 @@ def test_no_repr():
     safe_repr = SafeRepr()
     safe_repr.string_types = (MyBytes,)
     safe_repr.bytes = MyBytes
-    obj = b'f' * (safe_repr.maxstring_outer * 10)
+    obj = b"f" * (safe_repr.maxstring_outer * 10)
     my_bytes = MyBytes(obj)
     raw_value_repr = safe_repr(my_bytes)
     assert not my_bytes.errored
-

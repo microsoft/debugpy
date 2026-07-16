@@ -1,0 +1,28 @@
+=meta: 0.0.2
+
+name: git-subrepo
+version: 0.4.1
+abstract: Git Submodule Alternative
+homepage: https://github.com/ingydotnet/git-subrepo#readme
+license: MIT
+copyright: 2013-2020
+
+author:
+  name: Ingy döt Net
+  email: ingy@ingy.net
+  github: ingydotnet
+  twitter: ingydotnet
+  freenode: ingy
+  homepage: http://ingy.net
+
+requires:
+  bash: 4.0.0
+  git: 2.7.0
+test:
+  cmd: make test
+install: make install
+
+devel:
+  git: git@github.org:ingydotnet/git-subrepo.git
+  irc: irc.freenode.net/gitcommands
+  bug: https://github.com/ingydotnet/git-subrepo/issues/

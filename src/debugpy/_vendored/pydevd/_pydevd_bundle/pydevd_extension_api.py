@@ -7,11 +7,10 @@ def _with_metaclass(meta, *bases):
     """Create a base class with a metaclass."""
 
     class metaclass(meta):
-
         def __new__(cls, name, this_bases, d):
             return meta(name, bases, d)
 
-    return type.__new__(metaclass, 'temporary_class', (), {})
+    return type.__new__(metaclass, "temporary_class", (), {})
 
 
 # =======================================================================================================================
@@ -50,10 +49,10 @@ class _AbstractResolver(_with_metaclass(abc.ABCMeta)):
 
 
 class _AbstractProvider(_with_metaclass(abc.ABCMeta)):
-
     @abc.abstractmethod
     def can_provide(self, type_object, type_name):
         raise NotImplementedError
+
 
 # =======================================================================================================================
 # API CLASSES:
@@ -72,7 +71,7 @@ class StrPresentationProvider(_AbstractProvider):
     """
 
     def get_str_in_context(self, val: Any, context: str):
-        '''
+        """
         :param val:
             This is the object for which we want a string representation.
 
@@ -86,7 +85,7 @@ class StrPresentationProvider(_AbstractProvider):
         :note: this method is not required (if it's not available, get_str is called directly,
                so, it's only needed if the string representation needs to be converted based on
                the context).
-        '''
+        """
         return self.get_str(val)
 
     @abc.abstractmethod

@@ -42,7 +42,7 @@ from __future__ import with_statement
 
 __revision__ = "$Id$"
 
-__all__ = ['Module', 'DebugSymbolsWarning']
+__all__ = ["Module", "DebugSymbolsWarning"]
 
 import sys
 from winappdbg import win32
@@ -57,17 +57,20 @@ import os
 import warnings
 import traceback
 
-#==============================================================================
+# ==============================================================================
 
-class DebugSymbolsWarning (UserWarning):
+
+class DebugSymbolsWarning(UserWarning):
     """
     This warning is issued if the support for debug symbols
     isn't working properly.
     """
 
-#==============================================================================
 
-class Module (object):
+# ==============================================================================
+
+
+class Module(object):
     """
     Interface to a DLL library loaded in the context of another process.
 
@@ -115,14 +118,14 @@ class Module (object):
         Use the L{get_process} method instead.
     """
 
-    unknown = '<unknown>'
+    unknown = "<unknown>"
 
-    class _SymbolEnumerator (object):
+    class _SymbolEnumerator(object):
         """
         Internally used by L{Module} to enumerate symbols in a module.
         """
 
-        def __init__(self, undecorate = False):
+        def __init__(self, undecorate=False):
             self.symbols = list()
             self.undecorate = undecorate
 
@@ -134,14 +137,11 @@ class Module (object):
                 try:
                     SymbolName = win32.UnDecorateSymbolName(SymbolName)
                 except Exception:
-                    pass # not all symbols are decorated!
-            self.symbols.append( (SymbolName, SymbolAddress, SymbolSize) )
+                    pass  # not all symbols are decorated!
+            self.symbols.append((SymbolName, SymbolAddress, SymbolSize))
             return win32.TRUE
 
-    def __init__(self, lpBaseOfDll, hFile = None, fileName    = None,
-                                                  SizeOfImage = None,
-                                                  EntryPoint  = None,
-                                                  process     = None):
+    def __init__(self, lpBaseOfDll, hFile=None, fileName=None, SizeOfImage=None, EntryPoint=None, process=None):
         """
         @type  lpBaseOfDll: str
         @param lpBaseOfDll: Base address of the module.
@@ -161,10 +161,10 @@ class Module (object):
         @type  process: L{Process}
         @param process: (Optional) Process where the module is loaded.
         """
-        self.lpBaseOfDll    = lpBaseOfDll
-        self.fileName       = fileName
-        self.SizeOfImage    = SizeOfImage
-        self.EntryPoint     = EntryPoint
+        self.lpBaseOfDll = lpBaseOfDll
+        self.fileName = fileName
+        self.SizeOfImage = SizeOfImage
+        self.EntryPoint = EntryPoint
 
         self.__symbols = list()
 
@@ -172,21 +172,21 @@ class Module (object):
         self.set_process(process)
 
     # Not really sure if it's a good idea...
-##    def __eq__(self, aModule):
-##        """
-##        Compare two Module objects. The comparison is made using the process
-##        IDs and the module bases.
-##
-##        @type  aModule: L{Module}
-##        @param aModule: Another Module object.
-##
-##        @rtype:  bool
-##        @return: C{True} if the two process IDs and module bases are equal,
-##            C{False} otherwise.
-##        """
-##        return isinstance(aModule, Module)           and \
-##               self.get_pid() == aModule.get_pid()   and \
-##               self.get_base() == aModule.get_base()
+    ##    def __eq__(self, aModule):
+    ##        """
+    ##        Compare two Module objects. The comparison is made using the process
+    ##        IDs and the module bases.
+    ##
+    ##        @type  aModule: L{Module}
+    ##        @param aModule: Another Module object.
+    ##
+    ##        @rtype:  bool
+    ##        @return: C{True} if the two process IDs and module bases are equal,
+    ##            C{False} otherwise.
+    ##        """
+    ##        return isinstance(aModule, Module)           and \
+    ##               self.get_pid() == aModule.get_pid()   and \
+    ##               self.get_base() == aModule.get_base()
 
     def get_handle(self):
         """
@@ -217,7 +217,7 @@ class Module (object):
         # no way to guess!
         return self.__process
 
-    def set_process(self, process = None):
+    def set_process(self, process=None):
         """
         Manually set the parent process. Use with care!
 
@@ -227,11 +227,11 @@ class Module (object):
         if process is None:
             self.__process = None
         else:
-            global Process      # delayed import
+            global Process  # delayed import
             if Process is None:
                 from winappdbg.process import Process
             if not isinstance(process, Process):
-                msg  = "Parent process must be a Process instance, "
+                msg = "Parent process must be a Process instance, "
                 msg += "got %s instead" % type(process)
                 raise TypeError(msg)
             self.__process = process
@@ -281,17 +281,14 @@ class Module (object):
         process = self.get_process()
         if process:
             try:
-                handle = process.get_handle( win32.PROCESS_VM_READ |
-                                             win32.PROCESS_QUERY_INFORMATION )
-                base   = self.get_base()
-                mi     = win32.GetModuleInformation(handle, base)
+                handle = process.get_handle(win32.PROCESS_VM_READ | win32.PROCESS_QUERY_INFORMATION)
+                base = self.get_base()
+                mi = win32.GetModuleInformation(handle, base)
                 self.SizeOfImage = mi.SizeOfImage
-                self.EntryPoint  = mi.EntryPoint
+                self.EntryPoint = mi.EntryPoint
             except WindowsError:
                 e = sys.exc_info()[1]
-                warnings.warn(
-                    "Cannot get size and entry point of module %s, reason: %s"\
-                    % (self.get_name(), e.strerror), RuntimeWarning)
+                warnings.warn("Cannot get size and entry point of module %s, reason: %s" % (self.get_name(), e.strerror), RuntimeWarning)
 
     def get_filename(self):
         """
@@ -344,7 +341,7 @@ class Module (object):
             modName = self.__filename_to_modname(pathname)
             if isinstance(modName, compat.unicode):
                 try:
-                    modName = modName.encode('cp1252')
+                    modName = modName.encode("cp1252")
                 except UnicodeEncodeError:
                     e = sys.exc_info()[1]
                     warnings.warn(str(e))
@@ -383,7 +380,7 @@ class Module (object):
         # No match.
         return False
 
-#------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------
 
     def open_handle(self):
         """
@@ -394,16 +391,14 @@ class Module (object):
 
         if not self.get_filename():
             msg = "Cannot retrieve filename for module at %s"
-            msg = msg % HexDump.address( self.get_base() )
+            msg = msg % HexDump.address(self.get_base())
             raise Exception(msg)
 
-        hFile = win32.CreateFile(self.get_filename(),
-                                           dwShareMode = win32.FILE_SHARE_READ,
-                                 dwCreationDisposition = win32.OPEN_EXISTING)
+        hFile = win32.CreateFile(self.get_filename(), dwShareMode=win32.FILE_SHARE_READ, dwCreationDisposition=win32.OPEN_EXISTING)
 
         # In case hFile was set to an actual handle value instead of a Handle
         # object. This shouldn't happen unless the user tinkered with hFile.
-        if not hasattr(self.hFile, '__del__'):
+        if not hasattr(self.hFile, "__del__"):
             self.close_handle()
 
         self.hFile = hFile
@@ -418,7 +413,7 @@ class Module (object):
             setting L{hFile} to C{None} should be enough.
         """
         try:
-            if hasattr(self.hFile, 'close'):
+            if hasattr(self.hFile, "close"):
                 self.hFile.close()
             elif self.hFile not in (None, win32.INVALID_HANDLE_VALUE):
                 win32.CloseHandle(self.hFile)
@@ -443,7 +438,7 @@ class Module (object):
         finally:
             self.close_handle()
 
-#------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------
 
     # XXX FIXME
     # I've been told sometimes the debugging symbols APIs don't correctly
@@ -458,47 +453,38 @@ class Module (object):
             dwAccess = win32.PROCESS_QUERY_LIMITED_INFORMATION
         else:
             dwAccess = win32.PROCESS_QUERY_INFORMATION
-        hProcess     = self.get_process().get_handle(dwAccess)
-        hFile        = self.hFile
-        BaseOfDll    = self.get_base()
-        SizeOfDll    = self.get_size()
-        Enumerator   = self._SymbolEnumerator()
+        hProcess = self.get_process().get_handle(dwAccess)
+        hFile = self.hFile
+        BaseOfDll = self.get_base()
+        SizeOfDll = self.get_size()
+        Enumerator = self._SymbolEnumerator()
         try:
             win32.SymInitialize(hProcess)
             SymOptions = win32.SymGetOptions()
             SymOptions |= (
-                win32.SYMOPT_ALLOW_ZERO_ADDRESS     |
-                win32.SYMOPT_CASE_INSENSITIVE       |
-                win32.SYMOPT_FAVOR_COMPRESSED       |
-                win32.SYMOPT_INCLUDE_32BIT_MODULES  |
-                win32.SYMOPT_UNDNAME
+                win32.SYMOPT_ALLOW_ZERO_ADDRESS
+                | win32.SYMOPT_CASE_INSENSITIVE
+                | win32.SYMOPT_FAVOR_COMPRESSED
+                | win32.SYMOPT_INCLUDE_32BIT_MODULES
+                | win32.SYMOPT_UNDNAME
             )
-            SymOptions &= ~(
-                win32.SYMOPT_LOAD_LINES         |
-                win32.SYMOPT_NO_IMAGE_SEARCH    |
-                win32.SYMOPT_NO_CPP             |
-                win32.SYMOPT_IGNORE_NT_SYMPATH
-            )
+            SymOptions &= ~(win32.SYMOPT_LOAD_LINES | win32.SYMOPT_NO_IMAGE_SEARCH | win32.SYMOPT_NO_CPP | win32.SYMOPT_IGNORE_NT_SYMPATH)
             win32.SymSetOptions(SymOptions)
             try:
-                win32.SymSetOptions(
-                    SymOptions | win32.SYMOPT_ALLOW_ABSOLUTE_SYMBOLS)
+                win32.SymSetOptions(SymOptions | win32.SYMOPT_ALLOW_ABSOLUTE_SYMBOLS)
             except WindowsError:
                 pass
             try:
                 try:
-                    success = win32.SymLoadModule64(
-                        hProcess, hFile, None, None, BaseOfDll, SizeOfDll)
+                    success = win32.SymLoadModule64(hProcess, hFile, None, None, BaseOfDll, SizeOfDll)
                 except WindowsError:
                     success = 0
                 if not success:
                     ImageName = self.get_filename()
-                    success = win32.SymLoadModule64(
-                        hProcess, None, ImageName, None, BaseOfDll, SizeOfDll)
+                    success = win32.SymLoadModule64(hProcess, None, ImageName, None, BaseOfDll, SizeOfDll)
                 if success:
                     try:
-                        win32.SymEnumerateSymbols64(
-                            hProcess, BaseOfDll, Enumerator)
+                        win32.SymEnumerateSymbols64(hProcess, BaseOfDll, Enumerator)
                     finally:
                         win32.SymUnloadModule64(hProcess, BaseOfDll)
             finally:
@@ -549,7 +535,7 @@ class Module (object):
             self.load_symbols()
         return self.__symbols.__iter__()
 
-    def resolve_symbol(self, symbol, bCaseSensitive = False):
+    def resolve_symbol(self, symbol, bCaseSensitive=False):
         """
         Resolves a debugging symbol's address.
 
@@ -564,10 +550,10 @@ class Module (object):
         @return: Memory address of symbol. C{None} if not found.
         """
         if bCaseSensitive:
-            for (SymbolName, SymbolAddress, SymbolSize) in self.iter_symbols():
+            for SymbolName, SymbolAddress, SymbolSize in self.iter_symbols():
                 if symbol == SymbolName:
                     return SymbolAddress
-            for (SymbolName, SymbolAddress, SymbolSize) in self.iter_symbols():
+            for SymbolName, SymbolAddress, SymbolSize in self.iter_symbols():
                 try:
                     SymbolName = win32.UnDecorateSymbolName(SymbolName)
                 except Exception:
@@ -576,10 +562,10 @@ class Module (object):
                     return SymbolAddress
         else:
             symbol = symbol.lower()
-            for (SymbolName, SymbolAddress, SymbolSize) in self.iter_symbols():
+            for SymbolName, SymbolAddress, SymbolSize in self.iter_symbols():
                 if symbol == SymbolName.lower():
                     return SymbolAddress
-            for (SymbolName, SymbolAddress, SymbolSize) in self.iter_symbols():
+            for SymbolName, SymbolAddress, SymbolSize in self.iter_symbols():
                 try:
                     SymbolName = win32.UnDecorateSymbolName(SymbolName)
                 except Exception:
@@ -602,7 +588,7 @@ class Module (object):
             Returns C{None} if no symbol could be matched.
         """
         found = None
-        for (SymbolName, SymbolAddress, SymbolSize) in self.iter_symbols():
+        for SymbolName, SymbolAddress, SymbolSize in self.iter_symbols():
             if SymbolAddress > address:
                 continue
             if SymbolAddress + SymbolSize > address:
@@ -610,9 +596,9 @@ class Module (object):
                     found = (SymbolName, SymbolAddress, SymbolSize)
         return found
 
-#------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------
 
-    def get_label(self, function = None, offset = None):
+    def get_label(self, function=None, offset=None):
         """
         Retrieves the label for the given function of this module or the module
         base address if no function name is given.
@@ -628,7 +614,7 @@ class Module (object):
         """
         return _ModuleContainer.parse_label(self.get_name(), function, offset)
 
-    def get_label_at_address(self, address, offset = None):
+    def get_label_at_address(self, address, offset=None):
         """
         Creates a label from the given memory address.
 
@@ -650,16 +636,16 @@ class Module (object):
             address = address + offset
 
         # Make the label relative to the base address if no match is found.
-        module      = self.get_name()
-        function    = None
-        offset      = address - self.get_base()
+        module = self.get_name()
+        function = None
+        offset = address - self.get_base()
 
         # Make the label relative to the entrypoint if no other match is found.
         # Skip if the entry point is unknown.
         start = self.get_entry_point()
         if start and start <= address:
-            function    = "start"
-            offset      = address - start
+            function = "start"
+            offset = address - start
 
         # Enumerate exported functions and debug symbols,
         # then find the closest match, if possible.
@@ -669,8 +655,8 @@ class Module (object):
                 (SymbolName, SymbolAddress, SymbolSize) = symbol
                 new_offset = address - SymbolAddress
                 if new_offset <= offset:
-                    function    = SymbolName
-                    offset      = new_offset
+                    function = SymbolName
+                    offset = new_offset
         except WindowsError:
             pass
 
@@ -716,14 +702,12 @@ class Module (object):
 
         # If the DLL is already mapped locally, resolve the function.
         try:
-            hlib    = win32.GetModuleHandle(filename)
+            hlib = win32.GetModuleHandle(filename)
             address = win32.GetProcAddress(hlib, function)
         except WindowsError:
-
             # Load the DLL locally, resolve the function and unload it.
             try:
-                hlib = win32.LoadLibraryEx(filename,
-                                           win32.DONT_RESOLVE_DLL_REFERENCES)
+                hlib = win32.LoadLibraryEx(filename, win32.DONT_RESOLVE_DLL_REFERENCES)
                 try:
                     address = win32.GetProcAddress(hlib, function)
                 finally:
@@ -770,7 +754,6 @@ class Module (object):
         if procedure:
             address = self.resolve(procedure)
             if address is None:
-
                 # If it's a debug symbol, use the symbol.
                 address = self.resolve_symbol(procedure)
 
@@ -794,7 +777,8 @@ class Module (object):
             address = address + offset
         return address
 
-#==============================================================================
+
+# ==============================================================================
 
 # TODO
 # An alternative approach to the toolhelp32 snapshots: parsing the PEB and
@@ -802,7 +786,8 @@ class Module (object):
 # of toolhelp32 not working when the process hasn't finished initializing.
 # See: http://pferrie.host22.com/misc/lowlevel3.htm
 
-class _ModuleContainer (object):
+
+class _ModuleContainer(object):
     """
     Encapsulates the capability to contain Module objects.
 
@@ -947,7 +932,7 @@ class _ModuleContainer (object):
         self.__initialize_snapshot()
         return len(self.__moduleDict)
 
-#------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------
 
     def get_module_by_name(self, modName):
         """
@@ -975,12 +960,12 @@ class _ModuleContainer (object):
             for lib in self.iter_modules():
                 if modName == lib.get_filename().lower():
                     return lib
-            return None     # Stop trying to match the name.
+            return None  # Stop trying to match the name.
 
         # Get all the module names.
         # This prevents having to iterate through the module list
         #  more than once.
-        modDict = [ ( lib.get_name(), lib ) for lib in self.iter_modules() ]
+        modDict = [(lib.get_name(), lib) for lib in self.iter_modules()]
         modDict = dict(modDict)
 
         # modName is a base filename.
@@ -1020,13 +1005,13 @@ class _ModuleContainer (object):
             i = 0
             max_i = len(bases) - 1
             while i < max_i:
-                begin, end = bases[i:i+2]
+                begin, end = bases[i : i + 2]
                 if begin <= address < end:
                     module = self.get_module(begin)
-                    here   = module.is_address_here(address)
+                    here = module.is_address_here(address)
                     if here is False:
                         break
-                    else:   # True or None
+                    else:  # True or None
                         return module
                 i = i + 1
         return None
@@ -1057,35 +1042,32 @@ class _ModuleContainer (object):
         # It would seem easier to clear the snapshot first.
         # But then all open handles would be closed.
         found_bases = set()
-        with win32.CreateToolhelp32Snapshot(win32.TH32CS_SNAPMODULE,
-                                            dwProcessId) as hSnapshot:
+        with win32.CreateToolhelp32Snapshot(win32.TH32CS_SNAPMODULE, dwProcessId) as hSnapshot:
             me = win32.Module32First(hSnapshot)
             while me is not None:
                 lpBaseAddress = me.modBaseAddr
-                fileName      = me.szExePath    # full pathname
+                fileName = me.szExePath  # full pathname
                 if not fileName:
-                    fileName  = me.szModule     # filename only
+                    fileName = me.szModule  # filename only
                     if not fileName:
                         fileName = None
                 else:
                     fileName = PathOperations.native_to_win32_pathname(fileName)
                 found_bases.add(lpBaseAddress)
-##                if not self.has_module(lpBaseAddress): # XXX triggers a scan
+                ##                if not self.has_module(lpBaseAddress): # XXX triggers a scan
                 if lpBaseAddress not in self.__moduleDict:
-                    aModule = Module(lpBaseAddress, fileName = fileName,
-                                           SizeOfImage = me.modBaseSize,
-                                           process = self)
+                    aModule = Module(lpBaseAddress, fileName=fileName, SizeOfImage=me.modBaseSize, process=self)
                     self._add_module(aModule)
                 else:
                     aModule = self.get_module(lpBaseAddress)
                     if not aModule.fileName:
-                        aModule.fileName    = fileName
+                        aModule.fileName = fileName
                     if not aModule.SizeOfImage:
                         aModule.SizeOfImage = me.modBaseSize
                     if not aModule.process:
-                        aModule.process     = self
+                        aModule.process = self
                 me = win32.Module32Next(hSnapshot)
-##        for base in self.get_module_bases(): # XXX triggers a scan
+        ##        for base in self.get_module_bases(): # XXX triggers a scan
         for base in compat.keys(self.__moduleDict):
             if base not in found_bases:
                 self._del_module(base)
@@ -1098,10 +1080,10 @@ class _ModuleContainer (object):
             aModule.clear()
         self.__moduleDict = dict()
 
-#------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------
 
     @staticmethod
-    def parse_label(module = None, function = None, offset = None):
+    def parse_label(module=None, function=None, offset=None):
         """
         Creates a label from a module and a function name, plus an offset.
 
@@ -1139,9 +1121,9 @@ class _ModuleContainer (object):
             pass
 
         # Validate the parameters.
-        if module is not None and ('!' in module or '+' in module):
+        if module is not None and ("!" in module or "+" in module):
             raise ValueError("Invalid module name: %s" % module)
-        if function is not None and ('!' in function or '+' in function):
+        if function is not None and ("!" in function or "+" in function):
             raise ValueError("Invalid function name: %s" % function)
 
         # Parse the label.
@@ -1153,7 +1135,7 @@ class _ModuleContainer (object):
                     label = "%s!%s" % (module, function)
             else:
                 if offset:
-##                    label = "%s+0x%x!" % (module, offset)
+                    ##                    label = "%s+0x%x!" % (module, offset)
                     label = "%s!0x%x" % (module, offset)
                 else:
                     label = "%s!" % module
@@ -1207,33 +1189,32 @@ class _ModuleContainer (object):
         if not label:
             label = "0x0"
         else:
-
             # Remove all blanks.
-            label = label.replace(' ', '')
-            label = label.replace('\t', '')
-            label = label.replace('\r', '')
-            label = label.replace('\n', '')
+            label = label.replace(" ", "")
+            label = label.replace("\t", "")
+            label = label.replace("\r", "")
+            label = label.replace("\n", "")
 
             # Special case: empty label.
             if not label:
                 label = "0x0"
 
         # * ! *
-        if '!' in label:
+        if "!" in label:
             try:
-                module, function = label.split('!')
+                module, function = label.split("!")
             except ValueError:
                 raise ValueError("Malformed label: %s" % label)
 
             # module ! function
             if function:
-                if '+' in module:
+                if "+" in module:
                     raise ValueError("Malformed label: %s" % label)
 
                 # module ! function + offset
-                if '+' in function:
+                if "+" in function:
                     try:
-                        function, offset = function.split('+')
+                        function, offset = function.split("+")
                     except ValueError:
                         raise ValueError("Malformed label: %s" % label)
                     try:
@@ -1241,19 +1222,17 @@ class _ModuleContainer (object):
                     except ValueError:
                         raise ValueError("Malformed label: %s" % label)
                 else:
-
                     # module ! offset
                     try:
-                        offset   = HexInput.integer(function)
+                        offset = HexInput.integer(function)
                         function = None
                     except ValueError:
                         pass
             else:
-
                 # module + offset !
-                if '+' in module:
+                if "+" in module:
                     try:
-                        module, offset = module.split('+')
+                        module, offset = module.split("+")
                     except ValueError:
                         raise ValueError("Malformed label: %s" % label)
                     try:
@@ -1262,7 +1241,6 @@ class _ModuleContainer (object):
                         raise ValueError("Malformed label: %s" % label)
 
                 else:
-
                     # module !
                     try:
                         offset = HexInput.integer(module)
@@ -1273,20 +1251,19 @@ class _ModuleContainer (object):
                         pass
 
             if not module:
-                module   = None
+                module = None
             if not function:
                 function = None
 
         # *
         else:
-
             # offset
             try:
                 offset = HexInput.integer(label)
 
             # # ordinal
             except ValueError:
-                if label.startswith('#'):
+                if label.startswith("#"):
                     function = label
                     try:
                         HexInput.integer(function[1:])
@@ -1302,7 +1279,7 @@ class _ModuleContainer (object):
                     raise ValueError("Ambiguous label: %s" % label)
 
         # Convert function ordinal strings into integers.
-        if function and function.startswith('#'):
+        if function and function.startswith("#"):
             try:
                 function = HexInput.integer(function[1:])
             except ValueError:
@@ -1352,31 +1329,30 @@ class _ModuleContainer (object):
         if not label:
             label = compat.b("0x0")
         else:
-
             # Remove all blanks.
-            label = label.replace(compat.b(' '), compat.b(''))
-            label = label.replace(compat.b('\t'), compat.b(''))
-            label = label.replace(compat.b('\r'), compat.b(''))
-            label = label.replace(compat.b('\n'), compat.b(''))
+            label = label.replace(compat.b(" "), compat.b(""))
+            label = label.replace(compat.b("\t"), compat.b(""))
+            label = label.replace(compat.b("\r"), compat.b(""))
+            label = label.replace(compat.b("\n"), compat.b(""))
 
             # Special case: empty label.
             if not label:
                 label = compat.b("0x0")
 
         # If an exclamation sign is present, we know we can parse it strictly.
-        if compat.b('!') in label:
+        if compat.b("!") in label:
             return self.split_label_strict(label)
 
-##        # Try to parse it strictly, on error do it the fuzzy way.
-##        try:
-##            return self.split_label(label)
-##        except ValueError:
-##            pass
+        ##        # Try to parse it strictly, on error do it the fuzzy way.
+        ##        try:
+        ##            return self.split_label(label)
+        ##        except ValueError:
+        ##            pass
 
         # * + offset
-        if compat.b('+') in label:
+        if compat.b("+") in label:
             try:
-                prefix, offset = label.split(compat.b('+'))
+                prefix, offset = label.split(compat.b("+"))
             except ValueError:
                 raise ValueError("Malformed label: %s" % label)
             try:
@@ -1388,13 +1364,11 @@ class _ModuleContainer (object):
         # This parses both filenames and base addresses.
         modobj = self.get_module_by_name(label)
         if modobj:
-
             # module
             # module + offset
             module = modobj.get_name()
 
         else:
-
             # TODO
             # If 0xAAAAAAAA + 0xBBBBBBBB is given,
             # A is interpreted as a module base address,
@@ -1426,8 +1400,7 @@ class _ModuleContainer (object):
                 # to prevent an infinite recursion if there's a bug here.
                 try:
                     new_label = self.get_label_at_address(offset)
-                    module, function, offset = \
-                                             self.split_label_strict(new_label)
+                    module, function, offset = self.split_label_strict(new_label)
                 except ValueError:
                     pass
 
@@ -1437,7 +1410,7 @@ class _ModuleContainer (object):
                 function = label
 
         # Convert function ordinal strings into integers.
-        if function and function.startswith(compat.b('#')):
+        if function and function.startswith(compat.b("#")):
             try:
                 function = HexInput.integer(function[1:])
             except ValueError:
@@ -1452,37 +1425,37 @@ class _ModuleContainer (object):
     @classmethod
     def split_label(cls, label):
         """
-Splits a label into it's C{module}, C{function} and C{offset}
-components, as used in L{parse_label}.
+        Splits a label into it's C{module}, C{function} and C{offset}
+        components, as used in L{parse_label}.
 
-When called as a static method, the strict syntax mode is used::
+        When called as a static method, the strict syntax mode is used::
 
-    winappdbg.Process.split_label( "kernel32!CreateFileA" )
+            winappdbg.Process.split_label( "kernel32!CreateFileA" )
 
-When called as an instance method, the fuzzy syntax mode is used::
+        When called as an instance method, the fuzzy syntax mode is used::
 
-    aProcessInstance.split_label( "CreateFileA" )
+            aProcessInstance.split_label( "CreateFileA" )
 
-@see: L{split_label_strict}, L{split_label_fuzzy}
+        @see: L{split_label_strict}, L{split_label_fuzzy}
 
-@type  label: str
-@param label: Label to split.
+        @type  label: str
+        @param label: Label to split.
 
-@rtype:  tuple( str or None, str or int or None, int or None )
-@return:
-    Tuple containing the C{module} name,
-    the C{function} name or ordinal, and the C{offset} value.
+        @rtype:  tuple( str or None, str or int or None, int or None )
+        @return:
+            Tuple containing the C{module} name,
+            the C{function} name or ordinal, and the C{offset} value.
 
-    If the label doesn't specify a module,
-    then C{module} is C{None}.
+            If the label doesn't specify a module,
+            then C{module} is C{None}.
 
-    If the label doesn't specify a function,
-    then C{function} is C{None}.
+            If the label doesn't specify a function,
+            then C{function} is C{None}.
 
-    If the label doesn't specify an offset,
-    then C{offset} is C{0}.
+            If the label doesn't specify an offset,
+            then C{offset} is C{0}.
 
-@raise ValueError: The label is malformed.
+        @raise ValueError: The label is malformed.
         """
 
         # XXX
@@ -1497,7 +1470,8 @@ When called as an instance method, the fuzzy syntax mode is used::
     def __use_fuzzy_mode(self, label):
         "@see: L{split_label}"
         return self.split_label_fuzzy(label)
-##    __use_fuzzy_mode.__doc__ = split_label.__doc__
+
+    ##    __use_fuzzy_mode.__doc__ = split_label.__doc__
 
     def sanitize_label(self, label):
         """
@@ -1548,9 +1522,7 @@ When called as an instance method, the fuzzy syntax mode is used::
         # Return the memory address.
         return address
 
-    def resolve_label_components(self, module   = None,
-                                       function = None,
-                                       offset   = None):
+    def resolve_label_components(self, module=None, function=None, offset=None):
         """
         Resolve the memory address of the given module, function and/or offset.
 
@@ -1639,7 +1611,7 @@ When called as an instance method, the fuzzy syntax mode is used::
             address = address + offset
         return address
 
-    def get_label_at_address(self, address, offset = None):
+    def get_label_at_address(self, address, offset=None):
         """
         Creates a label from the given memory address.
 
@@ -1665,7 +1637,7 @@ When called as an instance method, the fuzzy syntax mode is used::
             label = self.parse_label(None, None, address)
         return label
 
-#------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------
 
     # The memory addresses of system breakpoints are be cached, since they're
     # all in system libraries it's not likely they'll ever change their address
@@ -1693,8 +1665,7 @@ When called as an instance method, the fuzzy syntax mode is used::
         """
         address = self.__get_system_breakpoint("ntdll!g_dwLastErrorToBreakOn")
         if not address:
-            address = self.__get_system_breakpoint(
-                                            "kernel32!g_dwLastErrorToBreakOn")
+            address = self.__get_system_breakpoint("kernel32!g_dwLastErrorToBreakOn")
             # cheat a little :)
             self.__system_breakpoints["ntdll!g_dwLastErrorToBreakOn"] = address
         return address
@@ -1712,8 +1683,7 @@ When called as an instance method, the fuzzy syntax mode is used::
         if address:
             module = self.get_module_at_address(address)
             if module:
-                return module.match_name("ntdll")    or \
-                       module.match_name("kernel32")
+                return module.match_name("ntdll") or module.match_name("kernel32")
         return False
 
     # FIXME
@@ -1778,7 +1748,7 @@ When called as an instance method, the fuzzy syntax mode is used::
         """
         return self.__get_system_breakpoint("ntdll32!DbgUiRemoteBreakin")
 
-#------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------
 
     def load_symbols(self):
         """
@@ -1830,7 +1800,7 @@ When called as an instance method, the fuzzy syntax mode is used::
             for symbol in aModule.iter_symbols():
                 yield symbol
 
-    def resolve_symbol(self, symbol, bCaseSensitive = False):
+    def resolve_symbol(self, symbol, bCaseSensitive=False):
         """
         Resolves a debugging symbol's address.
 
@@ -1845,12 +1815,12 @@ When called as an instance method, the fuzzy syntax mode is used::
         @return: Memory address of symbol. C{None} if not found.
         """
         if bCaseSensitive:
-            for (SymbolName, SymbolAddress, SymbolSize) in self.iter_symbols():
+            for SymbolName, SymbolAddress, SymbolSize in self.iter_symbols():
                 if symbol == SymbolName:
                     return SymbolAddress
         else:
             symbol = symbol.lower()
-            for (SymbolName, SymbolAddress, SymbolSize) in self.iter_symbols():
+            for SymbolName, SymbolAddress, SymbolSize in self.iter_symbols():
                 if symbol == SymbolName.lower():
                     return SymbolAddress
 
@@ -1871,7 +1841,7 @@ When called as an instance method, the fuzzy syntax mode is used::
         # Any module may have symbols pointing anywhere in memory, so there's
         # no easy way to optimize this. I guess we're stuck with brute force.
         found = None
-        for (SymbolName, SymbolAddress, SymbolSize) in self.iter_symbols():
+        for SymbolName, SymbolAddress, SymbolSize in self.iter_symbols():
             if SymbolAddress > address:
                 continue
 
@@ -1885,7 +1855,8 @@ When called as an instance method, the fuzzy syntax mode is used::
                 else:
                     found = (SymbolName, SymbolAddress, SymbolSize)
         return found
-#------------------------------------------------------------------------------
+
+    # ------------------------------------------------------------------------------
 
     # XXX _notify_* methods should not trigger a scan
 
@@ -1896,17 +1867,17 @@ When called as an instance method, the fuzzy syntax mode is used::
         @type  aModule: L{Module}
         @param aModule: Module object.
         """
-##        if not isinstance(aModule, Module):
-##            if hasattr(aModule, '__class__'):
-##                typename = aModule.__class__.__name__
-##            else:
-##                typename = str(type(aModule))
-##            msg = "Expected Module, got %s instead" % typename
-##            raise TypeError(msg)
+        ##        if not isinstance(aModule, Module):
+        ##            if hasattr(aModule, '__class__'):
+        ##                typename = aModule.__class__.__name__
+        ##            else:
+        ##                typename = str(type(aModule))
+        ##            msg = "Expected Module, got %s instead" % typename
+        ##            raise TypeError(msg)
         lpBaseOfDll = aModule.get_base()
-##        if lpBaseOfDll in self.__moduleDict:
-##            msg = "Module already exists: %d" % lpBaseOfDll
-##            raise KeyError(msg)
+        ##        if lpBaseOfDll in self.__moduleDict:
+        ##            msg = "Module already exists: %d" % lpBaseOfDll
+        ##            raise KeyError(msg)
         aModule.set_process(self)
         self.__moduleDict[lpBaseOfDll] = aModule
 
@@ -1925,7 +1896,7 @@ When called as an instance method, the fuzzy syntax mode is used::
             msg = "Unknown base address %d" % HexDump.address(lpBaseOfDll)
             warnings.warn(msg, RuntimeWarning)
         if aModule:
-            aModule.clear()     # remove circular references
+            aModule.clear()  # remove circular references
 
     def __add_loaded_module(self, event):
         """
@@ -1935,29 +1906,25 @@ When called as an instance method, the fuzzy syntax mode is used::
         @param event: Event object.
         """
         lpBaseOfDll = event.get_module_base()
-        hFile       = event.get_file_handle()
-##        if not self.has_module(lpBaseOfDll):  # XXX this would trigger a scan
+        hFile = event.get_file_handle()
+        ##        if not self.has_module(lpBaseOfDll):  # XXX this would trigger a scan
         if lpBaseOfDll not in self.__moduleDict:
             fileName = event.get_filename()
             if not fileName:
                 fileName = None
-            if hasattr(event, 'get_start_address'):
+            if hasattr(event, "get_start_address"):
                 EntryPoint = event.get_start_address()
             else:
                 EntryPoint = None
-            aModule  = Module(lpBaseOfDll, hFile, fileName = fileName,
-                                                EntryPoint = EntryPoint,
-                                                   process = self)
+            aModule = Module(lpBaseOfDll, hFile, fileName=fileName, EntryPoint=EntryPoint, process=self)
             self._add_module(aModule)
         else:
             aModule = self.get_module(lpBaseOfDll)
-            if not aModule.hFile and hFile not in (None, 0,
-                                                   win32.INVALID_HANDLE_VALUE):
+            if not aModule.hFile and hFile not in (None, 0, win32.INVALID_HANDLE_VALUE):
                 aModule.hFile = hFile
             if not aModule.process:
                 aModule.process = self
-            if aModule.EntryPoint is None and \
-                                           hasattr(event, 'get_start_address'):
+            if aModule.EntryPoint is None and hasattr(event, "get_start_address"):
                 aModule.EntryPoint = event.get_start_address()
             if not aModule.fileName:
                 fileName = event.get_filename()
@@ -2010,7 +1977,7 @@ When called as an instance method, the fuzzy syntax mode is used::
         @return: C{True} to call the user-defined handle, C{False} otherwise.
         """
         lpBaseOfDll = event.get_module_base()
-##        if self.has_module(lpBaseOfDll):  # XXX this would trigger a scan
+        ##        if self.has_module(lpBaseOfDll):  # XXX this would trigger a scan
         if lpBaseOfDll in self.__moduleDict:
             self._del_module(lpBaseOfDll)
         return True

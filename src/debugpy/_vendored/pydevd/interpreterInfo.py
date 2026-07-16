@@ -1,4 +1,4 @@
-'''
+"""
 This module was created to get information available in the interpreter, such as libraries,
 paths, etc.
 
@@ -10,30 +10,28 @@ format is something as
 EXECUTABLE:python.exe|libs@compiled_dlls$builtin_mods
 
 all internal are separated by |
-'''
+"""
 import sys
 
 try:
     import os.path
 
     def fully_normalize_path(path):
-        '''fixes the path so that the format of the path really reflects the directories in the system
-        '''
+        """fixes the path so that the format of the path really reflects the directories in the system"""
         return os.path.normpath(path)
 
     join = os.path.join
 except:  # ImportError or AttributeError.
-
     # See: http://stackoverflow.com/questions/10254353/error-while-installing-jython-for-pydev
     def fully_normalize_path(path):
-        '''fixes the path so that the format of the path really reflects the directories in the system
-        '''
+        """fixes the path so that the format of the path really reflects the directories in the system"""
         return path
 
     def join(a, b):
-        if a.endswith('/') or a.endswith('\\'):
+        if a.endswith("/") or a.endswith("\\"):
             return a + b
-        return a + '/' + b
+        return a + "/" + b
+
 
 IS_PYTHON_3_ONWARDS = 0
 
@@ -48,21 +46,20 @@ try:
     False
     True
 except:
-    exec ('True, False = 1,0')  # An exec is used so that python 3k does not give a syntax error
+    exec("True, False = 1,0")  # An exec is used so that python 3k does not give a syntax error
 
 if sys.platform == "cygwin":
-
     import ctypes
 
     def native_path(path):
         MAX_PATH = 512  # On cygwin NT, its 260 lately, but just need BIG ENOUGH buffer
-        '''Get the native form of the path, like c:\\Foo for /cygdrive/c/Foo'''
+        """Get the native form of the path, like c:\\Foo for /cygdrive/c/Foo"""
 
         retval = ctypes.create_string_buffer(MAX_PATH)
         path = fully_normalize_path(path)
         path = tobytes(path)
         CCP_POSIX_TO_WIN_A = 0
-        cygwin1dll = ctypes.cdll.LoadLibrary('cygwin1.dll')
+        cygwin1dll = ctypes.cdll.LoadLibrary("cygwin1.dll")
         cygwin1dll.cygwin_conv_path(CCP_POSIX_TO_WIN_A, path, retval, MAX_PATH)
 
         return retval.value
@@ -74,29 +71,30 @@ else:
 
 
 def __getfilesystemencoding():
-    '''
+    """
     Note: there's a copy of this method in _pydev_filesystem_encoding.py
-    '''
+    """
     try:
         ret = sys.getfilesystemencoding()
         if not ret:
-            raise RuntimeError('Unable to get encoding.')
+            raise RuntimeError("Unable to get encoding.")
         return ret
     except:
         try:
             # Handle Jython
             from java.lang import System  # @UnresolvedImport
+
             env = System.getProperty("os.name").lower()
-            if env.find('win') != -1:
-                return 'ISO-8859-1'  # mbcs does not work on Jython, so, use a (hopefully) suitable replacement
-            return 'utf-8'
+            if env.find("win") != -1:
+                return "ISO-8859-1"  # mbcs does not work on Jython, so, use a (hopefully) suitable replacement
+            return "utf-8"
         except:
             pass
 
         # Only available from 2.3 onwards.
-        if sys.platform == 'win32':
-            return 'mbcs'
-        return 'utf-8'
+        if sys.platform == "win32":
+            return "mbcs"
+        return "utf-8"
 
 
 def getfilesystemencoding():
@@ -104,14 +102,14 @@ def getfilesystemencoding():
         ret = __getfilesystemencoding()
 
         # Check if the encoding is actually there to be used!
-        if hasattr('', 'encode'):
-            ''.encode(ret)
-        if hasattr('', 'decode'):
-            ''.decode(ret)
+        if hasattr("", "encode"):
+            "".encode(ret)
+        if hasattr("", "decode"):
+            "".decode(ret)
 
         return ret
     except:
-        return 'utf-8'
+        return "utf-8"
 
 
 file_system_encoding = getfilesystemencoding()
@@ -126,7 +124,7 @@ else:
 
 
 def tounicode(s):
-    if hasattr(s, 'decode'):
+    if hasattr(s, "decode"):
         if not isinstance(s, unicode_type):
             # Depending on the platform variant we may have decode on string or not.
             return s.decode(file_system_encoding)
@@ -134,7 +132,7 @@ def tounicode(s):
 
 
 def tobytes(s):
-    if hasattr(s, 'encode'):
+    if hasattr(s, "encode"):
         if not isinstance(s, bytes_type):
             return s.encode(file_system_encoding)
     return s
@@ -148,13 +146,13 @@ def toasciimxl(s):
     s = s.replace("&", "&amp;")
 
     try:
-        ret = s.encode('ascii', 'xmlcharrefreplace')
+        ret = s.encode("ascii", "xmlcharrefreplace")
     except:
         # use workaround
-        ret = ''
+        ret = ""
         for c in s:
             try:
-                ret += c.encode('ascii')
+                ret += c.encode("ascii")
             except:
                 try:
                     # Python 2: unicode is a valid identifier
@@ -165,10 +163,11 @@ def toasciimxl(s):
     return ret
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     try:
         # just give some time to get the reading threads attached (just in case)
         import time
+
         time.sleep(0.1)
     except:
         pass
@@ -178,8 +177,8 @@ if __name__ == '__main__':
     except:
         executable = tounicode(sys.executable)
 
-    if sys.platform == "cygwin" and not executable.endswith(tounicode('.exe')):
-        executable += tounicode('.exe')
+    if sys.platform == "cygwin" and not executable.endswith(tounicode(".exe")):
+        executable += tounicode(".exe")
 
     try:
         major = str(sys.version_info[0])
@@ -187,17 +186,18 @@ if __name__ == '__main__':
     except AttributeError:
         # older versions of python don't have version_info
         import string
-        s = string.split(sys.version, ' ')[0]
-        s = string.split(s, '.')
+
+        s = string.split(sys.version, " ")[0]
+        s = string.split(s, ".")
         major = s[0]
         minor = s[1]
 
-    s = tounicode('%s.%s') % (tounicode(major), tounicode(minor))
+    s = tounicode("%s.%s") % (tounicode(major), tounicode(minor))
 
-    contents = [tounicode('<xml>')]
-    contents.append(tounicode('<version>%s</version>') % (tounicode(s),))
+    contents = [tounicode("<xml>")]
+    contents.append(tounicode("<version>%s</version>") % (tounicode(s),))
 
-    contents.append(tounicode('<executable>%s</executable>') % tounicode(executable))
+    contents.append(tounicode("<executable>%s</executable>") % tounicode(executable))
 
     # this is the new implementation to get the system folders
     # (still need to check if it works in linux)
@@ -218,6 +218,7 @@ if __name__ == '__main__':
 
         try:
             import string  # to be compatible with older versions
+
             if string.find(p, prefix) == 0:  # was startswith
                 result.append((p, True))
             else:
@@ -240,10 +241,10 @@ if __name__ == '__main__':
     # nor forced libs
 
     for builtinMod in sys.builtin_module_names:
-        contents.append(tounicode('<forced_lib>%s</forced_lib>') % tounicode(builtinMod))
+        contents.append(tounicode("<forced_lib>%s</forced_lib>") % tounicode(builtinMod))
 
-    contents.append(tounicode('</xml>'))
-    unic = tounicode('\n').join(contents)
+    contents.append(tounicode("</xml>"))
+    unic = tounicode("\n").join(contents)
     inasciixml = toasciimxl(unic)
     if IS_PYTHON_3_ONWARDS:
         # This is the 'official' way of writing binary output in Py3K (see: http://bugs.python.org/issue4571)

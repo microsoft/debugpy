@@ -28,21 +28,20 @@ import sys
 import types
 
 
-
 # Useful for very coarse version differentiation.
 PY2 = sys.version_info[0] == 2
 PY3 = sys.version_info[0] == 3
 
 if PY3:
-    string_types = str,
-    integer_types = int,
-    class_types = type,
+    string_types = (str,)
+    integer_types = (int,)
+    class_types = (type,)
     text_type = str
     binary_type = bytes
 
     MAXSIZE = sys.maxsize
 else:
-    string_types = basestring,
+    string_types = (basestring,)
     integer_types = (int, long)
     class_types = (type, types.ClassType)
     text_type = unicode
@@ -56,6 +55,7 @@ else:
         class X(object):
             def __len__(self):
                 return 1 << 31
+
         try:
             len(X())
         except OverflowError:
@@ -71,23 +71,24 @@ if PY3:
     xrange = range
     unicode = str
     bytes = bytes
+
     def iterkeys(d, **kw):
-        if hasattr(d, 'iterkeys'):
+        if hasattr(d, "iterkeys"):
             return iter(d.iterkeys(**kw))
         return iter(d.keys(**kw))
 
     def itervalues(d, **kw):
-        if hasattr(d, 'itervalues'):
+        if hasattr(d, "itervalues"):
             return iter(d.itervalues(**kw))
         return iter(d.values(**kw))
 
     def iteritems(d, **kw):
-        if hasattr(d, 'iteritems'):
+        if hasattr(d, "iteritems"):
             return iter(d.iteritems(**kw))
         return iter(d.items(**kw))
 
     def iterlists(d, **kw):
-        if hasattr(d, 'iterlists'):
+        if hasattr(d, "iterlists"):
             return iter(d.iterlists(**kw))
         return iter(d.lists(**kw))
 
@@ -97,6 +98,7 @@ else:
     unicode = unicode
     xrange = xrange
     bytes = str
+
     def keys(d, **kw):
         return d.keys(**kw)
 
@@ -112,10 +114,11 @@ else:
     def iterlists(d, **kw):
         return iter(d.iterlists(**kw))
 
+
 if PY3:
     import builtins
-    exec_ = getattr(builtins, "exec")
 
+    exec_ = getattr(builtins, "exec")
 
     def reraise(tp, value, tb=None):
         if value is None:
@@ -125,6 +128,7 @@ if PY3:
         raise value
 
 else:
+
     def exec_(_code_, _globs_=None, _locs_=None):
         """Execute code in a namespace."""
         if _globs_ is None:
@@ -137,23 +141,28 @@ else:
             _locs_ = _globs_
         exec("""exec _code_ in _globs_, _locs_""")
 
-
-    exec_("""def reraise(tp, value, tb=None):
+    exec_(
+        """def reraise(tp, value, tb=None):
     raise tp, value, tb
-""")
+"""
+    )
 
 
 if PY3:
     import operator
+
     def b(s):
         if isinstance(s, str):
             return s.encode("latin-1")
         assert isinstance(s, bytes)
         return s
+
     def u(s):
         return s
+
     unichr = chr
     if sys.version_info[1] <= 1:
+
         def int2byte(i):
             return bytes((i,))
     else:
@@ -163,21 +172,30 @@ if PY3:
     indexbytes = operator.getitem
     iterbytes = iter
     import io
+
     StringIO = io.StringIO
     BytesIO = io.BytesIO
 else:
+
     def b(s):
         return s
+
     # Workaround for standalone backslash
     def u(s):
-        return unicode(s.replace(r'\\', r'\\\\'), "unicode_escape")
+        return unicode(s.replace(r"\\", r"\\\\"), "unicode_escape")
+
     unichr = unichr
     int2byte = chr
+
     def byte2int(bs):
         return ord(bs[0])
+
     def indexbytes(buf, i):
         return ord(buf[i])
+
     def iterbytes(buf):
         return (ord(byte) for byte in buf)
+
     import StringIO
+
     StringIO = BytesIO = StringIO.StringIO

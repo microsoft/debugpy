@@ -7,7 +7,7 @@ import os
 import re
 import sys
 from importlib.util import find_spec
-from typing import Any, Tuple, Union, Dict
+from typing import Any, Union, Tuple, Dict, Literal
 
 # debugpy.__main__ should have preloaded pydevd properly before importing this module.
 # Otherwise, some stdlib modules above might have had imported threading before pydevd
@@ -20,9 +20,10 @@ from _pydevd_bundle import pydevd_runpy as runpy
 
 import debugpy
 import debugpy.server
-from debugpy.common import log
+from debugpy.common import log, sockets
 from debugpy.server import api
 
+TargetKind = Literal["file", "module", "code", "pid"]
 
 TARGET = "<filename> | -m <module> | -c <code> | --pid <pid>"
 
@@ -34,6 +35,9 @@ Usage: debugpy --listen | --connect
                [--wait-for-client]
                [--configure-<name> <value>]...
                [--log-to <path>] [--log-to-stderr]
+               [--parent-session-pid <pid>]]
+               [--adapter-access-token <token>]
+               [--disable-sys-remote-exec]]
                {1}
                [<arg>]...
 """.format(
@@ -41,16 +45,19 @@ Usage: debugpy --listen | --connect
 )
 
 
+# Changes here should be aligned with the public API CliOptions.
 class Options(object):
-    mode = None
+    mode: Union[Literal["connect", "listen"], None] = None
     address: Union[Tuple[str, int], None] = None
     log_to = None
     log_to_stderr = False
     target: Union[str, None] = None
-    target_kind: Union[str, None] = None
+    target_kind: Union[TargetKind, None] = None
     wait_for_client = False
     adapter_access_token = None
     config: Dict[str, Any] = {}
+    parent_session_pid: Union[int, None] = None
+    disable_sys_remote_exec = False
 
 
 options = Options()
@@ -104,15 +111,16 @@ def set_address(mode):
 
         # It's either host:port, or just port.
         value = next(it)
-        host, sep, port = value.partition(":")
+        host, sep, port = value.rpartition(":")
+        host = host.strip("[]")
         if not sep:
-            host = "127.0.0.1"
+            host = sockets.get_default_localhost()
             port = value
         try:
             port = int(port)
         except Exception:
             port = -1
-        if not (0 <= port < 2 ** 16):
+        if not (0 <= port < 2**16):
             raise ValueError("invalid port number")
 
         options.mode = mode
@@ -142,7 +150,7 @@ def set_config(arg, it):
     options.config[name] = value
 
 
-def set_target(kind: str, parser=(lambda x: x), positional=False):
+def set_target(kind: TargetKind, parser=(lambda x: x), positional=False):
     def do(arg, it):
         options.target_kind = kind
         target = parser(arg if positional else next(it))
@@ -158,6 +166,7 @@ def set_target(kind: str, parser=(lambda x: x), positional=False):
                     import locale
 
                     target = target.decode(locale.getpreferredencoding(False))
+
         options.target = target
 
     return do
@@ -177,9 +186,9 @@ switches = [
     ("--connect",               "<address>",        set_address("connect")),
     ("--wait-for-client",       None,               set_const("wait_for_client", True)),
     ("--configure-.+",          "<value>",          set_config),
-
-    # Switches that are used internally by the client or debugpy itself.
+    ("--parent-session-pid",    "<pid>",            set_arg("parent_session_pid", lambda x: int(x) if x else None)),
     ("--adapter-access-token",   "<token>",         set_arg("adapter_access_token")),
+    ("--disable-sys-remote-exec", None,             set_const("disable_sys_remote_exec", True)),
 
     # Targets. The "" entry corresponds to positional command line arguments,
     # i.e. the ones not preceded by any switch name.
@@ -191,6 +200,7 @@ switches = [
 # fmt: on
 
 
+# Consume all the args from argv
 def consume_argv():
     while len(sys.argv) >= 2:
         value = sys.argv[1]
@@ -198,15 +208,72 @@ def consume_argv():
         yield value
 
 
-def parse_argv():
+# Consume all the args from a given list
+def consume_args(args: list):
+    if args is sys.argv:
+        yield from consume_argv()
+    else:
+        while args:
+            value = args[0]
+            del args[0]
+            yield value
+
+
+# Parse the args from the command line, then from the environment.
+# Args from the environment are only used if they are not already set from the command line.
+def parse_args():
+
+    # keep track of the switches we've seen so far
     seen = set()
-    it = consume_argv()
+
+    parse_args_from_command_line(seen)
+    parse_args_from_environment(seen)
+
+    # if the target is not set, or is empty, this is an error
+    if options.target is None or options.target == "":
+        raise ValueError("missing target: " + TARGET)
+
+    if options.mode is None:
+        raise ValueError("either --listen or --connect is required")
+    if options.adapter_access_token is not None and options.mode != "connect":
+        raise ValueError("--adapter-access-token requires --connect")
+    if options.parent_session_pid is not None and options.mode != "connect":
+        raise ValueError("--parent-session-pid requires --connect")
+    if options.target_kind == "pid" and options.wait_for_client:
+        raise ValueError("--pid does not support --wait-for-client")
+
+    assert options.target_kind is not None
+    assert options.address is not None
+
+
+def parse_args_from_command_line(seen: set):
+    parse_args_helper(sys.argv, seen)
+
+
+def parse_args_from_environment(seenFromCommandLine: set):
+    args = os.environ.get("DEBUGPY_EXTRA_ARGV")
+    if not args:
+        return
+
+    argsList = args.split()
+
+    seenFromEnvironment = set()
+    parse_args_helper(argsList, seenFromCommandLine, seenFromEnvironment, True)
+
+
+def parse_args_helper(
+    args: list,
+    seenFromCommandLine: set,
+    seenFromEnvironment: set = set(),
+    isFromEnvironment=False,
+):
+    iterator = consume_args(args)
 
     while True:
         try:
-            arg = next(it)
+            arg = next(iterator)
         except StopIteration:
-            raise ValueError("missing target: " + TARGET)
+            break
 
         switch = arg
         if not switch.startswith("-"):
@@ -217,32 +284,36 @@ def parse_argv():
         else:
             raise ValueError("unrecognized switch " + switch)
 
-        if switch in seen:
-            raise ValueError("duplicate switch " + switch)
+        # if we're parsing from the command line, and we've already seen the switch on the command line, this is an error
+        if not isFromEnvironment and switch in seenFromCommandLine:
+            raise ValueError("duplicate switch on command line: " + switch)
+        # if we're parsing from the environment, and we've already seen the switch in the environment, this is an error
+        elif isFromEnvironment and switch in seenFromEnvironment:
+            raise ValueError("duplicate switch from environment: " + switch)
+        # if we're parsing from the environment, and we've already seen the switch on the command line, skip it, since command line takes precedence
+        elif isFromEnvironment and switch in seenFromCommandLine:
+            continue
+        # otherwise, the switch is new, so add it to the appropriate set
         else:
-            seen.add(switch)
+            if isFromEnvironment:
+                seenFromEnvironment.add(switch)
+            else:
+                seenFromCommandLine.add(switch)
 
+        # process the switch, running the corresponding action
         try:
-            action(arg, it)
+            action(arg, iterator)
         except StopIteration:
             assert placeholder is not None
             raise ValueError("{0}: missing {1}".format(switch, placeholder))
         except Exception as exc:
             raise ValueError("invalid {0} {1}: {2}".format(switch, placeholder, exc))
 
-        if options.target is not None:
+        # If we're parsing the command line, we're done after we've processed the target
+        # Otherwise, we need to keep parsing until all args are consumed, since the target may be set from the command line
+        # already, but there might be additional args in the environment that we want to process.
+        if not isFromEnvironment and options.target is not None:
             break
-
-    if options.mode is None:
-        raise ValueError("either --listen or --connect is required")
-    if options.adapter_access_token is not None and options.mode != "connect":
-        raise ValueError("--adapter-access-token requires --connect")
-    if options.target_kind == "pid" and options.wait_for_client:
-        raise ValueError("--pid does not support --wait-for-client")
-
-    assert options.target is not None
-    assert options.target_kind is not None
-    assert options.address is not None
 
 
 def start_debugging(argv_0):
@@ -255,15 +326,18 @@ def start_debugging(argv_0):
 
     debugpy.configure(options.config)
 
-    if options.mode == "listen" and options.address is not None:
-        debugpy.listen(options.address)
-    elif options.mode == "connect" and options.address is not None:
-        debugpy.connect(options.address, access_token=options.adapter_access_token)
-    else:
-        raise AssertionError(repr(options.mode))
+    if os.environ.get("DEBUGPY_RUNNING", "false") != "true":
+        if options.mode == "listen" and options.address is not None:
+            debugpy.listen(options.address)
+        elif options.mode == "connect" and options.address is not None:
+            debugpy.connect(options.address, access_token=options.adapter_access_token, parent_session_pid=options.parent_session_pid)
+        else:
+            raise AssertionError(repr(options.mode))
 
-    if options.wait_for_client:
-        debugpy.wait_for_client()
+        if options.wait_for_client:
+            debugpy.wait_for_client()
+
+    os.environ["DEBUGPY_RUNNING"] = "true"
 
 
 def run_file():
@@ -376,6 +450,37 @@ attach_pid_injected.attach(setup);
         .replace("\n", "")
         .format(script_dir=script_dir, setup=setup)
     )
+
+    # attempt pep 768 style code injection
+    if (not options.disable_sys_remote_exec) and hasattr(sys, "remote_exec"):
+        tmp_file_path = ""
+        try:
+            import tempfile
+
+            with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
+                tmp_file_path = tmp_file.name
+                log.info(
+                    "Attempting to inject code at '{tmp_file_path}' using sys.remote_exec()",
+                    tmp_file_path=tmp_file_path,
+                )
+                tmp_file.write(python_code.encode())
+                tmp_file.write(
+                    """import os;os.remove({tmp_file_path!r});""".format(
+                        tmp_file_path=tmp_file_path
+                    ).encode()
+                )
+                tmp_file.flush()
+                tmp_file.close()
+                sys.remote_exec(pid, tmp_file_path)
+            return
+        except Exception as e:
+            if os.path.exists(tmp_file_path):
+                os.remove(tmp_file_path)
+            log.warning(
+                'Injecting code using sys.remote_exec() failed with error:\n"{e}"\nWill reattempt using pydevd.\n',
+                e=e,
+            )
+
     log.info("Code to be injected: \n{0}", python_code.replace(";", ";\n"))
 
     # pydevd restriction on characters in injected code.
@@ -408,7 +513,7 @@ attach_pid_injected.attach(setup);
 def main():
     original_argv = list(sys.argv)
     try:
-        parse_argv()
+        parse_args()
     except Exception as exc:
         print(str(HELP) + str("\nError: ") + str(exc), file=sys.stderr)
         sys.exit(2)

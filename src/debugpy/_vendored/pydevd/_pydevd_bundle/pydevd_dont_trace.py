@@ -1,6 +1,6 @@
-'''
+"""
 Support for a tag that allows skipping over functions while debugging.
-'''
+"""
 import linecache
 import re
 
@@ -17,21 +17,21 @@ import re
 #
 # def test2(): #@DontTrace
 #     pass
-DONT_TRACE_TAG = '@DontTrace'
+DONT_TRACE_TAG = "@DontTrace"
 
 # Regular expression to match a decorator (at the beginning
 # of a line).
-RE_DECORATOR = re.compile(r'^\s*@')
+RE_DECORATOR = re.compile(r"^\s*@")
 
 # Mapping from code object to bool.
 # If the key exists, the value is the cached result of should_trace_hook
 _filename_to_ignored_lines = {}
 
 
-def default_should_trace_hook(frame, absolute_filename):
-    '''
+def default_should_trace_hook(code, absolute_filename):
+    """
     Return True if this frame should be traced, False if tracing should be blocked.
-    '''
+    """
     # First, check whether this code object has a cached value
     ignored_lines = _filename_to_ignored_lines.get(absolute_filename)
     if ignored_lines is None:
@@ -47,7 +47,7 @@ def default_should_trace_hook(frame, absolute_filename):
         ignored_lines = {}
         lines = linecache.getlines(absolute_filename)
         for i_line, line in enumerate(lines):
-            j = line.find('#')
+            j = line.find("#")
             if j >= 0:
                 comment = line[j:]
                 if DONT_TRACE_TAG in comment:
@@ -72,20 +72,21 @@ def default_should_trace_hook(frame, absolute_filename):
 
         _filename_to_ignored_lines[absolute_filename] = ignored_lines
 
-    func_line = frame.f_code.co_firstlineno - 1  # co_firstlineno is 1-based, so -1 is needed
+    func_line = code.co_firstlineno - 1  # co_firstlineno is 1-based, so -1 is needed
     return not (
-        func_line - 1 in ignored_lines or  # -1 to get line before method
-        func_line in ignored_lines)  # method line
+        func_line - 1 in ignored_lines  # -1 to get line before method
+        or func_line in ignored_lines
+    )  # method line
 
 
 should_trace_hook = None
 
 
 def clear_trace_filter_cache():
-    '''
+    """
     Clear the trace filter cache.
     Call this after reloading.
-    '''
+    """
     global should_trace_hook
     try:
         # Need to temporarily disable a hook because otherwise
@@ -102,14 +103,14 @@ def clear_trace_filter_cache():
 
 
 def trace_filter(mode):
-    '''
+    """
     Set the trace filter mode.
 
     mode: Whether to enable the trace hook.
       True: Trace filtering on (skipping methods tagged @DontTrace)
       False: Trace filtering off (trace methods tagged @DontTrace)
       None/default: Toggle trace filtering.
-    '''
+    """
     global should_trace_hook
     if mode is None:
         mode = should_trace_hook is None
@@ -120,4 +121,3 @@ def trace_filter(mode):
         should_trace_hook = None
 
     return mode
-

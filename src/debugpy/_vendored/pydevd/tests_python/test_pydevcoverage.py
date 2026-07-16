@@ -6,9 +6,9 @@ import tempfile
 import unittest
 
 
-#=======================================================================================================================
+# =======================================================================================================================
 # Test
-#=======================================================================================================================
+# =======================================================================================================================
 class Test(unittest.TestCase):
     """
     Unittest for pydev_coverage.py.
@@ -26,20 +26,19 @@ class Test(unittest.TestCase):
     def _do_analyze(self, files):
         invalid_files = []
 
-        p = subprocess.Popen([sys.executable, self._coverage_file, "--pydev-analyze"],
-                             stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
+        p = subprocess.Popen(
+            [sys.executable, self._coverage_file, "--pydev-analyze"], stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.PIPE
+        )
         __, stderrdata = p.communicate("|".join(files).encode())
 
         if stderrdata:
-            match = re.search("Invalid files not passed to coverage: (.*?)$",
-                              stderrdata.decode(), re.M)  # @UndefinedVariable
+            match = re.search("Invalid files not passed to coverage: (.*?)$", stderrdata.decode(), re.M)  # @UndefinedVariable
             if match:
                 invalid_files = [f.strip() for f in match.group(1).split(",")]
         return invalid_files
 
     def test_pydev_analyze_ok(self):
-        ref_valid_files = [__file__,
-            os.path.join(self._resources_path, "_debugger_case18.py")]
+        ref_valid_files = [__file__, os.path.join(self._resources_path, "_debugger_case18.py")]
         ref_invalid_files = []
 
         invalid_files = self._do_analyze(ref_valid_files)
@@ -47,9 +46,7 @@ class Test(unittest.TestCase):
         self.assertEqual(ref_invalid_files, invalid_files)
 
     def test_pydev_analyse_non_standard_encoding(self):
-        ref_valid_files = [os.path.join(self._resources_path,
-                                        "_pydev_coverage_cyrillic_encoding_py%i.py"
-                                        % sys.version_info[0])]
+        ref_valid_files = [os.path.join(self._resources_path, "_pydev_coverage_cyrillic_encoding_py%i.py" % sys.version_info[0])]
         ref_invalid_files = []
 
         invalid_files = self._do_analyze(ref_valid_files + ref_invalid_files)
@@ -59,9 +56,7 @@ class Test(unittest.TestCase):
     def test_pydev_analyse_invalid_files(self):
         with tempfile.NamedTemporaryFile(suffix=".pyx") as pyx_file:
             ref_valid_files = []
-            ref_invalid_files = [os.path.join(self._resources_path,
-                                              "_pydev_coverage_syntax_error.py"),
-                                 pyx_file.name]
+            ref_invalid_files = [os.path.join(self._resources_path, "_pydev_coverage_syntax_error.py"), pyx_file.name]
 
             invalid_files = self._do_analyze(ref_valid_files + ref_invalid_files)
 

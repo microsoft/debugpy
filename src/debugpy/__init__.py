@@ -15,6 +15,7 @@ __all__ = [  # noqa
     "configure",
     "connect",
     "debug_this_thread",
+    "get_cli_options",
     "is_client_connected",
     "listen",
     "log_to",

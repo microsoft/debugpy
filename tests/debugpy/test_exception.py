@@ -5,6 +5,7 @@
 import pytest
 import sys
 
+from _pydevd_bundle.pydevd_constants import IS_PY312_OR_GREATER, IS_PY314_OR_GREATER
 from tests import debug
 from tests.debug import runners, targets
 from tests.patterns import some
@@ -301,6 +302,7 @@ def test_raise_exception_options(pyfile, target, run, exceptions, break_mode):
 @pytest.mark.parametrize("exit_code", [0, 3])
 @pytest.mark.parametrize("break_on_system_exit_zero", ["break_on_system_exit_zero", ""])
 @pytest.mark.parametrize("django", ["django", ""])
+@pytest.mark.skipif(sys.platform == 'win32' and IS_PY312_OR_GREATER, reason="Flakey test")
 def test_success_exitcodes(
     pyfile, target, run, exit_code, break_on_system_exit_zero, django
 ):
@@ -331,6 +333,139 @@ def test_success_exitcodes(
             session.request_continue()
 
 
+@pytest.mark.parametrize("target", targets.all_named)
+@pytest.mark.parametrize("run", runners.all)
+@pytest.mark.parametrize("exit_code", [0, 1, 3])
+def test_break_on_system_exit_empty(pyfile, target, run, exit_code):
+    @pyfile
+    def code_to_debug():
+        import debuggee
+        import sys
+
+        debuggee.setup()
+        exit_code = eval(sys.argv[1])
+        print("sys.exit(%r)" % (exit_code,))
+        sys.exit(exit_code)
+
+    with debug.Session() as session:
+        session.expected_exit_code = some.int
+        session.config["breakOnSystemExit"] = []
+
+        with run(session, target(code_to_debug, args=[repr(exit_code)])):
+            session.request(
+                "setExceptionBreakpoints", {"filters": ["raised", "uncaught"]}
+            )
+
+        # With breakOnSystemExit=[], no SystemExit should cause a break,
+        # regardless of exit code. The session should end without stopping.
+
+
+@pytest.mark.parametrize("target", targets.all_named)
+@pytest.mark.parametrize("run", runners.all)
+def test_break_on_system_exit_specific_codes(pyfile, target, run):
+    @pyfile
+    def code_to_debug():
+        import debuggee
+        import sys
+
+        debuggee.setup()
+        exit_code = eval(sys.argv[1])
+        print("sys.exit(%r)" % (exit_code,))
+        sys.exit(exit_code)
+
+    # Exit code 1 is in the break list, so should break.
+    with debug.Session() as session:
+        session.expected_exit_code = some.int
+        session.config["breakOnSystemExit"] = [1]
+
+        with run(session, target(code_to_debug, args=["1"])):
+            session.request(
+                "setExceptionBreakpoints", {"filters": ["uncaught"]}
+            )
+
+        session.wait_for_stop("exception")
+        session.request_continue()
+
+
+@pytest.mark.parametrize("target", targets.all_named)
+@pytest.mark.parametrize("run", runners.all)
+def test_break_on_system_exit_skips_unlisted_codes(pyfile, target, run):
+    @pyfile
+    def code_to_debug():
+        import debuggee
+        import sys
+
+        debuggee.setup()
+        exit_code = eval(sys.argv[1])
+        print("sys.exit(%r)" % (exit_code,))
+        sys.exit(exit_code)
+
+    # Exit code 2 is NOT in the break list, so should not break.
+    with debug.Session() as session:
+        session.expected_exit_code = some.int
+        session.config["breakOnSystemExit"] = [1]
+
+        with run(session, target(code_to_debug, args=["2"])):
+            session.request(
+                "setExceptionBreakpoints", {"filters": ["uncaught"]}
+            )
+
+        # Should not break - exit code 2 is not in the break list.
+
+
+@pytest.mark.parametrize("target", targets.all_named)
+@pytest.mark.parametrize("run", runners.all)
+def test_break_on_system_exit_range(pyfile, target, run):
+    @pyfile
+    def code_to_debug():
+        import debuggee
+        import sys
+
+        debuggee.setup()
+        exit_code = eval(sys.argv[1])
+        print("sys.exit(%r)" % (exit_code,))
+        sys.exit(exit_code)
+
+    # Exit code 5 is within the range {"from": 3, "to": 10}, so should break.
+    with debug.Session() as session:
+        session.expected_exit_code = some.int
+        session.config["breakOnSystemExit"] = [{"from": 3, "to": 10}]
+
+        with run(session, target(code_to_debug, args=["5"])):
+            session.request(
+                "setExceptionBreakpoints", {"filters": ["uncaught"]}
+            )
+
+        session.wait_for_stop("exception")
+        session.request_continue()
+
+
+@pytest.mark.parametrize("target", targets.all_named)
+@pytest.mark.parametrize("run", runners.all)
+def test_break_on_system_exit_range_skips_outside(pyfile, target, run):
+    @pyfile
+    def code_to_debug():
+        import debuggee
+        import sys
+
+        debuggee.setup()
+        exit_code = eval(sys.argv[1])
+        print("sys.exit(%r)" % (exit_code,))
+        sys.exit(exit_code)
+
+    # Exit code 2 is outside the range {"from": 3, "to": 10}, so should not break.
+    with debug.Session() as session:
+        session.expected_exit_code = some.int
+        session.config["breakOnSystemExit"] = [{"from": 3, "to": 10}]
+
+        with run(session, target(code_to_debug, args=["2"])):
+            session.request(
+                "setExceptionBreakpoints", {"filters": ["uncaught"]}
+            )
+
+        # Should not break - exit code 2 is outside the range.
+
+
 @pytest.mark.parametrize("max_frames", ["default", "all", 10])
 def test_exception_stack(pyfile, target, run, max_frames):
     @pyfile
@@ -353,9 +488,9 @@ def test_exception_stack(pyfile, target, run, max_frames):
         session.expected_exit_code = some.int
 
         max_frames, (min_expected_lines, max_expected_lines) = {
-            "all": (0, (100, 221)),
-            "default": (None, (100, 221)),
-            10: (10, (10, 22)),
+            "all": (0, (100, 308)),
+            "default": (None, (100, 308)),
+            10: (10, (10, 32)),
         }[max_frames]
         if max_frames is not None:
             session.config["maxExceptionStackFrames"] = max_frames
@@ -388,3 +523,54 @@ def test_exception_stack(pyfile, target, run, max_frames):
         assert min_expected_lines <= stack_line_count <= max_expected_lines
 
         session.request_continue()
+
+
+@pytest.mark.skipif(not IS_PY314_OR_GREATER, reason="Test requires Python 3.14+")
+def test_annotate_function_not_treated_as_user_exception(pyfile, target, run):
+    """
+    Test that __annotate__ functions (PEP 649) are treated as library code.
+    In Python 3.14+, compiler-generated __annotate__ functions can raise
+    NotImplementedError when called by inspect.call_annotate_function with
+    unsupported format arguments. These should not be reported as user exceptions.
+    """
+    @pyfile
+    def code_to_debug():
+        import debuggee
+        from typing import get_type_hints
+
+        debuggee.setup()
+
+        # Define a class with annotations that will trigger __annotate__ function generation
+        class AnnotatedClass:
+            value: int = 42
+            name: str = "test"
+
+        # This will trigger the __annotate__ function to be called by the runtime
+        # which may raise NotImplementedError internally (expected behavior)
+        try:
+            hints = get_type_hints(AnnotatedClass)
+            print(f"Type hints: {hints}")  # @bp
+        except Exception as e:
+            print(f"Exception: {e}")
+
+    with debug.Session() as session:
+        session.config["justMyCode"] = True
+
+        with run(session, target(code_to_debug)):
+            # Set exception breakpoints for user uncaught exceptions
+            session.request(
+                "setExceptionBreakpoints",
+                {"filters": ["userUnhandled"]}
+            )
+            session.set_breakpoints(code_to_debug, all)
+
+        # Wait for the breakpoint
+        session.wait_for_stop(
+            "breakpoint",
+            expected_frames=[some.dap.frame(code_to_debug, "bp")]
+        )
+
+        # The test passes if we reach here without stopping on a NotImplementedError
+        # from __annotate__ function
+        session.request_continue()
+

@@ -1,9 +1,11 @@
 # This is a dummy for code-completion purposes.
 
+
 def __unicode__(self):
     """
-    Return "app_label.model_label.manager_name". 
+    Return "app_label.model_label.manager_name".
     """
+
 
 def _copy_to_model(self, model):
     """
@@ -14,15 +16,11 @@ def _copy_to_model(self, model):
 
 
 def _db(self):
-    """
-
-    """
+    """ """
 
 
 def _get_queryset_methods(cls, queryset_class):
-    """
-
-    """
+    """ """
 
 
 def _hints(self):
@@ -40,9 +38,7 @@ def _hints(self):
 
 
 def _inherited(self):
-    """
-
-    """
+    """ """
 
 
 def _insert(self, *args, **kwargs):
@@ -78,7 +74,7 @@ def aggregate(self, *args, **kwargs):
     """
     Returns a dictionary containing the calculations (aggregation)
     over the current queryset
-    
+
     If args is present the expression is passed as a kwarg using
     the Aggregate object's default alias.
     """
@@ -107,36 +103,32 @@ def bulk_create(self, *args, **kwargs):
 
 
 def check(self, **kwargs):
-    """
-
-    """
+    """ """
 
 
 def complex_filter(self, *args, **kwargs):
     """
     Returns a new QuerySet instance with filter_obj added to the filters.
-    
+
     filter_obj can be a Q object (or anything with an add_to_query()
     method) or a dictionary of keyword lookup arguments.
-    
+
     This exists to support framework features such as 'limit_choices_to',
     and usually it will be more natural to use other methods.
-    
+
     @rtype: django.db.models.query.QuerySet
     """
 
 
 def contribute_to_class(self, model, name):
-    """
-
-    """
+    """ """
 
 
 def count(self, *args, **kwargs):
     """
     Performs a SELECT COUNT() and returns the number of records as an
     integer.
-    
+
     If the QuerySet is already fully cached this simply returns the length
     of the cached results set to avoid multiple SELECT COUNT(*) calls.
     """
@@ -150,9 +142,7 @@ def create(self, *args, **kwargs):
 
 
 def creation_counter(self):
-    """
-
-    """
+    """ """
 
 
 def dates(self, *args, **kwargs):
@@ -170,15 +160,11 @@ def datetimes(self, *args, **kwargs):
 
 
 def db(self):
-    """
-
-    """
+    """ """
 
 
 def db_manager(self, using=None, hints=None):
-    """
-
-    """
+    """ """
 
 
 def defer(self, *args, **kwargs):
@@ -194,30 +180,26 @@ def defer(self, *args, **kwargs):
 def distinct(self, *args, **kwargs):
     """
     Returns a new QuerySet instance that will select only distinct results.
-    
+
     @rtype: django.db.models.query.QuerySet
     """
 
 
 def earliest(self, *args, **kwargs):
-    """
-
-    """
+    """ """
 
 
 def exclude(self, *args, **kwargs):
     """
     Returns a new QuerySet instance with NOT (args) ANDed to the existing
     set.
-    
+
     @rtype: django.db.models.query.QuerySet
     """
 
 
 def exists(self, *args, **kwargs):
-    """
-
-    """
+    """ """
 
 
 def extra(self, *args, **kwargs):
@@ -230,7 +212,7 @@ def filter(self, *args, **kwargs):
     """
     Returns a new QuerySet instance with the args ANDed to the existing
     set.
-    
+
     @rtype: django.db.models.query.QuerySet
     """
 
@@ -242,9 +224,7 @@ def first(self, *args, **kwargs):
 
 
 def from_queryset(cls, queryset_class, class_name=None):
-    """
-
-    """
+    """ """
 
 
 def get(self, *args, **kwargs):
@@ -266,7 +246,7 @@ def get_queryset(self):
     """
     Returns a new QuerySet object.  Subclasses can override this method to
     easily customize the behavior of the Manager.
-    
+
     @rtype: django.db.models.query.QuerySet
     """
 
@@ -292,9 +272,7 @@ def last(self, *args, **kwargs):
 
 
 def latest(self, *args, **kwargs):
-    """
-
-    """
+    """ """
 
 
 def model(self):
@@ -306,7 +284,7 @@ def model(self):
 def none(self, *args, **kwargs):
     """
     Returns an empty QuerySet.
-    
+
     @rtype: django.db.models.query.QuerySet
     """
 
@@ -322,7 +300,7 @@ def only(self, *args, **kwargs):
 def order_by(self, *args, **kwargs):
     """
     Returns a new QuerySet instance with the ordering changed.
-    
+
     @rtype: django.db.models.query.QuerySet
     """
 
@@ -332,25 +310,23 @@ def prefetch_related(self, *args, **kwargs):
     Returns a new QuerySet instance that will prefetch the specified
     Many-To-One and Many-To-Many related objects when the QuerySet is
     evaluated.
-    
+
     When prefetch_related() is called more than once, the list of lookups to
     prefetch is appended to. If prefetch_related(None) is called, the list
     is cleared.
-    
+
     @rtype: django.db.models.query.QuerySet
     """
 
 
 def raw(self, *args, **kwargs):
-    """
-
-    """
+    """ """
 
 
 def reverse(self, *args, **kwargs):
     """
     Reverses the ordering of the QuerySet.
-    
+
     @rtype: django.db.models.query.QuerySet
     """
 
@@ -359,7 +335,7 @@ def select_for_update(self, *args, **kwargs):
     """
     Returns a new QuerySet instance that will select objects with a
     FOR UPDATE lock.
-    
+
     @rtype: django.db.models.query.QuerySet
     """
 
@@ -367,12 +343,12 @@ def select_for_update(self, *args, **kwargs):
 def select_related(self, *args, **kwargs):
     """
     Returns a new QuerySet instance that will select related objects.
-    
+
     If fields are specified, they must be ForeignKey fields and only those
     related objects are included in the selection.
-    
+
     If select_related(None) is called, the list is cleared.
-    
+
     @rtype: django.db.models.query.QuerySet
     """
 
@@ -396,19 +372,14 @@ def update_or_create(self, *args, **kwargs):
 def using(self, *args, **kwargs):
     """
     Selects which database this QuerySet should execute its query against.
-    
+
     @rtype: django.db.models.query.QuerySet
     """
 
 
 def values(self, *args, **kwargs):
-    """
-
-    """
+    """ """
 
 
 def values_list(self, *args, **kwargs):
-    """
-
-    """
-
+    """ """

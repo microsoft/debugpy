@@ -1,6 +1,7 @@
 import pkgutil
 import sys
 from _pydev_bundle import pydev_log
+
 try:
     import pydevd_plugins.extensions as extensions
 except:
@@ -9,7 +10,6 @@ except:
 
 
 class ExtensionManager(object):
-
     def __init__(self):
         self.loaded_extensions = None
         self.type_to_instance = {}
@@ -17,16 +17,15 @@ class ExtensionManager(object):
     def _load_modules(self):
         self.loaded_extensions = []
         if extensions:
-            for module_loader, name, ispkg in pkgutil.walk_packages(extensions.__path__,
-                                                                    extensions.__name__ + '.'):
-                mod_name = name.split('.')[-1]
-                if not ispkg and mod_name.startswith('pydevd_plugin'):
+            for module_loader, name, ispkg in pkgutil.walk_packages(extensions.__path__, extensions.__name__ + "."):
+                mod_name = name.split(".")[-1]
+                if not ispkg and mod_name.startswith("pydevd_plugin"):
                     try:
                         __import__(name)
                         module = sys.modules[name]
                         self.loaded_extensions.append(module)
                     except ImportError:
-                        pydev_log.critical('Unable to load extension: %s', name)
+                        pydev_log.critical("Unable to load extension: %s", name)
 
     def _ensure_loaded(self):
         if self.loaded_extensions is None:
@@ -34,9 +33,9 @@ class ExtensionManager(object):
 
     def _iter_attr(self):
         for extension in self.loaded_extensions:
-            dunder_all = getattr(extension, '__all__', None)
+            dunder_all = getattr(extension, "__all__", None)
             for attr_name in dir(extension):
-                if not attr_name.startswith('_'):
+                if not attr_name.startswith("_"):
                     if dunder_all is None or attr_name in dunder_all:
                         yield attr_name, getattr(extension, attr_name)
 
@@ -50,7 +49,7 @@ class ExtensionManager(object):
                 try:
                     handlers.append(attr())
                 except:
-                    pydev_log.exception('Unable to load extension class: %s', attr_name)
+                    pydev_log.exception("Unable to load extension class: %s", attr_name)
         return handlers
 
 
@@ -64,4 +63,3 @@ def extensions_of_type(extension_type):
     :rtype: list[T]
     """
     return EXTENSION_MANAGER_INSTANCE.get_extension_classes(extension_type)
-

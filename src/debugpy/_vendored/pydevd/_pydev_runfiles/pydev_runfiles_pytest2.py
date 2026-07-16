@@ -1,27 +1,28 @@
-from _pydev_runfiles import pydev_runfiles_xml_rpc
-import pickle
-import zlib
 import base64
 import os
-from pydevd_file_utils import canonical_normalized_path
-import pytest
+import pickle
 import sys
 import time
+import zlib
 from pathlib import Path
 
-#=========================================================================
+import pytest
+from pydevd_file_utils import canonical_normalized_path
+
+from _pydev_runfiles import pydev_runfiles_xml_rpc
+
+# =========================================================================
 # Load filters with tests we should skip
-#=========================================================================
+# =========================================================================
 py_test_accept_filter = None
 
 
 def _load_filters():
     global py_test_accept_filter
     if py_test_accept_filter is None:
-        py_test_accept_filter = os.environ.get('PYDEV_PYTEST_SKIP')
+        py_test_accept_filter = os.environ.get("PYDEV_PYTEST_SKIP")
         if py_test_accept_filter:
-            py_test_accept_filter = pickle.loads(
-                zlib.decompress(base64.b64decode(py_test_accept_filter)))
+            py_test_accept_filter = pickle.loads(zlib.decompress(base64.b64decode(py_test_accept_filter)))
 
             # Newer versions of pytest resolve symlinks, so, we
             # may need to filter with a resolved path too.
@@ -36,7 +37,7 @@ def _load_filters():
 
 
 def is_in_xdist_node():
-    main_pid = os.environ.get('PYDEV_MAIN_PID')
+    main_pid = os.environ.get("PYDEV_MAIN_PID")
     if main_pid and main_pid != str(os.getpid()):
         return True
     return False
@@ -51,10 +52,11 @@ def connect_to_server_for_communication_to_xml_rpc_on_xdist():
         return
     connected = True
     if is_in_xdist_node():
-        port = os.environ.get('PYDEV_PYTEST_SERVER')
-        if not port:
-            sys.stderr.write(
-                'Error: no PYDEV_PYTEST_SERVER environment variable defined.\n')
+        port = os.environ.get("PYDEV_PYTEST_SERVER")
+        if port == "None":
+            pass
+        elif not port:
+            sys.stderr.write("Error: no PYDEV_PYTEST_SERVER environment variable defined.\n")
         else:
             pydev_runfiles_xml_rpc.initialize_server(int(port), daemon=True)
 
@@ -73,14 +75,15 @@ def start_redirect():
     if State.buf_out is not None:
         return
     from _pydevd_bundle import pydevd_io
-    State.buf_err = pydevd_io.start_redirect(keep_original_redirection=True, std='stderr')
-    State.buf_out = pydevd_io.start_redirect(keep_original_redirection=True, std='stdout')
+
+    State.buf_err = pydevd_io.start_redirect(keep_original_redirection=True, std="stderr")
+    State.buf_out = pydevd_io.start_redirect(keep_original_redirection=True, std="stdout")
 
 
 def get_curr_output():
     buf_out = State.buf_out
     buf_err = State.buf_err
-    return buf_out.getvalue() if buf_out is not None else '', buf_err.getvalue() if buf_err is not None else ''
+    return buf_out.getvalue() if buf_out is not None else "", buf_err.getvalue() if buf_err is not None else ""
 
 
 def pytest_unconfigure():
@@ -88,8 +91,7 @@ def pytest_unconfigure():
         return
     # Only report that it finished when on the main node (we don't want to report
     # the finish on each separate node).
-    pydev_runfiles_xml_rpc.notifyTestRunFinished(
-        'Finished in: %.2f secs.' % (time.time() - State.start_time,))
+    pydev_runfiles_xml_rpc.notifyTestRunFinished("Finished in: %.2f secs." % (time.time() - State.start_time,))
 
 
 def pytest_collection_modifyitems(session, config, items):
@@ -112,7 +114,7 @@ def pytest_collection_modifyitems(session, config, items):
             # print('Skip file: %s' % (f,))
             continue  # Skip the file
 
-        i = name.find('[')
+        i = name.find("[")
         name_without_parametrize = None
         if i > 0:
             name_without_parametrize = name[:i]
@@ -138,11 +140,11 @@ def pytest_collection_modifyitems(session, config, items):
                 break
 
             if class_name is not None:
-                if test == class_name + '.' + name:
+                if test == class_name + "." + name:
                     new_items.append(item)
                     break
 
-                if name_without_parametrize is not None and test == class_name + '.' + name_without_parametrize:
+                if name_without_parametrize is not None and test == class_name + "." + name_without_parametrize:
                     new_items.append(item)
                     break
 
@@ -176,6 +178,7 @@ def _get_error_contents_from_report(report):
             stringio = tw.stringio
         except TypeError:
             import io
+
             stringio = io.StringIO()
             tw = TerminalWriter(file=stringio)
         tw.hasmarkup = False
@@ -185,13 +188,13 @@ def _get_error_contents_from_report(report):
         if s:
             return s
 
-    return ''
+    return ""
 
 
 def pytest_collectreport(report):
     error_contents = _get_error_contents_from_report(report)
     if error_contents:
-        report_test('fail', '<collect errors>', '<collect errors>', '', error_contents, 0.0)
+        report_test("fail", "<collect errors>", "<collect errors>", "", error_contents, 0.0)
 
 
 def append_strings(s1, s2):
@@ -200,10 +203,10 @@ def append_strings(s1, s2):
 
     # Prefer str
     if isinstance(s1, bytes):
-        s1 = s1.decode('utf-8', 'replace')
+        s1 = s1.decode("utf-8", "replace")
 
     if isinstance(s2, bytes):
-        s2 = s2.decode('utf-8', 'replace')
+        s2 = s2.decode("utf-8", "replace")
 
     return s1 + s2
 
@@ -217,70 +220,69 @@ def pytest_runtest_logreport(report):
     report_when = report.when
     report_outcome = report.outcome
 
-    if hasattr(report, 'wasxfail'):
-        if report_outcome != 'skipped':
-            report_outcome = 'passed'
+    if hasattr(report, "wasxfail"):
+        if report_outcome != "skipped":
+            report_outcome = "passed"
 
-    if report_outcome == 'passed':
+    if report_outcome == "passed":
         # passed on setup/teardown: no need to report if in setup or teardown
         # (only on the actual test if it passed).
-        if report_when in ('setup', 'teardown'):
+        if report_when in ("setup", "teardown"):
             return
 
-        status = 'ok'
+        status = "ok"
 
-    elif report_outcome == 'skipped':
-        status = 'skip'
+    elif report_outcome == "skipped":
+        status = "skip"
 
     else:
         # It has only passed, skipped and failed (no error), so, let's consider
         # error if not on call.
-        if report_when in ('setup', 'teardown'):
-            status = 'error'
+        if report_when in ("setup", "teardown"):
+            status = "error"
 
         else:
             # any error in the call (not in setup or teardown) is considered a
             # regular failure.
-            status = 'fail'
+            status = "fail"
 
     # This will work if pytest is not capturing it, if it is, nothing will
     # come from here...
-    captured_output, error_contents = getattr(report, 'pydev_captured_output', ''), getattr(report, 'pydev_error_contents', '')
+    captured_output, error_contents = getattr(report, "pydev_captured_output", ""), getattr(report, "pydev_error_contents", "")
     for type_section, value in report.sections:
         if value:
-            if type_section in ('err', 'stderr', 'Captured stderr call'):
+            if type_section in ("err", "stderr", "Captured stderr call"):
                 error_contents = append_strings(error_contents, value)
             else:
                 captured_output = append_strings(error_contents, value)
 
-    filename = getattr(report, 'pydev_fspath_strpath', '<unable to get>')
+    filename = getattr(report, "pydev_fspath_strpath", "<unable to get>")
     test = report.location[2]
 
-    if report_outcome != 'skipped':
+    if report_outcome != "skipped":
         # On skipped, we'll have a traceback for the skip, which is not what we
         # want.
         exc = _get_error_contents_from_report(report)
         if exc:
             if error_contents:
-                error_contents = append_strings(error_contents, '----------------------------- Exceptions -----------------------------\n')
+                error_contents = append_strings(error_contents, "----------------------------- Exceptions -----------------------------\n")
             error_contents = append_strings(error_contents, exc)
 
     report_test(status, filename, test, captured_output, error_contents, report_duration)
 
 
 def report_test(status, filename, test, captured_output, error_contents, duration):
-    '''
+    """
     @param filename: 'D:\\src\\mod1\\hello.py'
     @param test: 'TestCase.testMet1'
     @param status: fail, error, ok
-    '''
-    time_str = '%.2f' % (duration,)
-    pydev_runfiles_xml_rpc.notifyTest(
-        status, captured_output, error_contents, filename, test, time_str)
+    """
+    time_str = "%.2f" % (duration,)
+    pydev_runfiles_xml_rpc.notifyTest(status, captured_output, error_contents, filename, test, time_str)
 
 
-if not hasattr(pytest, 'hookimpl'):
-    raise AssertionError('Please upgrade pytest (the current version of pytest: %s is unsupported)' % (pytest.__version__,))
+if not hasattr(pytest, "hookimpl"):
+    raise AssertionError("Please upgrade pytest (the current version of pytest: %s is unsupported)" % (pytest.__version__,))
 
 
 @pytest.hookimpl(hookwrapper=True)
@@ -293,9 +295,9 @@ def pytest_runtest_makereport(item, call):
 
 @pytest.mark.tryfirst
 def pytest_runtest_setup(item):
-    '''
+    """
     Note: with xdist will be on a secondary process.
-    '''
+    """
     # We have our own redirection: if xdist does its redirection, we'll have
     # nothing in our contents (which is OK), but if it does, we'll get nothing
     # from pytest but will get our own here.

@@ -1,8 +1,8 @@
-
 import pytest
 from tests_python.debugger_unittest import IS_PY36_OR_GREATER, IS_CPYTHON
 from tests_python.debug_constants import TEST_CYTHON
-pytestmark = pytest.mark.skipif(not IS_PY36_OR_GREATER or not IS_CPYTHON or not TEST_CYTHON, reason='Requires CPython >= 3.6')
+
+pytestmark = pytest.mark.skipif(not IS_PY36_OR_GREATER or not IS_CPYTHON or not TEST_CYTHON, reason="Requires CPython >= 3.6")
 #!/usr/bin/env python3
 import unittest
 from _pydevd_frame_eval.vendored.bytecode import (
@@ -21,7 +21,6 @@ class FlagsTests(unittest.TestCase):
             infer_flags(1)
 
     def test_flag_inference(self):
-
         # Check no loss of non-infered flags
         code = ControlFlowGraph()
         code.flags |= (
@@ -122,7 +121,6 @@ class FlagsTests(unittest.TestCase):
         # Test inference in the presence of pre-existing flags
 
         for is_async in (None, True):
-
             # Infer generator
             code = ConcreteBytecode()
             code.append(ConcreteInstr("YIELD_VALUE"))

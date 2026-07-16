@@ -87,7 +87,7 @@ def test_multiprocessing(pyfile, target, run, start_method):
             p.join()
 
         def child(q, a):
-            print("entering child")
+            print("entering child")  # @bp
             assert q.get() == "foo?"
             a.put(Foo())
 
@@ -136,7 +136,20 @@ def test_multiprocessing(pyfile, target, run, start_method):
 
         with debug.Session(child_config) as child_session:
             with child_session.start():
-                pass
+                child_session.set_breakpoints(code_to_debug, all)
+
+            expected_frame = some.dap.frame(code_to_debug, line="bp")
+            stop = child_session.wait_for_stop(
+                "breakpoint",
+                expected_frames=[expected_frame],
+            )
+            child_session.request('stepIn', {"threadId": stop.thread_id})
+
+            stop = child_session.wait_for_stop(
+                "step",
+                expected_frames=[some.dap.frame(code_to_debug, line=expected_frame.items['line'] + 1)],
+            )
+            child_session.request_continue()
 
             expected_grandchild_config = expected_subprocess_config(child_session)
             grandchild_config = child_session.wait_for_next_event("debugpyAttach")
@@ -203,7 +216,7 @@ def test_subprocess(pyfile, target, run, subProcess, method):
             return
 
         expected_child_config = expected_subprocess_config(parent_session)
-        
+
         if method == "startDebugging":
             subprocess_request = parent_session.timeline.wait_for_next(timeline.Request("startDebugging"))
             child_config = subprocess_request.arguments("configuration", dict)
@@ -596,3 +609,73 @@ def test_subprocess_replace(pyfile, target, run):
             child_pid = backchannel.receive()
             assert child_pid == child_config["subProcessId"]
             assert str(child_pid) in child_config["name"]
+
+
+@pytest.mark.parametrize("run", runners.all_launch)
+def test_subprocess_with_parent_pid(pyfile, target, run):
+    @pyfile
+    def child():
+        import sys
+
+        assert "debugpy" in sys.modules
+
+        import debugpy
+
+        assert debugpy  # @bp
+
+    @pyfile
+    def parent():
+        import debuggee
+        import os
+        import subprocess
+        import sys
+
+        import debugpy
+
+        debuggee.setup()
+
+        # Running it through a shell is necessary to ensure the
+        # --parent-session-pid option is tested and the underlying
+        # Python subprocess can associate with this one's debug session.
+        if sys.platform == "win32":
+            argv = ["cmd.exe", "/c"]
+        else:
+            argv = ["/bin/sh", "-c"]
+
+        cli_opts = debugpy.get_cli_options()
+        assert cli_opts, "No CLI options found"
+
+        host, port = cli_opts.address
+        access_token = cli_opts.adapter_access_token
+
+        shell_args = [
+            sys.executable,
+            "-m",
+            "debugpy",
+            "--connect", f"{host}:{port}",
+            "--parent-session-pid", str(os.getpid()),
+            "--adapter-access-token", access_token,
+            sys.argv[1],
+        ]
+        argv.append(" ".join(shell_args))
+
+        subprocess.check_call(argv, env=os.environ | {"DEBUGPY_RUNNING": "false"})
+
+    with debug.Session() as parent_session:
+        with run(parent_session, target(parent, args=[child])):
+            parent_session.set_breakpoints(child, all)
+
+        with parent_session.wait_for_next_subprocess() as child_session:
+            expected_child_config = expected_subprocess_config(parent_session)
+            child_config = child_session.config
+            child_config.pop("isOutputRedirected", None)
+            assert child_config == expected_child_config
+
+            with child_session.start():
+                child_session.set_breakpoints(child, all)
+
+            child_session.wait_for_stop(
+                "breakpoint",
+                expected_frames=[some.dap.frame(child, line="bp")],
+            )
+            child_session.request_continue()

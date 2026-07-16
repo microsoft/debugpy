@@ -90,7 +90,7 @@ def spawn_debuggee(
 
     arguments = dict(start_request.arguments)
     if not session.no_debug and servers.listener is not None:
-        _, arguments["port"] = servers.listener.getsockname()
+        _, arguments["port"] = sockets.get_address(servers.listener)
         arguments["adapterAccessToken"] = adapter.access_token
 
     def on_launcher_connected(sock: socket.socket):
@@ -110,10 +110,11 @@ def spawn_debuggee(
     sessions.report_sockets()
 
     try:
-        launcher_host, launcher_port = listener.getsockname()
+        launcher_host, launcher_port = sockets.get_address(listener)
+        localhost = sockets.get_default_localhost()
         launcher_addr = (
             launcher_port
-            if launcher_host == "127.0.0.1"
+            if launcher_host == localhost
             else f"{launcher_host}:{launcher_port}"
         )
         cmdline += [str(launcher_addr), "--"]
@@ -154,6 +155,24 @@ def spawn_debuggee(
                 request_args["cwd"] = cwd
             if shell_expand_args:
                 request_args["argsCanBeInterpretedByShell"] = True
+
+                # VS Code debugger extension may pass us an argument indicating the 
+                # quoting character to use in the terminal. Otherwise default based on platform.
+                default_quote = '"' if os.name != "nt" else "'"
+                quote_char = arguments["terminalQuoteCharacter"] if "terminalQuoteCharacter" in arguments else default_quote
+
+                # VS code doesn't quote arguments if `argsCanBeInterpretedByShell` is true,
+                # so we need to do it ourselves for the arguments up to the first argument passed to
+                # debugpy (this should be the python file to run).
+                args = request_args["args"]
+                for i in range(len(args)):
+                    s = args[i]
+                    if " " in s and not ((s.startswith('"') and s.endswith('"')) or (s.startswith("'") and s.endswith("'"))):
+                        s = f"{quote_char}{s}{quote_char}"
+                    args[i] = s
+                    if i > 0 and args[i-1] == "--":
+                        break
+
             try:
                 # It is unspecified whether this request receives a response immediately, or only
                 # after the spawned command has completed running, so do not block waiting for it.

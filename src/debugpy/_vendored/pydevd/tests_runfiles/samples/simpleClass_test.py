@@ -1,7 +1,7 @@
 import unittest
 
-class SetUpClassTest(unittest.TestCase):
 
+class SetUpClassTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         raise ValueError("This is an INTENTIONAL value error in setUpClass.")
@@ -10,5 +10,5 @@ class SetUpClassTest(unittest.TestCase):
         pass
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

@@ -11,7 +11,7 @@ from debugpy.common import log, messaging, sockets
 
 
 class BackChannel(object):
-    TIMEOUT = 20
+    TIMEOUT = 60
 
     def __init__(self, session):
         self.session = session
@@ -25,8 +25,9 @@ class BackChannel(object):
 
     def listen(self):
         self._server_socket = sockets.create_server("127.0.0.1", 0, self.TIMEOUT)
-        _, self.port = self._server_socket.getsockname()
+        _, self.port = sockets.get_address(self._server_socket)
         self._server_socket.listen(0)
+        log.info("{0} created server socket on port {1}", self, self.port)
 
         def accept_worker():
             log.info(
@@ -67,8 +68,14 @@ class BackChannel(object):
         self._established.set()
 
     def receive(self):
-        self._established.wait()
-        return self._stream.read_json()
+        log.info("{0} waiting for connection to be established...", self)
+        if not self._established.wait(timeout=self.TIMEOUT):
+            log.error("{0} timed out waiting for connection after {1} seconds", self, self.TIMEOUT)
+            raise TimeoutError(f"{self} timed out waiting for debuggee to connect")
+        log.info("{0} connection established, reading JSON...", self)
+        result = self._stream.read_json()
+        log.info("{0} received: {1}", self, result)
+        return result
 
     def send(self, value):
         self.session.timeline.unfreeze()

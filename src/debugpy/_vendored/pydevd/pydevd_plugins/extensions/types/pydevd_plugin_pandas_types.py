@@ -13,7 +13,6 @@ def _get_dictionary(obj, replacements):
     ret = dict()
     cls = obj.__class__
     for attr_name in dir(obj):
-
         # This is interesting but it actually hides too much info from the dataframe.
         # attr_type_in_cls = type(getattr(cls, attr_name, None))
         # if attr_type_in_cls == property:
@@ -27,12 +26,12 @@ def _get_dictionary(obj, replacements):
                 ret[attr_name] = replacement
                 continue
 
-            attr_value = getattr(obj, attr_name, '<unable to get>')
+            attr_value = getattr(obj, attr_name, "<unable to get>")
             if inspect.isroutine(attr_value) or isinstance(attr_value, MethodWrapperType):
                 continue
             ret[attr_name] = attr_value
         except Exception as e:
-            ret[attr_name] = '<error getting: %s>' % (e,)
+            ret[attr_name] = "<error getting: %s>" % (e,)
         finally:
             timer.report_if_getting_attr_slow(cls, attr_name)
 
@@ -70,6 +69,7 @@ def customize_pandas_options():
 
     if custom_options:
         from pandas import option_context
+
         with option_context(*custom_options):
             yield
     else:
@@ -77,9 +77,8 @@ def customize_pandas_options():
 
 
 class PandasDataFrameTypeResolveProvider(object):
-
     def can_provide(self, type_object, type_name):
-        data_frame_class = find_mod_attr('pandas.core.frame', 'DataFrame')
+        data_frame_class = find_mod_attr("pandas.core.frame", "DataFrame")
         return data_frame_class is not None and issubclass(type_object, data_frame_class)
 
     def resolve(self, obj, attribute):
@@ -89,26 +88,24 @@ class PandasDataFrameTypeResolveProvider(object):
         replacements = {
             # This actually calls: DataFrame.transpose(), which can be expensive, so,
             # let's just add some string representation for it.
-            'T': '<transposed dataframe -- debugger:skipped eval>',
-
+            "T": "<transposed dataframe -- debugger:skipped eval>",
             # This creates a whole new dict{index: Series) for each column. Doing a
             # subsequent repr() from this dict can be very slow, so, don't return it.
-            '_series': '<dict[index:Series] -- debugger:skipped eval>',
-
-            'style': '<pandas.io.formats.style.Styler -- debugger: skipped eval>',
+            "_series": "<dict[index:Series] -- debugger:skipped eval>",
+            "style": "<pandas.io.formats.style.Styler -- debugger: skipped eval>",
         }
         return _get_dictionary(obj, replacements)
 
-    def get_str_in_context(self, df, context:str):
-        '''
+    def get_str_in_context(self, df, context: str):
+        """
         :param context:
             This is the context in which the variable is being requested. Valid values:
                 "watch",
                 "repl",
                 "hover",
                 "clipboard"
-        '''
-        if context in ('repl', 'clipboard'):
+        """
+        if context in ("repl", "clipboard"):
             return repr(df)
         return self.get_str(df)
 
@@ -118,9 +115,8 @@ class PandasDataFrameTypeResolveProvider(object):
 
 
 class PandasSeriesTypeResolveProvider(object):
-
     def can_provide(self, type_object, type_name):
-        series_class = find_mod_attr('pandas.core.series', 'Series')
+        series_class = find_mod_attr("pandas.core.series", "Series")
         return series_class is not None and issubclass(type_object, series_class)
 
     def resolve(self, obj, attribute):
@@ -130,26 +126,24 @@ class PandasSeriesTypeResolveProvider(object):
         replacements = {
             # This actually calls: DataFrame.transpose(), which can be expensive, so,
             # let's just add some string representation for it.
-            'T': '<transposed dataframe -- debugger:skipped eval>',
-
+            "T": "<transposed dataframe -- debugger:skipped eval>",
             # This creates a whole new dict{index: Series) for each column. Doing a
             # subsequent repr() from this dict can be very slow, so, don't return it.
-            '_series': '<dict[index:Series] -- debugger:skipped eval>',
-
-            'style': '<pandas.io.formats.style.Styler -- debugger: skipped eval>',
+            "_series": "<dict[index:Series] -- debugger:skipped eval>",
+            "style": "<pandas.io.formats.style.Styler -- debugger: skipped eval>",
         }
         return _get_dictionary(obj, replacements)
 
-    def get_str_in_context(self, df, context:str):
-        '''
+    def get_str_in_context(self, df, context: str):
+        """
         :param context:
             This is the context in which the variable is being requested. Valid values:
                 "watch",
                 "repl",
                 "hover",
                 "clipboard"
-        '''
-        if context in ('repl', 'clipboard'):
+        """
+        if context in ("repl", "clipboard"):
             return repr(df)
         return self.get_str(df)
 
@@ -159,9 +153,8 @@ class PandasSeriesTypeResolveProvider(object):
 
 
 class PandasStylerTypeResolveProvider(object):
-
     def can_provide(self, type_object, type_name):
-        series_class = find_mod_attr('pandas.io.formats.style', 'Styler')
+        series_class = find_mod_attr("pandas.io.formats.style", "Styler")
         return series_class is not None and issubclass(type_object, series_class)
 
     def resolve(self, obj, attribute):
@@ -169,9 +162,8 @@ class PandasStylerTypeResolveProvider(object):
 
     def get_dictionary(self, obj):
         replacements = {
-            'data': '<Styler data -- debugger:skipped eval>',
-
-            '__dict__': '<dict -- debugger: skipped eval>',
+            "data": "<Styler data -- debugger:skipped eval>",
+            "__dict__": "<dict -- debugger: skipped eval>",
         }
         return _get_dictionary(obj, replacements)
 

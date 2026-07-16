@@ -5,12 +5,12 @@
 import pytest
 
 from tests import code, debug, log, net, test_data
-from tests.debug import runners, targets
+from tests.debug import targets
 from tests.patterns import some
 
 pytestmark = pytest.mark.timeout(60)
 
-django_server = net.WebServer(net.get_test_server_port(8000, 8100))
+django_server = net.WebServer(net.get_test_server_port())
 
 
 class paths:
@@ -25,7 +25,6 @@ class lines:
 
 
 @pytest.fixture
-@pytest.mark.parametrize("run", [runners.launch, runners.attach_connect["cli"]])
 def start_django(run):
     def start(session, multiprocess=False):
         # No clean way to kill Django server, expect non-zero exit code

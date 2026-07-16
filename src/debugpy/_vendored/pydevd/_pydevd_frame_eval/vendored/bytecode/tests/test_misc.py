@@ -1,8 +1,8 @@
-
 import pytest
 from tests_python.debugger_unittest import IS_PY36_OR_GREATER, IS_CPYTHON
 from tests_python.debug_constants import TEST_CYTHON
-pytestmark = pytest.mark.skipif(not IS_PY36_OR_GREATER or not IS_CPYTHON or not TEST_CYTHON, reason='Requires CPython >= 3.6')
+
+pytestmark = pytest.mark.skipif(not IS_PY36_OR_GREATER or not IS_CPYTHON or not TEST_CYTHON, reason="Requires CPython >= 3.6")
 #!/usr/bin/env python3
 import contextlib
 import io
@@ -62,11 +62,7 @@ label_instr13:
     LOAD_CONST 3
     RETURN_VALUE
 
-        """[
-            1:
-        ].rstrip(
-            " "
-        )
+        """[1:].rstrip(" ")
         self.check_dump_bytecode(code, expected)
 
         # with line numbers
@@ -90,11 +86,7 @@ label_instr13:
     L.  6  14: LOAD_CONST 3
            15: RETURN_VALUE
 
-        """[
-            1:
-        ].rstrip(
-            " "
-        )
+        """[1:].rstrip(" ")
         self.check_dump_bytecode(code, expected, lineno=True)
 
     def test_bytecode_broken_label(self):
@@ -225,9 +217,7 @@ label_instr13:
  22    RETURN_VALUE
  24    LOAD_CONST 3
  26    RETURN_VALUE
-""".lstrip(
-            "\n"
-        )
+""".lstrip("\n")
         self.check_dump_bytecode(code, expected)
 
         # with line numbers
@@ -246,9 +236,7 @@ L.  5  20: LOAD_CONST 2
        22: RETURN_VALUE
 L.  6  24: LOAD_CONST 3
        26: RETURN_VALUE
-""".lstrip(
-            "\n"
-        )
+""".lstrip("\n")
         self.check_dump_bytecode(code, expected, lineno=True)
 
     def test_type_validation(self):

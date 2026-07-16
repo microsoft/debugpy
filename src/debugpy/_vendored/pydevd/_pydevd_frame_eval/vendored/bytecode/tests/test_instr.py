@@ -1,8 +1,8 @@
-
 import pytest
 from tests_python.debugger_unittest import IS_PY36_OR_GREATER, IS_CPYTHON
 from tests_python.debug_constants import TEST_CYTHON
-pytestmark = pytest.mark.skipif(not IS_PY36_OR_GREATER or not IS_CPYTHON or not TEST_CYTHON, reason='Requires CPython >= 3.6')
+
+pytestmark = pytest.mark.skipif(not IS_PY36_OR_GREATER or not IS_CPYTHON or not TEST_CYTHON, reason="Requires CPython >= 3.6")
 #!/usr/bin/env python3
 import opcode
 import unittest
@@ -78,7 +78,6 @@ class InstrTests(TestCase):
             Instr("xxx")
 
     def test_repr(self):
-
         # No arg
         r = repr(Instr("NOP", lineno=10))
         self.assertIn("NOP", r)
@@ -253,9 +252,7 @@ class InstrTests(TestCase):
         self.assertNotEqual(Instr("LOAD_CONST", 0), Instr("LOAD_CONST", 0.0))
 
         # float: -0.0 == +0.0
-        self.assertNotEqual(
-            Instr("LOAD_CONST", neg_zero), Instr("LOAD_CONST", pos_zero)
-        )
+        self.assertNotEqual(Instr("LOAD_CONST", neg_zero), Instr("LOAD_CONST", pos_zero))
 
         # complex
         self.assertNotEqual(
@@ -273,14 +270,10 @@ class InstrTests(TestCase):
         nested_tuple1 = (nested_tuple1,)
         nested_tuple2 = (0.0,)
         nested_tuple2 = (nested_tuple2,)
-        self.assertNotEqual(
-            Instr("LOAD_CONST", nested_tuple1), Instr("LOAD_CONST", nested_tuple2)
-        )
+        self.assertNotEqual(Instr("LOAD_CONST", nested_tuple1), Instr("LOAD_CONST", nested_tuple2))
 
         # frozenset
-        self.assertNotEqual(
-            Instr("LOAD_CONST", frozenset({0})), Instr("LOAD_CONST", frozenset({0.0}))
-        )
+        self.assertNotEqual(Instr("LOAD_CONST", frozenset({0})), Instr("LOAD_CONST", frozenset({0.0})))
 
     def test_stack_effects(self):
         # Verify all opcodes are handled and that "jump=None" really returns
@@ -322,7 +315,7 @@ class InstrTests(TestCase):
         # (As a result we can calculate stack_effect for
         #  any LOAD_CONST instructions, even for large integers)
 
-        for arg in 2 ** 31, 2 ** 32, 2 ** 63, 2 ** 64, -1:
+        for arg in 2**31, 2**32, 2**63, 2**64, -1:
             self.assertEqual(Instr("LOAD_CONST", arg).stack_effect(), 1)
 
     def test_code_object_containing_mutable_data(self):
@@ -340,11 +333,7 @@ class InstrTests(TestCase):
         mutable_datum = [4, 2]
 
         for each in f_code:
-            if (
-                isinstance(each, Instr)
-                and each.name == "LOAD_CONST"
-                and isinstance(each.arg, CodeType)
-            ):
+            if isinstance(each, Instr) and each.name == "LOAD_CONST" and isinstance(each.arg, CodeType):
                 instr_load_code = each
                 break
 

@@ -2,9 +2,7 @@ import sys
 
 
 def patch_sys_module():
-
     def patched_exc_info(fun):
-
         def pydev_debugger_exc_info():
             type, value, traceback = fun()
             if type == ImportError:
@@ -22,7 +20,6 @@ def patch_sys_module():
 
 
 def patched_reload(orig_reload):
-
     def pydev_debugger_reload(module):
         orig_reload(module)
         if module.__name__ == "sys":
@@ -40,13 +37,15 @@ def patch_reload():
         builtins.reload = patched_reload(sys.builtin_orig_reload)  # @UndefinedVariable
         try:
             import imp
+
             sys.imp_orig_reload = imp.reload
             imp.reload = patched_reload(sys.imp_orig_reload)  # @UndefinedVariable
-        except:
-            pass
+        except ImportError:
+            pass  # Ok, imp not available on Python 3.12.
     else:
         try:
             import importlib
+
             sys.importlib_orig_reload = importlib.reload  # @UndefinedVariable
             importlib.reload = patched_reload(sys.importlib_orig_reload)  # @UndefinedVariable
         except:
@@ -63,11 +62,16 @@ def cancel_patches_in_sys_module():
         builtins.reload = sys.builtin_orig_reload
 
     if hasattr(sys, "imp_orig_reload"):
-        import imp
-        imp.reload = sys.imp_orig_reload
+        try:
+            import imp
+
+            imp.reload = sys.imp_orig_reload
+        except ImportError:
+            pass  # Ok, imp not available in Python 3.12.
 
     if hasattr(sys, "importlib_orig_reload"):
         import importlib
+
         importlib.reload = sys.importlib_orig_reload
 
     del builtins

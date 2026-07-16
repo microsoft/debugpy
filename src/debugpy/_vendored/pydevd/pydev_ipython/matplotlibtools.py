@@ -1,14 +1,31 @@
-
 import sys
 from _pydev_bundle import pydev_log
 
-backends = {'tk': 'TkAgg',
-            'gtk': 'GTKAgg',
-            'wx': 'WXAgg',
-            'qt': 'QtAgg', # Auto-choose qt4/5
-            'qt4': 'Qt4Agg',
-            'qt5': 'Qt5Agg',
-            'osx': 'MacOSX'}
+backends = {
+    "tk": "TkAgg",
+    "gtk": "GTKAgg",
+    "wx": "WXAgg",
+    "qt": "QtAgg",  # Auto-choose qt4/5
+    "qt4": "Qt4Agg",
+    "qt5": "Qt5Agg",
+    "qt6": "Qt6Agg",
+    "osx": "MacOSX",
+}
+
+lowercase_convert = {
+    "tkagg": "TkAgg",
+    "gtkagg": "GTKAgg",
+    "wxagg": "WXAgg",
+    "qtagg": "QtAgg",
+    "qt4agg": "Qt4Agg",
+    "qt5agg": "Qt5Agg",
+    "qt6agg": "Qt6Agg",
+    "macosx": "MacOSX",
+    "gtk": "GTK",
+    "gtkcairo": "GTKCairo",
+    "wx": "WX",
+    "cocoaagg": "CocoaAgg",
+}
 
 # We also need a reverse backends2guis mapping that will properly choose which
 # GUI support to activate based on the desired matplotlib backend.  For the
@@ -17,21 +34,23 @@ backends = {'tk': 'TkAgg',
 backend2gui = dict(zip(backends.values(), backends.keys()))
 # In the reverse mapping, there are a few extra valid matplotlib backends that
 # map to the same GUI support
-backend2gui['GTK'] = backend2gui['GTKCairo'] = 'gtk'
-backend2gui['WX'] = 'wx'
-backend2gui['CocoaAgg'] = 'osx'
+backend2gui["GTK"] = backend2gui["GTKCairo"] = "gtk"
+backend2gui["WX"] = "wx"
+backend2gui["CocoaAgg"] = "osx"
 
 
 def do_enable_gui(guiname):
     from _pydev_bundle.pydev_versioncheck import versionok_for_gui
+
     if versionok_for_gui():
         try:
             from pydev_ipython.inputhook import enable_gui
+
             enable_gui(guiname)
         except:
             sys.stderr.write("Failed to enable GUI event loop integration for '%s'\n" % guiname)
             pydev_log.exception()
-    elif guiname not in ['none', '', None]:
+    elif guiname not in ["none", "", None]:
         # Only print a warning if the guiname was going to do something
         sys.stderr.write("Debug console: Python version does not support GUI event loop integration for '%s'\n" % guiname)
     # Return value does not matter, so return back what was sent
@@ -40,19 +59,40 @@ def do_enable_gui(guiname):
 
 def find_gui_and_backend():
     """Return the gui and mpl backend."""
-    matplotlib = sys.modules['matplotlib']
+    matplotlib = sys.modules["matplotlib"]
     # WARNING: this assumes matplotlib 1.1 or newer!!
-    backend = matplotlib.rcParams['backend']
+    backend = matplotlib.rcParams["backend"]
+
+    # Translate to the real case as in 3.9 the case was forced to lowercase
+    # but our internal mapping is in the original case.
+    realcase_backend = lowercase_convert.get(backend, backend)
+
     # In this case, we need to find what the appropriate gui selection call
     # should be for IPython, so we can activate inputhook accordingly
-    gui = backend2gui.get(backend, None)
+    gui = backend2gui.get(realcase_backend, None)
     return gui, backend
 
 
+def _get_major_version(module):
+    return int(module.__version__.split(".")[0])
+
+
+def _get_minor_version(module):
+    return int(module.__version__.split(".")[1])
+
+
 def is_interactive_backend(backend):
-    """ Check if backend is interactive """
-    matplotlib = sys.modules['matplotlib']
-    from matplotlib.rcsetup import interactive_bk, non_interactive_bk  # @UnresolvedImport
+    """Check if backend is interactive"""
+    matplotlib = sys.modules["matplotlib"]
+    new_api_version = (3, 9)
+    installed_version = (_get_major_version(matplotlib), _get_minor_version(matplotlib))
+
+    if installed_version >= new_api_version:
+        interactive_bk = matplotlib.backends.backend_registry.list_builtin(matplotlib.backends.BackendFilter.INTERACTIVE)
+        non_interactive_bk = matplotlib.backends.backend_registry.list_builtin(matplotlib.backends.BackendFilter.NON_INTERACTIVE)
+    else:
+        from matplotlib.rcsetup import interactive_bk, non_interactive_bk  # @UnresolvedImport
+
     if backend in interactive_bk:
         return True
     elif backend in non_interactive_bk:
@@ -62,8 +102,8 @@ def is_interactive_backend(backend):
 
 
 def patch_use(enable_gui_function):
-    """ Patch matplotlib function 'use' """
-    matplotlib = sys.modules['matplotlib']
+    """Patch matplotlib function 'use'"""
+    matplotlib = sys.modules["matplotlib"]
 
     def patched_use(*args, **kwargs):
         matplotlib.real_use(*args, **kwargs)
@@ -75,11 +115,11 @@ def patch_use(enable_gui_function):
 
 
 def patch_is_interactive():
-    """ Patch matplotlib function 'use' """
-    matplotlib = sys.modules['matplotlib']
+    """Patch matplotlib function 'use'"""
+    matplotlib = sys.modules["matplotlib"]
 
     def patched_is_interactive():
-        return matplotlib.rcParams['interactive']
+        return matplotlib.rcParams["interactive"]
 
     matplotlib.real_is_interactive = matplotlib.is_interactive
     matplotlib.is_interactive = patched_is_interactive
@@ -89,7 +129,7 @@ def activate_matplotlib(enable_gui_function):
     """Set interactive to True for interactive backends.
     enable_gui_function - Function which enables gui, should be run in the main thread.
     """
-    matplotlib = sys.modules['matplotlib']
+    matplotlib = sys.modules["matplotlib"]
     gui, backend = find_gui_and_backend()
     is_interactive = is_interactive_backend(backend)
     if is_interactive:
@@ -119,7 +159,7 @@ def flag_calls(func):
     func() was attempted and succeeded."""
 
     # don't wrap twice
-    if hasattr(func, 'called'):
+    if hasattr(func, "called"):
         return func
 
     def wrapper(*args, **kw):
@@ -134,7 +174,7 @@ def flag_calls(func):
 
 
 def activate_pylab():
-    pylab = sys.modules['pylab']
+    pylab = sys.modules["pylab"]
     pylab.show._needmain = False
     # We need to detect at runtime whether show() is called by the user.
     # For this, we wrap it into a decorator which adds a 'called' flag.
@@ -142,7 +182,7 @@ def activate_pylab():
 
 
 def activate_pyplot():
-    pyplot = sys.modules['matplotlib.pyplot']
+    pyplot = sys.modules["matplotlib.pyplot"]
     pyplot.show._needmain = False
     # We need to detect at runtime whether show() is called by the user.
     # For this, we wrap it into a decorator which adds a 'called' flag.

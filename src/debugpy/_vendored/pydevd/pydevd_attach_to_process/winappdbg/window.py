@@ -37,15 +37,15 @@ Window instrumentation.
 
 __revision__ = "$Id$"
 
-__all__ = ['Window']
+__all__ = ["Window"]
 
 from winappdbg import win32
 
 # delayed imports
 Process = None
-Thread  = None
+Thread = None
 
-#==============================================================================
+# ==============================================================================
 
 # Unlike Process, Thread and Module, there's no container for Window objects.
 # That's because Window objects don't really store any data besides the handle.
@@ -65,7 +65,8 @@ Thread  = None
 # point the hook callback to it. We'd need to have the remote procedure call
 # feature first as (I believe) the hook can't be set remotely in this case.
 
-class Window (object):
+
+class Window(object):
     """
     Interface to an open window in the current desktop.
 
@@ -120,7 +121,7 @@ class Window (object):
     @ivar placement: Window placement in the desktop.
     """
 
-    def __init__(self, hWnd = None, process = None, thread = None):
+    def __init__(self, hWnd=None, process=None, thread=None):
         """
         @type  hWnd: int or L{win32.HWND}
         @param hWnd: Window handle.
@@ -131,9 +132,9 @@ class Window (object):
         @type  thread: L{Thread}
         @param thread: (Optional) Thread that owns this window.
         """
-        self.hWnd        = hWnd
+        self.hWnd = hWnd
         self.dwProcessId = None
-        self.dwThreadId  = None
+        self.dwThreadId = None
         self.set_process(process)
         self.set_thread(thread)
 
@@ -177,16 +178,15 @@ class Window (object):
 
     def __get_pid_and_tid(self):
         "Internally used by get_pid() and get_tid()."
-        self.dwThreadId, self.dwProcessId = \
-                            win32.GetWindowThreadProcessId(self.get_handle())
+        self.dwThreadId, self.dwProcessId = win32.GetWindowThreadProcessId(self.get_handle())
 
     def __load_Process_class(self):
-        global Process      # delayed import
+        global Process  # delayed import
         if Process is None:
             from winappdbg.process import Process
 
     def __load_Thread_class(self):
-        global Thread       # delayed import
+        global Thread  # delayed import
         if Thread is None:
             from winappdbg.thread import Thread
 
@@ -201,7 +201,7 @@ class Window (object):
         self.__process = Process(self.get_pid())
         return self.__process
 
-    def set_process(self, process = None):
+    def set_process(self, process=None):
         """
         Manually set the parent process. Use with care!
 
@@ -213,7 +213,7 @@ class Window (object):
         else:
             self.__load_Process_class()
             if not isinstance(process, Process):
-                msg  = "Parent process must be a Process instance, "
+                msg = "Parent process must be a Process instance, "
                 msg += "got %s instead" % type(process)
                 raise TypeError(msg)
             self.dwProcessId = process.get_pid()
@@ -230,7 +230,7 @@ class Window (object):
         self.__thread = Thread(self.get_tid())
         return self.__thread
 
-    def set_thread(self, thread = None):
+    def set_thread(self, thread=None):
         """
         Manually set the thread process. Use with care!
 
@@ -242,7 +242,7 @@ class Window (object):
         else:
             self.__load_Thread_class()
             if not isinstance(thread, Thread):
-                msg  = "Parent thread must be a Thread instance, "
+                msg = "Parent thread must be a Thread instance, "
                 msg += "got %s instead" % type(thread)
                 raise TypeError(msg)
             self.dwThreadId = thread.get_tid()
@@ -255,12 +255,12 @@ class Window (object):
         """
         window = Window(hWnd)
         if window.get_pid() == self.get_pid():
-            window.set_process( self.get_process() )
+            window.set_process(self.get_process())
         if window.get_tid() == self.get_tid():
-            window.set_thread( self.get_thread() )
+            window.set_thread(self.get_thread())
         return window
 
-#------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------
 
     def get_classname(self):
         """
@@ -269,7 +269,7 @@ class Window (object):
 
         @raise WindowsError: An error occured while processing this request.
         """
-        return win32.GetClassName( self.get_handle() )
+        return win32.GetClassName(self.get_handle())
 
     def get_style(self):
         """
@@ -278,7 +278,7 @@ class Window (object):
 
         @raise WindowsError: An error occured while processing this request.
         """
-        return win32.GetWindowLongPtr( self.get_handle(), win32.GWL_STYLE )
+        return win32.GetWindowLongPtr(self.get_handle(), win32.GWL_STYLE)
 
     def get_extended_style(self):
         """
@@ -287,7 +287,7 @@ class Window (object):
 
         @raise WindowsError: An error occured while processing this request.
         """
-        return win32.GetWindowLongPtr( self.get_handle(), win32.GWL_EXSTYLE )
+        return win32.GetWindowLongPtr(self.get_handle(), win32.GWL_EXSTYLE)
 
     def get_text(self):
         """
@@ -296,7 +296,7 @@ class Window (object):
         @return: Window text (caption) on success, C{None} on error.
         """
         try:
-            return win32.GetWindowText( self.get_handle() )
+            return win32.GetWindowText(self.get_handle())
         except WindowsError:
             return None
 
@@ -311,7 +311,7 @@ class Window (object):
 
         @raise WindowsError: An error occured while processing this request.
         """
-        win32.SetWindowText( self.get_handle(), text )
+        win32.SetWindowText(self.get_handle(), text)
 
     def get_placement(self):
         """
@@ -324,7 +324,7 @@ class Window (object):
 
         @raise WindowsError: An error occured while processing this request.
         """
-        return win32.GetWindowPlacement( self.get_handle() )
+        return win32.GetWindowPlacement(self.get_handle())
 
     def set_placement(self, placement):
         """
@@ -337,7 +337,7 @@ class Window (object):
 
         @raise WindowsError: An error occured while processing this request.
         """
-        win32.SetWindowPlacement( self.get_handle(), placement )
+        win32.SetWindowPlacement(self.get_handle(), placement)
 
     def get_screen_rect(self):
         """
@@ -348,7 +348,7 @@ class Window (object):
 
         @raise WindowsError: An error occured while processing this request.
         """
-        return win32.GetWindowRect( self.get_handle() )
+        return win32.GetWindowRect(self.get_handle())
 
     def get_client_rect(self):
         """
@@ -359,8 +359,8 @@ class Window (object):
 
         @raise WindowsError: An error occured while processing this request.
         """
-        cr = win32.GetClientRect( self.get_handle() )
-        cr.left, cr.top     = self.client_to_screen(cr.left, cr.top)
+        cr = win32.GetClientRect(self.get_handle())
+        cr.left, cr.top = self.client_to_screen(cr.left, cr.top)
         cr.right, cr.bottom = self.client_to_screen(cr.right, cr.bottom)
         return cr
 
@@ -376,7 +376,7 @@ class Window (object):
     text = property(get_text, set_text, doc="")
     placement = property(get_placement, set_placement, doc="")
 
-#------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------
 
     def client_to_screen(self, x, y):
         """
@@ -397,7 +397,7 @@ class Window (object):
 
         @raise WindowsError: An error occured while processing this request.
         """
-        return tuple( win32.ClientToScreen( self.get_handle(), (x, y) ) )
+        return tuple(win32.ClientToScreen(self.get_handle(), (x, y)))
 
     def screen_to_client(self, x, y):
         """
@@ -418,9 +418,9 @@ class Window (object):
 
         @raise WindowsError: An error occured while processing this request.
         """
-        return tuple( win32.ScreenToClient( self.get_handle(), (x, y) ) )
+        return tuple(win32.ScreenToClient(self.get_handle(), (x, y)))
 
-#------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------
 
     def get_parent(self):
         """
@@ -429,7 +429,7 @@ class Window (object):
         @return: Parent window. Returns C{None} if the window has no parent.
         @raise WindowsError: An error occured while processing this request.
         """
-        hWnd = win32.GetParent( self.get_handle() )
+        hWnd = win32.GetParent(self.get_handle())
         if hWnd:
             return self.__get_window(hWnd)
 
@@ -440,10 +440,7 @@ class Window (object):
         @return: List of child windows.
         @raise WindowsError: An error occured while processing this request.
         """
-        return [
-                self.__get_window(hWnd) \
-                for hWnd in win32.EnumChildWindows( self.get_handle() )
-                ]
+        return [self.__get_window(hWnd) for hWnd in win32.EnumChildWindows(self.get_handle())]
 
     def get_tree(self):
         """
@@ -454,7 +451,7 @@ class Window (object):
         """
         subtree = dict()
         for aWindow in self.get_children():
-            subtree[ aWindow ] = aWindow.get_tree()
+            subtree[aWindow] = aWindow.get_tree()
         return subtree
 
     def get_root(self):
@@ -466,13 +463,13 @@ class Window (object):
             If this window is already a top-level window, returns itself.
         @raise WindowsError: An error occured while processing this request.
         """
-        hWnd     = self.get_handle()
-        history  = set()
+        hWnd = self.get_handle()
+        history = set()
         hPrevWnd = hWnd
         while hWnd and hWnd not in history:
             history.add(hWnd)
             hPrevWnd = hWnd
-            hWnd     = win32.GetParent(hWnd)
+            hWnd = win32.GetParent(hWnd)
         if hWnd in history:
             # See: https://docs.google.com/View?id=dfqd62nk_228h28szgz
             return self
@@ -480,7 +477,7 @@ class Window (object):
             return self.__get_window(hPrevWnd)
         return self
 
-    def get_child_at(self, x, y, bAllowTransparency = True):
+    def get_child_at(self, x, y, bAllowTransparency=True):
         """
         Get the child window located at the given coordinates. If no such
         window exists an exception is raised.
@@ -504,23 +501,23 @@ class Window (object):
         """
         try:
             if bAllowTransparency:
-                hWnd = win32.RealChildWindowFromPoint( self.get_handle(), (x, y) )
+                hWnd = win32.RealChildWindowFromPoint(self.get_handle(), (x, y))
             else:
-                hWnd = win32.ChildWindowFromPoint( self.get_handle(), (x, y) )
+                hWnd = win32.ChildWindowFromPoint(self.get_handle(), (x, y))
             if hWnd:
                 return self.__get_window(hWnd)
         except WindowsError:
             pass
         return None
 
-#------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------
 
     def is_valid(self):
         """
         @rtype:  bool
         @return: C{True} if the window handle is still valid.
         """
-        return win32.IsWindow( self.get_handle() )
+        return win32.IsWindow(self.get_handle())
 
     def is_visible(self):
         """
@@ -528,7 +525,7 @@ class Window (object):
         @rtype:  bool
         @return: C{True} if the window is in a visible state.
         """
-        return win32.IsWindowVisible( self.get_handle() )
+        return win32.IsWindowVisible(self.get_handle())
 
     def is_enabled(self):
         """
@@ -536,7 +533,7 @@ class Window (object):
         @rtype:  bool
         @return: C{True} if the window is in an enabled state.
         """
-        return win32.IsWindowEnabled( self.get_handle() )
+        return win32.IsWindowEnabled(self.get_handle())
 
     def is_maximized(self):
         """
@@ -544,7 +541,7 @@ class Window (object):
         @rtype:  bool
         @return: C{True} if the window is maximized.
         """
-        return win32.IsZoomed( self.get_handle() )
+        return win32.IsZoomed(self.get_handle())
 
     def is_minimized(self):
         """
@@ -552,7 +549,7 @@ class Window (object):
         @rtype:  bool
         @return: C{True} if the window is minimized.
         """
-        return win32.IsIconic( self.get_handle() )
+        return win32.IsIconic(self.get_handle())
 
     def is_child(self):
         """
@@ -560,12 +557,12 @@ class Window (object):
         @rtype:  bool
         @return: C{True} if the window is a child window.
         """
-        return win32.IsChild( self.get_handle() )
+        return win32.IsChild(self.get_handle())
 
     is_zoomed = is_maximized
     is_iconic = is_minimized
 
-#------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------
 
     def enable(self):
         """
@@ -575,7 +572,7 @@ class Window (object):
 
         @raise WindowsError: An error occured while processing this request.
         """
-        win32.EnableWindow( self.get_handle(), True )
+        win32.EnableWindow(self.get_handle(), True)
 
     def disable(self):
         """
@@ -585,9 +582,9 @@ class Window (object):
 
         @raise WindowsError: An error occured while processing this request.
         """
-        win32.EnableWindow( self.get_handle(), False )
+        win32.EnableWindow(self.get_handle(), False)
 
-    def show(self, bAsync = True):
+    def show(self, bAsync=True):
         """
         Make the window visible.
 
@@ -599,11 +596,11 @@ class Window (object):
         @raise WindowsError: An error occured while processing this request.
         """
         if bAsync:
-            win32.ShowWindowAsync( self.get_handle(), win32.SW_SHOW )
+            win32.ShowWindowAsync(self.get_handle(), win32.SW_SHOW)
         else:
-            win32.ShowWindow( self.get_handle(), win32.SW_SHOW )
+            win32.ShowWindow(self.get_handle(), win32.SW_SHOW)
 
-    def hide(self, bAsync = True):
+    def hide(self, bAsync=True):
         """
         Make the window invisible.
 
@@ -615,11 +612,11 @@ class Window (object):
         @raise WindowsError: An error occured while processing this request.
         """
         if bAsync:
-            win32.ShowWindowAsync( self.get_handle(), win32.SW_HIDE )
+            win32.ShowWindowAsync(self.get_handle(), win32.SW_HIDE)
         else:
-            win32.ShowWindow( self.get_handle(), win32.SW_HIDE )
+            win32.ShowWindow(self.get_handle(), win32.SW_HIDE)
 
-    def maximize(self, bAsync = True):
+    def maximize(self, bAsync=True):
         """
         Maximize the window.
 
@@ -631,11 +628,11 @@ class Window (object):
         @raise WindowsError: An error occured while processing this request.
         """
         if bAsync:
-            win32.ShowWindowAsync( self.get_handle(), win32.SW_MAXIMIZE )
+            win32.ShowWindowAsync(self.get_handle(), win32.SW_MAXIMIZE)
         else:
-            win32.ShowWindow( self.get_handle(), win32.SW_MAXIMIZE )
+            win32.ShowWindow(self.get_handle(), win32.SW_MAXIMIZE)
 
-    def minimize(self, bAsync = True):
+    def minimize(self, bAsync=True):
         """
         Minimize the window.
 
@@ -647,11 +644,11 @@ class Window (object):
         @raise WindowsError: An error occured while processing this request.
         """
         if bAsync:
-            win32.ShowWindowAsync( self.get_handle(), win32.SW_MINIMIZE )
+            win32.ShowWindowAsync(self.get_handle(), win32.SW_MINIMIZE)
         else:
-            win32.ShowWindow( self.get_handle(), win32.SW_MINIMIZE )
+            win32.ShowWindow(self.get_handle(), win32.SW_MINIMIZE)
 
-    def restore(self, bAsync = True):
+    def restore(self, bAsync=True):
         """
         Unmaximize and unminimize the window.
 
@@ -663,12 +660,11 @@ class Window (object):
         @raise WindowsError: An error occured while processing this request.
         """
         if bAsync:
-            win32.ShowWindowAsync( self.get_handle(), win32.SW_RESTORE )
+            win32.ShowWindowAsync(self.get_handle(), win32.SW_RESTORE)
         else:
-            win32.ShowWindow( self.get_handle(), win32.SW_RESTORE )
+            win32.ShowWindow(self.get_handle(), win32.SW_RESTORE)
 
-    def move(self, x = None, y = None, width = None, height = None,
-                                                            bRepaint = True):
+    def move(self, x=None, y=None, width=None, height=None, bRepaint=True):
         """
         Moves and/or resizes the window.
 
@@ -714,7 +710,7 @@ class Window (object):
         """
         self.post(win32.WM_QUIT)
 
-    def send(self, uMsg, wParam = None, lParam = None, dwTimeout = None):
+    def send(self, uMsg, wParam=None, lParam=None, dwTimeout=None):
         """
         Send a low-level window message syncronically.
 
@@ -737,11 +733,9 @@ class Window (object):
         """
         if dwTimeout is None:
             return win32.SendMessage(self.get_handle(), uMsg, wParam, lParam)
-        return win32.SendMessageTimeout(
-            self.get_handle(), uMsg, wParam, lParam,
-            win32.SMTO_ABORTIFHUNG | win32.SMTO_ERRORONEXIT, dwTimeout)
+        return win32.SendMessageTimeout(self.get_handle(), uMsg, wParam, lParam, win32.SMTO_ABORTIFHUNG | win32.SMTO_ERRORONEXIT, dwTimeout)
 
-    def post(self, uMsg, wParam = None, lParam = None):
+    def post(self, uMsg, wParam=None, lParam=None):
         """
         Post a low-level window message asyncronically.
 

@@ -1,4 +1,4 @@
-from _pydev_bundle._pydev_saved_modules import threading
+from _pydev_bundle._pydev_saved_modules import ThreadingEvent, ThreadingLock, threading_current_thread
 from _pydevd_bundle.pydevd_daemon_thread import PyDBDaemonThread
 from _pydevd_bundle.pydevd_constants import thread_get_ident, IS_CPYTHON, NULL
 import ctypes
@@ -12,7 +12,7 @@ _DEBUG = False  # Default should be False as this can be very verbose.
 
 
 class _TimeoutThread(PyDBDaemonThread):
-    '''
+    """
     The idea in this class is that it should be usually stopped waiting
     for the next event to be called (paused in a threading.Event.wait).
 
@@ -20,26 +20,26 @@ class _TimeoutThread(PyDBDaemonThread):
     then keeps on waiting as needed again.
 
     This is done so that it's a bit more optimized than creating many Timer threads.
-    '''
+    """
 
     def __init__(self, py_db):
         PyDBDaemonThread.__init__(self, py_db)
-        self._event = threading.Event()
+        self._event = ThreadingEvent()
         self._handles = []
 
         # We could probably do things valid without this lock so that it's possible to add
         # handles while processing, but the implementation would also be harder to follow,
         # so, for now, we're either processing or adding handles, not both at the same time.
-        self._lock = threading.Lock()
+        self._lock = ThreadingLock()
 
     def _on_run(self):
         wait_time = None
         while not self._kill_received:
             if _DEBUG:
                 if wait_time is None:
-                    pydev_log.critical('pydevd_timeout: Wait until a new handle is added.')
+                    pydev_log.critical("pydevd_timeout: Wait until a new handle is added.")
                 else:
-                    pydev_log.critical('pydevd_timeout: Next wait time: %s.', wait_time)
+                    pydev_log.critical("pydevd_timeout: Next wait time: %s.", wait_time)
             self._event.wait(wait_time)
 
             if self._kill_received:
@@ -49,13 +49,13 @@ class _TimeoutThread(PyDBDaemonThread):
             wait_time = self.process_handles()
 
     def process_handles(self):
-        '''
+        """
         :return int:
             Returns the time we should be waiting for to process the next event properly.
-        '''
+        """
         with self._lock:
             if _DEBUG:
-                pydev_log.critical('pydevd_timeout: Processing handles')
+                pydev_log.critical("pydevd_timeout: Processing handles")
             self._event.clear()
             handles = self._handles
             new_handles = self._handles = []
@@ -71,7 +71,7 @@ class _TimeoutThread(PyDBDaemonThread):
                 if curtime < handle.abs_timeout and not handle.disposed:
                     # It still didn't time out.
                     if _DEBUG:
-                        pydev_log.critical('pydevd_timeout: Handle NOT processed: %s', handle)
+                        pydev_log.critical("pydevd_timeout: Handle NOT processed: %s", handle)
                     new_handles.append(handle)
                     if min_handle_timeout is None:
                         min_handle_timeout = handle.abs_timeout
@@ -81,7 +81,7 @@ class _TimeoutThread(PyDBDaemonThread):
 
                 else:
                     if _DEBUG:
-                        pydev_log.critical('pydevd_timeout: Handle processed: %s', handle)
+                        pydev_log.critical("pydevd_timeout: Handle processed: %s", handle)
                     # Timed out (or disposed), so, let's execute it (should be no-op if disposed).
                     handle.exec_on_timeout()
 
@@ -90,7 +90,7 @@ class _TimeoutThread(PyDBDaemonThread):
             else:
                 timeout = min_handle_timeout - curtime
                 if timeout <= 0:
-                    pydev_log.critical('pydevd_timeout: Expected timeout to be > 0. Found: %s', timeout)
+                    pydev_log.critical("pydevd_timeout: Expected timeout to be > 0. Found: %s", timeout)
 
                 return timeout
 
@@ -106,9 +106,8 @@ class _TimeoutThread(PyDBDaemonThread):
 
 
 class _OnTimeoutHandle(object):
-
     def __init__(self, tracker, abs_timeout, on_timeout, kwargs):
-        self._str = '_OnTimeoutHandle(%s)' % (on_timeout,)
+        self._str = "_OnTimeoutHandle(%s)" % (on_timeout,)
 
         self._tracker = weakref.ref(tracker)
         self.abs_timeout = abs_timeout
@@ -130,11 +129,11 @@ class _OnTimeoutHandle(object):
 
             try:
                 if _DEBUG:
-                    pydev_log.critical('pydevd_timeout: Calling on timeout: %s with kwargs: %s', on_timeout, kwargs)
+                    pydev_log.critical("pydevd_timeout: Calling on timeout: %s with kwargs: %s", on_timeout, kwargs)
 
                 on_timeout(**kwargs)
             except Exception:
-                pydev_log.exception('pydevd_timeout: Exception on callback timeout.')
+                pydev_log.exception("pydevd_timeout: Exception on callback timeout.")
 
     def __enter__(self):
         pass
@@ -159,17 +158,17 @@ class _OnTimeoutHandle(object):
 
 
 class TimeoutTracker(object):
-    '''
+    """
     This is a helper class to track the timeout of something.
-    '''
+    """
 
     def __init__(self, py_db):
         self._thread = None
-        self._lock = threading.Lock()
+        self._lock = ThreadingLock()
         self._py_db = weakref.ref(py_db)
 
     def call_on_timeout(self, timeout, on_timeout, kwargs=None):
-        '''
+        """
         This can be called regularly to always execute the given function after a given timeout:
 
         call_on_timeout(py_db, 10, on_timeout)
@@ -182,11 +181,11 @@ class TimeoutTracker(object):
             ...
 
         Note: the callback will be called from a PyDBDaemonThread.
-        '''
+        """
         with self._lock:
             if self._thread is None:
                 if _DEBUG:
-                    pydev_log.critical('pydevd_timeout: Created _TimeoutThread.')
+                    pydev_log.critical("pydevd_timeout: Created _TimeoutThread.")
 
                 self._thread = _TimeoutThread(self._py_db())
                 self._thread.start()
@@ -194,13 +193,13 @@ class TimeoutTracker(object):
             curtime = time.time()
             handle = _OnTimeoutHandle(self, curtime + timeout, on_timeout, kwargs)
             if _DEBUG:
-                pydev_log.critical('pydevd_timeout: Added handle: %s.', handle)
+                pydev_log.critical("pydevd_timeout: Added handle: %s.", handle)
             self._thread.add_on_timeout_handle(handle)
             return handle
 
 
 def create_interrupt_this_thread_callback():
-    '''
+    """
     The idea here is returning a callback that when called will generate a KeyboardInterrupt
     in the thread that called this function.
 
@@ -214,26 +213,25 @@ def create_interrupt_this_thread_callback():
     :return callable:
         Returns a callback that will interrupt the current thread (this may be called
         from an auxiliary thread).
-    '''
+    """
     tid = thread_get_ident()
 
     if is_current_thread_main_thread():
-        main_thread = threading.current_thread()
+        main_thread = threading_current_thread()
 
         def raise_on_this_thread():
-            pydev_log.debug('Callback to interrupt main thread.')
+            pydev_log.debug("Callback to interrupt main thread.")
             pydevd_utils.interrupt_main_thread(main_thread)
 
     else:
-
         # Note: this works in the sense that it can stop some cpu-intensive slow operation,
         # but we can't really interrupt the thread out of some sleep or I/O operation
         # (this will only be raised when Python is about to execute the next instruction).
         def raise_on_this_thread():
             if IS_CPYTHON:
-                pydev_log.debug('Interrupt thread: %s', tid)
+                pydev_log.debug("Interrupt thread: %s", tid)
                 ctypes.pythonapi.PyThreadState_SetAsyncExc(ctypes.c_long(tid), ctypes.py_object(KeyboardInterrupt))
             else:
-                pydev_log.debug('It is only possible to interrupt non-main threads in CPython.')
+                pydev_log.debug("It is only possible to interrupt non-main threads in CPython.")
 
     return raise_on_this_thread

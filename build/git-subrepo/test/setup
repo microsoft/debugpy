@@ -1,0 +1,205 @@
+#!/usr/bin/env bash
+
+set -e
+
+# Set the GIT_SUBREPO_ROOT for testing.
+source $PWD/.rc
+
+# Set this locally for Windows:
+git config core.autocrlf input
+
+export BASHLIB="`
+  find $PWD -type d |
+  grep -E '/(bin|lib)$' |
+  xargs -n1 printf "%s:"
+`"
+export PATH="$BASHLIB:$PATH"
+source bash+ :std
+
+source 'lib/git-subrepo'
+
+# TODO: Move to test/tmp
+export TMP="tmp"
+rm -fr $TMP
+
+#export GIT_EXEC_PATH="$PWD/lib:$(git --exec-path)"
+export UPSTREAM="$TMP/upstream"
+export OWNER="$TMP/owner"
+export COLLAB="$TMP/collab"
+
+mkdir -p "$UPSTREAM" "$OWNER" "$COLLAB"
+
+cp -r test/repo/{foo,bar,init} "$UPSTREAM/"
+
+###
+# Test helper functions:
+###
+clone-foo-and-bar() {
+  (
+    # foo will act as the main repo
+    git clone $UPSTREAM/foo $OWNER/foo
+    (
+        cd $OWNER/foo
+        git config core.autocrlf input
+        git config user.name "FooUser"
+        git config user.email "foo@foo"
+    )
+    # bar will act as the subrepo
+    git clone $UPSTREAM/bar $OWNER/bar
+    (
+        cd $OWNER/bar
+        git config core.autocrlf input
+        git config user.name "BarUser"
+        git config user.email "bar@bar"
+    )
+  ) &> /dev/null || die
+}
+
+subrepo-clone-bar-into-foo() {
+  (
+    cd $OWNER/foo
+    git subrepo clone ../../../$UPSTREAM/bar
+  ) &> /dev/null || die
+}
+
+add-new-files() {
+  local file
+  for file in $*; do
+    echo "new file $file" > "$file"
+    git add "$file"
+  done
+  git commit --quiet -m "add new file: $file" &> /dev/null
+}
+
+remove-files() {
+  local file
+  for file in $*; do
+    git rm "$file"
+  done
+  git commit --quiet -m "Removed file: $file" &> /dev/null
+}
+
+modify-files() {
+  local file
+  for file in $*; do
+    echo 'a new line' >> "$file"
+    git add "$file"
+  done
+  git commit -m "modified file: $file"
+}
+
+modify-files-ex() {
+  local file
+  for file in $*; do
+    echo "$file" >> "$file"
+    git add "$file"
+  done
+  git commit -m "modified file: $file"
+}
+
+test-exists() {
+  for f in "$@"; do
+    if [[ $f =~ ^! ]]; then
+      f="${f#!}"
+      if [[ $f =~ /$ ]]; then
+        ok "`[ ! -d "$f" ]`" \
+          "Directory '$f' does not exist"
+      else
+        ok "`[ ! -f "$f" ]`" \
+          "File '$f' does not exist"
+      fi
+    else
+      if [[ $f =~ /$ ]]; then
+        ok "`[ -d "$f" ]`" \
+          "Directory '$f' exists"
+      else
+        ok "`[ -f "$f" ]`" \
+          "File '$f' exists"
+      fi
+    fi
+  done
+}
+
+test-exists-in-index() {
+  for f in $*; do
+    if [[ "$f" =~ ^! ]]; then
+      f="${f#!}"
+      if [[ "$f" =~ /$ ]]; then
+        ok "`[ ! $(git ls-tree --full-tree --name-only -r HEAD "$f") ]`" \
+          "Directory '$f' does not exist in index"
+      else
+        ok "`[ ! $(git ls-tree --full-tree --name-only -r HEAD "$f") ]`" \
+          "File '$f' does not exist in index"
+      fi
+    else
+      if [[ "$f" =~ /$ ]]; then
+        ok "`[ $(git ls-tree --full-tree --name-only -r HEAD "$f") ]`" \
+          "Directory '$f' exists in index"
+      else
+        ok "`[ $(git ls-tree --full-tree --name-only -r HEAD "$f") ]`" \
+          "File '$f' exists in index"
+      fi
+    fi
+  done
+}
+
+test-gitrepo-comment-block() {
+  is "$(grep -E '^;' $gitrepo)" "\
+; DO NOT EDIT (unless you know what you are doing)
+;
+; This subdirectory is a git \"subrepo\", and this file is maintained by the
+; git-subrepo command. See https://github.com/git-commands/git-subrepo#readme
+;" \
+    'Comment header block is correct'
+}
+
+test-gitrepo-field() {
+  is "`git config -f $gitrepo subrepo.$1`" \
+    "$2" \
+    ".gitrepo $1 is correct"
+}
+
+test-commit-count() {
+  is "`cd $1; git rev-list --count $2`" \
+    "$3" \
+    "commit count is correct"
+}
+
+save-original-state() {
+  original_head_ref="$(cd $1; cat .git/HEAD)"
+  original_branch="${original_head_ref#ref: refs/heads/}"
+  original_head_commit="$(cd $1; git rev-parse HEAD)"
+  original_gitrepo="$(cd $1; cat $2/.gitrepo)"
+}
+
+assert-original-state() {
+  current_head_ref="$(cd $1; cat .git/HEAD)"
+  current_branch="${current_head_ref#ref: refs/heads/}"
+  current_head_commit="$(cd $1; git rev-parse HEAD)"
+  current_gitrepo="$(cd $1; cat $2/.gitrepo)"
+
+  is "$current_head_ref" \
+    "$original_head_ref" \
+    "Current HEAD is still $original_head_ref"
+
+  is "$current_branch" \
+    "$original_branch" \
+    "Current branch is still $original_branch"
+
+  is "$current_head_commit" \
+    "$original_head_commit" \
+    "Current HEAD commit is still $original_head_commit"
+
+  is "$current_gitrepo" \
+    "$original_gitrepo" \
+    "$2/.gitrepo has not changed"
+}
+
+catch() {
+  local error=; error="$("$@" 2>&1 || true)"
+  echo "$error"
+}
+
+teardown() {
+  rm -fr $TMP
+}

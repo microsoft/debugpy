@@ -1,0 +1,38 @@
+#!bash
+
+#------------------------------------------------------------------------------
+#
+# This is the `git-subrepo` initialization script.
+#
+# This script turns on the `git-subrepo` Git subcommand, its manpages and TAB
+# completion for the *Bash* and *zsh* shells.
+#
+# Just add a line like this to your shell startup configuration:
+#
+#   source /path/to/git-subrepo/.rc
+#
+#------------------------------------------------------------------------------
+
+if [[ ${BASH_VERSION} ]]; then
+  if [[ ${BASH_VERSINFO[0]} -lt 4 ]] ; then
+    echo "The git-subrepo command requires that 'Bash 4+' is installed."
+    echo "It doesn't need to be your shell, but it must be in your PATH."
+    if [[ $OSTYPE == darwin* ]]; then
+      echo "You appear to be on macOS."
+      echo "Try: 'brew install bash'."
+      echo "This will not change your user shell, it just installs 'Bash 5.x'."
+    fi
+    return
+  fi
+fi
+
+[[ -n ${ZSH_VERSION-} ]] &&
+  GIT_SUBREPO_ROOT=$0 ||
+  GIT_SUBREPO_ROOT=$BASH_SOURCE
+[[ $GIT_SUBREPO_ROOT =~ ^/ ]] ||
+  GIT_SUBREPO_ROOT=$PWD/$GIT_SUBREPO_ROOT
+export GIT_SUBREPO_ROOT=$(cd "$(dirname "$GIT_SUBREPO_ROOT")"; pwd)
+
+export PATH=$GIT_SUBREPO_ROOT/lib:$PATH
+export MANPATH=$GIT_SUBREPO_ROOT/man:$MANPATH
+source "$GIT_SUBREPO_ROOT/share/enable-completion.sh"

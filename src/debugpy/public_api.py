@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import functools
 import typing
 
@@ -19,6 +20,21 @@ from debugpy import _version
 
 
 Endpoint = typing.Tuple[str, int]
+
+
+@dataclasses.dataclass(frozen=True)
+class CliOptions:
+    """Options that were passed to the debugpy CLI entry point."""
+    mode: typing.Literal["connect", "listen"]
+    target_kind: typing.Literal["file", "module", "code", "pid"]
+    address: Endpoint
+    log_to: str | None = None
+    log_to_stderr: bool = False
+    target: str | None = None
+    wait_for_client: bool = False
+    adapter_access_token: str | None = None
+    config: dict[str, object] = dataclasses.field(default_factory=dict)
+    parent_session_pid: int | None = None
 
 
 def _api(cancelable=False):
@@ -120,7 +136,7 @@ def listen(
     ...
 
 @_api()
-def connect(__endpoint: Endpoint | int, *, access_token: str | None = None) -> Endpoint:
+def connect(__endpoint: Endpoint | int, *, access_token: str | None = None, parent_session_pid: int | None = None) -> Endpoint:
     """Tells an existing debug adapter instance that is listening on the
     specified address to debug this process.
 
@@ -130,6 +146,10 @@ def connect(__endpoint: Endpoint | int, *, access_token: str | None = None) -> E
 
     `access_token` must be the same value that was passed to the adapter
     via the `--server-access-token` command-line switch.
+
+    `parent_session_pid` is the PID of the parent session to associate
+    with. This is useful if running in a process that is not an immediate
+    child of the parent process being debugged.
 
     This function does't wait for a client to connect to the debug
     adapter that it connects to. Use `wait_for_client` to block
@@ -190,6 +210,39 @@ def trace_this_thread(__should_trace: bool):
     Tracing is automatically disabled for all threads when there is no
     client connected to the debug adapter.
     """
+
+
+def get_cli_options() -> CliOptions | None:
+    """Returns the CLI options that were processed by debugpy.
+    
+    These options are all the options after the CLI args and
+    environment variables that were processed on startup.
+    
+    If the debugpy CLI entry point was not called in this process, the
+    returned value is None.
+    """
+    from debugpy.server import cli
+
+    options = cli.options
+    if options.mode is None or options.target_kind is None or options.address is None:
+        # The CLI entrypoint was not called so there are no options present.
+        return None
+
+    # We don't return the actual options object because we don't want callers
+    # to be able to mutate it. Instead we use a frozen dataclass as a snapshot
+    # with richer type annotations.
+    return CliOptions(
+        mode=options.mode,
+        target_kind=options.target_kind,
+        address=options.address,
+        log_to=options.log_to,
+        log_to_stderr=options.log_to_stderr,
+        target=options.target,
+        wait_for_client=options.wait_for_client,
+        adapter_access_token=options.adapter_access_token,
+        config=options.config,
+        parent_session_pid=options.parent_session_pid,
+    )
 
 
 __version__: str = _version.get_versions()["version"]

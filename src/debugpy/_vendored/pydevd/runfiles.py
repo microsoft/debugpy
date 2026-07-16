@@ -1,8 +1,8 @@
-'''
+"""
 Entry point module (keep at root):
 
 Used to run with tests with unittest/pytest/nose.
-'''
+"""
 
 import os
 
@@ -15,8 +15,8 @@ def main():
     other_test_framework_params = []
     found_other_test_framework_param = None
 
-    NOSE_PARAMS = '--nose-params'
-    PY_TEST_PARAMS = '--py-test-params'
+    NOSE_PARAMS = "--nose-params"
+    PY_TEST_PARAMS = "--py-test-params"
 
     for arg in sys.argv[1:]:
         if not found_other_test_framework_param and arg != NOSE_PARAMS and arg != PY_TEST_PARAMS:
@@ -48,15 +48,15 @@ def main():
 
     DEBUG = 0
     if DEBUG:
-        sys.stdout.write('Received parameters: %s\n' % (sys.argv,))
-        sys.stdout.write('Params for pydev: %s\n' % (pydev_params,))
+        sys.stdout.write("Received parameters: %s\n" % (sys.argv,))
+        sys.stdout.write("Params for pydev: %s\n" % (pydev_params,))
         if found_other_test_framework_param:
-            sys.stdout.write('Params for test framework: %s, %s\n' % (found_other_test_framework_param, other_test_framework_params))
+            sys.stdout.write("Params for test framework: %s, %s\n" % (found_other_test_framework_param, other_test_framework_params))
 
     try:
         configuration = pydev_runfiles.parse_cmdline([sys.argv[0]] + pydev_params)
     except:
-        sys.stderr.write('Command line received: %s\n' % (sys.argv,))
+        sys.stderr.write("Command line received: %s\n" % (sys.argv,))
         raise
     pydev_runfiles_xml_rpc.initialize_server(configuration.port)  # Note that if the port is None, a Null server will be initialized.
 
@@ -74,7 +74,7 @@ def main():
                 import pytest
 
             else:
-                raise ImportError('Test framework: %s not supported.' % (found_other_test_framework_param,))
+                raise ImportError("Test framework: %s not supported." % (found_other_test_framework_param,))
 
         else:
             raise ImportError()
@@ -87,11 +87,10 @@ def main():
 
     # Clear any exception that may be there so that clients don't see it.
     # See: https://sourceforge.net/tracker/?func=detail&aid=3408057&group_id=85796&atid=577329
-    if hasattr(sys, 'exc_clear'):
+    if hasattr(sys, "exc_clear"):
         sys.exc_clear()
 
     if not test_framework:
-
         return pydev_runfiles.main(configuration)  # Note: still doesn't return a proper value.
 
     else:
@@ -116,7 +115,7 @@ def main():
             for file, tests in files_to_tests.items():
                 if test_framework == NOSE_FRAMEWORK:
                     for test in tests:
-                        files_or_dirs.append(file + ':' + test)
+                        files_or_dirs.append(file + ":" + test)
 
                 elif test_framework == PY_TEST_FRAMEWORK:
                     py_test_accept_filter[file] = tests
@@ -124,7 +123,7 @@ def main():
                     files_or_dirs.append(file)
 
                 else:
-                    raise AssertionError('Cannot handle test framework: %s at this point.' % (test_framework,))
+                    raise AssertionError("Cannot handle test framework: %s at this point." % (test_framework,))
 
         else:
             if configuration.tests:
@@ -133,7 +132,7 @@ def main():
                 for file in configuration.files_or_dirs:
                     if test_framework == NOSE_FRAMEWORK:
                         for t in configuration.tests:
-                            files_or_dirs.append(file + ':' + t)
+                            files_or_dirs.append(file + ":" + t)
 
                     elif test_framework == PY_TEST_FRAMEWORK:
                         py_test_accept_filter[file] = configuration.tests
@@ -141,7 +140,7 @@ def main():
                         files_or_dirs.append(file)
 
                     else:
-                        raise AssertionError('Cannot handle test framework: %s at this point.' % (test_framework,))
+                        raise AssertionError("Cannot handle test framework: %s at this point." % (test_framework,))
             else:
                 # Only files or dirs passed (let it do the test-loading based on those paths)
                 files_or_dirs = configuration.files_or_dirs
@@ -154,42 +153,45 @@ def main():
             # processes_option = ['--processes=2']
             argv.insert(0, sys.argv[0])
             if DEBUG:
-                sys.stdout.write('Final test framework args: %s\n' % (argv[1:],))
+                sys.stdout.write("Final test framework args: %s\n" % (argv[1:],))
 
             from _pydev_runfiles import pydev_runfiles_nose
+
             PYDEV_NOSE_PLUGIN_SINGLETON = pydev_runfiles_nose.start_pydev_nose_plugin_singleton(configuration)
-            argv.append('--with-pydevplugin')
+            argv.append("--with-pydevplugin")
             # Return 'not' because it will return 'success' (so, exit == 0 if success)
             return not nose.run(argv=argv, addplugins=[PYDEV_NOSE_PLUGIN_SINGLETON])
 
         elif test_framework == PY_TEST_FRAMEWORK:
-
-            if '--coverage_output_dir' in pydev_params and '--coverage_include' in pydev_params:
-                coverage_output_dir = pydev_params[pydev_params.index('--coverage_output_dir') + 1]
-                coverage_include = pydev_params[pydev_params.index('--coverage_include') + 1]
+            if "--coverage_output_dir" in pydev_params and "--coverage_include" in pydev_params:
+                coverage_output_dir = pydev_params[pydev_params.index("--coverage_output_dir") + 1]
+                coverage_include = pydev_params[pydev_params.index("--coverage_include") + 1]
                 try:
                     import pytest_cov
                 except ImportError:
-                    sys.stderr.write('To do a coverage run with pytest the pytest-cov library is needed (i.e.: pip install pytest-cov).\n\n')
+                    sys.stderr.write(
+                        "To do a coverage run with pytest the pytest-cov library is needed (i.e.: pip install pytest-cov).\n\n"
+                    )
                     raise
 
-                argv.insert(0, '--cov-append')
-                argv.insert(1, '--cov-report=')
-                argv.insert(2, '--cov=%s' % (coverage_include,))
+                argv.insert(0, "--cov-append")
+                argv.insert(1, "--cov-report=")
+                argv.insert(2, "--cov=%s" % (coverage_include,))
 
                 import time
-                os.environ['COVERAGE_FILE'] = os.path.join(coverage_output_dir, '.coverage.%s' % (time.time(),))
+
+                os.environ["COVERAGE_FILE"] = os.path.join(coverage_output_dir, ".coverage.%s" % (time.time(),))
 
             if DEBUG:
-                sys.stdout.write('Final test framework args: %s\n' % (argv,))
-                sys.stdout.write('py_test_accept_filter: %s\n' % (py_test_accept_filter,))
+                sys.stdout.write("Final test framework args: %s\n" % (argv,))
+                sys.stdout.write("py_test_accept_filter: %s\n" % (py_test_accept_filter,))
 
             def dotted(p):
                 # Helper to convert path to have dots instead of slashes
-                return os.path.normpath(p).replace(os.sep, "/").replace('/', '.')
+                return os.path.normpath(p).replace(os.sep, "/").replace("/", ".")
 
-            curr_dir = os.path.realpath('.')
-            curr_dotted = dotted(curr_dir) + '.'
+            curr_dir = os.path.realpath(".")
+            curr_dotted = dotted(curr_dir) + "."
 
             # Overcome limitation on py.test:
             # When searching conftest if we have a structure as:
@@ -203,11 +205,26 @@ def main():
             # See related issue (for which we work-around below):
             # https://bitbucket.org/hpk42/pytest/issue/639/conftest-being-loaded-twice-giving
 
-            for path in sys.path:
-                path_dotted = dotted(path)
-                if curr_dotted.startswith(path_dotted):
-                    os.chdir(path)
+            found_conftest = False
+
+            curdir_abs = os.path.abspath(os.curdir)
+            while True:
+                if os.path.exists(os.path.join(curdir_abs, "conftest.py")):
+                    os.chdir(curdir_abs)
+                    found_conftest = True
                     break
+
+                parent = os.path.dirname(curdir_abs)
+                if curdir_abs == parent or not parent:
+                    break
+                curdir_abs = parent
+
+            if not found_conftest:
+                for path in sys.path:
+                    path_dotted = dotted(path)
+                    if curr_dotted.startswith(path_dotted):
+                        os.chdir(path)
+                        break
 
             remove = []
             for i in range(len(argv)):
@@ -215,13 +232,13 @@ def main():
                 # Workaround bug in py.test: if we pass the full path it ends up importing conftest
                 # more than once (so, always work with relative paths).
                 if os.path.isfile(arg) or os.path.isdir(arg):
-
                     # Args must be passed with the proper case in the filesystem (otherwise
                     # python itself may not recognize it).
                     arg = get_with_filesystem_case(arg)
                     argv[i] = arg
 
                     from os.path import relpath
+
                     try:
                         # May fail if on different drives
                         arg = relpath(arg)
@@ -229,7 +246,7 @@ def main():
                         pass
                     else:
                         argv[i] = arg
-                elif '<unable to get>' in arg:
+                elif "<unable to get>" in arg:
                     remove.append(i)
 
             for i in reversed(remove):
@@ -243,74 +260,76 @@ def main():
             import pickle, zlib, base64
 
             # Update environment PYTHONPATH so that it finds our plugin if using xdist.
-            os.environ['PYTHONPATH'] = os.pathsep.join(sys.path)
+            os.environ["PYTHONPATH"] = os.pathsep.join(sys.path)
 
             # Set what should be skipped in the plugin through an environment variable
             s = base64.b64encode(zlib.compress(pickle.dumps(py_test_accept_filter)))
-            s = s.decode('ascii')  # Must be str in py3.
-            os.environ['PYDEV_PYTEST_SKIP'] = s
+            s = s.decode("ascii")  # Must be str in py3.
+            os.environ["PYDEV_PYTEST_SKIP"] = s
 
             # Identifies the main pid (i.e.: if it's not the main pid it has to connect back to the
             # main pid to give xml-rpc notifications).
-            os.environ['PYDEV_MAIN_PID'] = str(os.getpid())
-            os.environ['PYDEV_PYTEST_SERVER'] = str(configuration.port)
+            os.environ["PYDEV_MAIN_PID"] = str(os.getpid())
+            os.environ["PYDEV_PYTEST_SERVER"] = str(configuration.port)
 
-            argv.append('-p')
-            argv.append('_pydev_runfiles.pydev_runfiles_pytest2')
+            argv.append("-p")
+            argv.append("_pydev_runfiles.pydev_runfiles_pytest2")
             return pytest.main(argv)
 
         else:
-            raise AssertionError('Cannot handle test framework: %s at this point.' % (test_framework,))
+            raise AssertionError("Cannot handle test framework: %s at this point." % (test_framework,))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     try:
         main()
     finally:
         try:
             # The server is not a daemon thread, so, we have to ask for it to be killed!
             from _pydev_runfiles import pydev_runfiles_xml_rpc
+
             pydev_runfiles_xml_rpc.force_server_kill()
         except:
             pass  # Ignore any errors here
 
     import sys
     import threading
-    if hasattr(sys, '_current_frames') and hasattr(threading, 'enumerate'):
+
+    if hasattr(sys, "_current_frames") and hasattr(threading, "enumerate"):
         import time
         import traceback
 
         class DumpThreads(threading.Thread):
-
             def run(self):
                 time.sleep(10)
 
                 thread_id_to_name = {}
                 try:
                     for t in threading.enumerate():
-                        thread_id_to_name[t.ident] = '%s  (daemon: %s)' % (t.name, t.daemon)
+                        thread_id_to_name[t.ident] = "%s  (daemon: %s)" % (t.name, t.daemon)
                 except:
                     pass
 
                 stack_trace = [
-                    '===============================================================================',
-                    'pydev pyunit runner: Threads still found running after tests finished',
-                    '================================= Thread Dump =================================']
+                    "===============================================================================",
+                    "pydev pyunit runner: Threads still found running after tests finished",
+                    "================================= Thread Dump =================================",
+                ]
 
                 for thread_id, stack in sys._current_frames().items():
-                    stack_trace.append('\n-------------------------------------------------------------------------------')
+                    stack_trace.append("\n-------------------------------------------------------------------------------")
                     stack_trace.append(" Thread %s" % thread_id_to_name.get(thread_id, thread_id))
-                    stack_trace.append('')
+                    stack_trace.append("")
 
-                    if 'self' in stack.f_locals:
-                        sys.stderr.write(str(stack.f_locals['self']) + '\n')
+                    if "self" in stack.f_locals:
+                        sys.stderr.write(str(stack.f_locals["self"]) + "\n")
 
                     for filename, lineno, name, line in traceback.extract_stack(stack):
                         stack_trace.append(' File "%s", line %d, in %s' % (filename, lineno, name))
                         if line:
                             stack_trace.append("   %s" % (line.strip()))
-                stack_trace.append('\n=============================== END Thread Dump ===============================')
-                sys.stderr.write('\n'.join(stack_trace))
+                stack_trace.append("\n=============================== END Thread Dump ===============================")
+                sys.stderr.write("\n".join(stack_trace))
 
         dump_current_frames_thread = DumpThreads()
         dump_current_frames_thread.daemon = True  # Daemon so that this thread doesn't halt it!

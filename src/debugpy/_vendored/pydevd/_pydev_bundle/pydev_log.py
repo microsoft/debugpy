@@ -1,5 +1,4 @@
-from _pydevd_bundle.pydevd_constants import DebugInfoHolder, SHOW_COMPILE_CYTHON_COMMAND_LINE, NULL, LOG_TIME, \
-    ForkSafeLock
+from _pydevd_bundle.pydevd_constants import DebugInfoHolder, SHOW_COMPILE_CYTHON_COMMAND_LINE, NULL, LOG_TIME, ForkSafeLock
 from contextlib import contextmanager
 import traceback
 import os
@@ -15,12 +14,12 @@ class _LoggingGlobals(object):
 
 
 def initialize_debug_stream(reinitialize=False):
-    '''
+    """
     :param bool reinitialize:
         Reinitialize is used to update the debug stream after a fork (thus, if it wasn't
         initialized, we don't need to do anything, just wait for the first regular log call
         to initialize).
-    '''
+    """
     if reinitialize:
         if not _LoggingGlobals._debug_stream_initialized:
             return
@@ -53,7 +52,7 @@ def initialize_debug_stream(reinitialize=False):
             try:
                 target_file = DebugInfoHolder.PYDEVD_DEBUG_FILE
                 debug_file = _compute_filename_with_pid(target_file)
-                _LoggingGlobals._debug_stream = open(debug_file, 'w')
+                _LoggingGlobals._debug_stream = open(debug_file, "w")
                 _LoggingGlobals._debug_stream_filename = debug_file
             except Exception:
                 _LoggingGlobals._debug_stream = sys.stderr
@@ -73,10 +72,10 @@ def _compute_filename_with_pid(target_file, pid=None):
     name, ext = os.path.splitext(basename)
     if pid is None:
         pid = os.getpid()
-    return os.path.join(dirname, '%s.%s%s' % (name, pid, ext))
+    return os.path.join(dirname, "%s.%s%s" % (name, pid, ext))
 
 
-def log_to(log_file:str, log_level:int=3) -> None:
+def log_to(log_file: str, log_level: int = 3) -> None:
     with _LoggingGlobals._initialize_lock:
         # Can be set directly.
         DebugInfoHolder.DEBUG_TRACE_LEVEL = log_level
@@ -107,9 +106,9 @@ def list_log_files(pydevd_debug_file):
 
 @contextmanager
 def log_context(trace_level, stream):
-    '''
+    """
     To be used to temporarily change the logging settings.
-    '''
+    """
     with _LoggingGlobals._initialize_lock:
         original_trace_level = DebugInfoHolder.DEBUG_TRACE_LEVEL
         original_debug_stream = _LoggingGlobals._debug_stream
@@ -132,6 +131,7 @@ def log_context(trace_level, stream):
 
 
 import time
+
 _last_log_time = time.time()
 
 # Set to True to show pid in each logged message (usually the file has it, but sometimes it's handy).
@@ -139,14 +139,14 @@ _LOG_PID = False
 
 
 def _pydevd_log(level, msg, *args):
-    '''
+    """
     Levels are:
 
     0 most serious warnings/errors (always printed)
     1 warnings/significant events
     2 informational trace
     3 verbose mode
-    '''
+    """
     if level <= DebugInfoHolder.DEBUG_TRACE_LEVEL:
         # yes, we can have errors printing if the console of the program has been finished (and we're still trying to print something)
         try:
@@ -154,19 +154,25 @@ def _pydevd_log(level, msg, *args):
                 if args:
                     msg = msg % args
             except:
-                msg = '%s - %s' % (msg, args)
+                msg = "%s - %s" % (msg, args)
 
             if LOG_TIME:
                 global _last_log_time
                 new_log_time = time.time()
                 time_diff = new_log_time - _last_log_time
                 _last_log_time = new_log_time
-                msg = '%.2fs - %s\n' % (time_diff, msg,)
+                msg = "%.2fs - %s\n" % (
+                    time_diff,
+                    msg,
+                )
             else:
-                msg = '%s\n' % (msg,)
+                msg = "%s\n" % (msg,)
 
             if _LOG_PID:
-                msg = '<%s> - %s\n' % (os.getpid(), msg,)
+                msg = "<%s> - %s\n" % (
+                    os.getpid(),
+                    msg,
+                )
 
             try:
                 try:
@@ -175,14 +181,14 @@ def _pydevd_log(level, msg, *args):
                 except TypeError:
                     if isinstance(msg, bytes):
                         # Depending on the StringIO flavor, it may only accept unicode.
-                        msg = msg.decode('utf-8', 'replace')
+                        msg = msg.decode("utf-8", "replace")
                         _LoggingGlobals._debug_stream.write(msg)
             except UnicodeEncodeError:
                 # When writing to the stream it's possible that the string can't be represented
                 # in the encoding expected (in this case, convert it to the stream encoding
                 # or ascii if we can't find one suitable using a suitable replace).
-                encoding = getattr(_LoggingGlobals._debug_stream, 'encoding', 'ascii')
-                msg = msg.encode(encoding, 'backslashreplace')
+                encoding = getattr(_LoggingGlobals._debug_stream, "encoding", "ascii")
+                msg = msg.encode(encoding, "backslashreplace")
                 msg = msg.decode(encoding)
                 _LoggingGlobals._debug_stream.write(msg)
 
@@ -192,7 +198,7 @@ def _pydevd_log(level, msg, *args):
         return True
 
 
-def _pydevd_log_exception(msg='', *args):
+def _pydevd_log_exception(msg="", *args):
     if msg or args:
         _pydevd_log(0, msg, *args)
     try:
@@ -225,7 +231,7 @@ def critical(msg, *args):
     _pydevd_log(0, msg, *args)
 
 
-def exception(msg='', *args):
+def exception(msg="", *args):
     try:
         _pydevd_log_exception(msg, *args)
     except:
@@ -242,7 +248,7 @@ def error_once(msg, *args):
         else:
             message = str(msg)
     except:
-        message = '%s - %s' % (msg, args)
+        message = "%s - %s" % (msg, args)
 
     if message not in _LoggingGlobals._warn_once_map:
         _LoggingGlobals._warn_once_map[message] = True
@@ -256,7 +262,7 @@ def exception_once(msg, *args):
         else:
             message = str(msg)
     except:
-        message = '%s - %s' % (msg, args)
+        message = "%s - %s" % (msg, args)
 
     if message not in _LoggingGlobals._warn_once_map:
         _LoggingGlobals._warn_once_map[message] = True
@@ -271,6 +277,8 @@ def debug_once(msg, *args):
 def show_compile_cython_command_line():
     if SHOW_COMPILE_CYTHON_COMMAND_LINE:
         dirname = os.path.dirname(os.path.dirname(__file__))
-        error_once("warning: Debugger speedups using cython not found. Run '\"%s\" \"%s\" build_ext --inplace' to build.",
-            sys.executable, os.path.join(dirname, 'setup_pydevd_cython.py'))
-
+        error_once(
+            'warning: Debugger speedups using cython not found. Run \'"%s" "%s" build_ext --inplace\' to build.',
+            sys.executable,
+            os.path.join(dirname, "setup_pydevd_cython.py"),
+        )

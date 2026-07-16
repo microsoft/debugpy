@@ -1,4 +1,3 @@
-
 import sys
 import traceback
 from types import ModuleType
@@ -8,7 +7,6 @@ import builtins
 
 
 class ImportHookManager(ModuleType):
-
     def __init__(self, name, system_import):
         ModuleType.__init__(self, name)
         self._system_import = system_import
@@ -35,6 +33,6 @@ class ImportHookManager(ModuleType):
         return module
 
 
-import_hook_manager = ImportHookManager(__name__ + '.import_hook', builtins.__import__)
+import_hook_manager = ImportHookManager(__name__ + ".import_hook", builtins.__import__)
 builtins.__import__ = import_hook_manager.do_import
 sys.modules[import_hook_manager.__name__] = import_hook_manager

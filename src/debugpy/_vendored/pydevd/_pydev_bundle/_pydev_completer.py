@@ -9,6 +9,7 @@ import builtins as __builtin__  # Py3
 try:
     import java.lang  # @UnusedImport
     from _pydev_bundle import _pydev_jy_imports_tipper
+
     _pydev_imports_tipper = _pydev_jy_imports_tipper
 except ImportError:
     IS_JYTHON = False
@@ -17,13 +18,13 @@ except ImportError:
 dir2 = _pydev_imports_tipper.generate_imports_tip_for_module
 
 
-#=======================================================================================================================
+# =======================================================================================================================
 # _StartsWithFilter
-#=======================================================================================================================
+# =======================================================================================================================
 class _StartsWithFilter:
-    '''
-        Used because we can't create a lambda that'll use an outer scope in jython 2.1
-    '''
+    """
+    Used because we can't create a lambda that'll use an outer scope in jython 2.1
+    """
 
     def __init__(self, start_with):
         self.start_with = start_with.lower()
@@ -32,13 +33,12 @@ class _StartsWithFilter:
         return name.lower().startswith(self.start_with)
 
 
-#=======================================================================================================================
+# =======================================================================================================================
 # Completer
 #
 # This class was gotten from IPython.completer (dir2 was replaced with the completer already in pydev)
-#=======================================================================================================================
+# =======================================================================================================================
 class Completer:
-
     def __init__(self, namespace=None, global_namespace=None):
         """Create a new completer for the command line.
 
@@ -82,7 +82,7 @@ class Completer:
         """
         if self.use_main_ns:
             # In pydev this option should never be used
-            raise RuntimeError('Namespace must be provided!')
+            raise RuntimeError("Namespace must be provided!")
             self.namespace = __main__.__dict__  # @UndefinedVariable
 
         if "." in text:
@@ -148,7 +148,7 @@ class Completer:
 
 
 def generate_completions(frame, act_tok):
-    '''
+    """
     :return list(tuple(method_name, docstring, parameters, completion_type))
 
     method_name: str
@@ -156,7 +156,7 @@ def generate_completions(frame, act_tok):
     parameters: str -- i.e.: "(a, b)"
     completion_type is an int
         See: _pydev_bundle._pydev_imports_tipper for TYPE_ constants
-    '''
+    """
     if frame is None:
         return []
 
@@ -189,21 +189,21 @@ def completions_to_xml(completions):
 
     for comp in completions:
         msg.append('<comp p0="')
-        msg.append(valid_xml(quote(comp[0], '/>_= \t')))
+        msg.append(valid_xml(quote(comp[0], "/>_= \t")))
         msg.append('" p1="')
-        msg.append(valid_xml(quote(comp[1], '/>_= \t')))
+        msg.append(valid_xml(quote(comp[1], "/>_= \t")))
         msg.append('" p2="')
-        msg.append(valid_xml(quote(comp[2], '/>_= \t')))
+        msg.append(valid_xml(quote(comp[2], "/>_= \t")))
         msg.append('" p3="')
-        msg.append(valid_xml(quote(comp[3], '/>_= \t')))
+        msg.append(valid_xml(quote(comp[3], "/>_= \t")))
         msg.append('"/>')
     msg.append("</xml>")
 
-    return ''.join(msg)
+    return "".join(msg)
 
 
-identifier_start = ascii_letters + '_'
-identifier_part = ascii_letters + '_' + digits
+identifier_start = ascii_letters + "_"
+identifier_part = ascii_letters + "_" + digits
 
 identifier_start = set(identifier_start)
 identifier_part = set(identifier_part)
@@ -213,18 +213,18 @@ def isidentifier(s):
     return s.isidentifier()
 
 
-TokenAndQualifier = namedtuple('TokenAndQualifier', 'token, qualifier')
+TokenAndQualifier = namedtuple("TokenAndQualifier", "token, qualifier")
 
 
 def extract_token_and_qualifier(text, line=0, column=0):
-    '''
+    """
     Extracts the token a qualifier from the text given the line/colum
     (see test_extract_token_and_qualifier for examples).
 
     :param unicode text:
     :param int line: 0-based
     :param int column: 0-based
-    '''
+    """
     # Note: not using the tokenize module because text should be unicode and
     # line/column refer to the unicode text (otherwise we'd have to know
     # those ranges after converted to bytes).
@@ -234,32 +234,32 @@ def extract_token_and_qualifier(text, line=0, column=0):
         column = 0
 
     if isinstance(text, bytes):
-        text = text.decode('utf-8')
+        text = text.decode("utf-8")
 
     lines = text.splitlines()
     try:
         text = lines[line]
     except IndexError:
-        return TokenAndQualifier(u'', u'')
+        return TokenAndQualifier("", "")
 
     if column >= len(text):
         column = len(text)
 
     text = text[:column]
-    token = u''
-    qualifier = u''
+    token = ""
+    qualifier = ""
 
     temp_token = []
     for i in range(column - 1, -1, -1):
         c = text[i]
-        if c in identifier_part or isidentifier(c) or c == u'.':
+        if c in identifier_part or isidentifier(c) or c == ".":
             temp_token.append(c)
         else:
             break
-    temp_token = u''.join(reversed(temp_token))
-    if u'.' in temp_token:
-        temp_token = temp_token.split(u'.')
-        token = u'.'.join(temp_token[:-1])
+    temp_token = "".join(reversed(temp_token))
+    if "." in temp_token:
+        temp_token = temp_token.split(".")
+        token = ".".join(temp_token[:-1])
         qualifier = temp_token[-1]
     else:
         qualifier = temp_token

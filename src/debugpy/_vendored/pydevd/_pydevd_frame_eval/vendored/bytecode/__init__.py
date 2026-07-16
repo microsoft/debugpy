@@ -37,6 +37,7 @@ from _pydevd_frame_eval.vendored.bytecode.concrete import (
 from _pydevd_frame_eval.vendored.bytecode.cfg import BasicBlock, ControlFlowGraph  # noqa
 import sys
 
+
 def dump_bytecode(bytecode, *, lineno=False, stream=sys.stdout):
     def format_line(index, line):
         nonlocal cur_lineno, prev_lineno

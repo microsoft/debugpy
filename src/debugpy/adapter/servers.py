@@ -375,7 +375,7 @@ class Server(components.Component):
             session = self.session
             if not session.client or not session.client.is_connected:
                 wait_for_connection(
-                    session, lambda conn: conn.pid == self.pid, timeout=30
+                    session, lambda conn: conn.pid == self.pid, timeout=60
                 )
             else:
                 self.wait_for(
@@ -387,7 +387,7 @@ class Server(components.Component):
                             for conn in session.client.known_subprocesses
                         )
                     ),
-                    timeout=30,
+                    timeout=60,
                 )
         with _lock:
             _connections.remove(self.connection)
@@ -399,7 +399,7 @@ def serve(host="127.0.0.1", port=0):
     global listener
     listener = sockets.serve("Server", Connection, host, port)
     sessions.report_sockets()
-    return listener.getsockname()
+    return sockets.get_address(listener)
 
 
 def is_serving():
@@ -479,7 +479,7 @@ def dont_wait_for_first_connection():
 
 
 def inject(pid, debugpy_args, on_output):
-    host, port = listener.getsockname() if listener is not None else ("", 0)
+    host, port = sockets.get_address(listener) if listener is not None else ("", 0)
 
     cmdline = [
         sys.executable,

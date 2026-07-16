@@ -187,7 +187,7 @@ def test_log_point(pyfile, target, run, condition):
         for i in range(0, 10):
             sys.stderr.write(str(i * 10) + "\n")  # @bp
             sys.stderr.flush()
-        ()  # @wait_for_output
+        x = 4  # @wait_for_output
 
     lines = code_to_debug.lines
     with debug.Session() as session:
@@ -255,7 +255,7 @@ def test_add_and_remove_breakpoint(pyfile, target, run):
         debuggee.setup()
         for i in range(0, 10):
             print(i)  # @bp
-        ()  # @wait_for_output
+        x = 4  # @wait_for_output
 
     with debug.Session() as session:
         session.config["redirectOutput"] = True
@@ -304,6 +304,7 @@ def test_breakpoint_in_nonexistent_file(pyfile, target, run):
             ]
 
 
+@pytest.mark.flaky(retries=2, delay=1)
 def test_invalid_breakpoints(pyfile, target, run):
     @pyfile
     def code_to_debug():

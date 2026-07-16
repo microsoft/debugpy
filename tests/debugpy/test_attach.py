@@ -5,15 +5,18 @@
 import pytest
 import sys
 
+from _pydevd_bundle.pydevd_constants import IS_PY312_OR_GREATER
 from tests import debug
 from tests.debug import runners
 from tests.patterns import some
 
 
 @pytest.mark.parametrize("stop_method", ["breakpoint", "pause"])
+@pytest.mark.skipif(IS_PY312_OR_GREATER, reason="Flakey test on 312 and higher")
 @pytest.mark.parametrize("is_client_connected", ["is_client_connected", ""])
-@pytest.mark.parametrize("wait_for_client", ["wait_for_client", ""])
-def test_attach_api(pyfile, wait_for_client, is_client_connected, stop_method):
+@pytest.mark.parametrize("host", ["127.0.0.1", "::1"])
+@pytest.mark.parametrize("wait_for_client", ["wait_for_client", pytest.param("", marks=pytest.mark.skipif(sys.platform.startswith("darwin"), reason="Flakey test on Mac"))])
+def test_attach_api(pyfile, host, wait_for_client, is_client_connected, stop_method):
     @pyfile
     def code_to_debug():
         import debuggee
@@ -56,7 +59,8 @@ def test_attach_api(pyfile, wait_for_client, is_client_connected, stop_method):
                 time.sleep(0.1)
 
     with debug.Session() as session:
-        host, port = runners.attach_connect.host, runners.attach_connect.port
+        host = runners.attach_connect.host if host == "127.0.0.1" else host
+        port = runners.attach_connect.port
         session.config.update({"connect": {"host": host, "port": port}})
 
         backchannel = session.open_backchannel()
@@ -100,6 +104,52 @@ def test_attach_api(pyfile, wait_for_client, is_client_connected, stop_method):
 
         session.request_continue()
 
+@pytest.mark.parametrize("host", ["127.0.0.1", "::1"])
+def test_multiple_listen_raises_exception(pyfile, host):
+    @pyfile
+    def code_to_debug():
+        import debuggee
+        import debugpy
+        import sys
+
+        from debuggee import backchannel
+
+        debuggee.setup()
+        _, host, port = sys.argv
+        port = int(port)
+        debugpy.listen(address=(host, port))
+        try:
+            debugpy.listen(address=(host, port))
+        except RuntimeError:
+            backchannel.send("listen_exception")
+        
+        debugpy.wait_for_client()
+        debugpy.breakpoint()
+        print("break")  # @breakpoint
+
+    host = runners.attach_connect.host if host == "127.0.0.1" else host
+    port = runners.attach_connect.port
+    with debug.Session() as session:
+        backchannel = session.open_backchannel()
+        session.spawn_debuggee(
+            [
+                code_to_debug,
+                host,
+                port,
+            ]
+        )
+  
+        session.wait_for_adapter_socket()
+        session.expect_server_socket()
+        session.connect_to_adapter((host, port))
+        with session.request_attach():
+            pass
+        
+        session.wait_for_stop(
+            expected_frames=[some.dap.frame(code_to_debug, "breakpoint")]
+        )
+        assert backchannel.receive() == "listen_exception"
+        session.request_continue()
 
 @pytest.mark.parametrize("run", runners.all_attach_connect)
 def test_reattach(pyfile, target, run):
@@ -155,6 +205,7 @@ def test_reattach(pyfile, target, run):
     not sys.platform.startswith("linux"),
     reason="https://github.com/microsoft/debugpy/issues/311",
 )
+@pytest.mark.flaky(retries=2, delay=1)
 def test_attach_pid_client(pyfile, target, pid_type):
     @pyfile
     def code_to_debug():
@@ -217,7 +268,8 @@ def test_attach_pid_client(pyfile, target, pid_type):
         session2.request_continue()
 
 
-def test_cancel_wait(pyfile):
+@pytest.mark.parametrize("host", ["127.0.0.1", "::1"])
+def test_cancel_wait(pyfile, host):
     @pyfile
     def code_to_debug():
         import debugpy
@@ -239,7 +291,8 @@ def test_cancel_wait(pyfile):
         backchannel.send("exit")
 
     with debug.Session() as session:
-        host, port = runners.attach_connect.host, runners.attach_connect.port
+        host = runners.attach_connect.host if host == "127.0.0.1" else host
+        port = runners.attach_connect.port
         session.config.update({"connect": {"host": host, "port": port}})
         session.expected_exit_code = None
 

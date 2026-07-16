@@ -76,8 +76,7 @@ Compile():
 
 import __future__
 
-_features = [getattr(__future__, fname)
-             for fname in __future__.all_feature_names]
+_features = [getattr(__future__, fname) for fname in __future__.all_feature_names]
 
 __all__ = ["compile_command", "Compile", "CommandCompiler"]
 
@@ -88,7 +87,7 @@ def _maybe_compile(compiler, source, filename, symbol):
     # Check for source consisting of only blank lines and comments
     for line in source.split("\n"):
         line = line.strip()
-        if line and line[0] != '#':
+        if line and line[0] != "#":
             break  # Leave it alone
     else:
         if symbol != "eval":
@@ -157,6 +156,7 @@ class Compile:
 
         try:
             from ast import PyCF_ALLOW_TOP_LEVEL_AWAIT
+
             self.flags |= PyCF_ALLOW_TOP_LEVEL_AWAIT
         except:
             pass
@@ -176,7 +176,9 @@ class CommandCompiler:
     the instance 'remembers' and compiles all subsequent program texts
     with the statement in force."""
 
-    def __init__(self,):
+    def __init__(
+        self,
+    ):
         self.compiler = Compile()
 
     def __call__(self, source, filename="<input>", symbol="single"):
@@ -200,6 +202,7 @@ class CommandCompiler:
         """
         return _maybe_compile(self.compiler, source, filename, symbol)
 
+
 # END --------------------------- from codeop import CommandCompiler, compile_command
 # END --------------------------- from codeop import CommandCompiler, compile_command
 # END --------------------------- from codeop import CommandCompiler, compile_command
@@ -207,14 +210,12 @@ class CommandCompiler:
 # END --------------------------- from codeop import CommandCompiler, compile_command
 
 
-__all__ = ["InteractiveInterpreter", "InteractiveConsole", "interact",
-           "compile_command"]
+__all__ = ["InteractiveInterpreter", "InteractiveConsole", "interact", "compile_command"]
 
 from _pydev_bundle._pydev_saved_modules import threading
 
 
 class _EvalAwaitInNewEventLoop(threading.Thread):
-
     def __init__(self, compiled, updated_globals, updated_locals):
         threading.Thread.__init__(self)
         self.daemon = True
@@ -232,6 +233,7 @@ class _EvalAwaitInNewEventLoop(threading.Thread):
     def run(self):
         try:
             import asyncio
+
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             self.evaluated_value = asyncio.run(self._async_func())
@@ -315,7 +317,7 @@ class InteractiveInterpreter:
         """
         try:
             is_async = False
-            if hasattr(inspect, 'CO_COROUTINE'):
+            if hasattr(inspect, "CO_COROUTINE"):
                 is_async = inspect.CO_COROUTINE & code.co_flags == inspect.CO_COROUTINE
 
             if is_async:
@@ -362,7 +364,7 @@ class InteractiveInterpreter:
                 sys.last_value = value
         if sys.excepthook is sys.__excepthook__:
             lines = traceback.format_exception_only(type, value)
-            self.write(''.join(lines))
+            self.write("".join(lines))
         else:
             # If someone has set sys.excepthook, we let that take precedence
             # over self.write
@@ -381,7 +383,7 @@ class InteractiveInterpreter:
         try:
             lines = traceback.format_exception(ei[0], ei[1], last_tb.tb_next)
             if sys.excepthook is sys.__excepthook__:
-                self.write(''.join(lines))
+                self.write("".join(lines))
             else:
                 # If someone has set sys.excepthook, we let that take precedence
                 # over self.write
@@ -451,9 +453,7 @@ class InteractiveConsole(InteractiveInterpreter):
             sys.ps2 = "... "
         cprt = 'Type "help", "copyright", "credits" or "license" for more information.'
         if banner is None:
-            self.write("Python %s on %s\n%s\n(%s)\n" %
-                       (sys.version, sys.platform, cprt,
-                        self.__class__.__name__))
+            self.write("Python %s on %s\n%s\n(%s)\n" % (sys.version, sys.platform, cprt, self.__class__.__name__))
         elif banner:
             self.write("%s\n" % str(banner))
         more = 0
@@ -475,9 +475,9 @@ class InteractiveConsole(InteractiveInterpreter):
                 self.resetbuffer()
                 more = 0
         if exitmsg is None:
-            self.write('now exiting %s...\n' % self.__class__.__name__)
-        elif exitmsg != '':
-            self.write('%s\n' % exitmsg)
+            self.write("now exiting %s...\n" % self.__class__.__name__)
+        elif exitmsg != "":
+            self.write("%s\n" % exitmsg)
 
     def push(self, line):
         """Push a line to the interpreter.
@@ -544,11 +544,10 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('-q', action='store_true',
-                       help="don't print version and copyright messages")
+    parser.add_argument("-q", action="store_true", help="don't print version and copyright messages")
     args = parser.parse_args()
     if args.q or sys.flags.quiet:
-        banner = ''
+        banner = ""
     else:
         banner = None
     interact(banner)

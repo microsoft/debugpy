@@ -1,3 +1,8 @@
+# import pydevd
+# py_db = pydevd.get_global_debugger()
+# py_db.set_project_roots(r'X:\liclipsews\liclipsews\Pydev\plugins\org.python.pydev.core\pysrc\tests_python\resources\my_code')
+# py_db.set_use_libraries_filter(False)
+
 if __name__ == '__main__':
     import sys
     import os

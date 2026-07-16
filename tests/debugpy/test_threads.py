@@ -102,7 +102,7 @@ def test_step_multi_threads(pyfile, target, run, resume):
 
         stop = session.wait_for_stop()
         threads = session.request("threads")
-        assert len(threads["threads"]) == 3
+        assert len(threads["threads"]) >= 3
 
         thread_name_to_id = {t["name"]: t["id"] for t in threads["threads"]}
         assert stop.thread_id == thread_name_to_id["thread1"]

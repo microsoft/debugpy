@@ -281,7 +281,11 @@ class Session(object):
 
         if self.adapter_endpoints is not None and self.expected_exit_code is not None:
             log.info("Waiting for {0} to close listener ports ...", self.adapter_id)
+            timeout_start = time.time()
             while self.adapter_endpoints.check():
+                if time.time() - timeout_start > 10:
+                    log.warning("{0} listener ports did not close within 10 seconds", self.adapter_id)
+                    break
                 time.sleep(0.1)
 
         if self.adapter is not None:
@@ -290,8 +294,20 @@ class Session(object):
                 self.adapter_id,
                 self.adapter.pid,
             )
-            self.adapter.wait()
-            watchdog.unregister_spawn(self.adapter.pid, self.adapter_id)
+            try:
+                self.adapter.wait(timeout=10)
+            except Exception:
+                log.warning("{0} did not exit gracefully within 10 seconds, force-killing", self.adapter_id)
+                try:
+                    self.adapter.kill()
+                    self.adapter.wait(timeout=5)
+                except Exception as e:
+                    log.error("Failed to force-kill {0}: {1}", self.adapter_id, e)
+            
+            try:
+                watchdog.unregister_spawn(self.adapter.pid, self.adapter_id)
+            except Exception as e:
+                log.warning("Failed to unregister adapter spawn: {0}", e)
             self.adapter = None
 
         if self.backchannel is not None:
@@ -366,9 +382,23 @@ class Session(object):
         return env
 
     def _make_python_cmdline(self, exe, *args):
-        return [
-            str(s.strpath if isinstance(s, py.path.local) else s) for s in [exe, *args]
-        ]
+        def normalize(s, strip_quotes=False):
+            # Convert py.path.local to string
+            if isinstance(s, py.path.local):
+                s = s.strpath
+            else:
+                s = str(s)
+            # Strip surrounding quotes if requested
+            if strip_quotes and len(s) >= 2 and " " in s and (s[0] == s[-1] == '"' or s[0] == s[-1] == "'"):
+                s = s[1:-1]
+            return s
+
+        # Strip quotes from exe
+        result = [normalize(exe, strip_quotes=True)]
+        for arg in args:
+            # Don't strip quotes on anything except the exe
+            result.append(normalize(arg, strip_quotes=False))
+        return result
 
     def spawn_debuggee(self, args, cwd=None, exe=sys.executable, setup=None):
         assert self.debuggee is None
@@ -464,7 +494,8 @@ class Session(object):
 
         self.expected_adapter_sockets["client"]["port"] = port
 
-        sock = sockets.create_client()
+        ipv6 = host.count(":") > 1
+        sock = sockets.create_client(ipv6)
         sock.connect(address)
 
         stream = messaging.JsonIOStream.from_socket(sock, name=self.adapter_id)
@@ -563,25 +594,78 @@ class Session(object):
 
     def run_in_terminal(self, args, cwd, env):
         exe = args.pop(0)
+        if getattr(self, "_run_in_terminal_args_can_be_interpreted_by_shell", False):
+            exe = self._shell_unquote(exe)
+            args = [self._shell_unquote(a) for a in args]
         self.spawn_debuggee.env.update(env)
         self.spawn_debuggee(args, cwd, exe=exe)
         return {}
+
+    @staticmethod
+    def _shell_unquote(s):
+        s = str(s)
+        if len(s) >= 2 and s[0] == s[-1] and s[0] in ("\"", "'"):
+            return s[1:-1]
+        return s
+
+    @classmethod
+    def _split_shell_arg_string(cls, s):
+        """Split a shell argument string into args, honoring simple single/double quotes.
+
+        This is intentionally minimal: it matches how terminals remove surrounding quotes
+        before passing args to the spawned process, which our tests need to emulate.
+        """
+        s = str(s)
+        args = []
+        current = []
+        quote = None
+
+        def flush():
+            if current:
+                args.append("".join(current))
+                current.clear()
+
+        for ch in s:
+            if quote is None:
+                if ch.isspace():
+                    flush()
+                    continue
+                if ch in ("\"", "'"):
+                    quote = ch
+                    continue
+                current.append(ch)
+            else:
+                if ch == quote:
+                    quote = None
+                    continue
+                current.append(ch)
+        flush()
+
+        return [cls._shell_unquote(a) for a in args]
 
     def _process_request(self, request):
         self.timeline.record_request(request, block=False)
         if request.command == "runInTerminal":
             args = request("args", json.array(str, vectorize=True))
-            if len(args) > 0 and request("argsCanBeInterpretedByShell", False):
+            args_can_be_interpreted_by_shell = request("argsCanBeInterpretedByShell", False)
+            if len(args) > 0 and args_can_be_interpreted_by_shell:
                 # The final arg is a string that contains multiple actual arguments.
+                # Split it like a shell would, but keep the rest of the args (including
+                # any quoting) intact so tests can inspect the raw runInTerminal argv.
                 last_arg = args.pop()
-                args += last_arg.split()
+                args += self._split_shell_arg_string(last_arg)
             cwd = request("cwd", ".")
             env = request("env", json.object(str))
             try:
+                self._run_in_terminal_args_can_be_interpreted_by_shell = (
+                    args_can_be_interpreted_by_shell
+                )
                 return self.run_in_terminal(args, cwd, env)
             except Exception as exc:
                 log.swallow_exception('"runInTerminal" failed:')
                 raise request.cant_handle(str(exc))
+            finally:
+                self._run_in_terminal_args_can_be_interpreted_by_shell = False
 
         elif request.command == "startDebugging":
             pid = request("configuration", dict)("subProcessId", int)
@@ -866,6 +950,8 @@ class Session(object):
         if expected_frames:
             assert len(expected_frames) <= len(frames)
             assert expected_frames == frames[0 : len(expected_frames)]
+
+        assert len(frames) > 0
 
         fid = frames[0]("id", int)
         return StopInfo(stopped, frames, tid, fid)

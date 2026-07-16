@@ -3,12 +3,12 @@
 GLUT Inputhook support functions
 """
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 #  Copyright (C) 2008-2011  The IPython Development Team
 #
 #  Distributed under the terms of the BSD License.  The full license is in
 #  the file COPYING, distributed as part of this software.
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 # GLUT is quite an old library and it is difficult to ensure proper
 # integration within IPython since original GLUT does not allow to handle
@@ -26,9 +26,9 @@ GLUT Inputhook support functions
 # them later without modifying the code. This should probably be made available
 # via IPython options system.
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Imports
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 import os
 import sys
 from _pydev_bundle._pydev_saved_modules import time
@@ -38,9 +38,9 @@ import OpenGL.platform as platform  # @UnresolvedImport
 from timeit import default_timer as clock
 from pydev_ipython.inputhook import stdin_ready
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Constants
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 # Frame per second : 60
 # Should probably be an IPython option
@@ -48,34 +48,30 @@ glut_fps = 60
 
 # Display mode : double buffeed + rgba + depth
 # Should probably be an IPython option
-glut_display_mode = (glut.GLUT_DOUBLE |
-                     glut.GLUT_RGBA |
-                     glut.GLUT_DEPTH)
+glut_display_mode = glut.GLUT_DOUBLE | glut.GLUT_RGBA | glut.GLUT_DEPTH
 
 glutMainLoopEvent = None
-if sys.platform == 'darwin':
+if sys.platform == "darwin":
     try:
         glutCheckLoop = platform.createBaseFunction(
-            'glutCheckLoop', dll=platform.GLUT, resultType=None,
+            "glutCheckLoop",
+            dll=platform.GLUT,
+            resultType=None,
             argTypes=[],
-            doc='glutCheckLoop(  ) -> None',
+            doc="glutCheckLoop(  ) -> None",
             argNames=(),
-            )
+        )
     except AttributeError:
-        raise RuntimeError(
-            '''Your glut implementation does not allow interactive sessions'''
-            '''Consider installing freeglut.''')
+        raise RuntimeError("""Your glut implementation does not allow interactive sessions""" """Consider installing freeglut.""")
     glutMainLoopEvent = glutCheckLoop
 elif glut.HAVE_FREEGLUT:
     glutMainLoopEvent = glut.glutMainLoopEvent
 else:
-    raise RuntimeError(
-        '''Your glut implementation does not allow interactive sessions. '''
-        '''Consider installing freeglut.''')
+    raise RuntimeError("""Your glut implementation does not allow interactive sessions. """ """Consider installing freeglut.""")
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Callback functions
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 
 def glut_display():
@@ -97,13 +93,13 @@ def glut_close():
 def glut_int_handler(signum, frame):
     # Catch sigint and print the defautl message
     signal.signal(signal.SIGINT, signal.default_int_handler)
-    print('\nKeyboardInterrupt')
+    print("\nKeyboardInterrupt")
     # Need to reprint the prompt at this stage
 
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Code
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 def inputhook_glut():
     """Run the pyglet event loop by processing pending events only.
 

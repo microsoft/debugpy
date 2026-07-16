@@ -9,16 +9,16 @@ Authors
 * Fernando Perez
 """
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 #  Copyright (C) 2008-2011  The IPython Development Team
 #
 #  Distributed under the terms of the BSD License.  The full license is in
 #  the file COPYING, distributed as part of this software.
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Imports
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 import os
 import sys
@@ -32,19 +32,22 @@ from pydev_ipython.inputhook import stdin_ready
 # window close.  For details, see:
 # http://groups.google.com/group/pyglet-users/browse_thread/thread/47c1aab9aa4a3d23/c22f9e819826799e?#c22f9e819826799e
 
-if sys.platform.startswith('linux'):
+if sys.platform.startswith("linux"):
+
     def flip(window):
         try:
             window.flip()
         except AttributeError:
             pass
 else:
+
     def flip(window):
         window.flip()
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Code
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+
 
 def inputhook_pyglet():
     """Run the pyglet event loop by processing pending events only.
@@ -63,7 +66,7 @@ def inputhook_pyglet():
             for window in pyglet.app.windows:
                 window.switch_to()
                 window.dispatch_events()
-                window.dispatch_event('on_draw')
+                window.dispatch_event("on_draw")
                 flip(window)
 
             # We need to sleep at this point to keep the idle CPU load

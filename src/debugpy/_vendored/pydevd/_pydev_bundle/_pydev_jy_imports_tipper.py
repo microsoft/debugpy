@@ -12,48 +12,49 @@ from org.python import core  # @UnresolvedImport
 from org.python.core import PyClass  # @UnresolvedImport
 
 # completion types.
-TYPE_IMPORT = '0'
-TYPE_CLASS = '1'
-TYPE_FUNCTION = '2'
-TYPE_ATTR = '3'
-TYPE_BUILTIN = '4'
-TYPE_PARAM = '5'
+TYPE_IMPORT = "0"
+TYPE_CLASS = "1"
+TYPE_FUNCTION = "2"
+TYPE_ATTR = "3"
+TYPE_BUILTIN = "4"
+TYPE_PARAM = "5"
 
 
 def _imp(name):
     try:
         return __import__(name)
     except:
-        if '.' in name:
-            sub = name[0:name.rfind('.')]
+        if "." in name:
+            sub = name[0 : name.rfind(".")]
             return _imp(sub)
         else:
-            s = 'Unable to import module: %s - sys.path: %s' % (str(name), sys.path)
+            s = "Unable to import module: %s - sys.path: %s" % (str(name), sys.path)
             raise RuntimeError(s)
 
 
 import java.util
-_java_rt_file = getattr(java.util, '__file__', None)
+
+_java_rt_file = getattr(java.util, "__file__", None)
 
 
 def Find(name):
     f = None
-    if name.startswith('__builtin__'):
-        if name == '__builtin__.str':
-            name = 'org.python.core.PyString'
-        elif name == '__builtin__.dict':
-            name = 'org.python.core.PyDictionary'
+    if name.startswith("__builtin__"):
+        if name == "__builtin__.str":
+            name = "org.python.core.PyString"
+        elif name == "__builtin__.dict":
+            name = "org.python.core.PyDictionary"
 
     mod = _imp(name)
     parent = mod
-    foundAs = ''
+    foundAs = ""
 
     try:
-        f = getattr(mod, '__file__', None)
+        f = getattr(mod, "__file__", None)
     except:
         f = None
 
-    components = name.split('.')
+    components = name.split(".")
     old_comp = None
     for comp in components[1:]:
         try:
@@ -65,98 +66,95 @@ def Find(name):
             if old_comp != comp:
                 raise
 
-        if hasattr(mod, '__file__'):
+        if hasattr(mod, "__file__"):
             f = mod.__file__
         else:
             if len(foundAs) > 0:
-                foundAs = foundAs + '.'
+                foundAs = foundAs + "."
             foundAs = foundAs + comp
 
         old_comp = comp
 
-    if f is None and name.startswith('java.lang'):
+    if f is None and name.startswith("java.lang"):
         # Hack: java.lang.__file__ is None on Jython 2.7 (whereas it pointed to rt.jar on Jython 2.5).
         f = _java_rt_file
 
     if f is not None:
-        if f.endswith('.pyc'):
+        if f.endswith(".pyc"):
             f = f[:-1]
-        elif f.endswith('$py.class'):
-            f = f[:-len('$py.class')] + '.py'
+        elif f.endswith("$py.class"):
+            f = f[: -len("$py.class")] + ".py"
     return f, mod, parent, foundAs
 
 
 def format_param_class_name(paramClassName):
-    if paramClassName.startswith('<type \'') and paramClassName.endswith('\'>'):
-        paramClassName = paramClassName[len('<type \''):-2]
-    if paramClassName.startswith('['):
-        if paramClassName == '[C':
-            paramClassName = 'char[]'
+    if paramClassName.startswith("<type '") and paramClassName.endswith("'>"):
+        paramClassName = paramClassName[len("<type '") : -2]
+    if paramClassName.startswith("["):
+        if paramClassName == "[C":
+            paramClassName = "char[]"
 
-        elif paramClassName == '[B':
-            paramClassName = 'byte[]'
+        elif paramClassName == "[B":
+            paramClassName = "byte[]"
 
-        elif paramClassName == '[I':
-            paramClassName = 'int[]'
+        elif paramClassName == "[I":
+            paramClassName = "int[]"
 
-        elif paramClassName.startswith('[L') and paramClassName.endswith(';'):
+        elif paramClassName.startswith("[L") and paramClassName.endswith(";"):
             paramClassName = paramClassName[2:-1]
-            paramClassName += '[]'
+            paramClassName += "[]"
     return paramClassName
 
 
 def generate_tip(data, log=None):
-    data = data.replace('\n', '')
-    if data.endswith('.'):
-        data = data.rstrip('.')
+    data = data.replace("\n", "")
+    if data.endswith("."):
+        data = data.rstrip(".")
 
     f, mod, parent, foundAs = Find(data)
     tips = generate_imports_tip_for_module(mod)
     return f, tips
 
 
-#=======================================================================================================================
+# =======================================================================================================================
 # Info
-#=======================================================================================================================
+# =======================================================================================================================
 class Info:
-
     def __init__(self, name, **kwargs):
         self.name = name
-        self.doc = kwargs.get('doc', None)
-        self.args = kwargs.get('args', ())  # tuple of strings
-        self.varargs = kwargs.get('varargs', None)  # string
-        self.kwargs = kwargs.get('kwargs', None)  # string
-        self.ret = kwargs.get('ret', None)  # string
+        self.doc = kwargs.get("doc", None)
+        self.args = kwargs.get("args", ())  # tuple of strings
+        self.varargs = kwargs.get("varargs", None)  # string
+        self.kwargs = kwargs.get("kwargs", None)  # string
+        self.ret = kwargs.get("ret", None)  # string
 
     def basic_as_str(self):
-        '''@returns this class information as a string (just basic format)
-        '''
+        """@returns this class information as a string (just basic format)"""
         args = self.args
-        s = 'function:%s args=%s, varargs=%s, kwargs=%s, docs:%s' % \
-            (self.name, args, self.varargs, self.kwargs, self.doc)
+        s = "function:%s args=%s, varargs=%s, kwargs=%s, docs:%s" % (self.name, args, self.varargs, self.kwargs, self.doc)
         return s
 
     def get_as_doc(self):
         s = str(self.name)
         if self.doc:
-            s += '\n@doc %s\n' % str(self.doc)
+            s += "\n@doc %s\n" % str(self.doc)
 
         if self.args:
-            s += '\n@params '
+            s += "\n@params "
             for arg in self.args:
                 s += str(format_param_class_name(arg))
-                s += '  '
+                s += "  "
 
         if self.varargs:
-            s += '\n@varargs '
+            s += "\n@varargs "
             s += str(self.varargs)
 
         if self.kwargs:
-            s += '\n@kwargs '
+            s += "\n@kwargs "
             s += str(self.kwargs)
 
         if self.ret:
-            s += '\n@return '
+            s += "\n@return "
             s += str(format_param_class_name(str(self.ret)))
 
         return str(s)
@@ -167,7 +165,7 @@ def isclass(cls):
 
 
 def ismethod(func):
-    '''this function should return the information gathered on a function
+    """this function should return the information gathered on a function
 
     @param func: this is the function we want to get info on
     @return a tuple where:
@@ -175,7 +173,7 @@ def ismethod(func):
         1 = a list of classes 'Info', with the info gathered from the function
             this is a list because when we have methods from java with the same name and different signatures,
             we actually have many methods, each with its own set of arguments
-    '''
+    """
 
     try:
         if isinstance(func, core.PyFunction):
@@ -194,8 +192,9 @@ def ismethod(func):
                 args = list(names[:nargs])
                 step = 0
 
-                if not hasattr(func_code, 'CO_VARARGS'):
+                if not hasattr(func_code, "CO_VARARGS"):
                     from org.python.core import CodeFlag  # @UnresolvedImport
+
                     co_varargs_flag = CodeFlag.CO_VARARGS.flag
                     co_varkeywords_flag = CodeFlag.CO_VARKEYWORDS.flag
                 else:
@@ -245,7 +244,7 @@ def ismethod(func):
                     try:
                         ret = met.getReturnType()
                     except AttributeError:
-                        ret = ''
+                        ret = ""
                     parameterTypes = met.getParameterTypes()
 
                     args = []
@@ -259,7 +258,7 @@ def ismethod(func):
                         except AttributeError:
                             try:
                                 paramClassName = repr(paramTypesClass)  # should be something like <type 'object'>
-                                paramClassName = paramClassName.split('\'')[1]
+                                paramClassName = paramClassName.split("'")[1]
                             except:
                                 paramClassName = repr(paramTypesClass)  # just in case something else happens... it will at least be visible
                         # if the parameter equals [C, it means it it a char array, so, let's change it
@@ -281,16 +280,15 @@ def ismethod(func):
     except Exception:
         s = StringIO()
         traceback.print_exc(file=s)
-        return 1, [Info(str('ERROR'), doc=s.getvalue())]
+        return 1, [Info(str("ERROR"), doc=s.getvalue())]
 
     return 0, None
 
 
 def ismodule(mod):
     # java modules... do we have other way to know that?
-    if not hasattr(mod, 'getClass') and not hasattr(mod, '__class__') \
-       and hasattr(mod, '__name__'):
-            return 1
+    if not hasattr(mod, "getClass") and not hasattr(mod, "__class__") and hasattr(mod, "__name__"):
+        return 1
 
     return isinstance(mod, core.PyModule)
 
@@ -299,9 +297,8 @@ def dir_obj(obj):
     ret = []
     found = java.util.HashMap()
     original = obj
-    if hasattr(obj, '__class__'):
+    if hasattr(obj, "__class__"):
         if obj.__class__ == java.lang.Class:
-
             # get info about superclasses
             classes = []
             classes.append(obj)
@@ -364,16 +361,15 @@ def dir_obj(obj):
 
 
 def format_arg(arg):
-    '''formats an argument to be shown
-    '''
+    """formats an argument to be shown"""
 
     s = str(arg)
-    dot = s.rfind('.')
+    dot = s.rfind(".")
     if dot >= 0:
-        s = s[dot + 1:]
+        s = s[dot + 1 :]
 
-    s = s.replace(';', '')
-    s = s.replace('[]', 'Array')
+    s = s.replace(";", "")
+    s = s.replace("[]", "Array")
     if len(s) > 0:
         c = s[0].lower()
         s = c + s[1:]
@@ -382,12 +378,11 @@ def format_arg(arg):
 
 
 def search_definition(data):
-    '''@return file, line, col
-    '''
+    """@return file, line, col"""
 
-    data = data.replace('\n', '')
-    if data.endswith('.'):
-        data = data.rstrip('.')
+    data = data.replace("\n", "")
+    if data.endswith("."):
+        data = data.rstrip(".")
     f, mod, parent, foundAs = Find(data)
     try:
         return do_find(f, mod), foundAs
@@ -395,30 +390,29 @@ def search_definition(data):
         return do_find(f, parent), foundAs
 
 
-def generate_imports_tip_for_module(obj_to_complete, dir_comps=None, getattr=getattr, filter=lambda name:True):
-    '''
-        @param obj_to_complete: the object from where we should get the completions
-        @param dir_comps: if passed, we should not 'dir' the object and should just iterate those passed as a parameter
-        @param getattr: the way to get a given object from the obj_to_complete (used for the completer)
-        @param filter: a callable that receives the name and decides if it should be appended or not to the results
-        @return: list of tuples, so that each tuple represents a completion with:
-            name, doc, args, type (from the TYPE_* constants)
-    '''
+def generate_imports_tip_for_module(obj_to_complete, dir_comps=None, getattr=getattr, filter=lambda name: True):
+    """
+    @param obj_to_complete: the object from where we should get the completions
+    @param dir_comps: if passed, we should not 'dir' the object and should just iterate those passed as a parameter
+    @param getattr: the way to get a given object from the obj_to_complete (used for the completer)
+    @param filter: a callable that receives the name and decides if it should be appended or not to the results
+    @return: list of tuples, so that each tuple represents a completion with:
+        name, doc, args, type (from the TYPE_* constants)
+    """
     ret = []
 
     if dir_comps is None:
         dir_comps = dir_obj(obj_to_complete)
 
     for d in dir_comps:
-
         if d is None:
             continue
 
         if not filter(d):
             continue
 
-        args = ''
-        doc = ''
+        args = ""
+        doc = ""
         retType = TYPE_BUILTIN
 
         try:
@@ -452,26 +446,25 @@ def generate_imports_tip_for_module(obj_to_complete, dir_comps=None, getattr=get
             #
             # whereas if we had added the jar to the classpath before, everything would be fine by now...
 
-            ret.append((d, '', '', retType))
+            ret.append((d, "", "", retType))
             # that's ok, private things cannot be gotten...
             continue
         else:
-
             isMet = ismethod(obj)
             if isMet[0] and isMet[1]:
                 info = isMet[1][0]
                 try:
                     args, vargs, kwargs = info.args, info.varargs, info.kwargs
                     doc = info.get_as_doc()
-                    r = ''
-                    for a in (args):
+                    r = ""
+                    for a in args:
                         if len(r) > 0:
-                            r += ', '
+                            r += ", "
                         r += format_arg(a)
-                    args = '(%s)' % (r)
+                    args = "(%s)" % (r)
                 except TypeError:
                     traceback.print_exc()
-                    args = '()'
+                    args = "()"
 
                 retType = TYPE_FUNCTION
 
@@ -488,5 +481,5 @@ def generate_imports_tip_for_module(obj_to_complete, dir_comps=None, getattr=get
 
 
 if __name__ == "__main__":
-    sys.path.append(r'D:\dev_programs\eclipse_3\310\eclipse\plugins\org.junit_3.8.1\junit.jar')
-    sys.stdout.write('%s\n' % Find('junit.framework.TestCase'))
+    sys.path.append(r"D:\dev_programs\eclipse_3\310\eclipse\plugins\org.junit_3.8.1\junit.jar")
+    sys.stdout.write("%s\n" % Find("junit.framework.TestCase"))

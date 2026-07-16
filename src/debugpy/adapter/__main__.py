@@ -14,7 +14,9 @@ from typing import Any
 # and should be imported locally inside main() instead.
 
 
-def main(args):
+def main():
+    args = _parse_argv(sys.argv)
+
     # If we're talking DAP over stdio, stderr is not guaranteed to be read from,
     # so disable it to avoid the pipe filling and locking up. This must be done
     # as early as possible, before the logging module starts writing to it.
@@ -64,9 +66,10 @@ def main(args):
     else:
         endpoints["client"] = {"host": client_host, "port": client_port}
 
+    localhost = sockets.get_default_localhost()
     if args.for_server is not None:
         try:
-            server_host, server_port = servers.serve()
+            server_host, server_port = servers.serve(localhost)
         except Exception as exc:
             endpoints = {"error": "Can't listen for server connections: " + str(exc)}
         else:
@@ -79,10 +82,11 @@ def main(args):
         )
 
         try:
-            sock = sockets.create_client()
+            ipv6 = localhost.count(":") > 1
+            sock = sockets.create_client(ipv6)
             try:
                 sock.settimeout(None)
-                sock.connect(("127.0.0.1", args.for_server))
+                sock.connect((localhost, args.for_server))
                 sock_io = sock.makefile("wb", 0)
                 try:
                     sock_io.write(json.dumps(endpoints).encode("utf-8"))
@@ -136,6 +140,10 @@ def main(args):
 
 
 def _parse_argv(argv):
+    from debugpy.common import sockets
+
+    host = sockets.get_default_localhost()
+
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
@@ -153,7 +161,7 @@ def _parse_argv(argv):
     parser.add_argument(
         "--host",
         type=str,
-        default="127.0.0.1",
+        default=host,
         metavar="HOST",
         help="start the adapter in debugServer mode on the specified host",
     )
@@ -212,7 +220,13 @@ if __name__ == "__main__":
     # future imports of it or its submodules will resolve accordingly.
     if "debugpy" not in sys.modules:
         # Do not use dirname() to walk up - this can be a relative path, e.g. ".".
-        sys.path[0] = sys.path[0] + "/../../"
+        if os.name == "nt":
+            import pathlib
+
+            windows_path = pathlib.Path(sys.path[0])
+            sys.path[0] = str(windows_path.parent.parent)
+        else:
+            sys.path[0] = sys.path[0] + "/../../"
         __import__("debugpy")
         del sys.path[0]
 
@@ -225,4 +239,4 @@ if __name__ == "__main__":
         # the default "C" locale if so.
         pass
 
-    main(_parse_argv(sys.argv))
+    main()

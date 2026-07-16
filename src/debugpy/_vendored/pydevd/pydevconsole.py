@@ -1,8 +1,9 @@
-'''
+"""
 Entry point module to start the interactive console.
-'''
+"""
 from _pydev_bundle._pydev_saved_modules import thread, _code
 from _pydevd_bundle.pydevd_constants import IS_JYTHON
+
 start_new_thread = thread.start_new_thread
 
 from _pydevd_bundle.pydevconsole_code import InteractiveConsole
@@ -30,7 +31,6 @@ from _pydev_bundle.pydev_console_utils import CodeFragment
 
 
 class Command:
-
     def __init__(self, interpreter, code_fragment):
         """
         :type code_fragment: CodeFragment
@@ -42,12 +42,12 @@ class Command:
 
     def symbol_for_fragment(code_fragment):
         if code_fragment.is_single_line:
-            symbol = 'single'
+            symbol = "single"
         else:
             if IS_JYTHON:
-                symbol = 'single'  # Jython doesn't support exec
+                symbol = "single"  # Jython doesn't support exec
             else:
-                symbol = 'exec'
+                symbol = "exec"
         return symbol
 
     symbol_for_fragment = staticmethod(symbol_for_fragment)
@@ -56,7 +56,7 @@ class Command:
         text = self.code_fragment.text
         symbol = self.symbol_for_fragment(self.code_fragment)
 
-        self.more = self.interpreter.runsource(text, '<input>', symbol)
+        self.more = self.interpreter.runsource(text, "<input>", symbol)
 
 
 try:
@@ -68,19 +68,20 @@ except:
 
 # Pull in runfile, the interface to UMD that wraps execfile
 from _pydev_bundle.pydev_umd import runfile, _set_globals_function
+
 if sys.version_info[0] >= 3:
     __builtin__.runfile = runfile
 else:
     __builtin__.runfile = runfile
 
 
-#=======================================================================================================================
+# =======================================================================================================================
 # InterpreterInterface
-#=======================================================================================================================
+# =======================================================================================================================
 class InterpreterInterface(BaseInterpreterInterface):
-    '''
-        The methods in this class should be registered in the xml-rpc server.
-    '''
+    """
+    The methods in this class should be registered in the xml-rpc server.
+    """
 
     def __init__(self, host, client_port, mainThread, connect_status_queue=None):
         BaseInterpreterInterface.__init__(self, mainThread, connect_status_queue)
@@ -112,7 +113,7 @@ class InterpreterInterface(BaseInterpreterInterface):
         sys.exit(0)
 
     def get_greeting_msg(self):
-        return 'PyDev console: starting.\n'
+        return "PyDev console: starting.\n"
 
 
 class _ProcessExecQueueHelper:
@@ -136,8 +137,8 @@ def init_set_return_control_back(interpreter):
     from pydev_ipython.inputhook import set_return_control_callback
 
     def return_control():
-        ''' A function that the inputhooks can call (via inputhook.stdin_ready()) to find
-            out if they should cede control and return '''
+        """A function that the inputhooks can call (via inputhook.stdin_ready()) to find
+        out if they should cede control and return"""
         if _ProcessExecQueueHelper._debug_hook:
             # Some of the input hooks check return control without doing
             # a single operation, so we don't return True on every
@@ -164,13 +165,13 @@ def init_mpl_in_console(interpreter):
 
     activate_mpl_if_already_imported(interpreter)
     from _pydev_bundle.pydev_import_hook import import_hook_manager
+
     for mod in list(interpreter.mpl_modules_for_patching):
         import_hook_manager.add_module_name(mod, interpreter.mpl_modules_for_patching.pop(mod))
 
 
-if sys.platform != 'win32':
-
-    if not hasattr(os, 'kill'):  # Jython may not have it.
+if sys.platform != "win32":
+    if not hasattr(os, "kill"):  # Jython may not have it.
 
         def pid_exists(pid):
             return True
@@ -183,6 +184,7 @@ if sys.platform != 'win32':
             # no longer running, so, we need to be 100% sure it actually exited).
 
             import errno
+
             if pid == 0:
                 # According to "man 2 kill" PID 0 has a special meaning:
                 # it refers to <<every process in the process group of the
@@ -215,6 +217,7 @@ else:
         # the pid is still running (because we'll exit the current process when it's
         # no longer running, so, we need to be 100% sure it actually exited).
         import ctypes
+
         kernel32 = ctypes.windll.kernel32
 
         PROCESS_QUERY_INFORMATION = 0x0400
@@ -256,8 +259,9 @@ else:
 def process_exec_queue(interpreter):
     init_mpl_in_console(interpreter)
     from pydev_ipython.inputhook import get_inputhook
+
     try:
-        kill_if_pid_not_alive = int(os.environ.get('PYDEV_ECLIPSE_PID', '-1'))
+        kill_if_pid_not_alive = int(os.environ.get("PYDEV_ECLIPSE_PID", "-1"))
     except:
         kill_if_pid_not_alive = -1
 
@@ -280,7 +284,7 @@ def process_exec_queue(interpreter):
                 pydev_log.exception()
         try:
             try:
-                code_fragment = interpreter.exec_queue.get(block=True, timeout=1 / 20.)  # 20 calls/second
+                code_fragment = interpreter.exec_queue.get(block=True, timeout=1 / 20.0)  # 20 calls/second
             except _queue.Empty:
                 continue
 
@@ -296,12 +300,12 @@ def process_exec_queue(interpreter):
         except SystemExit:
             raise
         except:
-            pydev_log.exception('Error processing queue on pydevconsole.')
+            pydev_log.exception("Error processing queue on pydevconsole.")
             exit()
 
 
-if 'IPYTHONENABLE' in os.environ:
-    IPYTHON = os.environ['IPYTHONENABLE'] == 'True'
+if "IPYTHONENABLE" in os.environ:
+    IPYTHON = os.environ["IPYTHONENABLE"] == "True"
 else:
     # By default, don't use IPython because occasionally changes
     # in IPython break pydevd.
@@ -315,11 +319,12 @@ try:
 
     if IPYTHON:
         from _pydev_bundle.pydev_ipython_console import InterpreterInterface
+
         if exitfunc is not None:
             sys.exitfunc = exitfunc
         else:
             try:
-                delattr(sys, 'exitfunc')
+                delattr(sys, "exitfunc")
             except:
                 pass
 except:
@@ -327,14 +332,14 @@ except:
     pass
 
 
-#=======================================================================================================================
+# =======================================================================================================================
 # _DoExit
-#=======================================================================================================================
+# =======================================================================================================================
 def do_exit(*args):
-    '''
-        We have to override the exit because calling sys.exit will only actually exit the main thread,
-        and as we're in a Xml-rpc server, that won't work.
-    '''
+    """
+    We have to override the exit because calling sys.exit will only actually exit the main thread,
+    and as we're in a Xml-rpc server, that won't work.
+    """
 
     try:
         import java.lang.System
@@ -347,13 +352,13 @@ def do_exit(*args):
             os._exit(0)
 
 
-#=======================================================================================================================
+# =======================================================================================================================
 # start_console_server
-#=======================================================================================================================
+# =======================================================================================================================
 def start_console_server(host, port, interpreter):
     try:
         if port == 0:
-            host = ''
+            host = ""
 
         # I.e.: supporting the internal Jython version in PyDev to create a Jython interactive console inside Eclipse.
         from _pydev_bundle.pydev_imports import SimpleXMLRPCServer as XMLRPCServer  # @Reimport
@@ -362,7 +367,9 @@ def start_console_server(host, port, interpreter):
             server = XMLRPCServer((host, port), logRequests=False, allow_none=True)
 
         except:
-            sys.stderr.write('Error starting server with host: "%s", port: "%s", client_port: "%s"\n' % (host, port, interpreter.client_port))
+            sys.stderr.write(
+                'Error starting server with host: "%s", port: "%s", client_port: "%s"\n' % (host, port, interpreter.client_port)
+            )
             sys.stderr.flush()
             raise
 
@@ -433,14 +440,14 @@ def start_server(host, port, client_port):
 
 
 def get_ipython_hidden_vars():
-    if IPYTHON and hasattr(__builtin__, 'interpreter'):
+    if IPYTHON and hasattr(__builtin__, "interpreter"):
         interpreter = get_interpreter()
         return interpreter.get_ipython_hidden_vars_dict()
 
 
 def get_interpreter():
     try:
-        interpreterInterface = getattr(__builtin__, 'interpreter')
+        interpreterInterface = getattr(__builtin__, "interpreter")
     except AttributeError:
         interpreterInterface = InterpreterInterface(None, None, threading.current_thread())
         __builtin__.interpreter = interpreterInterface
@@ -457,9 +464,10 @@ def get_completions(text, token, globals, locals):
 
     return interpreterInterface.getCompletions(text, token)
 
-#===============================================================================
+
+# ===============================================================================
 # Debugger integration
-#===============================================================================
+# ===============================================================================
 
 
 def exec_code(code, globals, locals, debugger):
@@ -510,7 +518,7 @@ class ConsoleWriter(InteractiveInterpreter):
                 value = SyntaxError(msg, (filename, lineno, offset, line))
                 sys.last_value = value
         list = traceback.format_exception_only(type, value)
-        sys.stderr.write(''.join(list))
+        sys.stderr.write("".join(list))
 
     def showtraceback(self, *args, **kwargs):
         """Display the exception that just occurred."""
@@ -528,16 +536,15 @@ class ConsoleWriter(InteractiveInterpreter):
             lines.extend(traceback.format_exception_only(type, value))
         finally:
             tblist = tb = None
-        sys.stderr.write(''.join(lines))
+        sys.stderr.write("".join(lines))
 
 
 def console_exec(thread_id, frame_id, expression, dbg):
-    """returns 'False' in case expression is partially correct
-    """
+    """returns 'False' in case expression is partially correct"""
     frame = dbg.find_frame(thread_id, frame_id)
 
-    is_multiline = expression.count('@LINE@') > 1
-    expression = str(expression.replace('@LINE@', '\n'))
+    is_multiline = expression.count("@LINE@") > 1
+    expression = str(expression.replace("@LINE@", "\n"))
 
     # Not using frame.f_globals because of https://sourceforge.net/tracker2/?func=detail&aid=2541355&group_id=85796&atid=577329
     # (Names not resolved in generator expression in method)
@@ -581,16 +588,17 @@ def console_exec(thread_id, frame_id, expression, dbg):
     return False
 
 
-#=======================================================================================================================
+# =======================================================================================================================
 # main
-#=======================================================================================================================
-if __name__ == '__main__':
+# =======================================================================================================================
+if __name__ == "__main__":
     # Important: don't use this module directly as the __main__ module, rather, import itself as pydevconsole
     # so that we don't get multiple pydevconsole modules if it's executed directly (otherwise we'd have multiple
     # representations of its classes).
     # See: https://sw-brainwy.rhcloud.com/tracker/PyDev/446:
     # 'Variables' and 'Expressions' views stopped working when debugging interactive console
     import pydevconsole
+
     sys.stdin = pydevconsole.BaseStdIn(sys.stdin)
     port, client_port = sys.argv[1:3]
     from _pydev_bundle import pydev_localhost

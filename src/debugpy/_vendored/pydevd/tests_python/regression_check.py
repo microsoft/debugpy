@@ -21,6 +21,7 @@ def original_datadir(request):
     # Method from: https://github.com/gabrielcnr/pytest-datadir
     # License: MIT
     import os.path
+
     return Path(os.path.splitext(request.module.__file__)[0])
 
 
@@ -29,6 +30,7 @@ def datadir(original_datadir, tmpdir):
     # Method from: https://github.com/gabrielcnr/pytest-datadir
     # License: MIT
     import shutil
+
     result = Path(str(tmpdir.join(original_datadir.stem)))
     if original_datadir.is_dir():
         shutil.copytree(str(original_datadir), str(result))
@@ -153,16 +155,12 @@ def perform_regression_check(
         dump_fn(source_filename)
         aux_created = dump_aux_fn(source_filename)
 
-        msg = make_location_message(
-            "File not found in data directory, created:", source_filename, aux_created
-        )
+        msg = make_location_message("File not found in data directory, created:", source_filename, aux_created)
         pytest.fail(msg)
     else:
         if obtained_filename is None:
             if fullpath:
-                obtained_filename = (datadir / basename).with_suffix(
-                    ".obtained" + extension
-                )
+                obtained_filename = (datadir / basename).with_suffix(".obtained" + extension)
             else:
                 obtained_filename = filename.with_suffix(".obtained" + extension)
 
@@ -220,10 +218,10 @@ class DataRegressionFixture(object):
 
             s = json.dumps(data_dict, sort_keys=True, indent=4)
             if isinstance(s, bytes):
-                s = s.decode('utf-8')
+                s = s.decode("utf-8")
 
-            s = u'\n'.join([line.rstrip() for line in s.splitlines()])
-            s = s.encode('utf-8')
+            s = "\n".join([line.rstrip() for line in s.splitlines()])
+            s = s.encode("utf-8")
 
             with filename.open("wb") as f:
                 f.write(s)

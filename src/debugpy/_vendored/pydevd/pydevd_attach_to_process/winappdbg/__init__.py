@@ -113,122 +113,105 @@ Blog:    U{http://breakingcode.wordpress.com}
 __revision__ = "$Id$"
 
 # List of all public symbols
-__all__ =   [
-                # Library version
-                'version',
-                'version_number',
-
-                # from breakpoint import *
-##                'Breakpoint',
-##                'CodeBreakpoint',
-##                'PageBreakpoint',
-##                'HardwareBreakpoint',
-##                'Hook',
-##                'ApiHook',
-##                'BufferWatch',
-                'BreakpointWarning',
-                'BreakpointCallbackWarning',
-
-                # from crash import *
-                'Crash',
-                'CrashWarning',
-                'CrashDictionary',
-                'CrashContainer',
-                'CrashTable',
-                'CrashTableMSSQL',
-                'VolatileCrashContainer',
-                'DummyCrashContainer',
-
-                # from debug import *
-                'Debug',
-                'MixedBitsWarning',
-
-                # from disasm import *
-                'Disassembler',
-                'BeaEngine',
-                'DistormEngine',
-                'PyDasmEngine',
-
-                # from event import *
-                'EventHandler',
-                'EventSift',
-##                'EventFactory',
-##                'EventDispatcher',
-                'EventCallbackWarning',
-                'Event',
-##                'NoEvent',
-                'CreateProcessEvent',
-                'CreateThreadEvent',
-                'ExitProcessEvent',
-                'ExitThreadEvent',
-                'LoadDLLEvent',
-                'UnloadDLLEvent',
-                'OutputDebugStringEvent',
-                'RIPEvent',
-                'ExceptionEvent',
-
-                # from interactive import *
-##                'ConsoleDebugger',
-
-                # from module import *
-                'Module',
-                'DebugSymbolsWarning',
-
-                # from process import *
-                'Process',
-
-                # from system import *
-                'System',
-
-                # from search import *
-                'Search',
-                'Pattern',
-                'BytePattern',
-                'TextPattern',
-                'RegExpPattern',
-                'HexPattern',
-
-                # from registry import *
-                'Registry',
-
-                # from textio import *
-                'HexDump',
-                'HexInput',
-                'HexOutput',
-                'Color',
-                'Table',
-                'CrashDump',
-                'DebugLog',
-                'Logger',
-
-                # from thread import *
-                'Thread',
-
-                # from util import *
-                'PathOperations',
-                'MemoryAddresses',
-                'CustomAddressIterator',
-                'DataAddressIterator',
-                'ImageAddressIterator',
-                'MappedAddressIterator',
-                'ExecutableAddressIterator',
-                'ReadableAddressIterator',
-                'WriteableAddressIterator',
-                'ExecutableAndWriteableAddressIterator',
-                'DebugRegister',
-
-                # from window import *
-                'Window',
-
-                # import win32
-                'win32',
-
-                # from win32 import Handle, ProcessHandle, ThreadHandle, FileHandle
-                'Handle',
-                'ProcessHandle',
-                'ThreadHandle',
-                'FileHandle',
-            ]
+__all__ = [
+    # Library version
+    "version",
+    "version_number",
+    # from breakpoint import *
+    ##                'Breakpoint',
+    ##                'CodeBreakpoint',
+    ##                'PageBreakpoint',
+    ##                'HardwareBreakpoint',
+    ##                'Hook',
+    ##                'ApiHook',
+    ##                'BufferWatch',
+    "BreakpointWarning",
+    "BreakpointCallbackWarning",
+    # from crash import *
+    "Crash",
+    "CrashWarning",
+    "CrashDictionary",
+    "CrashContainer",
+    "CrashTable",
+    "CrashTableMSSQL",
+    "VolatileCrashContainer",
+    "DummyCrashContainer",
+    # from debug import *
+    "Debug",
+    "MixedBitsWarning",
+    # from disasm import *
+    "Disassembler",
+    "BeaEngine",
+    "DistormEngine",
+    "PyDasmEngine",
+    # from event import *
+    "EventHandler",
+    "EventSift",
+    ##                'EventFactory',
+    ##                'EventDispatcher',
+    "EventCallbackWarning",
+    "Event",
+    ##                'NoEvent',
+    "CreateProcessEvent",
+    "CreateThreadEvent",
+    "ExitProcessEvent",
+    "ExitThreadEvent",
+    "LoadDLLEvent",
+    "UnloadDLLEvent",
+    "OutputDebugStringEvent",
+    "RIPEvent",
+    "ExceptionEvent",
+    # from interactive import *
+    ##                'ConsoleDebugger',
+    # from module import *
+    "Module",
+    "DebugSymbolsWarning",
+    # from process import *
+    "Process",
+    # from system import *
+    "System",
+    # from search import *
+    "Search",
+    "Pattern",
+    "BytePattern",
+    "TextPattern",
+    "RegExpPattern",
+    "HexPattern",
+    # from registry import *
+    "Registry",
+    # from textio import *
+    "HexDump",
+    "HexInput",
+    "HexOutput",
+    "Color",
+    "Table",
+    "CrashDump",
+    "DebugLog",
+    "Logger",
+    # from thread import *
+    "Thread",
+    # from util import *
+    "PathOperations",
+    "MemoryAddresses",
+    "CustomAddressIterator",
+    "DataAddressIterator",
+    "ImageAddressIterator",
+    "MappedAddressIterator",
+    "ExecutableAddressIterator",
+    "ReadableAddressIterator",
+    "WriteableAddressIterator",
+    "ExecutableAndWriteableAddressIterator",
+    "DebugRegister",
+    # from window import *
+    "Window",
+    # import win32
+    "win32",
+    # from win32 import Handle, ProcessHandle, ThreadHandle, FileHandle
+    "Handle",
+    "ProcessHandle",
+    "ThreadHandle",
+    "FileHandle",
+]
 
 # Import all public symbols
 from winappdbg.breakpoint import *
@@ -252,11 +235,12 @@ from winappdbg.win32 import Handle, ProcessHandle, ThreadHandle, FileHandle
 
 try:
     from sql import *
-    __all__.append('CrashDAO')
+
+    __all__.append("CrashDAO")
 except ImportError:
     import warnings
-    warnings.warn("No SQL database support present (missing dependencies?)",
-                  ImportWarning)
+
+    warnings.warn("No SQL database support present (missing dependencies?)", ImportWarning)
 
 # Library version
 version_number = 1.5
