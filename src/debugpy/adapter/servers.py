@@ -80,10 +80,13 @@ class Connection(object):
         try:
             self.authenticate()
             info = self.channel.request("pydevdSystemInfo")
-            if not isinstance(info, Exception):
-                process_info: Callable[..., int] = cast(Callable[..., int], info("process", json.object()))
-                self.pid = process_info("pid", int)
-                self.ppid = process_info("ppid", int, optional=True)
+            # channel.request() either returns a non-exception result or raises, so
+            # assert (rather than silently skipping) to fail fast and to narrow the
+            # type, keeping pid/ppid unconditionally assigned before they're read.
+            assert not isinstance(info, Exception)
+            process_info: Callable[..., int] = cast(Callable[..., int], info("process", json.object()))
+            self.pid = process_info("pid", int)
+            self.ppid = process_info("ppid", int, optional=True)
             if self.ppid == ():
                 self.ppid = None
             self.channel.name = stream.name = str(self)
@@ -484,7 +487,11 @@ def dont_wait_for_first_connection():
 
 
 def inject(pid, debugpy_args, on_output):
-    host, port = sockets.get_address(listener) if listener is not None else ("", 0)
+    # inject() is only reached for attach-by-PID, where the server listener must be
+    # serving so the injected debug server can connect back. Fail fast if it isn't,
+    # rather than spawning an injector that connects to ":0" and never attaches.
+    assert listener is not None
+    host, port = sockets.get_address(listener)
 
     cmdline = [
         sys.executable,

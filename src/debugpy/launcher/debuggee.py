@@ -198,7 +198,11 @@ def kill():
 
 def wait_for_exit():
     try:
-        code = process.wait() if process is not None else 0
+        # wait_for_exit() only runs after the debuggee was spawned successfully, so
+        # process is always set here; assert to fail fast rather than reporting a
+        # bogus clean exit (code 0) if that invariant is ever broken.
+        assert process is not None
+        code = process.wait()
         if sys.platform != "win32" and code < 0:
             # On POSIX, if the process was terminated by a signal, Popen will use
             # a negative returncode to indicate that - but the actual exit code of

@@ -144,12 +144,15 @@ class ThreadSafeSingleton(Singleton):
     def assert_locked(self):
         lock = type(self)._lock
         assert lock is not None
-        assert lock.acquire(blocking=False), (
+        # Side-effect-free check: verify the current thread already owns the lock,
+        # rather than acquire()/release() (which mutates the RLock recursion count
+        # and, under `python -O` with the assert stripped, would leak a release()).
+        # _is_owned() is a private but stable RLock helper (used by threading itself).
+        assert lock._is_owned(), (  # pyright: ignore[reportAttributeAccessIssue]
             "ThreadSafeSingleton accessed without locking. Either use with-statement, "
             "or if it is a method or property, mark it as @threadsafe_method or with "
             "@autolocked_method, as appropriate."
         )
-        lock.release()
 
     def __getattribute__(self, name):
         value = object.__getattribute__(self, name)

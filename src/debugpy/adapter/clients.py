@@ -490,11 +490,10 @@ class Client(components.Component):
         else:
             if not servers.is_serving():
                 servers.serve(localhost)
-            host, port = (
-                sockets.get_address(servers.listener)
-                if servers.listener is not None
-                else ("", 0)
-            )
+            # servers.serve() above guarantees a listener; fail fast if it's missing
+            # rather than handing the debuggee an empty ("", 0) address it can't use.
+            assert servers.listener is not None
+            host, port = sockets.get_address(servers.listener)
 
         # There are four distinct possibilities here.
         #
@@ -772,7 +771,11 @@ class Client(components.Component):
             localhost = sockets.get_default_localhost()
             body["connect"]["host"] = host or localhost
         if "port" not in body["connect"]:
-            if port is None and listener is not None:
+            if port is None:
+                # A subprocess is only reported once the client is connected, so the
+                # client listener must be serving; fail fast rather than sending the
+                # child a null port it can't connect to.
+                assert listener is not None
                 _, port = sockets.get_address(listener)
             body["connect"]["port"] = port
 
