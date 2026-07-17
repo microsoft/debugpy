@@ -99,7 +99,7 @@ from _pydevd_bundle.pydevd_defaults import PydevdCustomization  # Note: import a
 from _pydevd_bundle.pydevd_custom_frames import CustomFramesContainer, custom_frames_container_init
 from _pydevd_bundle.pydevd_dont_trace_files import DONT_TRACE, PYDEV_FILE, LIB_FILE, DONT_TRACE_DIRS
 from _pydevd_bundle.pydevd_extension_api import DebuggerEventHandler
-from _pydevd_bundle.pydevd_frame_utils import add_exception_to_frame, remove_exception_from_frame, short_stack
+from _pydevd_bundle.pydevd_frame_utils import exception_on_frame, short_stack
 from _pydevd_bundle.pydevd_net_command_factory_xml import NetCommandFactory
 from _pydevd_bundle.pydevd_trace_dispatch import (
     trace_dispatch as _trace_dispatch,
@@ -2414,17 +2414,16 @@ class PyDB(object):
     def do_stop_on_unhandled_exception(self, thread, frame, frames_byid, arg):
         pydev_log.debug("We are stopping in unhandled exception.")
         try:
-            add_exception_to_frame(frame, arg)
-            self.send_caught_exception_stack(thread, arg, id(frame))
-            try:
-                self.set_suspend(thread, CMD_ADD_EXCEPTION_BREAK)
-                self.do_wait_suspend(thread, frame, "exception", arg, EXCEPTION_TYPE_UNHANDLED)
-            except:
-                self.send_caught_exception_stack_proceeded(thread)
+            with exception_on_frame(frame, arg):
+                self.send_caught_exception_stack(thread, arg, id(frame))
+                try:
+                    self.set_suspend(thread, CMD_ADD_EXCEPTION_BREAK)
+                    self.do_wait_suspend(thread, frame, "exception", arg, EXCEPTION_TYPE_UNHANDLED)
+                except:
+                    self.send_caught_exception_stack_proceeded(thread)
         except:
             pydev_log.exception("We've got an error while stopping in unhandled exception: %s.", arg[0])
         finally:
-            remove_exception_from_frame(frame)
             frame = None
 
     def trigger_exception_handler(self, excinfo, as_uncaught=True):

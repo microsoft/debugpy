@@ -282,3 +282,63 @@ def test_trigger_exception_handler_not_as_uncaught(pyfile, target, run):
         )
 
         session.request_continue()
+
+
+@pytest.mark.parametrize("as_uncaught", ["as_uncaught", ""])
+def test_trigger_exception_handler_preserves_frame_local(pyfile, target, run, as_uncaught):
+    """A user variable named __exception__ in the stopped frame must survive the stop.
+
+    On Python 3.14 deleting a real frame local raises ValueError (FrameLocalsProxy), so
+    unconditionally removing __exception__ would crash the stop; the value must be
+    restored, not deleted. Exercised for both as_uncaught modes.
+    """
+
+    @pyfile
+    def code_to_debug():
+        import os
+        import sys
+
+        import debuggee
+
+        debuggee.setup()
+
+        import debugpy
+
+        def risky_operation():
+            # A user local literally named __exception__ in the frame the debugger
+            # stops on: pydevd must restore it rather than delete it.
+            __exception__ = "user sentinel"
+            raise ValueError("something went wrong")  # @raise
+
+        as_uncaught = os.environ["TEST_TRIGGER_AS_UNCAUGHT"] == "1"
+        try:
+            risky_operation()
+        except ValueError:
+            debugpy.trigger_exception_handler(as_uncaught=as_uncaught)
+
+            # Reaching here proves the stop resumed without raising. The user's own
+            # __exception__ local must be intact in the (unwound) traceback frame.
+            tb = sys.exc_info()[2]
+            while tb.tb_next is not None:
+                tb = tb.tb_next
+            assert tb.tb_frame.f_locals["__exception__"] == "user sentinel"
+
+        print("completed")  # @done
+
+    with debug.Session() as session:
+        session.config.env["TEST_TRIGGER_AS_UNCAUGHT"] = "1" if as_uncaught else "0"
+        with run(session, target(code_to_debug)):
+            filters = ["uncaught"] if as_uncaught else []
+            session.request("setExceptionBreakpoints", {"filters": filters})
+            session.set_breakpoints(code_to_debug, ["done"])
+
+        session.wait_for_stop("exception")
+        session.request_continue()
+
+        # If trigger_exception_handler had raised (the 3.14 crash), the debuggee would
+        # terminate here instead of reaching the post-trigger breakpoint.
+        session.wait_for_stop(
+            "breakpoint",
+            expected_frames=[some.dap.frame(code_to_debug, line="done")],
+        )
+        session.request_continue()
