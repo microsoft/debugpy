@@ -307,7 +307,7 @@ def test_trigger_exception_handler_preserves_frame_local(pyfile, target, run, as
         def risky_operation():
             # A user local literally named __exception__ in the frame the debugger
             # stops on: pydevd must restore it rather than delete it.
-            __exception__ = "user sentinel"
+            __exception__ = "user sentinel"  # noqa: F841
             raise ValueError("something went wrong")  # @raise
 
         as_uncaught = os.environ["TEST_TRIGGER_AS_UNCAUGHT"] == "1"
