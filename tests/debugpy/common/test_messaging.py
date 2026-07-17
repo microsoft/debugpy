@@ -438,7 +438,10 @@ class TestJsonMessageChannel(object):
         assert isinstance(response4.body, messaging.NoMoreMessages)
 
     def test_wait_for_response_raise_if_failed(self):
+        request_sent = threading.Event()
+
         def iter_responses():
+            request_sent.wait()
             yield {
                 "seq": 1,
                 "type": "response",
@@ -453,6 +456,7 @@ class TestJsonMessageChannel(object):
         channel.start()
 
         request = channel.send_request("pause")
+        request_sent.set()
 
         # raise_if_failed=False must return the error body instead of raising, even
         # though a failed response carries an Exception as its body.
