@@ -463,7 +463,7 @@ class TestJsonMessageChannel(object):
         body = request.wait_for_response(raise_if_failed=False)
         assert isinstance(body, messaging.MessageHandlingError)
         assert body is request.response.body
-        assert "pause not supported" in str(body)
+        assert str(body) == "pause not supported"
 
         # raise_if_failed=True (the default) must raise that same error body.
         with pytest.raises(messaging.MessageHandlingError):

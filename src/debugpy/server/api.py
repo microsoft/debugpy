@@ -38,17 +38,11 @@ _config_valid_values = {
 _adapter_process = None
 
 
-class _settrace():
-    called = False
-    def __new__(cls, *args, **kwargs):
-        log.debug("pydevd.settrace(*{0!r}, **{1!r})", args, kwargs)
-        # The stdin in notification is not acted upon in debugpy, so, disable it.
-        kwargs.setdefault("notify_stdin", False)
-        result = pydevd.settrace(*args, **kwargs)
-        # Only latch `called` after settrace has actually succeeded, so that a failed
-        # attempt doesn't permanently block future configure() calls.
-        cls.called = True
-        return result
+def _settrace(*args, **kwargs):
+    log.debug("pydevd.settrace(*{0!r}, **{1!r})", args, kwargs)
+    # The stdin in notification is not acted upon in debugpy, so, disable it.
+    kwargs.setdefault("notify_stdin", False)
+    return pydevd.settrace(*args, **kwargs)
 
 
 def ensure_logging():
@@ -77,9 +71,6 @@ def log_to(path):
 
 
 def configure(properties=None, **kwargs):
-    if getattr(_settrace, "called"):
-        raise RuntimeError("debug adapter is already running")
-
     ensure_logging()
     log.debug("configure{0!r}", (properties, kwargs))
 

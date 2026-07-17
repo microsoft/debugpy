@@ -2,10 +2,12 @@
 # Licensed under the MIT License. See LICENSE in the project root
 # for license information.
 
+import codecs
 import pytest
 import sys
 
 from _pydevd_bundle.pydevd_constants import IS_PY312_OR_GREATER
+from debugpy.launcher import output
 from tests import debug
 from tests.debug import runners
 
@@ -13,6 +15,36 @@ from tests.debug import runners
 # already been sent. To ensure that they are, all tests below must set a breakpoint
 # on the last line of the debuggee, and stop on it. Since debugger sends its events
 # sequentially, by the time we get to "stopped", we also have all the output events.
+
+
+def test_zero_byte_write_stops_after_fd_closed():
+    class ZeroThenFailStream:
+        def __init__(self):
+            self.write_count = 0
+
+        def write(self, _data):
+            self.write_count += 1
+            if self.write_count == 1:
+                return 0
+            raise AssertionError("write retried after a zero-byte write")
+
+        def flush(self):
+            pass
+
+    stream = ZeroThenFailStream()
+    capture = output.CaptureOutput.__new__(output.CaptureOutput)
+    capture.category = "stdout"
+    capture._fd = None
+    capture._decoder = codecs.getincrementaldecoder("utf-8")(errors="surrogateescape")
+    capture._stream = stream
+    capture._encode = codecs.getencoder("utf-8")
+
+    # Leave an incomplete character buffered, then finalize after the descriptor
+    # has already been cleared.
+    capture._process_chunk(b"\xc3")
+    capture._process_chunk(b"", final=True)
+
+    assert stream.write_count == 1
 
 
 @pytest.mark.parametrize("run", runners.all)

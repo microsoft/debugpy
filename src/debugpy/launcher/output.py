@@ -95,11 +95,12 @@ class CaptureOutput(object):
             while i < size:
                 written = self._stream.write(s[i:])
                 self._stream.flush()
-                if written == 0 and self._fd is not None:
+                if written == 0:
                     # This means that the output stream was closed from the other end.
                     # Do the same to the debuggee, so that it knows as well.
-                    os.close(self._fd)
-                    self._fd = None
+                    if self._fd is not None:
+                        os.close(self._fd)
+                        self._fd = None
                     break
                 i += written
         except Exception:
