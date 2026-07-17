@@ -2443,7 +2443,7 @@ class PyDB(object):
             # Innermost frame that isn't debugger-internal.
             user_frame = None
             while tb is not None:
-                if self.get_file_type(tb.tb_frame) is None:
+                if self.get_file_type(tb.tb_frame) != self.PYDEV_FILE:
                     user_frame = tb.tb_frame
                 tb = tb.tb_next
 
