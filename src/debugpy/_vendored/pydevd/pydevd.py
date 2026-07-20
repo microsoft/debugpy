@@ -99,7 +99,7 @@ from _pydevd_bundle.pydevd_defaults import PydevdCustomization  # Note: import a
 from _pydevd_bundle.pydevd_custom_frames import CustomFramesContainer, custom_frames_container_init
 from _pydevd_bundle.pydevd_dont_trace_files import DONT_TRACE, PYDEV_FILE, LIB_FILE, DONT_TRACE_DIRS
 from _pydevd_bundle.pydevd_extension_api import DebuggerEventHandler
-from _pydevd_bundle.pydevd_frame_utils import add_exception_to_frame, remove_exception_from_frame, short_stack
+from _pydevd_bundle.pydevd_frame_utils import exception_on_frame, short_stack
 from _pydevd_bundle.pydevd_net_command_factory_xml import NetCommandFactory
 from _pydevd_bundle.pydevd_trace_dispatch import (
     trace_dispatch as _trace_dispatch,
@@ -2414,18 +2414,67 @@ class PyDB(object):
     def do_stop_on_unhandled_exception(self, thread, frame, frames_byid, arg):
         pydev_log.debug("We are stopping in unhandled exception.")
         try:
-            add_exception_to_frame(frame, arg)
-            self.send_caught_exception_stack(thread, arg, id(frame))
-            try:
-                self.set_suspend(thread, CMD_ADD_EXCEPTION_BREAK)
-                self.do_wait_suspend(thread, frame, "exception", arg, EXCEPTION_TYPE_UNHANDLED)
-            except:
-                self.send_caught_exception_stack_proceeded(thread)
+            with exception_on_frame(frame, arg):
+                self.send_caught_exception_stack(thread, arg, id(frame))
+                try:
+                    self.set_suspend(thread, CMD_ADD_EXCEPTION_BREAK)
+                    self.do_wait_suspend(thread, frame, "exception", arg, EXCEPTION_TYPE_UNHANDLED)
+                except:
+                    self.send_caught_exception_stack_proceeded(thread)
         except:
             pydev_log.exception("We've got an error while stopping in unhandled exception: %s.", arg[0])
         finally:
-            remove_exception_from_frame(frame)
             frame = None
+
+    def trigger_exception_handler(self, excinfo, as_uncaught=True):
+        """
+        Triggers post-mortem debugging as if handling an uncaught exception.
+
+        If as_uncaught is True (default), applies the client's uncaught-exception breakpoint
+        filters (no-op if they exclude this exception); if False, stops directly on the deepest
+        non-internal frame of the traceback (no-op if there is none). The traceback has already
+        been unwound, so stepping from the stop behaves like pdb.post_mortem.
+
+        :param excinfo: A tuple of (exc_type, exc_value, exc_traceback).
+        """
+        if not as_uncaught:
+            tb = excinfo[2]
+
+            # Innermost frame that isn't debugger-internal.
+            user_frame = None
+            while tb is not None:
+                if self.get_file_type(tb.tb_frame) != self.PYDEV_FILE:
+                    user_frame = tb.tb_frame
+                tb = tb.tb_next
+
+            if user_frame is None:
+                pydev_log.warn("trigger_exception_handler: no user frame found in traceback")
+                return
+
+        thread = threading.current_thread()
+        additional_info = self.set_additional_thread_info(thread)
+
+        # PEP 669 protects stops made from inside a monitoring callback against
+        # re-entrancy; a stop from normal user code gets no such protection, so
+        # suspend this thread's tracing until we resume. Side effect: breakpoints
+        # hit by code evaluated in the debug console during this stop won't
+        # trigger on this thread.
+        saved_sys_monitoring_trace = False
+        try:
+            if PYDEVD_USE_SYS_MONITORING:
+                saved_sys_monitoring_trace = pydevd_sys_monitoring.suspend_current_thread_tracing()
+            additional_info.is_tracing += 1
+            try:
+                if as_uncaught:
+                    stop_on_unhandled_exception(self, thread, additional_info, excinfo)
+                else:
+                    # frames_byid is unused; excinfo's traceback keeps the frames alive.
+                    self.do_stop_on_unhandled_exception(thread, user_frame, None, excinfo)
+            finally:
+                additional_info.is_tracing -= 1
+        finally:
+            if saved_sys_monitoring_trace:
+                pydevd_sys_monitoring.resume_current_thread_tracing()
 
     def set_trace_for_frame_and_parents(self, thread_ident: Optional[int], frame, **kwargs):
         disable = kwargs.pop("disable", False)

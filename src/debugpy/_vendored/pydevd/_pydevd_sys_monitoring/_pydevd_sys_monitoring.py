@@ -1866,6 +1866,51 @@ def stop_monitoring(all_threads=False):
         thread_info.trace = False
 
 
+# fmt: off
+# IFDEF CYTHON
+# cpdef bint suspend_current_thread_tracing():
+#     cdef ThreadInfo thread_info
+# ELSE
+def suspend_current_thread_tracing():
+# ENDIF
+# fmt: on
+    """
+    Suspends tracing for the current thread and returns the previous state,
+    to be restored with resume_current_thread_tracing().
+    """
+    try:
+        thread_info = _thread_local_info.thread_info
+    except:
+        # Create the ThreadInfo if missing; monitoring events create it with
+        # tracing enabled by default, which would defeat the suspension.
+        thread_info = _get_thread_info(True, 1)
+        if thread_info is None:
+            return False
+    previous_state = thread_info.trace
+    thread_info.trace = False
+    return previous_state
+
+
+# fmt: off
+# IFDEF CYTHON
+# cpdef resume_current_thread_tracing():
+#     cdef ThreadInfo thread_info
+# ELSE
+def resume_current_thread_tracing():
+# ENDIF
+# fmt: on
+    """
+    Resumes tracing for the current thread.
+    """
+    try:
+        thread_info = _thread_local_info.thread_info
+    except:
+        thread_info = _get_thread_info(True, 1)
+        if thread_info is None:
+            return
+    thread_info.trace = True
+
+
 def update_monitor_events(suspend_requested: Optional[bool]=None) -> None:
     """
     This should be called when breakpoints change.

@@ -100,6 +100,24 @@ while True:
     ...
 ```
 
+### `trigger_exception_handler()` function
+`debugpy.trigger_exception_handler(e)` starts post-mortem debugging of a caught exception, similar in spirit to `pdb.post_mortem()`: if a client is attached, it pauses execution as if the exception were uncaught. Pass an exception, a `(type, value, traceback)` tuple, or nothing inside an except block to use the current exception. On resume the program continues as normal; if no client is attached the call does nothing, like `breakpoint()`.
+
+By default (`as_uncaught=True`) the stop respects the exception breakpoint configuration in the debugger UI: if breaking on uncaught exceptions isn't enabled, or its filters exclude the exception, nothing happens. Pass `as_uncaught=False` to stop unconditionally. Since the traceback has already been unwound, you can inspect frames and evaluate expressions at the stop, but not step through the code that raised.
+
+```python
+import debugpy
+debugpy.listen(...)
+
+...
+def risky_function():
+    raise ValueError("threw an exception")
+try:
+    risky_function()
+except Exception as e:
+    debugpy.trigger_exception_handler(e)
+```
+
 ## Debugger logging
 
 To enable debugger internal logging via CLI, the `--log-to` switch can be used:
