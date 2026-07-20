@@ -284,12 +284,13 @@ def prefixed(format_string, *args, **kwargs):
     finally:
         _tls.prefix = old_prefix
 
-class HasName(Protocol):
+class HasNameAndVersion(Protocol):
     name: str
+    version: str
 
-def has_name(obj: Any) -> "TypeIs[HasName]":
+def has_name_and_version(obj: Any) -> "TypeIs[HasNameAndVersion]":
     try:
-        return hasattr(obj, "name")
+        return hasattr(obj, "name") and hasattr(obj, "version")
     except NameError:
         return False
 
@@ -373,7 +374,7 @@ def get_environment_description(header):
         report("Installed packages:\n")
         try:
             for pkg in importlib_metadata.distributions():
-                if has_name(pkg):
+                if has_name_and_version(pkg):
                     name = pkg.name
                     report("    {0}=={1}\n", name, pkg.version)
                 else:

@@ -131,7 +131,7 @@ def missing(session, type: Type[T]) -> T:
         except Exception as exc:
             log.reraise_exception("{0} in {1}", exc, session)
 
-    return cast(type, Missing())
+    return cast(T, Missing())
 
 
 class Capabilities(dict):
