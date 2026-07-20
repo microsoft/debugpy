@@ -505,10 +505,14 @@ class Message(object):
 
     def __call__(self, *args, **kwargs) -> MessageDict | Any | int | float:
         """Same as self.payload(...)."""
-        assert not isinstance(self.payload, Exception)
+        payload = self.payload
+        # Handle exception payloads explicitly rather than via assert, so behavior is
+        # consistent regardless of whether assertions are stripped under `python -O`.
+        if isinstance(payload, Exception):
+            raise payload
         if len(args) == 0 and not kwargs:
-            return self.payload
-        return self.payload(*args, **kwargs)
+            return payload
+        return payload(*args, **kwargs)
 
     def __contains__(self, key):
         """Same as (key in self.payload)."""
@@ -723,6 +727,11 @@ class Request(Message):
 
         with self.channel._send_message(d) as seq:
             pass
+        if body is None:
+            # A successful response with no body is modeled as an empty payload so
+            # that Response.body is always a MessageDict or an Exception, matching
+            # how incoming empty responses are parsed.
+            body = _payload(None)
         self.response = Response(self.channel, seq, self, body)
 
     @staticmethod
