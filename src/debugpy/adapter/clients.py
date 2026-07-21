@@ -206,7 +206,7 @@ class Client(components.Component):
     # for the sequence of request and events necessary to orchestrate the start.
     def _start_message_handler(f: Callable[..., Any])-> Callable[..., object | None]:   # pyright: ignore[reportGeneralTypeIssues, reportSelfClsParameterName]
         @components.Component.message_handler
-        def handle(self, request: messaging.Message):
+        def handle(self, request: messaging.Request):
             assert request.is_request("launch", "attach")
             if self._initialize_request is None:
                 raise request.isnt_valid("Session is not initialized yet")
@@ -223,10 +223,10 @@ class Client(components.Component):
             )
 
             f(self, request)
-            if isinstance(request, messaging.Request) and request.response is not None:
+            if request.response is not None:
                 return
 
-            if self.server and isinstance(request, messaging.Request):
+            if self.server:
                 self.server.initialize(self._initialize_request)
                 self._initialize_request = None
 
@@ -270,7 +270,7 @@ class Client(components.Component):
                 except messaging.MessageHandlingError as exc:
                     exc.propagate(request)
 
-            if self.session.no_debug and isinstance(request, messaging.Request):
+            if self.session.no_debug:
                 self.start_request = request
                 self.has_started = True
                 request.respond({})
