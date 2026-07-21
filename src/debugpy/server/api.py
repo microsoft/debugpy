@@ -235,10 +235,10 @@ def listen(address, settrace_kwargs, in_process_debug_adapter=False):
                 sock.settimeout(None)
                 sock_io = sock.makefile("rb", 0)
                 try:
-                    bytes = sock_io.read()
-                    if bytes is None:
+                    data = sock_io.read()
+                    if not data:
                         raise EOFError("EOF while reading adapter endpoints")
-                    endpoints = json.loads(bytes.decode("utf-8"))
+                    endpoints = json.loads(data.decode("utf-8"))
                 finally:
                     sock_io.close()
             finally:
