@@ -42,10 +42,14 @@ def test_cli_options_under_file_connect(pyfile, target, run):
 
 
 @pytest.mark.parametrize("target_kind", ["file", "module", "code"])
-def test_isolated_mode_sys_path(pyfile, tmpdir, target_kind):
-    # In isolated mode, Python does not prepend the script directory (for a
-    # file target) or the current directory (for -m and -c) to sys.path, and
-    # neither should debugpy. https://github.com/microsoft/debugpy/issues/1916
+@pytest.mark.parametrize("python_flag", ["-I", "-P"])
+def test_safe_sys_path_modes(pyfile, tmpdir, target_kind, python_flag):
+    # In isolated mode (-I) and safe-path mode (-P / PYTHONSAFEPATH), Python does
+    # not prepend the script directory (for a file target) or the current directory
+    # (for -m and -c) to sys.path, and neither should debugpy.
+    # https://github.com/microsoft/debugpy/issues/1916
+    if python_flag == "-P" and sys.version_info < (3, 11):
+        pytest.skip("-P / PYTHONSAFEPATH requires Python 3.11+")
 
     import debugpy
 
@@ -70,8 +74,8 @@ def test_isolated_mode_sys_path(pyfile, tmpdir, target_kind):
         cli_args += ["-c", code]
         not_expected = ""
 
-    # -I ignores PYTHONPATH, so make debugpy (and the module target) importable
-    # by inserting their locations into sys.path before invoking the CLI, the
+    # -I / -P do not block explicit sys.path edits, so make debugpy (and the module
+    # target) importable by inserting their locations before invoking the CLI, the
     # same way they would be resolved from site-packages of an installed copy.
     wrapper = (
         "import sys; "
@@ -84,7 +88,7 @@ def test_isolated_mode_sys_path(pyfile, tmpdir, target_kind):
     )
 
     output = subprocess.check_output(
-        [sys.executable, "-I", "-c", wrapper],
+        [sys.executable, python_flag, "-c", wrapper],
         cwd=tmpdir.strpath,
         stderr=subprocess.DEVNULL,
     )

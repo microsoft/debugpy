@@ -340,6 +340,14 @@ def start_debugging(argv_0):
     os.environ["DEBUGPY_RUNNING"] = "true"
 
 
+def _skip_sys_path_prepend():
+    # Python does not prepend the script's parent directory (for a file target)
+    # or the current directory (for -m / -c) to sys.path in isolated mode (-I) or
+    # safe-path mode (-P / PYTHONSAFEPATH), so debugpy shouldn't either.
+    # `sys.flags.safe_path` was added in Python 3.11; fall back to False on older versions.
+    return sys.flags.isolated or getattr(sys.flags, "safe_path", False)
+
+
 def run_file():
     target = options.target
     start_debugging(target)
@@ -348,11 +356,11 @@ def run_file():
     # if the target is a file (rather than a directory), it does not add its
     # parent directory to sys.path. Thus, importing other modules from the
     # same directory is broken unless sys.path is patched here.
-    # In isolated mode, Python itself doesn't add the script directory, so
-    # don't do it here either.
+    # In isolated / safe-path mode, Python itself doesn't add the script directory,
+    # so don't do it here either.
 
     if target is not None and os.path.isfile(target):
-        if not sys.flags.isolated:
+        if not _skip_sys_path_prepend():
             dir = os.path.dirname(target)
             sys.path.insert(0, dir)
     else:
@@ -366,9 +374,9 @@ def run_file():
 
 def run_module():
     # Add current directory to path, like Python itself does for -m, unless
-    # it's suppressed by isolated mode. This must be in place before trying
-    # to use find_spec below to resolve submodules.
-    if not sys.flags.isolated:
+    # it's suppressed by isolated / safe-path mode. This must be in place before
+    # trying to use find_spec below to resolve submodules.
+    if not _skip_sys_path_prepend():
         sys.path.insert(0, str(""))
 
     # We want to do the same thing that run_module() would do here, without
@@ -402,8 +410,8 @@ def run_module():
 def run_code():
     if options.target is not None:
         # Add current directory to path, like Python itself does for -c,
-        # unless it's suppressed by isolated mode.
-        if not sys.flags.isolated:
+        # unless it's suppressed by isolated / safe-path mode.
+        if not _skip_sys_path_prepend():
             sys.path.insert(0, str(""))
         code = compile(options.target, str("<string>"), str("exec"))
 
