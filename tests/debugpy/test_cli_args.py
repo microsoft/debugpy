@@ -2,6 +2,12 @@
 # Licensed under the MIT License. See LICENSE in the project root
 # for license information.
 
+import os
+import subprocess
+import sys
+
+import pytest
+
 from tests import debug
 
 
@@ -33,3 +39,55 @@ def test_cli_options_under_file_connect(pyfile, target, run):
         cli_options = backchannel.receive()
         assert cli_options['mode'] == 'connect'
         assert cli_options['target_kind'] == 'file'
+
+
+@pytest.mark.parametrize("target_kind", ["file", "module", "code"])
+def test_isolated_mode_sys_path(pyfile, tmpdir, target_kind):
+    # In isolated mode, Python does not prepend the script directory (for a
+    # file target) or the current directory (for -m and -c) to sys.path, and
+    # neither should debugpy. https://github.com/microsoft/debugpy/issues/1916
+
+    import debugpy
+
+    @pyfile
+    def code_to_debug():
+        import sys
+
+        print(repr(sys.path[0]))
+
+    debugpy_root = os.path.dirname(os.path.dirname(os.path.abspath(debugpy.__file__)))
+
+    code = "import sys; print(repr(sys.path[0]))"
+    cli_args = ["--listen", "127.0.0.1:0"]
+    if target_kind == "file":
+        cli_args += [code_to_debug.strpath]
+        not_expected = os.path.dirname(code_to_debug.strpath)
+    elif target_kind == "module":
+        tmpdir.join("debuggee_module.py").write(code)
+        cli_args += ["-m", "debuggee_module"]
+        not_expected = ""
+    else:
+        cli_args += ["-c", code]
+        not_expected = ""
+
+    # -I ignores PYTHONPATH, so make debugpy (and the module target) importable
+    # by inserting their locations into sys.path before invoking the CLI, the
+    # same way they would be resolved from site-packages of an installed copy.
+    wrapper = (
+        "import sys; "
+        "sys.path.insert(0, {tmpdir!r}); "
+        "sys.path.insert(0, {debugpy_root!r}); "
+        "sys.argv[1:] = {cli_args!r}; "
+        "from debugpy.server import cli; cli.main()".format(
+            tmpdir=tmpdir.strpath, debugpy_root=debugpy_root, cli_args=cli_args
+        )
+    )
+
+    output = subprocess.check_output(
+        [sys.executable, "-I", "-c", wrapper],
+        cwd=tmpdir.strpath,
+        stderr=subprocess.DEVNULL,
+    )
+
+    sys_path_0 = output.decode("utf-8").strip().splitlines()[-1]
+    assert sys_path_0 != repr(not_expected)

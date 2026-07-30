@@ -348,10 +348,13 @@ def run_file():
     # if the target is a file (rather than a directory), it does not add its
     # parent directory to sys.path. Thus, importing other modules from the
     # same directory is broken unless sys.path is patched here.
+    # In isolated mode, Python itself doesn't add the script directory, so
+    # don't do it here either.
 
     if target is not None and os.path.isfile(target):
-        dir = os.path.dirname(target)
-        sys.path.insert(0, dir)
+        if not sys.flags.isolated:
+            dir = os.path.dirname(target)
+            sys.path.insert(0, dir)
     else:
         log.debug("Not a file: {0!r}", target)
 
@@ -362,9 +365,11 @@ def run_file():
 
 
 def run_module():
-    # Add current directory to path, like Python itself does for -m. This must
-    # be in place before trying to use find_spec below to resolve submodules.
-    sys.path.insert(0, str(""))
+    # Add current directory to path, like Python itself does for -m, unless
+    # it's suppressed by isolated mode. This must be in place before trying
+    # to use find_spec below to resolve submodules.
+    if not sys.flags.isolated:
+        sys.path.insert(0, str(""))
 
     # We want to do the same thing that run_module() would do here, without
     # actually invoking it.
@@ -396,8 +401,10 @@ def run_module():
 
 def run_code():
     if options.target is not None:
-        # Add current directory to path, like Python itself does for -c.
-        sys.path.insert(0, str(""))
+        # Add current directory to path, like Python itself does for -c,
+        # unless it's suppressed by isolated mode.
+        if not sys.flags.isolated:
+            sys.path.insert(0, str(""))
         code = compile(options.target, str("<string>"), str("exec"))
 
         start_debugging(str("-c"))
