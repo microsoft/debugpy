@@ -156,7 +156,8 @@ def listen(address, settrace_kwargs, in_process_debug_adapter=False):
             block_until_connected=False,
             **settrace_kwargs
         )
-        return
+        listen.called = True
+        return host, port
 
     import subprocess
 
