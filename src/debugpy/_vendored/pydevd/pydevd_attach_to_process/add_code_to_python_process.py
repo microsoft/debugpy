@@ -71,6 +71,7 @@ See: attach_pydevd.py to attach the pydev debugger to a running python process.
 # nasm.asm&x:\nasm\nasm-2.07-win32\nasm-2.07\ndisasm.exe -b arch nasm
 import ctypes
 import os
+import shutil
 import struct
 import subprocess
 import sys
@@ -395,7 +396,7 @@ def _win_write_to_shared_named_memory(python_code, pid):
         CloseHandle(filemap)
 
 
-def run_python_code_linux(pid, python_code, connect_debugger_tracing=False, show_debug_info=0):
+def run_python_code_linux_gdb(pid, python_code, connect_debugger_tracing=False, show_debug_info=0):
     assert "'" not in python_code, "Having a single quote messes with our command."
 
     target_dll = get_target_filename()
@@ -542,6 +543,64 @@ def run_python_code_mac(pid, python_code, connect_debugger_tracing=False, show_d
     env.pop("PYTHONPATH", None)
     print("Running: %s" % (" ".join(cmd)))
     subprocess.check_call(" ".join(cmd), shell=True, env=env)
+
+
+def run_python_code_linux_lldb(pid, python_code, connect_debugger_tracing=False, show_debug_info=0):
+    assert "'" not in python_code, "Having a single quote messes with our command."
+
+    target_dll = get_target_filename()
+    if not target_dll:
+        raise RuntimeError("Could not find .so for attach to process.")
+
+    libdir = os.path.dirname(__file__)
+    lldb_prepare_file = find_helper_script(libdir, "lldb_prepare.py")
+
+    # Note: we currently don't support debug builds
+    is_debug = 0
+    # Note that the space in the beginning of each line in the multi-line is important!
+    cmd = [
+        "lldb",
+        "--no-lldbinit",  # Do not automatically parse any '.lldbinit' files.
+        "--script-language",
+        "Python",
+    ]
+
+    cmd.extend(
+        [
+            "-o 'process attach --pid %d'" % pid,
+            "-o 'command script import \"%s\"'" % (lldb_prepare_file,),
+            '-o \'load_lib_and_attach "%s" %s "%s" %s\'' % (target_dll, is_debug, python_code, show_debug_info),
+        ]
+    )
+
+    cmd.extend(
+        [
+            "-o 'process detach'",
+            "-o 'script import os; os._exit(0)'",
+        ]
+    )
+
+    env = os.environ.copy()
+    # Remove the PYTHONPATH (if lldb has a builtin Python it could fail if we
+    # have the PYTHONPATH for a different python version or some forced encoding).
+    env.pop("PYTHONIOENCODING", None)
+    env.pop("PYTHONPATH", None)
+    print("Running: %s" % (" ".join(cmd)))
+    subprocess.check_call(" ".join(cmd), shell=True, env=env)
+
+
+def run_python_code_linux(pid, python_code, connect_debugger_tracing=False, show_debug_info=0):
+    # On Linux gdb is used by default. lldb can be preferred via the
+    # PYDEVD_ATTACH_PREFER_LLDB environment variable (set from the "linuxAttachPreferLldb"
+    # launch configuration option). The variable is read here, at call time, so the
+    # choice doesn't depend on import ordering. When lldb is preferred but not available
+    # on the PATH, we transparently fall back to gdb.
+    prefer_lldb = os.environ.get("PYDEVD_ATTACH_PREFER_LLDB", "").strip().lower() in ("1", "true", "yes")
+    if prefer_lldb:
+        if shutil.which("lldb") is not None:
+            return run_python_code_linux_lldb(pid, python_code, connect_debugger_tracing, show_debug_info)
+        print("PYDEVD_ATTACH_PREFER_LLDB is set but 'lldb' was not found on the PATH; falling back to gdb.")
+    return run_python_code_linux_gdb(pid, python_code, connect_debugger_tracing, show_debug_info)
 
 
 if IS_WINDOWS:

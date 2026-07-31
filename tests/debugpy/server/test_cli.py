@@ -46,6 +46,7 @@ def cli(pyfile):
                 "target_kind",
                 "wait_for_client",
                 "parent_session_pid",
+                "linux_attach_prefer_lldb",
             ]
         }
 
@@ -248,6 +249,88 @@ def test_script_parent_pid_with_listen_failure(cli):
         cli(["--listen", "8888", "--parent-session-pid", "1234", "spam.py"])
 
     assert "--parent-session-pid requires --connect" in str(ex.value)
+
+
+# Tests that --linux-attach-prefer-lldb is parsed, and defaults to off.
+@pytest.mark.parametrize("prefer_lldb", ["", "prefer_lldb"])
+def test_linux_attach_prefer_lldb(cli, prefer_lldb):
+    args = ["--listen", "8888"]
+    if prefer_lldb:
+        args += ["--linux-attach-prefer-lldb"]
+    args += ["spam.py"]
+
+    _, options = cli(args)
+
+    assert options["linux_attach_prefer_lldb"] == bool(prefer_lldb)
+
+
+def test_linux_attach_prefer_lldb_from_environment(cli):
+    args = ["--listen", "8888", "spam.py"]
+    with mock.patch.dict(
+        os.environ, {"DEBUGPY_EXTRA_ARGV": "--linux-attach-prefer-lldb"}
+    ):
+        _, options = cli(args)
+
+    assert options["linux_attach_prefer_lldb"]
+
+
+@pytest.mark.parametrize("prefer_lldb", [True, False])
+def test_attach_to_pid_propagates_lldb_preference(prefer_lldb):
+    """attach_to_pid() must set PYDEVD_ATTACH_PREFER_LLDB for the injector when, and
+    only when, --linux-attach-prefer-lldb was passed. add_code_to_python_process reads
+    that variable at call time to choose between lldb and gdb."""
+    from debugpy.server import cli
+
+    # Stub out the injector module so that no debugger is actually spawned. It is
+    # imported by bare name inside attach_to_pid(), after sys.path is extended.
+    fake_injector = mock.MagicMock()
+
+    original_options = {
+        attr: getattr(cli.options, attr)
+        for attr in (
+            "mode",
+            "address",
+            "wait_for_client",
+            "log_to",
+            "adapter_access_token",
+            "disable_sys_remote_exec",
+            "linux_attach_prefer_lldb",
+            "target",
+        )
+    }
+    try:
+        cli.options.mode = "connect"
+        cli.options.address = ("127.0.0.1", 5678)
+        cli.options.wait_for_client = False
+        cli.options.log_to = None
+        cli.options.adapter_access_token = None
+        # Force the gdb/lldb code path rather than the PEP 768 sys.remote_exec one.
+        cli.options.disable_sys_remote_exec = True
+        cli.options.linux_attach_prefer_lldb = prefer_lldb
+        cli.options.target = os.getpid()
+
+        # os.environ is mutated in place by attach_to_pid(), so isolate it.
+        with mock.patch.dict(os.environ, clear=False) as env:
+            env.pop("PYDEVD_ATTACH_PREFER_LLDB", None)
+            with mock.patch.dict(
+                sys.modules, {"add_code_to_python_process": fake_injector}
+            ):
+                cli.attach_to_pid()
+
+            if prefer_lldb:
+                assert os.environ["PYDEVD_ATTACH_PREFER_LLDB"] == "1"
+            else:
+                assert "PYDEVD_ATTACH_PREFER_LLDB" not in os.environ
+    finally:
+        for attr, value in original_options.items():
+            setattr(cli.options, attr, value)
+
+    fake_injector.run_python_code.assert_called_once_with(
+        os.getpid(),
+        some.str,
+        connect_debugger_tracing=True,
+        show_debug_info=0,
+    )
 
 
 def test_pep_768_remote_exec_called_with_backslash_path():
