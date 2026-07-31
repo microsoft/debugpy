@@ -244,3 +244,81 @@ def test_concurrent_breakpoint_hits(pyfile, target, run):
 
     stops = session.timeline.all_occurrences_of(timeline.Event("stopped"))
     assert len(stops) == 1
+
+
+def test_thread_identity_with_cross_thread_is_alive(pyfile, target, run):
+    """
+    A thread whose first traced call is another thread's is_alive() must still be
+    identified as itself.
+
+    An is_alive() frame is treated as a thread bootstrap frame, and the running thread
+    is then read from its `self`. Unlike _bootstrap_inner, is_alive can be called on any
+    thread, so `self` is the thread being queried rather than the one asking, and the
+    wrong identity is cached for the rest of the calling thread's life.
+    """
+
+    @pyfile
+    def code_to_debug():
+        import debuggee
+        import threading
+        from debuggee import backchannel
+
+        debuggee.setup()
+
+        def wait_on(lock):
+            lock.acquire()
+
+        def on_worker_alive():
+            print("worker is alive")  # @bp
+
+        def poll_worker(worker, gate, parked):
+            # Raw locks only: this thread runs no Python call between the handshake and
+            # waking up, so worker.is_alive() is its first traced call.
+            parked.release()
+            gate.acquire()
+            if worker.is_alive():
+                on_worker_alive()
+
+        stop_worker = threading.Lock()
+        stop_worker.acquire()
+        worker = threading.Thread(target=wait_on, args=(stop_worker,), name="worker")
+        worker.start()
+
+        gate = threading.Lock()
+        gate.acquire()
+        parked = threading.Lock()
+        parked.acquire()
+        poller = threading.Thread(
+            target=poll_worker, args=(worker, gate, parked), name="poller"
+        )
+        poller.start()
+        parked.acquire()
+
+        backchannel.send("parked")
+        backchannel.receive()
+
+        gate.release()
+        poller.join()
+        stop_worker.release()
+        worker.join()
+
+    with debug.Session() as session:
+        backchannel = session.open_backchannel()
+        with run(session, target(code_to_debug)):
+            # No breakpoints yet, so tracing stays off while the poller parks.
+            pass
+
+        assert backchannel.receive() == "parked"
+        session.set_breakpoints(code_to_debug, ["bp"])
+        backchannel.send("go")
+
+        stop = session.wait_for_stop(
+            "breakpoint",
+            expected_frames=[
+                some.dap.frame(code_to_debug, line="bp", name="on_worker_alive")
+            ],
+        )
+        threads = {t["id"]: t["name"] for t in session.request("threads")["threads"]}
+        assert threads[stop.thread_id] == "poller"
+
+        session.request_continue()
