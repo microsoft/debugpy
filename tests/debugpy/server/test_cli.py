@@ -312,6 +312,9 @@ def test_attach_to_pid_propagates_lldb_preference(prefer_lldb):
         # os.environ is mutated in place by attach_to_pid(), so isolate it.
         with mock.patch.dict(os.environ, clear=False) as env:
             env.pop("PYDEVD_ATTACH_PREFER_LLDB", None)
+            # attach_to_pid() derives show_debug_info from this, so clear it to keep
+            # the assertion below deterministic regardless of the ambient environment.
+            env.pop("DEBUGPY_ATTACH_BY_PID_DEBUG_INFO", None)
             with mock.patch.dict(
                 sys.modules, {"add_code_to_python_process": fake_injector}
             ):

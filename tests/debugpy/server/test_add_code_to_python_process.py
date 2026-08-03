@@ -102,7 +102,7 @@ def test_run_python_code_linux_is_the_dispatcher(acpp):
     assert acpp.run_python_code_linux is not acpp.run_python_code_linux_gdb
 
 
-def test_run_python_code_linux_lldb_command(acpp):
+def test_lldb_command(acpp):
     target_dll = "/some/where/attach_linux_amd64.so"
     lldb_prepare = os.path.normpath(
         os.path.join(ATTACH_TO_PROCESS_DIR, "linux_and_mac", "lldb_prepare.py")
@@ -111,9 +111,7 @@ def test_run_python_code_linux_lldb_command(acpp):
 
     with mock.patch.object(acpp, "get_target_filename", return_value=target_dll):
         with mock.patch.object(acpp.subprocess, "check_call") as check_call:
-            acpp.run_python_code_linux_lldb(
-                4242, "print(1)", connect_debugger_tracing=True, show_debug_info=0
-            )
+            acpp._run_python_code_lldb(4242, "print(1)", "not found", show_debug_info=7)
 
     check_call.assert_called_once()
     (cmd,), kwargs = check_call.call_args
@@ -122,7 +120,7 @@ def test_run_python_code_linux_lldb_command(acpp):
     assert cmd.startswith("lldb --no-lldbinit --script-language Python ")
     assert "-o 'process attach --pid 4242'" in cmd
     assert "-o 'command script import \"%s\"'" % (lldb_prepare,) in cmd
-    assert '-o \'load_lib_and_attach "%s" 0 "print(1)" 0\'' % (target_dll,) in cmd
+    assert '-o \'load_lib_and_attach "%s" 0 "print(1)" 7\'' % (target_dll,) in cmd
     assert "-o 'process detach'" in cmd
     assert "-o 'script import os; os._exit(0)'" in cmd
 
@@ -132,14 +130,32 @@ def test_run_python_code_linux_lldb_command(acpp):
     assert "PYTHONIOENCODING" not in env
 
 
-def test_run_python_code_linux_lldb_rejects_single_quotes(acpp):
+def test_lldb_rejects_single_quotes(acpp):
     with pytest.raises(AssertionError):
-        acpp.run_python_code_linux_lldb(4242, "print('hi')")
+        acpp._run_python_code_lldb(4242, "print('hi')", "not found")
 
 
-def test_run_python_code_linux_lldb_requires_target_dll(acpp):
+def test_lldb_requires_target_dll(acpp):
     with mock.patch.object(acpp, "get_target_filename", return_value=None):
         with pytest.raises(RuntimeError) as ex:
-            acpp.run_python_code_linux_lldb(4242, "print(1)")
+            acpp._run_python_code_lldb(4242, "print(1)", "Could not find .xyz")
 
-    assert "Could not find .so" in str(ex.value)
+    assert "Could not find .xyz" in str(ex.value)
+
+
+# The platform wrappers add nothing but the library-not-found message, so that - and
+# correct forwarding of the remaining arguments - is all they are tested for.
+@pytest.mark.parametrize(
+    "injector_name, expected_error",
+    [
+        ("run_python_code_linux_lldb", "Could not find .so for attach to process."),
+        ("run_python_code_mac", "Could not find .dylib for attach to process."),
+    ],
+)
+def test_lldb_wrapper_delegates(acpp, injector_name, expected_error):
+    with mock.patch.object(acpp, "_run_python_code_lldb") as helper:
+        getattr(acpp, injector_name)(
+            4242, "print(1)", connect_debugger_tracing=True, show_debug_info=7
+        )
+
+    helper.assert_called_once_with(4242, "print(1)", expected_error, 7)

@@ -494,12 +494,14 @@ def find_helper_script(filedir, script_name):
     return target_filename
 
 
-def run_python_code_mac(pid, python_code, connect_debugger_tracing=False, show_debug_info=0):
+def _run_python_code_lldb(pid, python_code, missing_target_dll_error, show_debug_info=0):
+    # Injects python_code into pid using lldb.
+
     assert "'" not in python_code, "Having a single quote messes with our command."
 
     target_dll = get_target_filename()
     if not target_dll:
-        raise RuntimeError("Could not find .dylib for attach to process.")
+        raise RuntimeError(missing_target_dll_error)
 
     libdir = os.path.dirname(__file__)
     lldb_prepare_file = find_helper_script(libdir, "lldb_prepare.py")
@@ -545,48 +547,12 @@ def run_python_code_mac(pid, python_code, connect_debugger_tracing=False, show_d
     subprocess.check_call(" ".join(cmd), shell=True, env=env)
 
 
+def run_python_code_mac(pid, python_code, connect_debugger_tracing=False, show_debug_info=0):
+    _run_python_code_lldb(pid, python_code, "Could not find .dylib for attach to process.", show_debug_info)
+
+
 def run_python_code_linux_lldb(pid, python_code, connect_debugger_tracing=False, show_debug_info=0):
-    assert "'" not in python_code, "Having a single quote messes with our command."
-
-    target_dll = get_target_filename()
-    if not target_dll:
-        raise RuntimeError("Could not find .so for attach to process.")
-
-    libdir = os.path.dirname(__file__)
-    lldb_prepare_file = find_helper_script(libdir, "lldb_prepare.py")
-
-    # Note: we currently don't support debug builds
-    is_debug = 0
-    # Note that the space in the beginning of each line in the multi-line is important!
-    cmd = [
-        "lldb",
-        "--no-lldbinit",  # Do not automatically parse any '.lldbinit' files.
-        "--script-language",
-        "Python",
-    ]
-
-    cmd.extend(
-        [
-            "-o 'process attach --pid %d'" % pid,
-            "-o 'command script import \"%s\"'" % (lldb_prepare_file,),
-            '-o \'load_lib_and_attach "%s" %s "%s" %s\'' % (target_dll, is_debug, python_code, show_debug_info),
-        ]
-    )
-
-    cmd.extend(
-        [
-            "-o 'process detach'",
-            "-o 'script import os; os._exit(0)'",
-        ]
-    )
-
-    env = os.environ.copy()
-    # Remove the PYTHONPATH (if lldb has a builtin Python it could fail if we
-    # have the PYTHONPATH for a different python version or some forced encoding).
-    env.pop("PYTHONIOENCODING", None)
-    env.pop("PYTHONPATH", None)
-    print("Running: %s" % (" ".join(cmd)))
-    subprocess.check_call(" ".join(cmd), shell=True, env=env)
+    _run_python_code_lldb(pid, python_code, "Could not find .so for attach to process.", show_debug_info)
 
 
 def run_python_code_linux(pid, python_code, connect_debugger_tracing=False, show_debug_info=0):
