@@ -8,6 +8,7 @@ from _pydevd_bundle.pydevd_constants import get_frame, get_current_thread_id, it
 from _pydevd_bundle.pydevd_xml import ExceptionOnEvaluate, get_type, var_to_xml
 from _pydev_bundle import pydev_log
 import functools
+from contextlib import contextmanager
 from _pydevd_bundle.pydevd_thread_lifecycle import resume_threads, mark_thread_suspended, suspend_all_threads, suspend_threads_lock
 from _pydevd_bundle.pydevd_comm_constants import CMD_SET_BREAK
 
@@ -309,22 +310,36 @@ def _run_with_interrupt_thread(original_func, py_db, curr_thread, frame, express
             return original_func(py_db, frame, expression, is_exec)
 
 
-def _run_with_unblock_threads(original_func, py_db, curr_thread, frame, expression, is_exec):
+@contextmanager
+def unblock_threads_on_timeout(py_db, curr_thread, timeout, on_timeout_message=None):
+    """
+    Context manager that runs the wrapped block and, if it doesn't finish until ``timeout`` seconds
+    elapse, resumes all other threads -- so that a computation depending on another (currently
+    suspended) thread can make progress -- and then suspends them again when the block finishes.
+
+    This only has an effect when threads are suspended/resumed as a group
+    (i.e.: ``py_db.multi_threads_single_notification``) and ``timeout >= 0``; otherwise the block
+    simply runs unchanged.
+
+    :param on_timeout_message:
+        Optional warning message sent to the client if the timeout elapses and the other threads are
+        resumed (so the user understands why other threads ran while execution was suspended).
+    """
     on_timeout_unblock_threads = None
     timeout_tracker = py_db.timeout_tracker  # : :type timeout_tracker: TimeoutTracker
 
-    if py_db.multi_threads_single_notification:
-        unblock_threads_timeout = pydevd_constants.PYDEVD_UNBLOCK_THREADS_TIMEOUT
-    else:
-        unblock_threads_timeout = -1  # Don't use this if threads are managed individually.
-
-    if unblock_threads_timeout >= 0:
-        pydev_log.info("Doing evaluate with unblock threads timeout: %s.", unblock_threads_timeout)
+    if py_db.multi_threads_single_notification and timeout >= 0:
+        pydev_log.info("Running with unblock threads timeout: %s.", timeout)
         tid = get_current_thread_id(curr_thread)
 
         def on_timeout_unblock_threads():
             on_timeout_unblock_threads.called = True
-            pydev_log.info("Resuming threads after evaluate timeout.")
+            pydev_log.info("Resuming threads after timeout.")
+            if on_timeout_message is not None:
+                try:
+                    py_db.writer.add_command(py_db.cmd_factory.make_warning_message(on_timeout_message))
+                except Exception:
+                    pydev_log.exception()
             resume_threads("*", except_thread=curr_thread)
             py_db.threads_suspended_single_notification.on_thread_resume(tid, curr_thread)
 
@@ -332,11 +347,10 @@ def _run_with_unblock_threads(original_func, py_db, curr_thread, frame, expressi
 
     try:
         if on_timeout_unblock_threads is None:
-            return _run_with_interrupt_thread(original_func, py_db, curr_thread, frame, expression, is_exec)
+            yield
         else:
-            with timeout_tracker.call_on_timeout(unblock_threads_timeout, on_timeout_unblock_threads):
-                return _run_with_interrupt_thread(original_func, py_db, curr_thread, frame, expression, is_exec)
-
+            with timeout_tracker.call_on_timeout(timeout, on_timeout_unblock_threads):
+                yield
     finally:
         if on_timeout_unblock_threads is not None and on_timeout_unblock_threads.called:
             with suspend_threads_lock:
@@ -344,6 +358,16 @@ def _run_with_unblock_threads(original_func, py_db, curr_thread, frame, expressi
                 py_db.threads_suspended_single_notification.increment_suspend_time()
                 suspend_all_threads(py_db, except_thread=curr_thread)
                 py_db.threads_suspended_single_notification.on_thread_suspend(tid, curr_thread, CMD_SET_BREAK)
+
+
+def _run_with_unblock_threads(original_func, py_db, curr_thread, frame, expression, is_exec):
+    if py_db.multi_threads_single_notification:
+        unblock_threads_timeout = pydevd_constants.PYDEVD_UNBLOCK_THREADS_TIMEOUT
+    else:
+        unblock_threads_timeout = -1  # Don't use this if threads are managed individually.
+
+    with unblock_threads_on_timeout(py_db, curr_thread, unblock_threads_timeout):
+        return _run_with_interrupt_thread(original_func, py_db, curr_thread, frame, expression, is_exec)
 
 
 def _evaluate_with_timeouts(original_func):

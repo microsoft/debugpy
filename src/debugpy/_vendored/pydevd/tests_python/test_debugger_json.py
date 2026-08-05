@@ -6178,6 +6178,36 @@ def test_debugger_case_deadlock_thread_eval(case_setup_dap):
         writer.finished_ok = True
 
 
+def test_debugger_case_deadlock_thread_variables(case_setup_dap):
+    # Expanding a variable whose property getter blocks on another (suspended) thread must not
+    # deadlock the debugger: the other threads should be resumed until the resolution finishes.
+    # See: https://github.com/microsoft/debugpy/issues/2053
+
+    def get_environ(self):
+        env = os.environ.copy()
+        env["PYDEVD_UNBLOCK_THREADS_ON_VARIABLES_TIMEOUT"] = "0.5"
+        return env
+
+    with case_setup_dap.test_file("_debugger_case_deadlock_thread_variables.py", get_environ=get_environ) as writer:
+        json_facade = JsonFacade(writer)
+        json_facade.write_launch()
+        json_facade.write_set_breakpoints(writer.get_line_index_with_content("Break here 1"))
+
+        json_facade.write_make_initial_run()
+        json_hit = json_facade.wait_for_thread_stopped()
+
+        # Expanding "processor" evaluates its "read_consistency_interval" property, which blocks on
+        # the (suspended) EchoThread. If threads aren't resumed, this will deadlock.
+        processor_var = json_facade.get_local_var(json_hit.frame_id, "processor")
+        name_to_var = json_facade.get_name_to_var(processor_var.variablesReference)
+        assert "read_consistency_interval" in name_to_var
+        assert name_to_var["read_consistency_interval"].value == "42"
+
+        json_facade.write_continue()
+
+        writer.finished_ok = True
+
+
 def test_debugger_case_breakpoint_on_unblock_thread_eval(case_setup_dap):
     from _pydevd_bundle._debug_adapter.pydevd_schema import EvaluateResponse
 
