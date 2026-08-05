@@ -522,6 +522,11 @@ class Client(components.Component):
                     raise request.isnt_valid('"processId" must be parseable as int')
             debugpy_args = request("debugpyArgs", json.array(str))
 
+            # On Linux, optionally prefer lldb (falling back to gdb) to inject into the
+            # target process. Forwarded to the injector as a debugpy CLI switch.
+            if request("linuxAttachPreferLldb", False):
+                debugpy_args = debugpy_args + ["--linux-attach-prefer-lldb"]
+
             def on_output(category, output):
                 self.channel.send_event(
                     "output",
