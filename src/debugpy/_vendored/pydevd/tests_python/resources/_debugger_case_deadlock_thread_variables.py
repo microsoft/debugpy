@@ -7,7 +7,6 @@ evaluates its properties) would be locked until the secondary thread is allowed 
 
 This mirrors real-world objects such as lancedb's ``LanceDBConnection``, whose property getters block
 on a background asyncio event loop running in a daemon thread.
-See: https://github.com/microsoft/debugpy/issues/2053
 """
 
 import threading

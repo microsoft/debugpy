@@ -332,18 +332,27 @@ def unblock_threads_on_timeout(py_db, curr_thread, timeout, on_timeout_message=N
         pydev_log.info("Running with unblock threads timeout: %s.", timeout)
         tid = get_current_thread_id(curr_thread)
 
-        def on_timeout_unblock_threads():
-            on_timeout_unblock_threads.called = True
-            pydev_log.info("Resuming threads after timeout.")
-            if on_timeout_message is not None:
-                try:
-                    py_db.writer.add_command(py_db.cmd_factory.make_warning_message(on_timeout_message))
-                except Exception:
-                    pydev_log.exception()
-            resume_threads("*", except_thread=curr_thread)
-            py_db.threads_suspended_single_notification.on_thread_resume(tid, curr_thread)
+        # State shared between the timeout callback (which runs on the TimeoutTracker daemon thread)
+        # and the ``finally`` block below (which runs on ``curr_thread``). Both the resume and the
+        # re-suspend transitions are performed under ``suspend_threads_lock`` so they are serialized:
+        # the ``finally`` cannot re-suspend before the callback finishes resuming, and the callback
+        # cannot resume after the ``finally`` has decided the block is finished.
+        unblock_state = {"resumed": False, "finished": False}
 
-        on_timeout_unblock_threads.called = False
+        def on_timeout_unblock_threads():
+            with suspend_threads_lock:
+                if unblock_state["finished"]:
+                    # The block already finished; don't resume threads that are meant to stay suspended.
+                    return
+                unblock_state["resumed"] = True
+                pydev_log.info("Resuming threads after timeout.")
+                if on_timeout_message is not None:
+                    try:
+                        py_db.writer.add_command(py_db.cmd_factory.make_warning_message(on_timeout_message))
+                    except Exception:
+                        pydev_log.exception()
+                resume_threads("*", except_thread=curr_thread)
+                py_db.threads_suspended_single_notification.on_thread_resume(tid, curr_thread)
 
     try:
         if on_timeout_unblock_threads is None:
@@ -352,12 +361,14 @@ def unblock_threads_on_timeout(py_db, curr_thread, timeout, on_timeout_message=N
             with timeout_tracker.call_on_timeout(timeout, on_timeout_unblock_threads):
                 yield
     finally:
-        if on_timeout_unblock_threads is not None and on_timeout_unblock_threads.called:
+        if on_timeout_unblock_threads is not None:
             with suspend_threads_lock:
-                mark_thread_suspended(curr_thread, CMD_SET_BREAK)
-                py_db.threads_suspended_single_notification.increment_suspend_time()
-                suspend_all_threads(py_db, except_thread=curr_thread)
-                py_db.threads_suspended_single_notification.on_thread_suspend(tid, curr_thread, CMD_SET_BREAK)
+                unblock_state["finished"] = True
+                if unblock_state["resumed"]:
+                    mark_thread_suspended(curr_thread, CMD_SET_BREAK)
+                    py_db.threads_suspended_single_notification.increment_suspend_time()
+                    suspend_all_threads(py_db, except_thread=curr_thread)
+                    py_db.threads_suspended_single_notification.on_thread_suspend(tid, curr_thread, CMD_SET_BREAK)
 
 
 def _run_with_unblock_threads(original_func, py_db, curr_thread, frame, expression, is_exec):

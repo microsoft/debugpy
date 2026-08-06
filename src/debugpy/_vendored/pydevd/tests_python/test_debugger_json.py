@@ -6181,7 +6181,6 @@ def test_debugger_case_deadlock_thread_eval(case_setup_dap):
 def test_debugger_case_deadlock_thread_variables(case_setup_dap):
     # Expanding a variable whose property getter blocks on another (suspended) thread must not
     # deadlock the debugger: the other threads should be resumed until the resolution finishes.
-    # See: https://github.com/microsoft/debugpy/issues/2053
 
     def get_environ(self):
         env = os.environ.copy()
