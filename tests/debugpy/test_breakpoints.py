@@ -438,3 +438,118 @@ def test_break_api(pyfile, target, run, func):
             expected_frames=[some.dap.frame(target.source, target.lines["break"])]
         )
         session.request_continue()
+
+
+def test_hit_breakpoint_ids(pyfile, target, run):
+    @pyfile
+    def code_to_debug():
+        import debuggee
+
+        debuggee.setup()
+        print("first")  # @bp1
+        print("second")  # @bp2
+
+    with debug.Session() as session:
+        with run(session, target(code_to_debug)):
+            breakpoints = session.set_breakpoints(code_to_debug, ["bp1", "bp2"])
+        bp1_id, bp2_id = (bp["id"] for bp in breakpoints)
+
+        stop = session.wait_for_stop("breakpoint")
+        assert stop.body["hitBreakpointIds"] == [bp1_id]
+        session.request_continue()
+
+        stop = session.wait_for_stop("breakpoint")
+        assert stop.body["hitBreakpointIds"] == [bp2_id]
+        session.request_continue()
+
+
+def test_hit_breakpoint_ids_function_breakpoint(pyfile, target, run):
+    @pyfile
+    def code_to_debug():
+        import debuggee
+
+        debuggee.setup()
+
+        def my_func():
+            print("in my_func")
+
+        my_func()
+
+    with debug.Session() as session:
+        with run(session, target(code_to_debug)):
+            # The decoy is never called, so the reported id must be the second one
+            # rather than merely the first id handed out.
+            response = session.request(
+                "setFunctionBreakpoints",
+                {"breakpoints": [{"name": "decoy"}, {"name": "my_func"}]},
+            )
+        bp_id = response["breakpoints"][1]["id"]
+
+        stop = session.wait_for_stop("function breakpoint")
+        assert stop.body["hitBreakpointIds"] == [bp_id]
+        session.request_continue()
+
+
+def test_hit_breakpoint_ids_absent_on_later_stops(pyfile, target, run):
+    @pyfile
+    def code_to_debug():
+        import debuggee
+        import debugpy
+
+        debuggee.setup()
+        print("first")  # @bp
+        print("second")
+        debugpy.breakpoint()
+        print("third")
+
+    with debug.Session() as session:
+        with run(session, target(code_to_debug)):
+            breakpoints = session.set_breakpoints(code_to_debug, ["bp"])
+        bp_id = breakpoints[0]["id"]
+
+        stop = session.wait_for_stop("breakpoint")
+        assert stop.body["hitBreakpointIds"] == [bp_id]
+
+        session.request("next", {"threadId": stop.thread_id})
+        stop = session.wait_for_stop("step")
+        assert "hitBreakpointIds" not in stop.body
+        session.request_continue()
+
+        # debugpy.breakpoint() also reports reason "breakpoint", so the reason alone
+        # cannot distinguish it: only clearing the ids on resume keeps this stop from
+        # claiming the real breakpoint above was hit again.
+        stop = session.wait_for_stop("breakpoint")
+        assert "hitBreakpointIds" not in stop.body
+        session.request_continue()
+
+
+def test_hit_breakpoint_ids_per_thread_notification(pyfile, target, run):
+    @pyfile
+    def code_to_debug():
+        import debuggee
+
+        debuggee.setup()
+
+        def never_called():
+            print("decoy")  # @decoy
+
+        print("first")  # @bp
+
+    with debug.Session() as session:
+        with run(session, target(code_to_debug)):
+            # Exercises the per-thread stopped event, which is only built when threads
+            # are reported individually. Must precede set_breakpoints: the suspend
+            # policy is derived from this when each breakpoint is registered.
+            session.request(
+                "setDebuggerProperty", {"multiThreadsSingleNotification": False}
+            )
+            breakpoints = session.set_breakpoints(code_to_debug, ["decoy", "bp"])
+        bp_id = breakpoints[1]["id"]
+
+        # Not wait_for_stop, which asserts allThreadsStopped.
+        stopped = session.wait_for_next_event("stopped")
+        assert stopped["reason"] == "breakpoint"
+        assert not stopped["allThreadsStopped"]
+        assert stopped["hitBreakpointIds"] == [bp_id]
+
+        session.request_continue()

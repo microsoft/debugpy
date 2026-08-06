@@ -65,12 +65,13 @@ def test_django_breakpoint_no_multiproc(start_django, bp_target):
                 assert breakpoint_body["reason"] == "changed"
                 assert breakpoint_body["breakpoint"]["verified"]
 
-            session.wait_for_stop(
+            stop = session.wait_for_stop(
                 "breakpoint",
                 expected_frames=[
                     some.dap.frame(some.dap.source(bp_file), line=bp_line, name=bp_name)
                 ],
             )
+            assert stop.body["hitBreakpointIds"] == [breakpoints[0]["id"]]
 
             var_content = session.get_variable("content")
             assert var_content == some.dict.containing(

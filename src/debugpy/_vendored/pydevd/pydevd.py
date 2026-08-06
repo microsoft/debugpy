@@ -2305,6 +2305,9 @@ class PyDB(object):
 
         finally:
             info.is_in_wait_loop = False
+            # Scoped to one suspension: set just before the thread waits, cleared here
+            # so a later stop on this thread cannot inherit stale ids.
+            info.hit_breakpoint_ids = None
             info.update_stepping_info()
 
         self.cancel_async_evaluation(get_current_thread_id(thread), str(id(frame)))

@@ -8,7 +8,7 @@ import sys
 #
 # function_breakpoints = []
 # function_breakpoints.append(
-#     FunctionBreakpoint('gen', condition=None, expression=None, suspend_policy='ALL', hit_condition=None, is_logpoint=False))
+#     FunctionBreakpoint(0, 'gen', condition=None, expression=None, suspend_policy='ALL', hit_condition=None, is_logpoint=False))
 #
 # py_db = get_global_debugger()
 # PyDevdAPI().set_function_breakpoints(py_db, function_breakpoints)
