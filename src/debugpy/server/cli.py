@@ -361,8 +361,8 @@ def run_file():
 
     if target is not None and os.path.isfile(target):
         if not _skip_sys_path_prepend():
-            dir = os.path.dirname(target)
-            sys.path.insert(0, dir)
+            target_dir = os.path.dirname(target)
+            sys.path.insert(0, target_dir)
     else:
         log.debug("Not a file: {0!r}", target)
 
