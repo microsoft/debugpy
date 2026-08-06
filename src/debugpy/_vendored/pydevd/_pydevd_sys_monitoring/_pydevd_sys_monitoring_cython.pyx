@@ -1529,7 +1529,10 @@ cdef _internal_line_event(FuncCodeInfo func_code_info, frame, int line):
     # print('line event', info.pydev_state, line, threading.current_thread(), code)
     # If we reached here, it was not filtered out.
 
-    if func_code_info.breakpoint_found:
+    # Skipped while the thread is already suspended, as pydevd_frame does: otherwise a
+    # thread suspended by another thread's stop reports its own breakpoint on waking,
+    # producing a second stopped event for what is a single all-threads stop.
+    if func_code_info.breakpoint_found and info.pydev_state != 2:
         bp = None
         stop = False
         stop_on_plugin_breakpoint = False
