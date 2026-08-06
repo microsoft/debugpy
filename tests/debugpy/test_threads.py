@@ -6,7 +6,8 @@ import pytest
 import sys
 import time
 
-from tests import debug
+from tests import debug, timeline
+from tests.patterns import some
 
 
 @pytest.mark.parametrize("count", [1, 3])
@@ -187,3 +188,59 @@ def test_debug_this_thread(pyfile, target, run):
 
         session.wait_for_stop()
         session.request_continue()
+
+
+def test_concurrent_breakpoint_hits(pyfile, target, run):
+    """
+    A thread that reaches its breakpoint while already suspended by another thread's
+    breakpoint must not produce a second stop.
+
+    A breakpoint hit suspends every other thread, and a line event evaluates breakpoints
+    before it checks for a pending suspend, so the second thread still reports its own
+    breakpoint. Re-marking it as suspended overwrites the CMD_THREAD_SUSPEND reason that
+    would have made the single notification behavior drop the duplicate.
+    """
+
+    @pyfile
+    def code_to_debug():
+        import debuggee
+        import threading
+        import time
+
+        debuggee.setup()
+
+        # Never released: `second` blocks in the C level acquire, running no traced
+        # line, so it can be marked suspended while its next traced line is still its
+        # own breakpoint. Main must reach @bp1 before that acquire times out.
+        gate = threading.Lock()
+        gate.acquire()
+
+        def second():
+            gate.acquire(timeout=2)
+            print("second")  # @bp2
+
+        thread = threading.Thread(target=second, name="second")
+        thread.start()
+        time.sleep(0.5)
+
+        print("main")  # @bp1
+        thread.join()
+
+    with debug.Session() as session:
+        session.expected_exit_code = some.int
+        with run(session, target(code_to_debug)):
+            session.set_breakpoints(code_to_debug, ["bp1", "bp2"])
+
+        session.wait_for_stop()
+        # Outlast the acquire timeout, so a duplicate notification has time to arrive.
+        time.sleep(3)
+
+        # Otherwise the test passes vacuously whenever `second` never reaches @bp2.
+        threads = {t["name"]: t["id"] for t in session.request("threads")["threads"]}
+        stack_trace = session.request("stackTrace", {"threadId": threads["second"]})
+        assert stack_trace["stackFrames"][0]["line"] == code_to_debug.lines["bp2"]
+
+        session.disconnect()
+
+    stops = session.timeline.all_occurrences_of(timeline.Event("stopped"))
+    assert len(stops) == 1
