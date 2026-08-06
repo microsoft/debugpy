@@ -87,11 +87,44 @@ def test_safe_sys_path_modes(pyfile, tmpdir, target_kind, python_flag):
         )
     )
 
-    output = subprocess.check_output(
-        [sys.executable, python_flag, "-c", wrapper],
-        cwd=tmpdir.strpath,
-        stderr=subprocess.DEVNULL,
+    # Use subprocess.run so we can set an explicit timeout and keep stderr for
+    # diagnostics on Windows py312, where the CLI child occasionally hangs or
+    # prints useful warnings on the error stream.
+    try:
+        completed = subprocess.run(
+            [sys.executable, python_flag, "-c", wrapper],
+            cwd=tmpdir.strpath,
+            capture_output=True,
+            timeout=30,
+            check=True,
+        )
+    except subprocess.TimeoutExpired as e:
+        pytest.fail(
+            "debugpy CLI timed out after 30s.\n"
+            "stdout so far:\n"
+            f"{(e.stdout or b'').decode('utf-8', errors='replace')}\n"
+            "stderr so far:\n"
+            f"{(e.stderr or b'').decode('utf-8', errors='replace')}"
+        )
+    except subprocess.CalledProcessError as e:
+        pytest.fail(
+            f"debugpy CLI exited with code {e.returncode}.\n"
+            "stdout:\n"
+            f"{(e.stdout or b'').decode('utf-8', errors='replace')}\n"
+            "stderr:\n"
+            f"{(e.stderr or b'').decode('utf-8', errors='replace')}"
+        )
+
+    stderr_text = (
+        completed.stderr.decode("utf-8", errors="replace") if completed.stderr else ""
     )
 
-    sys_path_0 = output.decode("utf-8").strip().splitlines()[-1]
-    assert sys_path_0 != repr(not_expected)
+    assert completed.stdout, (
+        f"Subprocess produced no stdout. returncode={completed.returncode}\n"
+        f"stderr:\n{stderr_text}"
+    )
+    sys_path_0 = completed.stdout.decode("utf-8").strip().splitlines()[-1]
+    assert sys_path_0 != repr(not_expected), (
+        f"Expected sys.path[0] != {not_expected!r}, got {sys_path_0!r}.\n"
+        f"stderr:\n{stderr_text}"
+    )
