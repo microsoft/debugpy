@@ -312,6 +312,48 @@ class TestJsonMessageChannel(object):
             },
         ]
 
+    def test_respond_none_produces_empty_body(self):
+        # A successful response with no body must expose Response.body as an empty
+        # MessageDict (never None), matching how incoming empty responses are parsed.
+        # This pins the contract so callers can rely on body always being a
+        # MessageDict-or-Exception and never need a `body is None` special case.
+        REQUESTS = [
+            {
+                "seq": 1,
+                "type": "request",
+                "command": "configurationDone",
+                "arguments": {},
+            },
+        ]
+
+        captured = []
+
+        class Handlers(object):
+            def configurationDone_request(self, request):
+                request.respond(None)
+                captured.append(request.response)
+
+        stream = JsonMemoryStream(REQUESTS, [])
+        channel = messaging.JsonMessageChannel(stream, Handlers())
+        channel.start()
+        channel.wait()
+
+        (response,) = captured
+        assert response.body is not None
+        assert response.body == {}
+        assert response.success
+
+        # "body" is omitted from the serialized JSON for an empty response.
+        assert stream.output == [
+            {
+                "seq": 1,
+                "type": "response",
+                "request_seq": 1,
+                "command": "configurationDone",
+                "success": True,
+            },
+        ]
+
     def test_responses(self):
         request1_sent = threading.Event()
         request2_sent = threading.Event()

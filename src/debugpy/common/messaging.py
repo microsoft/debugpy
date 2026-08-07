@@ -20,7 +20,7 @@ import os
 import socket
 import sys
 import threading
-from typing import TYPE_CHECKING, BinaryIO, Callable, Union, cast, Any
+from typing import TYPE_CHECKING, BinaryIO, Callable, ClassVar, Union, cast, Any
 if TYPE_CHECKING:
     # Careful not force this import in production code, as it's not available in all
     # code that we run.
@@ -802,13 +802,16 @@ class OutgoingRequest(Request):
     response to be received, and register a response handler.
     """
 
+    # Outgoing requests are never parsed or handled as incoming messages, so the
+    # inherited _parse/_handle are explicitly disabled. Declared as class-level
+    # optional attributes (rather than set via setattr) so the override stays
+    # statically visible to the type checker.
+    _parse: ClassVar[None] = None  # pyright: ignore[reportIncompatibleMethodOverride]
+    _handle: ClassVar[None] = None  # pyright: ignore[reportIncompatibleMethodOverride]
+
     def __init__(self, channel, seq, command, arguments):
         super().__init__(channel, seq, command, arguments)
         self._response_handlers = []
-
-        # Erase the parse and handle methods, as they are not needed for outgoing.
-        setattr(self, "_parse", None)
-        setattr(self, "_handle", None)
 
     def describe(self):
         return f"{self.seq} request {json.repr(self.command)} to {self.channel}"
