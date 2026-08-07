@@ -1529,7 +1529,10 @@ cdef _internal_line_event(FuncCodeInfo func_code_info, frame, int line):
     # print('line event', info.pydev_state, line, threading.current_thread(), code)
     # If we reached here, it was not filtered out.
 
-    if func_code_info.breakpoint_found:
+    # Skipped while the thread is already suspended, as pydevd_frame does: otherwise a
+    # thread suspended by another thread's stop reports its own breakpoint on waking,
+    # producing a second stopped event for what is a single all-threads stop.
+    if func_code_info.breakpoint_found and info.pydev_state != 2:
         bp = None
         stop = False
         stop_on_plugin_breakpoint = False
@@ -1856,6 +1859,51 @@ cpdef stop_monitoring(all_threads=False):
                 return
         # print('stop monitoring, thread=', thread_info.thread)
         thread_info.trace = False
+
+
+# fmt: off
+# IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
+cpdef bint suspend_current_thread_tracing():
+    cdef ThreadInfo thread_info
+# ELSE
+# def suspend_current_thread_tracing():
+# ENDIF
+# fmt: on
+    """
+    Suspends tracing for the current thread and returns the previous state,
+    to be restored with resume_current_thread_tracing().
+    """
+    try:
+        thread_info = _thread_local_info.thread_info
+    except:
+        # Create the ThreadInfo if missing; monitoring events create it with
+        # tracing enabled by default, which would defeat the suspension.
+        thread_info = _get_thread_info(True, 1)
+        if thread_info is None:
+            return False
+    previous_state = thread_info.trace
+    thread_info.trace = False
+    return previous_state
+
+
+# fmt: off
+# IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
+cpdef resume_current_thread_tracing():
+    cdef ThreadInfo thread_info
+# ELSE
+# def resume_current_thread_tracing():
+# ENDIF
+# fmt: on
+    """
+    Resumes tracing for the current thread.
+    """
+    try:
+        thread_info = _thread_local_info.thread_info
+    except:
+        thread_info = _get_thread_info(True, 1)
+        if thread_info is None:
+            return
+    thread_info.trace = True
 
 
 def update_monitor_events(suspend_requested: Optional[bool]=None) -> None:

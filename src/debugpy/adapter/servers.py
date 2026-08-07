@@ -132,11 +132,21 @@ class Connection(object):
             log.info("No active debug session for parent process of {0}.", self)
         else:
             if self.pid == parent_session.pid:
-                parent_server = parent_session.server
-                if not (parent_server and parent_server.connection.process_replaced):
-                    log.error("{0} is not expecting replacement.", parent_session)
-                    self.channel.close()
-                    return
+                with _lock:
+                    # The connection can be attached to a session as soon as it
+                    # is published above, before this constructor gets a chance to
+                    # classify it. If that already happened, the connection is
+                    # established and must not be treated as an unexpected
+                    # replacement.
+                    if self.server is not None:
+                        return
+                    parent_server = parent_session.server
+                    if not (
+                        parent_server and parent_server.connection.process_replaced
+                    ):
+                        log.error("{0} is not expecting replacement.", parent_session)
+                        self.channel.close()
+                        return
             try:
                 parent_session.client.notify_of_subprocess(self)
                 return

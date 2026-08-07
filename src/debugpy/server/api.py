@@ -9,6 +9,7 @@ import pydevd
 import socket
 import sys
 import threading
+import types
 
 import debugpy
 from debugpy import adapter
@@ -364,3 +365,47 @@ def trace_this_thread(should_trace):
         pydb.enable_tracing()
     else:
         pydb.disable_tracing()
+
+
+def trigger_exception_handler(excinfo=None, as_uncaught=True):
+    ensure_logging()
+
+    if not is_client_connected():
+        log.info("trigger_exception_handler() ignored - debugger not attached")
+        return
+
+    if excinfo is None:
+        excinfo = sys.exc_info()
+
+    if isinstance(excinfo, BaseException):
+        excinfo = (type(excinfo), excinfo, excinfo.__traceback__)
+
+    if not (isinstance(excinfo, tuple) and len(excinfo) == 3):
+        raise ValueError(
+            f"excinfo must be an exception instance or a (type, value, traceback) "
+            f"tuple as returned by sys.exc_info(), not {excinfo!r}"
+        )
+
+    exctype, value, tb = excinfo
+    if exctype is None or value is None or tb is None:
+        log.debug("trigger_exception_handler() ignored - no exception info")
+        return
+
+    if not (
+        isinstance(exctype, type)
+        and isinstance(value, BaseException)
+        and isinstance(tb, types.TracebackType)
+    ):
+        raise ValueError(
+            f"excinfo must be an exception instance or a (type, value, traceback) "
+            f"tuple as returned by sys.exc_info(), not {excinfo!r}"
+        )
+
+    log.debug("trigger_exception_handler({0!r})", excinfo)
+
+    pydb = get_global_debugger()
+    if pydb is None:
+        log.warning("trigger_exception_handler() ignored - no global debugger")
+        return
+
+    pydb.trigger_exception_handler(excinfo, as_uncaught=as_uncaught)

@@ -5,6 +5,7 @@
 import atexit
 import contextlib
 import functools
+from importlib import metadata as importlib_metadata
 import inspect
 import io
 import os
@@ -21,7 +22,6 @@ if TYPE_CHECKING:
 
 import debugpy
 from debugpy.common import json, timestamp, util
-
 
 LEVELS = ("debug", "info", "warning", "error")
 """Logging levels, lowest to highest importance.
@@ -299,6 +299,7 @@ def get_environment_description(header):
     import site  # noqa
 
     result = [header, "\n\n"]
+    missing = object()
 
     def report(s, *args, **kwargs):
         result.append(s.format(*args, **kwargs))
@@ -323,6 +324,10 @@ def get_environment_description(header):
             )
             return
 
+        if paths is missing:
+            report("{0}<missing>\n", prefix)
+            return
+
         if not isinstance(paths, (list, tuple)):
             paths = [paths]
 
@@ -340,7 +345,7 @@ def get_environment_description(header):
     report_paths("sys.executable")
     report_paths("sys.prefix")
     report_paths("sys.base_prefix")
-    report_paths("sys.real_prefix")
+    report_paths(lambda: getattr(sys, "real_prefix", missing), "sys.real_prefix")
     report_paths("site.getsitepackages()")
     report_paths("site.getusersitepackages()")
 
@@ -360,29 +365,15 @@ def get_environment_description(header):
     report_paths("debugpy.__file__")
     report("\n")
 
-    importlib_metadata = None
+    report("Installed packages:\n")
     try:
-        import importlib_metadata
-    except ImportError:  # pragma: no cover
-        try:
-            from importlib import metadata as importlib_metadata
-        except ImportError:
-            pass
-    if importlib_metadata is None:  # pragma: no cover
-        report("Cannot enumerate installed packages - missing importlib_metadata.")
-    else:
-        report("Installed packages:\n")
-        try:
-            for pkg in importlib_metadata.distributions():
-                if has_name_and_version(pkg):
-                    name = pkg.name
-                    report("    {0}=={1}\n", name, pkg.version)
-                else:
-                    report("    {0}\n", pkg)
-        except Exception:  # pragma: no cover
-            swallow_exception(
-                "Error while enumerating installed packages.", level="info"
-            )
+        for pkg in importlib_metadata.distributions():
+            if has_name_and_version(pkg):
+                report("    {0}=={1}\n", pkg.name, pkg.version)
+            else:
+                report("    {0}\n", pkg)
+    except Exception:  # pragma: no cover
+        swallow_exception("Error while enumerating installed packages.", level="info")
 
     return "".join(result).rstrip("\n")
 
