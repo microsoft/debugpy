@@ -76,7 +76,8 @@ class LineBreakpoint(object):
 
 
 class FunctionBreakpoint(object):
-    def __init__(self, func_name, condition, expression, suspend_policy="NONE", hit_condition=None, is_logpoint=False):
+    def __init__(self, breakpoint_id, func_name, condition, expression, suspend_policy="NONE", hit_condition=None, is_logpoint=False):
+        self.breakpoint_id = breakpoint_id
         self.condition = condition
         self.func_name = func_name
         self.expression = expression

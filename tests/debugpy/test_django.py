@@ -65,12 +65,13 @@ def test_django_breakpoint_no_multiproc(start_django, bp_target):
                 assert breakpoint_body["reason"] == "changed"
                 assert breakpoint_body["breakpoint"]["verified"]
 
-            session.wait_for_stop(
+            stop = session.wait_for_stop(
                 "breakpoint",
                 expected_frames=[
                     some.dap.frame(some.dap.source(bp_file), line=bp_line, name=bp_name)
                 ],
             )
+            assert stop.body["hitBreakpointIds"] == [breakpoints[0]["id"]]
 
             var_content = session.get_variable("content")
             assert var_content == some.dict.containing(
@@ -86,6 +87,29 @@ def test_django_breakpoint_no_multiproc(start_django, bp_target):
 
             session.request_continue()
             assert bp_var_content in home_request.response_text()
+
+
+def test_django_template_hit_breakpoint_ids_absent_when_line_is_ambiguous(start_django):
+    with debug.Session() as session:
+        with start_django(session):
+            # Template breakpoints are consolidated per line just as code breakpoints
+            # are, so two on one line leave a single survivor whose id alone would be
+            # misleading.
+            breakpoints = session.set_breakpoints(paths.hello_html, [8, 8])
+            assert len(breakpoints) == 2
+
+        with django_server:
+            home_request = django_server.get("/home")
+
+            # Only the surviving breakpoint is verified once the template loads.
+            breakpoint_body = session.wait_for_next_event("breakpoint")
+            assert breakpoint_body["reason"] == "changed"
+
+            stop = session.wait_for_stop("breakpoint")
+            assert "hitBreakpointIds" not in stop.body
+
+            session.request_continue()
+            home_request.response_text()
 
 
 def test_django_template_exception_no_multiproc(start_django):

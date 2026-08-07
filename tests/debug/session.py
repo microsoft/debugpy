@@ -936,6 +936,7 @@ class Session(object):
             "step",
             "exception",
             "breakpoint",
+            "function breakpoint",
             "entry",
             "goto",
         ]:
