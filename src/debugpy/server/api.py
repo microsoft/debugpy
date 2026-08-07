@@ -156,8 +156,18 @@ def listen(address, settrace_kwargs, in_process_debug_adapter=False):
             block_until_connected=False,
             **settrace_kwargs
         )
+        # pydevd binds the listening socket on a background reader thread, so
+        # the OS-assigned port (when port=0 is passed) isn't visible from
+        # here directly. Wait for the socket to be ready and read the actual
+        # bound endpoint back from the global debugger.
+        pydb = get_global_debugger()
+        if pydb is not None:
+            pydb.wait_for_server_socket_ready()
+            actual_host, actual_port = pydb._server_socket_name
+        else:
+            actual_host, actual_port = host, port
         listen.called = True
-        return host, port
+        return actual_host, actual_port
 
     import subprocess
 
