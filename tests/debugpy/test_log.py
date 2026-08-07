@@ -3,10 +3,47 @@
 # for license information.
 
 import contextlib
+import os
+import sys
+
 import pytest
 
+import debugpy
+from debugpy.common import log
 from tests import debug
 from tests.debug import runners, targets
+
+
+def test_environment_description_does_not_raise_internal_exceptions(monkeypatch):
+    from importlib import metadata as importlib_metadata
+
+    monkeypatch.delattr(sys, "real_prefix", raising=False)
+    monkeypatch.setattr(importlib_metadata, "distributions", lambda: ())
+
+    debugpy_root = os.path.dirname(debugpy.__file__)
+    real_prefix_exceptions = []
+
+    def trace(frame, event, arg):
+        # Only record AttributeErrors that mention ``real_prefix``. ``exception``
+        # events fire for every exception raised in a debugpy frame, including
+        # ones that unrelated environment probes intentionally raise and catch
+        # (e.g. ``site.getsitepackages()``), so an unfiltered assertion would be
+        # environment-dependent. Narrow it to the behavior this test targets.
+        if event == "exception" and frame.f_code.co_filename.startswith(debugpy_root):
+            exc = arg[1]
+            if isinstance(exc, AttributeError) and "real_prefix" in str(exc):
+                real_prefix_exceptions.append(exc)
+        return trace
+
+    previous_trace = sys.gettrace()
+    sys.settrace(trace)
+    try:
+        description = log.get_environment_description("Environment:")
+    finally:
+        sys.settrace(previous_trace)
+
+    assert "sys.real_prefix: <missing>" in description
+    assert real_prefix_exceptions == []
 
 
 @contextlib.contextmanager
