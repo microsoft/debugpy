@@ -3,10 +3,40 @@
 # for license information.
 
 import contextlib
+import os
+import sys
+
 import pytest
 
+import debugpy
+from debugpy.common import log
 from tests import debug
 from tests.debug import runners, targets
+
+
+def test_environment_description_does_not_raise_internal_exceptions(monkeypatch):
+    from importlib import metadata as importlib_metadata
+
+    monkeypatch.delattr(sys, "real_prefix", raising=False)
+    monkeypatch.setattr(importlib_metadata, "distributions", lambda: ())
+
+    debugpy_root = os.path.dirname(debugpy.__file__)
+    exceptions = []
+
+    def trace(frame, event, arg):
+        if event == "exception" and frame.f_code.co_filename.startswith(debugpy_root):
+            exceptions.append(arg[1])
+        return trace
+
+    previous_trace = sys.gettrace()
+    sys.settrace(trace)
+    try:
+        description = log.get_environment_description("Environment:")
+    finally:
+        sys.settrace(previous_trace)
+
+    assert "sys.real_prefix: <missing>" in description
+    assert exceptions == []
 
 
 @contextlib.contextmanager
