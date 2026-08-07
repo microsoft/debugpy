@@ -1912,6 +1912,31 @@ class PyDB(object):
                 except:
                     pydev_log.exception("Error processing internal command.")
 
+    def has_breakpoint_id_collision(self, breakpoint_id):
+        """
+        Whether another breakpoint resolves to the same line as the given one.
+
+        consolidate_breakpoints() keeps a single breakpoint per resolved line, so when
+        several collapse onto one line the survivor's id does not describe what was hit.
+        """
+        # Iterated over snapshots: these maps are mutated in place when breakpoints
+        # change, and this runs on the thread being suspended, not on the reader.
+        for file_to_id_to_breakpoint in (self.file_to_id_to_line_breakpoint, self.file_to_id_to_plugin_breakpoint):
+            for id_to_breakpoint in list(file_to_id_to_breakpoint.values()):
+                pybreakpoint = id_to_breakpoint.get(breakpoint_id)
+                if pybreakpoint is None:
+                    continue
+
+                found = 0
+                for other in list(id_to_breakpoint.values()):
+                    if other.line == pybreakpoint.line:
+                        found += 1
+                        if found > 1:
+                            return True
+                return False
+
+        return False
+
     def consolidate_breakpoints(self, canonical_normalized_filename, id_to_breakpoint, file_to_line_to_breakpoints):
         break_dict = {}
         for _breakpoint_id, pybreakpoint in id_to_breakpoint.items():

@@ -385,6 +385,19 @@ class NetCommandFactoryJson(NetCommandFactory):
         ]
     )
 
+    def _get_hit_breakpoint_ids(self, py_db, info, stop_reason):
+        if stop_reason not in ("breakpoint", "function breakpoint"):
+            return None
+
+        hit_breakpoint_ids = info.hit_breakpoint_ids
+        if not hit_breakpoint_ids:
+            return None
+
+        if stop_reason == "breakpoint" and any(py_db.has_breakpoint_id_collision(bp_id) for bp_id in hit_breakpoint_ids):
+            return None
+
+        return hit_breakpoint_ids
+
     @overrides(NetCommandFactory.make_thread_suspend_single_notification)
     def make_thread_suspend_single_notification(self, py_db, thread_id, thread, stop_reason):
         exc_desc = None
@@ -427,10 +440,7 @@ class NetCommandFactoryJson(NetCommandFactory):
             text=exc_name,
             allThreadsStopped=True,
             preserveFocusHint=preserve_focus_hint,
-            # A thread keeps its ids for as long as it waits, and the pause timeout can
-            # re-report one that is still parked at a breakpoint, so the reason is what
-            # decides whether a breakpoint actually triggered this event.
-            hitBreakpointIds=info.hit_breakpoint_ids if stop_reason in ("breakpoint", "function breakpoint") else None,
+            hitBreakpointIds=self._get_hit_breakpoint_ids(py_db, info, stop_reason),
         )
         event = pydevd_schema.StoppedEvent(body)
         return NetCommand(CMD_THREAD_SUSPEND_SINGLE_NOTIFICATION, 0, event, is_json=True)
@@ -523,7 +533,7 @@ class NetCommandFactoryJson(NetCommandFactory):
             text=exc_name,
             allThreadsStopped=False,
             preserveFocusHint=preserve_focus_hint,
-            hitBreakpointIds=info.hit_breakpoint_ids if stop_reason in ("breakpoint", "function breakpoint") else None,
+            hitBreakpointIds=self._get_hit_breakpoint_ids(py_db, info, stop_reason),
         )
         event = pydevd_schema.StoppedEvent(body)
         return NetCommand(CMD_THREAD_SUSPEND, 0, event, is_json=True)

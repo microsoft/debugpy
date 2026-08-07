@@ -553,3 +553,25 @@ def test_hit_breakpoint_ids_per_thread_notification(pyfile, target, run):
         assert stopped["hitBreakpointIds"] == [bp_id]
 
         session.request_continue()
+
+
+def test_hit_breakpoint_ids_absent_when_line_is_ambiguous(pyfile, target, run):
+    @pyfile
+    def code_to_debug():
+        import debuggee
+
+        debuggee.setup()
+        print("first")  # @bp
+        # @ambiguous
+
+    with debug.Session() as session:
+        with run(session, target(code_to_debug)):
+            breakpoints = session.set_breakpoints(code_to_debug, ["bp", "ambiguous"])
+
+        # The comment line has no code, so it resolves back onto the line above and the
+        # two breakpoints collapse into one.
+        assert breakpoints[0]["line"] == breakpoints[1]["line"]
+
+        stop = session.wait_for_stop("breakpoint")
+        assert "hitBreakpointIds" not in stop.body
+        session.request_continue()
