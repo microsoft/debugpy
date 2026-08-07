@@ -1339,6 +1339,7 @@ cdef _stop_on_breakpoint(py_db, ThreadInfo thread_info, int stop_reason, bp, fra
             py_db.writer.add_command(cmd)
 
     if stop:
+        additional_info.hit_breakpoint_ids = [bp.breakpoint_id]
         py_db.set_suspend(
             thread_info.thread,
             stop_reason,
@@ -1351,6 +1352,7 @@ cdef _stop_on_breakpoint(py_db, ThreadInfo thread_info, int stop_reason, bp, fra
     elif stop_on_plugin_breakpoint:
         stop_at_frame = py_db.plugin.suspend(py_db, thread_info.thread, frame, bp_type)
         if stop_at_frame and thread_info.additional_info.pydev_state == 2:
+            additional_info.hit_breakpoint_ids = [bp.breakpoint_id]
             _do_wait_suspend(py_db, thread_info, stop_at_frame, "line", None)
         return
 
