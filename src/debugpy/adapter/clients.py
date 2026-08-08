@@ -633,12 +633,15 @@ class Client(components.Component):
     @message_handler
     def evaluate_request(self, request):
         propagated_request = self.server.channel.propagate(request)
+        if propagated_request is None:
+            raise request.cant_handle(
+                '"{0}" could not be propagated to the debug server', request.command
+            )
 
         def handle_response(response):
             request.respond(response.body)
 
-        if propagated_request is not None:
-            propagated_request.on_response(handle_response)
+        propagated_request.on_response(handle_response)
 
         return messaging.NO_RESPONSE
 

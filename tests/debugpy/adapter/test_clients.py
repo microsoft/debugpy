@@ -30,11 +30,23 @@ class _MemoryStream(object):
 class _FakeSession(object):
     """Stands in for the reentrant session lock used by the message_handler wrapper."""
 
+    def __init__(self, server=None):
+        self.server = server
+
     def __enter__(self):
         return self
 
     def __exit__(self, *exc_info):
         return False
+
+
+class _UnpropagatingChannel(object):
+    def propagate(self, request):
+        return None
+
+
+class _FakeServer(object):
+    channel = _UnpropagatingChannel()
 
 
 def _make_client(start_request, has_started):
@@ -75,3 +87,28 @@ def test_configuration_done_out_of_order_is_rejected(start_request, has_started,
     )
     # The guard must run before any startup side effects.
     assert client.has_started is has_started
+
+
+def test_evaluate_request_that_cannot_be_propagated_is_rejected():
+    stream = _MemoryStream()
+    channel = messaging.JsonMessageChannel(stream, None)
+
+    client = clients.Client.__new__(clients.Client)
+    client.session = _FakeSession(_FakeServer())
+    request = messaging.Request(channel, 1, "evaluate", {})
+
+    with pytest.raises(
+        messaging.MessageHandlingError,
+        match='"evaluate" could not be propagated to the debug server',
+    ):
+        clients.Client.evaluate_request(client, request)
+
+    (response,) = stream.output
+    assert response == {
+        "seq": 1,
+        "type": "response",
+        "request_seq": 1,
+        "success": False,
+        "command": "evaluate",
+        "message": '"evaluate" could not be propagated to the debug server',
+    }
