@@ -1,6 +1,6 @@
 ## Used to run the tests:
 
-pytest>=9.0.3  # CVE-2025-71176 (vulnerable <= 9.0.2)
+pytest>=9.1.1  # CVE-2025-71176 (vulnerable <= 9.0.2)
 pytest-xdist
 pytest-cov
 pytest-timeout
@@ -18,7 +18,7 @@ django
 flask
 gevent
 numpy
-requests>=2.33.0  # CVE-2026-25645 (vulnerable < 2.33.0)
+requests>=2.34.2  # CVE-2026-25645 (vulnerable < 2.33.0)
 # urllib3 is pulled in transitively by requests; pin a secure floor for
 # CVE-2026-44431 and CVE-2026-44432 (vulnerable 2.6.0 <= x < 2.7.0).
 urllib3>=2.7.0
