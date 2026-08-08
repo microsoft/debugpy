@@ -1,7 +1,13 @@
+import sys
+
+from collections import deque, OrderedDict
+from collections.abc import Mapping, Sequence, Set as AbstractSet
+from types import FrameType
+from typing import Optional
+
 from _pydev_bundle import pydev_log
 from _pydevd_bundle import pydevd_extension_utils
 from _pydevd_bundle import pydevd_resolver
-import sys
 from _pydevd_bundle.pydevd_constants import (
     BUILTINS_MODULE_NAME,
     MAXIMUM_VARIABLE_REPRESENTATION_SIZE,
@@ -13,14 +19,6 @@ from _pydev_bundle.pydev_imports import quote
 from _pydevd_bundle.pydevd_extension_api import TypeResolveProvider, StrPresentationProvider
 from _pydevd_bundle.pydevd_utils import isinstance_checked, hasattr_checked, DAPGrouper
 from _pydevd_bundle.pydevd_resolver import get_var_scope, MoreItems, MoreItemsRange
-from typing import Optional
-
-try:
-    import types
-
-    frame_type = types.FrameType
-except:
-    frame_type = None
 
 
 def make_valid_xml_value(s):
@@ -40,97 +38,47 @@ _IS_JYTHON = sys.platform.startswith("java")
 
 def _create_default_type_map():
     default_type_map = [
-        # None means that it should not be treated as a compound variable
-        # isintance does not accept a tuple on some versions of python, so, we must declare it expanded
-        (
-            type(None),
-            None,
-        ),
-        (int, None),
-        (float, None),
-        (complex, None),
-        (str, None),
-        (tuple, pydevd_resolver.tupleResolver),
-        (list, pydevd_resolver.tupleResolver),
-        (dict, pydevd_resolver.dictResolver),
+        # non-compound types
+        ((type(None), int, float, complex, str), None),
+        # collections
+        (Sequence, pydevd_resolver.sequenceResolver),
+        (deque, pydevd_resolver.dequeResolver),
+        (OrderedDict, pydevd_resolver.orderedDictResolver),
+        (Mapping, pydevd_resolver.mappingResolver),
+        (AbstractSet, pydevd_resolver.setResolver),
+        # other builtin types
+        (FrameType, pydevd_resolver.frameResolver),
+        # pydevd types
+        (DAPGrouper, pydevd_resolver.dapGrouperResolver),
+        ((MoreItems, MoreItemsRange), pydevd_resolver.forwardInternalResolverToObject),
     ]
-    try:
-        from collections import OrderedDict
-
-        default_type_map.insert(0, (OrderedDict, pydevd_resolver.orderedDictResolver))
-        # we should put it before dict
-    except:
-        pass
-
-    try:
-        default_type_map.append((long, None))  # @UndefinedVariable
-    except:
-        pass  # not available on all python versions
-
-    default_type_map.append((DAPGrouper, pydevd_resolver.dapGrouperResolver))
-    default_type_map.append((MoreItems, pydevd_resolver.forwardInternalResolverToObject))
-    default_type_map.append((MoreItemsRange, pydevd_resolver.forwardInternalResolverToObject))
-
-    try:
-        default_type_map.append((set, pydevd_resolver.setResolver))
-    except:
-        pass  # not available on all python versions
-
-    try:
-        default_type_map.append((frozenset, pydevd_resolver.setResolver))
-    except:
-        pass  # not available on all python versions
 
     try:
         from django.utils.datastructures import MultiValueDict
-
+        from django.forms import BaseForm
+    except ImportError:
+        pass  # django may not be installed
+    else:
         default_type_map.insert(0, (MultiValueDict, pydevd_resolver.multiValueDictResolver))
         # we should put it before dict
-    except:
-        pass  # django may not be installed
-
-    try:
-        from django.forms import BaseForm
-
         default_type_map.insert(0, (BaseForm, pydevd_resolver.djangoFormResolver))
         # we should put it before instance resolver
-    except:
-        pass  # django may not be installed
-
-    try:
-        from collections import deque
-
-        default_type_map.append((deque, pydevd_resolver.dequeResolver))
-    except:
-        pass
 
     try:
         from ctypes import Array
-
-        default_type_map.append((Array, pydevd_resolver.tupleResolver))
-    except:
-        pass
-
-    if frame_type is not None:
-        default_type_map.append((frame_type, pydevd_resolver.frameResolver))
+    except ImportError:
+        pass  # TODO: comment on reason why this might this not be available
+    else:
+        default_type_map.append((Array, pydevd_resolver.sequenceResolver))
 
     if _IS_JYTHON:
         from org.python import core  # @UnresolvedImport
 
-        default_type_map.append((core.PyNone, None))
-        default_type_map.append((core.PyInteger, None))
-        default_type_map.append((core.PyLong, None))
-        default_type_map.append((core.PyFloat, None))
-        default_type_map.append((core.PyComplex, None))
-        default_type_map.append((core.PyString, None))
-        default_type_map.append((core.PyTuple, pydevd_resolver.tupleResolver))
-        default_type_map.append((core.PyList, pydevd_resolver.tupleResolver))
-        default_type_map.append((core.PyDictionary, pydevd_resolver.dictResolver))
-        default_type_map.append((core.PyStringMap, pydevd_resolver.dictResolver))
-
-        if hasattr(core, "PyJavaInstance"):
-            # Jython 2.5b3 removed it.
-            default_type_map.append((core.PyJavaInstance, pydevd_resolver.instanceResolver))
+        default_type_map += [
+            ((core.PyNone, core.PyInteger, core.PyLong, core.PyFloat, core.PyComplex, core.PyString), None),
+            ((core.PyTuple, core.PyList), pydevd_resolver.sequenceResolver),
+            ((core.PyDictionary, core.PyStringMap), pydevd_resolver.mappingResolver),
+        ]
 
     return default_type_map
 
