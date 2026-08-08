@@ -15,7 +15,7 @@ jobs:
     if: contains(github.event.issue.labels.*.name, 'waiting for response') && !contains(github.event.issue.labels.*.name, 'user responded')
     steps:
       - name: Add/Remove labels when user responds
-        uses: actions/github-script@v6
+        uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
