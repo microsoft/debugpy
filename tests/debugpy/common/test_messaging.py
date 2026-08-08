@@ -312,6 +312,48 @@ class TestJsonMessageChannel(object):
             },
         ]
 
+    def test_respond_none_produces_empty_body(self):
+        # A successful response with no body must expose Response.body as an empty
+        # MessageDict (never None), matching how incoming empty responses are parsed.
+        # This pins the contract so callers can rely on body always being a
+        # MessageDict-or-Exception and never need a `body is None` special case.
+        REQUESTS = [
+            {
+                "seq": 1,
+                "type": "request",
+                "command": "configurationDone",
+                "arguments": {},
+            },
+        ]
+
+        captured = []
+
+        class Handlers(object):
+            def configurationDone_request(self, request):
+                request.respond(None)
+                captured.append(request.response)
+
+        stream = JsonMemoryStream(REQUESTS, [])
+        channel = messaging.JsonMessageChannel(stream, Handlers())
+        channel.start()
+        channel.wait()
+
+        (response,) = captured
+        assert response.body is not None
+        assert response.body == {}
+        assert response.success
+
+        # "body" is omitted from the serialized JSON for an empty response.
+        assert stream.output == [
+            {
+                "seq": 1,
+                "type": "response",
+                "request_seq": 1,
+                "command": "configurationDone",
+                "success": True,
+            },
+        ]
+
     def test_responses(self):
         request1_sent = threading.Event()
         request2_sent = threading.Event()
@@ -436,6 +478,63 @@ class TestJsonMessageChannel(object):
         assert response4.request is request4
         assert response4 is request4.response
         assert isinstance(response4.body, messaging.NoMoreMessages)
+
+    def test_wait_for_response_raise_if_failed(self):
+        request_sent = threading.Event()
+
+        def iter_responses():
+            request_sent.wait()
+            yield {
+                "seq": 1,
+                "type": "response",
+                "request_seq": 1,
+                "command": "pause",
+                "success": False,
+                "message": "pause not supported",
+            }
+
+        stream = JsonMemoryStream(iter_responses(), [])
+        channel = messaging.JsonMessageChannel(stream, None)
+        channel.start()
+
+        request = channel.send_request("pause")
+        request_sent.set()
+
+        # raise_if_failed=False must return the error body instead of raising, even
+        # though a failed response carries an Exception as its body.
+        body = request.wait_for_response(raise_if_failed=False)
+        assert isinstance(body, messaging.MessageHandlingError)
+        assert body is request.response.body
+        assert str(body) == "pause not supported"
+
+        # raise_if_failed=True (the default) must raise that same error body.
+        with pytest.raises(messaging.MessageHandlingError):
+            request.wait_for_response()
+
+    def test_message_call_no_args_returns_payload(self):
+        EVENTS = [
+            {
+                "seq": 1,
+                "type": "event",
+                "event": "stopped",
+                "body": {"reason": "pause", "threadId": 3},
+            },
+        ]
+
+        captured = []
+
+        class Handlers(object):
+            def stopped_event(self, event):
+                # Calling the message with no arguments returns the whole payload.
+                captured.append(event())
+
+        stream = JsonMemoryStream(EVENTS, [])
+        channel = messaging.JsonMessageChannel(stream, Handlers())
+        channel.start()
+        channel.wait()
+
+        (payload,) = captured
+        assert payload == {"reason": "pause", "threadId": 3}
 
     def test_invalid_request_handling(self):
         REQUESTS = [

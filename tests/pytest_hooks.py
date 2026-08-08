@@ -11,6 +11,13 @@ from debugpy.common import log # pyright: ignore[reportAttributeAccessIssue]
 import tests
 from tests import logs
 
+try:
+    # Private pytest API: stash key used by the built-in tmp_path fixture to record
+    # per-phase outcomes and decide retention during its finalizer.
+    from _pytest.tmpdir import tmppath_result_key
+except ImportError:
+    tmppath_result_key = None
+
 
 def pytest_addoption(parser):
     parser.addoption(
@@ -37,6 +44,19 @@ def pytest_configure(config):
 
 def pytest_report_header(config):
     return log.get_environment_description(f"Test environment for tests-{os.getpid()}")
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_runtest_setup(item):
+    # Workaround for pytest-retry's incompatibility with pytest's tmp_path fixture
+    # (pytest >= 8.4 / 9.x). When pytest-retry re-runs a flaky test, it invokes the
+    # setup/call phases directly without firing pytest_runtest_makereport, so the
+    # tmppath_result_key stash entry - deleted by the previous attempt's tmp_path
+    # finalizer - is never repopulated, and the next teardown raises KeyError while
+    # reading it. Re-seed the key here (which pytest-retry *does* run on each retry)
+    # so the finalizer always finds it. setdefault avoids clobbering a live entry.
+    if tmppath_result_key is not None:
+        item.stash.setdefault(tmppath_result_key, {})
 
 
 @pytest.hookimpl(hookwrapper=True, tryfirst=True)

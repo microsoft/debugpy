@@ -14,11 +14,17 @@ from __future__ import annotations
 import collections
 import contextlib
 import functools
+import io
 import itertools
 import os
 import socket
 import sys
 import threading
+from typing import TYPE_CHECKING, BinaryIO, Callable, ClassVar, Union, cast, Any
+if TYPE_CHECKING:
+    # Careful not force this import in production code, as it's not available in all
+    # code that we run.
+    from typing_extensions import TypeIs
 
 from debugpy.common import json, log, util
 from debugpy.common.util import hide_thread_from_debugger
@@ -86,7 +92,7 @@ class JsonIOStream(object):
         return cls(process.stdout, process.stdin, name)
 
     @classmethod
-    def from_socket(cls, sock, name=None):
+    def from_socket(cls: type[JsonIOStream], sock: socket.socket, name: Union[str, None]=None):
         """Creates a new instance that sends and receives messages over a socket."""
         sock.settimeout(None)  # make socket blocking
         if name is None:
@@ -96,7 +102,7 @@ class JsonIOStream(object):
         # sockets is very slow! Although the implementation of readline() itself is
         # native code, it calls read(1) in a loop - and that then ultimately calls
         # SocketIO.readinto(), which is implemented in Python.
-        socket_io = sock.makefile("rwb", 0)
+        socket_io: socket.SocketIO = sock.makefile("rwb", 0)
 
         # SocketIO.close() doesn't close the underlying socket.
         def cleanup():
@@ -108,7 +114,13 @@ class JsonIOStream(object):
 
         return cls(socket_io, socket_io, name, cleanup)
 
-    def __init__(self, reader, writer, name=None, cleanup=lambda: None):
+    def __init__(
+        self,
+        reader: Union[io.RawIOBase, BinaryIO],
+        writer: Union[io.RawIOBase, BinaryIO],
+        name: Union[str, None] = None,
+        cleanup=lambda: None,
+    ):
         """Creates a new JsonIOStream.
 
         reader must be a BytesIO-like object, from which incoming messages will be
@@ -158,11 +170,13 @@ class JsonIOStream(object):
         except Exception:  # pragma: no cover
             log.reraise_exception("Error while closing {0} message stream", self.name)
 
-    def _log_message(self, dir, data, logger=log.debug):
+    def _log_message(
+        self, dir, data, logger: Callable[..., Union[str, None]] = log.debug
+    ):
         return logger("{0} {1} {2}", self.name, dir, data)
 
-    def _read_line(self, reader):
-        line = b""
+    def _read_line(self, reader: Union[io.RawIOBase, BinaryIO]) -> bytes:
+        line: bytes = b""
         while True:
             try:
                 line += reader.readline()
@@ -202,6 +216,7 @@ class JsonIOStream(object):
 
         raw_chunks = []
         headers = {}
+        line: Union[bytes, None] = None
 
         while True:
             try:
@@ -222,9 +237,12 @@ class JsonIOStream(object):
             if line == b"":
                 break
 
-            key, _, value = line.partition(b":")
+            key, _, value = (
+                line.partition(b":") if line is not None else (b"", b"", b"")
+            )
             headers[key] = value
 
+        length = 0
         try:
             length = int(headers[b"Content-Length"])
             if not (0 <= length <= self.MAX_BODY_SIZE):
@@ -256,10 +274,11 @@ class JsonIOStream(object):
         except Exception:  # pragma: no cover
             log_message_and_reraise_exception()
 
-        try:
-            body = decoder.decode(body)
-        except Exception:  # pragma: no cover
-            log_message_and_reraise_exception()
+        if isinstance(body, str):
+            try:
+                body = decoder.decode(body)
+            except Exception:  # pragma: no cover
+                log_message_and_reraise_exception()
 
         # If parsed successfully, log as JSON for readability.
         self._log_message("-->", body)
@@ -283,6 +302,7 @@ class JsonIOStream(object):
         # information as we already have at the point of the failure. For example,
         # if it fails after it is serialized to JSON, log that JSON.
 
+        body: Union[str, bytes] = ""
         try:
             body = encoder.encode(value)
         except Exception:  # pragma: no cover
@@ -326,7 +346,7 @@ class MessageDict(collections.OrderedDict):
     such guarantee for outgoing messages.
     """
 
-    def __init__(self, message, items=None):
+    def __init__(self, message: Union[Message, None], items: Union[dict, None]=None):
         assert message is None or isinstance(message, Message)
 
         if items is None:
@@ -384,19 +404,19 @@ class MessageDict(collections.OrderedDict):
         try:
             value = validate(value)
         except (TypeError, ValueError) as exc:
-            message = Message if self.message is None else self.message
+            message = Message.empty() if self.message is None else self.message
             err = str(exc)
             if not err.startswith("["):
                 err = " " + err
             raise message.isnt_valid("{0}{1}", json.repr(key), err)
         return value
 
-    def _invalid_if_no_key(func):
+    def _invalid_if_no_key(func: Callable[..., Any]): # pyright: ignore[reportSelfClsParameterName]
         def wrap(self, key, *args, **kwargs):
             try:
                 return func(self, key, *args, **kwargs)
             except KeyError:
-                message = Message if self.message is None else self.message
+                message = Message.empty() if self.message is None else self.message
                 raise message.isnt_valid("missing property {0!r}", key)
 
         return wrap
@@ -407,6 +427,24 @@ class MessageDict(collections.OrderedDict):
 
     del _invalid_if_no_key
 
+
+class AssociableMessageDict(MessageDict):
+    # When this dict is parsed as part of an incoming message, all dicts that
+    # belong to that message share this list, so associating the top-level dict
+    # associates every nested dict with the same Message. It stays None for
+    # synthesized payloads, which are associated individually.
+    associated_dicts: "list[AssociableMessageDict] | None" = None
+
+    def associate_with(self, message: Message):
+        if self.associated_dicts is None:
+            self.message = message
+            return
+        for d in self.associated_dicts:
+            d.message = message
+
+
+def is_associable(obj) -> "TypeIs[AssociableMessageDict]":
+    return isinstance(obj, AssociableMessageDict)
 
 def _payload(value):
     """JSON validator for message payload.
@@ -422,12 +460,7 @@ def _payload(value):
     # Missing payload. Construct a dummy MessageDict, and make it look like it was
     # deserialized. See JsonMessageChannel._parse_incoming_message for why it needs
     # to have associate_with().
-
-    def associate_with(message):
-        value.message = message
-
-    value = MessageDict(None)
-    value.associate_with = associate_with
+    value = AssociableMessageDict(None)
     return value
 
 
@@ -452,7 +485,7 @@ class Message(object):
         """
 
     def __str__(self):
-        return json.repr(self.json) if self.json is not None else repr(self)
+        return str(json.repr(self.json)) if self.json is not None else repr(self)
 
     def describe(self):
         """A brief description of the message that is enough to identify it.
@@ -464,15 +497,22 @@ class Message(object):
         raise NotImplementedError
 
     @property
-    def payload(self) -> MessageDict:
+    def payload(self) -> MessageDict | Exception:
         """Payload of the message - self.body or self.arguments, depending on the
         message type.
         """
         raise NotImplementedError
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args, **kwargs) -> MessageDict | Any | int | float:
         """Same as self.payload(...)."""
-        return self.payload(*args, **kwargs)
+        payload = self.payload
+        # Handle exception payloads explicitly rather than via assert, so behavior is
+        # consistent regardless of whether assertions are stripped under `python -O`.
+        if isinstance(payload, Exception):
+            raise payload
+        if len(args) == 0 and not kwargs:
+            return payload
+        return payload(*args, **kwargs)
 
     def __contains__(self, key):
         """Same as (key in self.payload)."""
@@ -524,7 +564,10 @@ class Message(object):
     def cant_handle(self, *args, **kwargs):
         """Same as self.error(MessageHandlingError, ...)."""
         return self.error(MessageHandlingError, *args, **kwargs)
-
+    
+    @classmethod
+    def empty(cls) -> Message:
+        return Message(None, None)
 
 class Event(Message):
     """Represents an incoming event.
@@ -551,12 +594,12 @@ class Event(Message):
     the appropriate exception type that applies_to() the Event object.
     """
 
-    def __init__(self, channel, seq, event, body, json=None):
+    def __init__(self, channel, seq, event, body: MessageDict, json=None):
         super().__init__(channel, seq, json)
 
         self.event = event
 
-        if isinstance(body, MessageDict) and hasattr(body, "associate_with"):
+        if is_associable(body):
             body.associate_with(self)
         self.body = body
 
@@ -645,16 +688,16 @@ class Request(Message):
     the appropriate exception type that applies_to() the Request object.
     """
 
-    def __init__(self, channel, seq, command, arguments, json=None):
+    def __init__(self, channel, seq, command, arguments: MessageDict, json=None):
         super().__init__(channel, seq, json)
 
         self.command = command
 
-        if isinstance(arguments, MessageDict) and hasattr(arguments, "associate_with"):
+        if is_associable(arguments):
             arguments.associate_with(self)
         self.arguments = arguments
 
-        self.response = None
+        self.response: Union[Response, None] = None
         """Response to this request.
 
         For incoming requests, it is set as soon as the request handler returns.
@@ -684,6 +727,11 @@ class Request(Message):
 
         with self.channel._send_message(d) as seq:
             pass
+        if body is None:
+            # A successful response with no body is modeled as an empty payload so
+            # that Response.body is always a MessageDict or an Exception, matching
+            # how incoming empty responses are parsed.
+            body = _payload(None)
         self.response = Response(self.channel, seq, self, body)
 
     @staticmethod
@@ -754,7 +802,12 @@ class OutgoingRequest(Request):
     response to be received, and register a response handler.
     """
 
-    _parse = _handle = None
+    # Outgoing requests are never parsed or handled as incoming messages, so the
+    # inherited _parse/_handle are explicitly disabled. Declared as class-level
+    # optional attributes (rather than set via setattr) so the override stays
+    # statically visible to the type checker.
+    _parse: ClassVar[None] = None  # pyright: ignore[reportIncompatibleMethodOverride]
+    _handle: ClassVar[None] = None  # pyright: ignore[reportIncompatibleMethodOverride]
 
     def __init__(self, channel, seq, command, arguments):
         super().__init__(channel, seq, command, arguments)
@@ -763,7 +816,7 @@ class OutgoingRequest(Request):
     def describe(self):
         return f"{self.seq} request {json.repr(self.command)} to {self.channel}"
 
-    def wait_for_response(self, raise_if_failed=True):
+    def wait_for_response(self, raise_if_failed=True) -> MessageDict | Exception:
         """Waits until a response is received for this request, records the Response
         object for it in self.response, and returns response.body.
 
@@ -778,8 +831,11 @@ class OutgoingRequest(Request):
             while self.response is None:
                 self.channel._handlers_enqueued.wait()
 
-        if raise_if_failed and not self.response.success:
+        if raise_if_failed and not self.response.success and isinstance( self.response.body, BaseException):
             raise self.response.body
+
+        # When raise_if_failed is False, a failed response intentionally returns its
+        # error body (an Exception such as NoMoreMessages), so this must not assert.
         return self.response.body
 
     def on_response(self, response_handler):
@@ -865,13 +921,13 @@ class Response(Message):
     the appropriate exception type that applies_to() the Response object.
     """
 
-    def __init__(self, channel, seq, request, body, json=None):
+    def __init__(self, channel, seq, request, body: MessageDict | Exception, json=None):
         super().__init__(channel, seq, json)
 
         self.request = request
         """The request to which this is the response."""
 
-        if isinstance(body, MessageDict) and hasattr(body, "associate_with"):
+        if is_associable(body):
             body.associate_with(self)
         self.body = body
         """Body of the response if the request was successful, or an instance
@@ -905,8 +961,10 @@ class Response(Message):
         """
         if self.success:
             return self.body
-        else:
+        elif isinstance(self.body, Exception):
             raise self.body
+        else:
+            raise Exception(self.body)
 
     @staticmethod
     def _parse(channel, message_dict, body=None):
@@ -1264,7 +1322,10 @@ class JsonMessageChannel(object):
 
     def request(self, *args, **kwargs):
         """Same as send_request(...).wait_for_response()"""
-        return self.send_request(*args, **kwargs).wait_for_response()
+        # This should always raise an exception on failure
+        result = self.send_request(*args, **kwargs).wait_for_response()
+        assert not isinstance(result, BaseException)
+        return result
 
     def propagate(self, message):
         """Sends a new message with the same type and payload.
@@ -1283,7 +1344,7 @@ class JsonMessageChannel(object):
         """
         try:
             result = self.propagate(message)
-            if result.is_request():
+            if result is not None and result.is_request():
                 result = result.wait_for_response()
             return result
         except MessageHandlingError as exc:
@@ -1337,10 +1398,12 @@ class JsonMessageChannel(object):
         # for all JSON objects, and track them so that they can be later wired up to
         # the Message they belong to, once it is instantiated.
         def object_hook(d):
-            d = MessageDict(None, d)
+            d = AssociableMessageDict(None, d)
             if "seq" in d:
                 self._prettify(d)
-            d.associate_with = associate_with
+            # Share the list of all dicts parsed for this message so that
+            # associate_with() on the top-level dict wires up every nested dict.
+            d.associated_dicts = message_dicts
             message_dicts.append(d)
             return d
 
@@ -1349,22 +1412,18 @@ class JsonMessageChannel(object):
         # cannot be done until the actual Message is created - which happens after the
         # dicts are created during deserialization.
         #
-        # So, upon deserialization, every dict in the message payload gets a method
-        # that can be called to set MessageDict.message for *all* dicts belonging to
-        # that message. This method can then be invoked on the top-level dict by the
-        # parser, after it has parsed enough of the dict to create the appropriate
-        # instance of Event, Request, or Response for this message.
-        def associate_with(message):
-            for d in message_dicts:
-                d.message = message
-                del d.associate_with
-
-        message_dicts = []
+        # So, upon deserialization, every dict in the message payload shares the
+        # message_dicts list below. AssociableMessageDict.associate_with() can then be
+        # invoked on the top-level dict by the parser, after it has parsed enough of the
+        # dict to create the appropriate instance of Event, Request, or Response for this
+        # message, and it will set MessageDict.message for *all* dicts belonging to that
+        # message.
+        message_dicts: "list[AssociableMessageDict]" = []
         decoder = self.stream.json_decoder_factory(object_hook=object_hook)
         message_dict = self.stream.read_json(decoder)
         assert isinstance(message_dict, MessageDict)  # make sure stream used decoder
 
-        msg_type = message_dict("type", json.enum("event", "request", "response"))
+        msg_type: str = cast(str, message_dict("type", json.enum("event", "request", "response")))
         parser = self._message_parsers[msg_type]
         try:
             parser(self, message_dict)
@@ -1422,7 +1481,7 @@ class JsonMessageChannel(object):
         while True:
             with self:
                 closed = self._closed
-            if closed:
+            if closed and self._parser_thread is not None:
                 # Wait for the parser thread to wrap up and enqueue any remaining
                 # handlers, if it is still running.
                 self._parser_thread.join()
