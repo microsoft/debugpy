@@ -99,7 +99,19 @@ described below.
    `https://github.com/microsoft/debugpy.git`. Fetch it if necessary and require
    `HEAD` to equal that commit. Do not release a fork-only commit. For resume,
    resolve the commit from the existing remote tag instead and do not retag the
-   current `main`.
+   current `main`. If the remote tag is absent but an exact local tag exists,
+   treat it as a local-tag recovery candidate only when:
+   - It is an annotated tag and the requested tag name matches exactly.
+   - The remote tag, PyPI version, GitHub release, and internal release state are
+     all absent.
+   - Its target equals the current authoritative `microsoft/debugpy` `main`
+     commit and that commit passes the required-check gate below.
+   - Rebuilding metadata from that tag produces the requested normalized
+     package version.
+
+   When every condition holds, route to Phase 2 to push that exact tag. If the
+   target no longer equals current `main`, do not move the tag; stop and report
+   that the user must choose whether to delete the local-only tag and restart.
 6. Read the complete sets of stable public versions from GitHub releases and
    PyPI, ignoring prereleases. Reconcile them deterministically:
    - If the highest stable versions match, use that version as the baseline.
@@ -113,11 +125,19 @@ described below.
      the existing GitHub release must be recovered before another release.
    - If the sets disagree in any other way that affects the proposed version,
      stop and report both sets. Never choose one source arbitrarily.
+   Record the highest stable GitHub version observed here as the immutable
+   latest-selection baseline for Phase 6. Do not try to reconstruct this
+   historical snapshot later during resume.
 7. Inventory the proposed version's tag, internal build, internal release run,
    PyPI files, and GitHub release. For a new release, require all to be absent.
-   For resume/finalize, require each existing item to match the same commit,
-   exact signed build, and package version, then continue from the first absent
-   item. Never recreate, move, or overwrite an existing item.
+   Except for the PyPI override below, resume/finalize requires every existing
+   item to match the same commit, exact signed build, and package version, then
+   continues from the first absent item. Never recreate, move, or overwrite an
+   existing item. PyPI publication overrides the generic first-absent rule:
+   when the exact version and files already exist on PyPI but the GitHub release
+   is absent, require the matching remote tag and proceed only to Phase 6. Do
+   not re-queue build or release pipelines even if their historical records are
+   unavailable or expired.
 8. Discover the authoritative required checks for `main` using the GitHub
    rules-for-branch API:
 
@@ -239,9 +259,10 @@ only on the Azure DevOps run result.
    than the new version. Stop if no valid lower tag exists. Generate release
    notes from that tag through the new tag, keep relevant issue and pull request
    links, and review the text for unrelated changes or internal information.
-2. Compare the new version to the highest stable GitHub release that existed
-   before this workflow. Pass `--latest` when the new version is greater and
-   `--latest=false` for backports and older release lines.
+2. Compare the new version to the immutable latest-selection baseline recorded
+   during Phase 1. Pass `--latest` when the new version is greater and
+   `--latest=false` for backports and older release lines. Do not re-query or
+   re-derive the baseline during a later resume.
 3. Create the release in `microsoft/debugpy`:
 
    ```text
