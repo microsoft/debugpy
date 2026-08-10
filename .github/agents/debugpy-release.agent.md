@@ -22,6 +22,9 @@ Interpret requests as follows:
 - "Release" authorizes the external actions in this workflow for the requested
   version. Do not ask for redundant confirmation unless the resolved version or
   target commit is ambiguous.
+- "Resume" or "finalize" inventories the external state for an explicit version
+  and continues from the first incomplete phase, but only after verifying every
+  completed phase against the same tag, commit, build, and package version.
 - "Next patch", "next minor", and "next major" are calculated from the highest
   stable version published by `microsoft/debugpy`, not from local tags.
 - An explicit version may be written with or without the leading `v`. Normalize
@@ -32,7 +35,9 @@ is `v1.9.0`.
 
 ## Non-Negotiable Safety Rules
 
-1. Release only from the current `microsoft/debugpy` `main` commit.
+1. Start a new release only from the current `microsoft/debugpy` `main`
+   commit. Resume an existing partial release only from its immutable tag
+   commit after verifying the completed external state.
 2. The worktree must be clean. Never stash, discard, or include local changes.
 3. Versioneer derives the package version from the Git tag. The internal build
    must resolve the GitHub repository resource to `refs/tags/<tag>`, never the
@@ -48,7 +53,20 @@ is `v1.9.0`.
 9. Never upload with `twine` or a personal PyPI token. PyPI publication must go
    through the approved authenticated internal release pipeline.
 10. Stop on any failed or partially successful stage. Do not continue with a
-    newer build or a different artifact.
+    newer build or a different artifact. Resume only from verified state.
+
+## Pipeline Locations
+
+Prefer these environment variables when they are set:
+
+- `DEBUGPY_INTERNAL_BUILD_PIPELINE_URL`
+- `DEBUGPY_INTERNAL_RELEASE_PIPELINE_URL`
+
+Treat their values as confidential: use them for commands and navigation, but
+do not echo or persist them. Validate that each URL belongs to the authenticated
+Azure DevOps organization and project before using it. If either variable is
+unset, discover the corresponding pipeline from the authenticated project as
+described below.
 
 ## Phase 1: Preflight
 
@@ -73,19 +91,50 @@ is `v1.9.0`.
    git remote -v
    ```
 
-5. Resolve the authoritative `main` commit directly from
+5. For a new release, resolve the authoritative `main` commit directly from
    `https://github.com/microsoft/debugpy.git`. Fetch it if necessary and require
-   `HEAD` to equal that commit. Do not release a fork-only commit.
-6. Determine the highest stable public version using GitHub releases and PyPI.
-   Cross-check both sources. Ignore prereleases when calculating the next
-   patch/minor/major version.
-7. Fail if the proposed tag or PyPI version already exists.
-8. Verify required checks for the target commit have completed successfully.
+   `HEAD` to equal that commit. Do not release a fork-only commit. For resume,
+   resolve the commit from the existing remote tag instead and do not retag the
+   current `main`.
+6. Read the complete sets of stable public versions from GitHub releases and
+   PyPI, ignoring prereleases. Reconcile them deterministically:
+   - If the highest stable versions match, use that version as the baseline.
+   - If PyPI contains a newer version than GitHub, treat it as an incomplete
+     release and resume at GitHub release creation. Do not calculate or publish
+     a newer version.
+   - If GitHub contains a newer version than PyPI, stop because customer
+     workflows may already be inconsistent. Report that PyPI publication for
+     the existing GitHub release must be recovered before another release.
+   - If the sets disagree in any other way that affects the proposed version,
+     stop and report both sets. Never choose one source arbitrarily.
+7. Inventory the proposed version's tag, internal build, internal release run,
+   PyPI files, and GitHub release. For a new release, require all to be absent.
+   For resume/finalize, require each existing item to match the same commit,
+   exact signed build, and package version, then continue from the first absent
+   item. Never recreate, move, or overwrite an existing item.
+8. Discover the authoritative required checks for `main` using the GitHub
+   rules-for-branch API:
+
+   ```text
+   gh api repos/microsoft/debugpy/rules/branches/main
+   ```
+
+   If repository rules do not define them, inspect branch protection:
+
+   ```text
+   gh api repos/microsoft/debugpy/branches/main/protection/required_status_checks
+   ```
+
+   Query check runs and commit statuses for the target SHA, match the required
+   contexts and integration IDs, and require every required result to be
+   successful. Do not substitute "all visible checks" for required checks. Stop
+   if the rules cannot be retrieved or mapped unambiguously.
 9. Run the repository's existing targeted packaging/version checks if
    available. At minimum, use a temporary clone or worktree with a local-only
    proposed tag to build package metadata without publishing, verify the
-   resulting version is exactly the proposed version, and remove the temporary
-   location afterward.
+   resulting normalized package version is exactly the proposed version, save
+   that exact value for all later PyPI checks, and remove the temporary location
+   afterward.
 10. Present a concise preflight summary containing:
     - Previous stable version
     - Proposed version and tag
@@ -117,6 +166,8 @@ move or force-push an existing release tag.
    project. Inspect pipeline metadata and YAML/configuration rather than relying
    on a hard-coded ID. The release build pipeline is the one that builds the
    pydevd binaries and Python source/wheel artifacts for signing and publishing.
+   If `DEBUGPY_INTERNAL_BUILD_PIPELINE_URL` is set, resolve the pipeline from
+   that validated URL instead of searching by name.
 2. Inspect its runtime parameters and repository resources. Identify:
    - The `microsoft/debugpy` GitHub repository resource alias
    - The real-signing parameter/value
@@ -144,17 +195,22 @@ move or force-push an existing release tag.
 1. Discover the internal release pipeline from the authenticated Azure DevOps
    project. It must consume the signed debugpy build, run final tests, and
    publish to PyPI through the approved internal publishing path.
+   If `DEBUGPY_INTERNAL_RELEASE_PIPELINE_URL` is set, resolve the pipeline from
+   that validated URL instead of searching by name.
 2. Inspect how it selects the input build. Pin it to the exact successful build
-   from Phase 3 whenever the pipeline supports an explicit build/run parameter.
-   If it selects by tags or branch, verify that its selection resolves to the
-   exact Phase 3 build before allowing publication.
+   ID from Phase 3. If explicit pinning is unavailable, verify the selected
+   build immediately before queueing and again at the final pre-publish
+   approval. Abort if it is no longer the Phase 3 build. If the pipeline cannot
+   pin the build and has no pre-publish gate where selection can be reverified,
+   stop rather than risk publishing a raced artifact.
 3. Queue the release pipeline manually and record its run ID.
 4. Wait for all validation and publishing stages to succeed. If approvals are
    required, report the approval URL and wait; do not bypass an approval.
 
 ## Phase 5: Verify PyPI
 
-Poll the public PyPI JSON endpoint for the exact normalized version:
+Poll the public PyPI JSON endpoint using the exact normalized package version
+produced by the Phase 1 metadata build:
 
 ```text
 https://pypi.org/pypi/debugpy/<version>/json
@@ -162,24 +218,30 @@ https://pypi.org/pypi/debugpy/<version>/json
 
 Require a successful response and confirm that release files are present.
 Compare the published filenames against the successful release artifacts when
-that information is available. Do not proceed based only on the Azure DevOps
-run result.
+that information is available. Poll every 30 seconds for at most 15 minutes.
+If the deadline expires, stop in a resumable state and report that publication
+may have succeeded but public index verification did not. Do not proceed based
+only on the Azure DevOps run result.
 
 ## Phase 6: Create the GitHub Release
 
 1. Generate release notes from the previous stable tag through the new tag.
    Keep relevant issue and pull request links. Review the generated text for
    unrelated changes or internal information.
-2. Create the release in `microsoft/debugpy`:
+2. Compare the new version to the highest stable GitHub release that existed
+   before this workflow. Add `--latest` only when the new version is greater.
+   Omit it for backports and older release lines.
+3. Create the release in `microsoft/debugpy`:
 
    ```text
-   gh release create <tag> --repo microsoft/debugpy --title "debugpy <tag>" --notes-file <notes-file> --latest
+   gh release create <tag> --repo microsoft/debugpy --title "debugpy <tag>" --notes-file <notes-file> [--latest]
    ```
 
-3. Do not pass artifact files to `gh release create`.
-4. Verify the release is public, marked latest, points to the intended tag, and
-   contains no attached binaries.
-5. Delete any temporary release-notes file after successful publication.
+4. Do not pass artifact files to `gh release create`.
+5. Verify the release is public, points to the intended tag, and contains no
+   attached binaries. Verify it is marked latest only when `--latest` was
+   required.
+6. Delete any temporary release-notes file after successful publication.
 
 ## Completion Report
 
