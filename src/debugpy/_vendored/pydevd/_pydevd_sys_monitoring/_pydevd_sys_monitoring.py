@@ -352,7 +352,7 @@ def _create_thread_info(depth):
         if f_bootstrap_frame.f_code.co_name in ("__bootstrap_inner", "_bootstrap_inner", "is_alive"):
             # Note: be careful not to use threading.current_thread to avoid creating a dummy thread.
             t = f_bootstrap_frame.f_locals.get("self")
-            if not isinstance(t, threading.Thread):
+            if not isinstance(t, threading.Thread) or getattr(t, "ident", None) != thread_ident:
                 t = None
 
         elif f_bootstrap_frame.f_code.co_name in ("_exec", "__call__"):
