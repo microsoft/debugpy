@@ -55,6 +55,15 @@ On Linux or macOS:
 .../debugpy$ python3 -m black
 ```
 
+## Type checking
+We use [Pyright](https://github.com/microsoft/pyright) for static type checking, configured under `[tool.pyright]` in [pyproject.toml](pyproject.toml). It runs in `standard` type-checking mode, and `# type: ignore` comments are disabled repository-wide (`enableTypeIgnoreComments = false`).
+
+Because `# type: ignore` is disabled, it has no effect and must not be used to suppress diagnostics. When a specific diagnostic genuinely needs to be suppressed, use a targeted Pyright rule suppression instead, and keep it as narrow as possible:
+```python
+some_expression  # pyright: ignore[reportSomeSpecificRule]
+```
+Prefer fixing the underlying typing issue (e.g. adding an annotation or an explicit assertion that narrows the type) over suppressing it. Reserve `# pyright: ignore[...]` for cases where the code is correct but the type checker cannot verify it (such as access to private/stable runtime APIs).
+
 ## Running tests
 
 We use tox to run tests in an isolated environment. This ensures that debugpy is first built as a package, and tox also takes care of installing all the test prerequisites into the environment. On Windows:
@@ -91,7 +100,7 @@ The tests are run concurrently, and the default number of workers is 8. You can 
 
 ### Running tests without tox
 
-While tox is the recommended way to run the test suite, pytest can also be invoked directly from the root of the repository. This requires packages in tests/requirements.txt to be installed first.
+While tox is the recommended way to run the test suite, pytest can also be invoked directly from the root (src/debugpy) of the repository. This requires packages in tests/requirements.txt to be installed first.
 
 Using a venv created by tox in the '.tox' folder can make it easier to get the pytest configuration correct. Debugpy needs to be installed into the venv for the tests to run, so using the tox generated .venv makes that easier.
 
