@@ -25,6 +25,10 @@ Interpret requests as follows:
 - "Resume" or "finalize" inventories the external state for an explicit version
   and continues from the first incomplete phase, but only after verifying every
   completed phase against the same tag, commit, build, and package version.
+- If a new-release request discovers a different version already published to
+  PyPI but missing from GitHub, report that incomplete release and ask before
+  changing the requested target. A resume/finalize request for that exact
+  version may continue without additional confirmation.
 - "Next patch", "next minor", and "next major" are calculated from the highest
   stable version published by `microsoft/debugpy`, not from local tags.
 - An explicit version may be written with or without the leading `v`. Normalize
@@ -100,8 +104,10 @@ described below.
    PyPI, ignoring prereleases. Reconcile them deterministically:
    - If the highest stable versions match, use that version as the baseline.
    - If PyPI contains a newer version than GitHub, treat it as an incomplete
-     release and resume at GitHub release creation. Do not calculate or publish
-     a newer version.
+     release. For a new-release request, stop and ask whether to finalize that
+     existing version instead. For a resume/finalize request naming that exact
+     version, continue at GitHub release creation. Do not calculate or publish a
+     newer version.
    - If GitHub contains a newer version than PyPI, stop because customer
      workflows may already be inconsistent. Report that PyPI publication for
      the existing GitHub release must be recovered before another release.
@@ -157,8 +163,10 @@ Stop here for prepare/dry-run requests.
    developer clone may use `origin` for a fork.
 3. Verify the remote tag resolves to the intended full commit SHA.
 
-If a local tag was created but the push failed, report that exact state. Never
-move or force-push an existing release tag.
+If a local tag was created but the push failed, a later resume may re-push it
+only after verifying that the remote tag is still absent and the local annotated
+tag resolves to the previously verified commit. Otherwise stop and report the
+exact recovery action. Never move or force-push an existing release tag.
 
 ## Phase 3: Queue the Internal Real-Signed Build
 
@@ -225,22 +233,25 @@ only on the Azure DevOps run result.
 
 ## Phase 6: Create the GitHub Release
 
-1. Generate release notes from the previous stable tag through the new tag.
-   Keep relevant issue and pull request links. Review the generated text for
-   unrelated changes or internal information.
+1. Select the release-notes base deterministically. For a backport or older
+   release line, use the greatest stable tag lower than the new version with the
+   same major and minor components. Otherwise use the greatest stable tag lower
+   than the new version. Stop if no valid lower tag exists. Generate release
+   notes from that tag through the new tag, keep relevant issue and pull request
+   links, and review the text for unrelated changes or internal information.
 2. Compare the new version to the highest stable GitHub release that existed
-   before this workflow. Add `--latest` only when the new version is greater.
-   Omit it for backports and older release lines.
+   before this workflow. Pass `--latest` when the new version is greater and
+   `--latest=false` for backports and older release lines.
 3. Create the release in `microsoft/debugpy`:
 
    ```text
-   gh release create <tag> --repo microsoft/debugpy --title "debugpy <tag>" --notes-file <notes-file> [--latest]
+   gh release create <tag> --repo microsoft/debugpy --title "debugpy <tag>" --notes-file <notes-file> <--latest|--latest=false>
    ```
 
 4. Do not pass artifact files to `gh release create`.
 5. Verify the release is public, points to the intended tag, and contains no
-   attached binaries. Verify it is marked latest only when `--latest` was
-   required.
+   attached binaries. Verify it is marked latest when `--latest` was used and
+   is not marked latest when `--latest=false` was used.
 6. Delete any temporary release-notes file after successful publication.
 
 ## Completion Report
