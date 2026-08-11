@@ -2,7 +2,6 @@
 description: "Release debugpy to PyPI and GitHub. Use when asked to prepare or publish the next patch, minor, major, or explicit debugpy version."
 name: "Debugpy Release"
 argument-hint: "Specify patch, minor, major, or an explicit version. Say 'prepare' for a dry run."
-tools: [vscode/askQuestions, execute/runInTerminal, execute/getTerminalOutput, execute/awaitTerminal, read/readFile, search/fileSearch, search/textSearch, web/fetch, todo]
 user-invocable: true
 ---
 
@@ -58,6 +57,9 @@ is `v1.9.0`.
    through the approved authenticated internal release pipeline.
 10. Stop on any failed or partially successful stage. Do not continue with a
     newer build or a different artifact. Resume only from verified state.
+11. Remove temporary clones, worktrees, metadata output, and release-notes files
+    on both success and failure. If cleanup itself fails, report the exact path
+    that remains.
 
 ## Pipeline Locations
 
@@ -100,21 +102,14 @@ described below.
    `HEAD` to equal that commit. Do not release a fork-only commit. For resume,
    resolve the commit from the existing remote tag instead and do not retag the
    current `main`. If the remote tag is absent but an exact local tag exists,
-   treat it as a local-tag recovery candidate only when:
-   - It is an annotated tag and the requested tag name matches exactly.
-   - The remote tag, internal build, internal release run, PyPI version, and
-     GitHub release are all absent.
-   - Its target equals the current authoritative `microsoft/debugpy` `main`
-     commit and that commit passes the required-check gate below.
-   - Rebuilding metadata from that tag produces the requested normalized
-     package version.
-
-   When every condition holds, continue through the remainder of Phase 1,
-   including baseline recording, inventory, required-check verification,
-   metadata validation, and the preflight summary. Then route to Phase 2 to push
-   that exact tag. If the target no longer equals current `main`, do not move
-   the tag; stop and report that the user must choose whether to delete the
-   local-only tag and restart.
+   mark it as a local-tag recovery candidate only when it is annotated, its name
+   matches exactly, and its target equals the current authoritative
+   `microsoft/debugpy` `main` commit. Do not duplicate the external-state checks
+   here; step 7 is the authoritative inventory. Continue through the rest of
+   Phase 1 and route to Phase 2 only if inventory, required checks, metadata
+   validation, and the preflight summary all succeed. If the target no longer
+   equals current `main`, do not move the tag; stop and report that the user
+   must choose whether to delete the local-only tag and restart.
 6. Read the complete sets of stable public versions from GitHub releases and
    PyPI, ignoring prereleases. Reconcile them deterministically:
    - If the highest stable versions match, use that version as the baseline.
@@ -144,7 +139,8 @@ described below.
    and files already exist on PyPI but the GitHub release is absent, require the
    matching remote tag and proceed only to Phase 6. Do not re-queue build or
    release pipelines even if their historical records are unavailable or
-   expired.
+   expired. Record that exact normalized package version as the verified
+   in-flight version.
 8. Discover the authoritative required checks for `main` using the GitHub
    rules-for-branch API:
 
@@ -167,7 +163,7 @@ described below.
    proposed tag to build package metadata without publishing, verify the
    resulting normalized package version is exactly the proposed version, save
    that exact value for all later PyPI checks, and remove the temporary location
-   afterward.
+   afterward even when the build or validation fails.
 10. Present a concise preflight summary containing:
     - Previous stable version
     - Proposed version and tag
@@ -253,29 +249,34 @@ https://pypi.org/pypi/debugpy/<version>/json
 
 Require a successful response and confirm that release files are present.
 Compare the published filenames against the successful release artifacts when
-that information is available. Poll every 30 seconds for at most 15 minutes.
-If the deadline expires, stop in a resumable state and report that publication
-may have succeeded but public index verification did not. Do not proceed based
-only on the Azure DevOps run result.
+that information is available. Record the exact normalized package version as
+the verified in-flight version. Poll every 30 seconds for at most 15 minutes. If
+the deadline expires, stop in a resumable state and report that publication may
+have succeeded but public index verification did not. Do not proceed based only
+on the Azure DevOps run result.
 
 ## Phase 6: Create the GitHub Release
 
-1. Select the release-notes base deterministically. For a backport or older
-   release line, use the greatest stable tag lower than the new version with the
-   same major and minor components. Otherwise use the greatest stable tag lower
-   than the new version. Stop if no valid lower tag exists. Generate release
-   notes from that tag through the new tag, keep relevant issue and pull request
-   links, and review the text for unrelated changes or internal information.
+1. Classify a release as a backport or older release line when the target's
+   `(major, minor)` tuple is lower than the `(major, minor)` tuple of the highest
+   stable version found during Phase 1. Require the target version to be greater
+   than every existing stable version on its own release line. For a backport,
+   use the greatest lower stable tag with the same major and minor components as
+   the release-notes base. Otherwise use the greatest stable tag lower than the
+   target. Stop if no valid lower tag exists. Generate release notes from that
+   tag through the new tag, keep relevant issue and pull request links, and
+   review the text for unrelated changes or internal information.
 2. Recheck that the stable GitHub release set has not changed since the Phase 1
-   snapshot. When comparing it with PyPI, exclude only the exact in-flight
-   version already verified in Phase 5; its expected PyPI-only state must not be
-   treated as a new incomplete release. If any other release state changed,
-   repeat Phase 1 reconciliation with the in-flight version explicitly marked
-   as expected and update the invocation's latest-selection baseline before
-   continuing. For backports and older release lines, always pass
-   `--latest=false` regardless of the baseline. Otherwise pass `--latest` only
-   when the new version is greater than the current invocation's baseline; pass
-   `--latest=false` when it is not.
+   snapshot. When comparing it with PyPI, exclude only the verified in-flight
+   version established either by the Phase 1 PyPI override inventory or by
+   Phase 5; its expected PyPI-only state must not be treated as a new incomplete
+   release. If any other release state changed, repeat Phase 1 reconciliation
+   with the in-flight version explicitly marked as expected and update the
+   invocation's latest-selection baseline before continuing. For backports and
+   older release lines, always pass `--latest=false` regardless of the
+   baseline. Otherwise pass `--latest` only when the new version is greater
+   than the current invocation's baseline; pass `--latest=false` when it is
+   not.
 3. Create the release in `microsoft/debugpy`:
 
    ```text
@@ -286,7 +287,8 @@ only on the Azure DevOps run result.
 5. Verify the release is public, points to the intended tag, and contains no
    attached binaries. Verify it is marked latest when `--latest` was used and
    is not marked latest when `--latest=false` was used.
-6. Delete any temporary release-notes file after successful publication.
+6. Delete any temporary release-notes file after the creation attempt, whether
+   publication succeeds or fails.
 
 ## Completion Report
 
