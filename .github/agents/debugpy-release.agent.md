@@ -102,8 +102,8 @@ described below.
    current `main`. If the remote tag is absent but an exact local tag exists,
    treat it as a local-tag recovery candidate only when:
    - It is an annotated tag and the requested tag name matches exactly.
-   - The remote tag, PyPI version, GitHub release, and internal release state are
-     all absent.
+   - The remote tag, internal build, internal release run, PyPI version, and
+     GitHub release are all absent.
    - Its target equals the current authoritative `microsoft/debugpy` `main`
      commit and that commit passes the required-check gate below.
    - Rebuilding metadata from that tag produces the requested normalized
@@ -132,16 +132,19 @@ described below.
    latest-selection baseline for this invocation. Recompute it deterministically
    whenever a later invocation resumes the release; do not claim that an
    unpersisted value survives across sessions.
-7. Inventory the proposed version's tag, internal build, internal release run,
-   PyPI files, and GitHub release. For a new release, require all to be absent.
-   Except for the PyPI override below, resume/finalize requires every existing
-   item to match the same commit, exact signed build, and package version, then
-   continues from the first absent item. Never recreate, move, or overwrite an
-   existing item. PyPI publication overrides the generic first-absent rule:
-   when the exact version and files already exist on PyPI but the GitHub release
-   is absent, require the matching remote tag and proceed only to Phase 6. Do
-   not re-queue build or release pipelines even if their historical records are
-   unavailable or expired.
+7. Inventory the proposed version's local tag, remote tag, internal build,
+   internal release run, PyPI files, and GitHub release. For a new release,
+   require the remote tag, internal build, internal release run, PyPI files, and
+   GitHub release to be absent. Require the local tag to be absent unless step 5
+   accepted it as the exact local-tag recovery candidate. Except for the PyPI
+   override below, resume/finalize requires every existing item to match the
+   same commit, exact signed build, and package version, then continues from the
+   first absent item. Never recreate, move, or overwrite an existing item. PyPI
+   publication overrides the generic first-absent rule: when the exact version
+   and files already exist on PyPI but the GitHub release is absent, require the
+   matching remote tag and proceed only to Phase 6. Do not re-queue build or
+   release pipelines even if their historical records are unavailable or
+   expired.
 8. Discover the authoritative required checks for `main` using the GitHub
    rules-for-branch API:
 
@@ -264,12 +267,15 @@ only on the Azure DevOps run result.
    notes from that tag through the new tag, keep relevant issue and pull request
    links, and review the text for unrelated changes or internal information.
 2. Recheck that the stable GitHub release set has not changed since the Phase 1
-   snapshot. If it changed, repeat Phase 1 reconciliation and update the
-   invocation's latest-selection baseline before continuing. For backports and
-   older release lines, always pass `--latest=false` regardless of the
-   baseline. Otherwise pass `--latest` only when the new version is greater
-   than the current invocation's baseline; pass `--latest=false` when it is
-   not.
+   snapshot. When comparing it with PyPI, exclude only the exact in-flight
+   version already verified in Phase 5; its expected PyPI-only state must not be
+   treated as a new incomplete release. If any other release state changed,
+   repeat Phase 1 reconciliation with the in-flight version explicitly marked
+   as expected and update the invocation's latest-selection baseline before
+   continuing. For backports and older release lines, always pass
+   `--latest=false` regardless of the baseline. Otherwise pass `--latest` only
+   when the new version is greater than the current invocation's baseline; pass
+   `--latest=false` when it is not.
 3. Create the release in `microsoft/debugpy`:
 
    ```text
