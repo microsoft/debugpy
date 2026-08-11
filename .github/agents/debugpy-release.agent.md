@@ -109,9 +109,12 @@ described below.
    - Rebuilding metadata from that tag produces the requested normalized
      package version.
 
-   When every condition holds, route to Phase 2 to push that exact tag. If the
-   target no longer equals current `main`, do not move the tag; stop and report
-   that the user must choose whether to delete the local-only tag and restart.
+   When every condition holds, continue through the remainder of Phase 1,
+   including baseline recording, inventory, required-check verification,
+   metadata validation, and the preflight summary. Then route to Phase 2 to push
+   that exact tag. If the target no longer equals current `main`, do not move
+   the tag; stop and report that the user must choose whether to delete the
+   local-only tag and restart.
 6. Read the complete sets of stable public versions from GitHub releases and
    PyPI, ignoring prereleases. Reconcile them deterministically:
    - If the highest stable versions match, use that version as the baseline.
@@ -125,9 +128,10 @@ described below.
      the existing GitHub release must be recovered before another release.
    - If the sets disagree in any other way that affects the proposed version,
      stop and report both sets. Never choose one source arbitrarily.
-   Record the highest stable GitHub version observed here as the immutable
-   latest-selection baseline for Phase 6. Do not try to reconstruct this
-   historical snapshot later during resume.
+   Record the highest stable GitHub version observed here as the
+   latest-selection baseline for this invocation. Recompute it deterministically
+   whenever a later invocation resumes the release; do not claim that an
+   unpersisted value survives across sessions.
 7. Inventory the proposed version's tag, internal build, internal release run,
    PyPI files, and GitHub release. For a new release, require all to be absent.
    Except for the PyPI override below, resume/finalize requires every existing
@@ -259,10 +263,13 @@ only on the Azure DevOps run result.
    than the new version. Stop if no valid lower tag exists. Generate release
    notes from that tag through the new tag, keep relevant issue and pull request
    links, and review the text for unrelated changes or internal information.
-2. Compare the new version to the immutable latest-selection baseline recorded
-   during Phase 1. Pass `--latest` when the new version is greater and
-   `--latest=false` for backports and older release lines. Do not re-query or
-   re-derive the baseline during a later resume.
+2. Recheck that the stable GitHub release set has not changed since the Phase 1
+   snapshot. If it changed, repeat Phase 1 reconciliation and update the
+   invocation's latest-selection baseline before continuing. For backports and
+   older release lines, always pass `--latest=false` regardless of the
+   baseline. Otherwise pass `--latest` only when the new version is greater
+   than the current invocation's baseline; pass `--latest=false` when it is
+   not.
 3. Create the release in `microsoft/debugpy`:
 
    ```text
