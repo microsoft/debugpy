@@ -300,8 +300,41 @@ def is_python(path) -> bool:
         if filename.find(name) != -1:
             return True
 
-    if path == sys.executable:
-        return True
+    # Fallback: check if the path refers to the same executable as sys.executable.
+    # This handles cases where the binary name doesn't contain "python" (e.g.
+    # custom builds, embedded distributions). We use a platform-aware
+    # comparison that covers symlinks, relative paths, and Windows case
+    # differences.
+    try:
+        path_str = path.decode(sys.getfilesystemencoding()) if isinstance(path, bytes) else path
+        sys_exec_str = sys.executable
+
+        # Fast path: exact string match
+        if path_str == sys_exec_str:
+            return True
+
+        # If both exist, samefile is the most reliable (handles symlinks, hardlinks)
+        try:
+            if os.path.exists(path_str) and os.path.exists(sys_exec_str):
+                if os.path.samefile(path_str, sys_exec_str):
+                    return True
+        except (OSError, AttributeError, NotImplementedError, ValueError):
+            pass
+
+        # Fallback: compare normalized realpaths
+        # - realpath resolves symlinks
+        # - abspath is implied by realpath, but we ensure it
+        # - normpath collapses redundant separators
+        # - normcase normalizes case and separators on Windows
+        try:
+            norm_path = os.path.normcase(os.path.normpath(os.path.realpath(path_str)))
+            norm_sys = os.path.normcase(os.path.normpath(os.path.realpath(sys_exec_str)))
+            if norm_path == norm_sys:
+                return True
+        except Exception:
+            pass
+    except Exception:
+        pass
 
     return False
 
