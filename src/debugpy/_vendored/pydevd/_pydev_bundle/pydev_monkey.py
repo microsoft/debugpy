@@ -300,6 +300,9 @@ def is_python(path) -> bool:
         if filename.find(name) != -1:
             return True
 
+    if path == sys.executable:
+        return True
+
     return False
 
 
