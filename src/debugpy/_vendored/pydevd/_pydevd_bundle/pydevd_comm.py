@@ -525,6 +525,10 @@ def start_client(host, port):
         s.setsockopt(socket_module.IPPROTO_TCP, socket_module.TCP_KEEPCNT, 5)
     except (AttributeError, OSError):
         pass  # May not be available everywhere.
+    try:
+        s.setsockopt(socket_module.IPPROTO_TCP, socket_module.TCP_NODELAY, 1)
+    except (AttributeError, OSError):
+        pass  # May not be available everywhere.
 
     try:
         # 10 seconds default timeout
