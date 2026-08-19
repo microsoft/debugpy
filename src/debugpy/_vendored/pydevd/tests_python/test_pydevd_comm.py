@@ -28,9 +28,10 @@ def test_start_client_sets_tcp_nodelay(monkeypatch):
 def test_start_client_ignores_tcp_nodelay_error(monkeypatch, error):
     sock = mock.Mock()
     sock.setsockopt.side_effect = error
+    monkeypatch.setattr(pydevd_comm.socket_module, "TCP_NODELAY", mock.sentinel.tcp_nodelay)
 
     start_client(monkeypatch, sock)
-    sock.setsockopt.assert_any_call(pydevd_comm.socket_module.IPPROTO_TCP, pydevd_comm.socket_module.TCP_NODELAY, 1)
+    sock.setsockopt.assert_any_call(pydevd_comm.socket_module.IPPROTO_TCP, mock.sentinel.tcp_nodelay, 1)
 
 
 def test_start_server_sets_tcp_nodelay(monkeypatch):
@@ -38,5 +39,19 @@ def test_start_server_sets_tcp_nodelay(monkeypatch):
     address = ("127.0.0.1", 5678)
     server.configure_mock(**{"accept.return_value": (accepted, address), "getsockname.return_value": address})
     monkeypatch.setattr(pydevd_comm, "create_server_socket", mock.Mock(return_value=server))
+    monkeypatch.setattr(pydevd_comm.socket_module, "TCP_NODELAY", mock.sentinel.tcp_nodelay)
     assert pydevd_comm.start_server(0) is accepted
-    accepted.setsockopt.assert_called_once_with(pydevd_comm.socket_module.IPPROTO_TCP, pydevd_comm.socket_module.TCP_NODELAY, 1)
+    accepted.setsockopt.assert_called_once_with(pydevd_comm.socket_module.IPPROTO_TCP, mock.sentinel.tcp_nodelay, 1)
+
+
+@pytest.mark.parametrize("error", [AttributeError, OSError])
+def test_start_server_ignores_tcp_nodelay_error(monkeypatch, error):
+    server, accepted = mock.Mock(), mock.Mock()
+    address = ("127.0.0.1", 5678)
+    server.configure_mock(**{"accept.return_value": (accepted, address), "getsockname.return_value": address})
+    accepted.setsockopt.side_effect = error
+    monkeypatch.setattr(pydevd_comm, "create_server_socket", mock.Mock(return_value=server))
+    monkeypatch.setattr(pydevd_comm.socket_module, "TCP_NODELAY", mock.sentinel.tcp_nodelay)
+
+    assert pydevd_comm.start_server(0) is accepted
+    accepted.setsockopt.assert_called_once_with(pydevd_comm.socket_module.IPPROTO_TCP, mock.sentinel.tcp_nodelay, 1)
