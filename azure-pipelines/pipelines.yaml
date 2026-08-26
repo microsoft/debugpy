@@ -136,7 +136,7 @@ stages:
           py314:
             python.version: 3.14
           py315:
-            python.version: 3.15-rc.1
+            python.version: 3.15.0-rc.1
 
       steps:
 
@@ -181,7 +181,7 @@ stages:
           py314:
             python.version: 3.14
           py315:
-            python.version: 3.15-rc.1
+            python.version: 3.15.0-rc.1
 
       steps:
 
@@ -226,7 +226,7 @@ stages:
           py314:
             python.version: 3.14
           py315:
-            python.version: 3.15-rc.1
+            python.version: 3.15.0-rc.1
 
       steps:
 
