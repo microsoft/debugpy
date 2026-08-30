@@ -119,6 +119,49 @@ def test_exceptions_and_return(with_monitoring):
     ]
 
 
+def test_nested_exception_does_not_reset_reported_unhandled_exception():
+    from _pydevd_sys_monitoring import _pydevd_sys_monitoring
+
+    thread_local_info = _pydevd_sys_monitoring._thread_local_info
+    state_names = (
+        "f_unhandled_exc_tag",
+        "f_unhandled_frame",
+        "f_reported_unhandled_exc_tag",
+    )
+
+    for name in state_names:
+        if hasattr(thread_local_info, name):
+            delattr(thread_local_info, name)
+
+    try:
+        unhandled_exception = SystemExit(1)
+        nested_exception = AttributeError("nested")
+
+        _pydevd_sys_monitoring._get_unhandled_exception_frame(
+            unhandled_exception, 1
+        )
+        thread_local_info.f_reported_unhandled_exc_tag = (
+            thread_local_info.f_unhandled_exc_tag
+        )
+        del thread_local_info.f_unhandled_exc_tag
+        del thread_local_info.f_unhandled_frame
+
+        _pydevd_sys_monitoring._get_unhandled_exception_frame(
+            nested_exception, 1
+        )
+
+        assert (
+            _pydevd_sys_monitoring._get_unhandled_exception_frame(
+                unhandled_exception, 1
+            )
+            is None
+        )
+    finally:
+        for name in state_names:
+            if hasattr(thread_local_info, name):
+                delattr(thread_local_info, name)
+
+
 def test_variables_on_call(with_monitoring):
     monitor.set_events(DEBUGGER_ID, monitor.events.PY_START)
 
