@@ -53,6 +53,7 @@ def test_multiprocessing(pyfile, target, run, start_method):
         import multiprocessing
         import os
         import sys
+        import warnings
 
         # https://github.com/microsoft/ptvsd/issues/2108
         class Foo(object):
@@ -111,6 +112,14 @@ def test_multiprocessing(pyfile, target, run, start_method):
 
         if __name__ == "__main__":
             start_method = sys.argv[1]
+            if start_method == "fork":
+                # This test intentionally forks with debugpy threads running.
+                # https://github.com/python/cpython/issues/135427
+                warnings.filterwarnings(
+                    "ignore",
+                    message=r".*use of fork\(\) may lead to deadlocks in the child\.",
+                    category=DeprecationWarning,
+                )
             if start_method != "":
                 multiprocessing.set_start_method(start_method)
 
