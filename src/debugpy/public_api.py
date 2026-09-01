@@ -76,6 +76,14 @@ def configure(__properties: dict[str, typing.Any] | None = None, **kwargs) -> No
     "attach" request, because they must be applied as early as possible
     in the process being debugged.
 
+    When Python is embedded in another application, ``sys.executable``
+    may point to the host executable instead of a Python interpreter. Set
+    the ``python`` property to the interpreter that debugpy should use to
+    start its adapter process, before calling ``listen``::
+
+        debugpy.configure(python="/path/to/python")
+        debugpy.listen(...)
+
     For example, a "launch" configuration with subprocess debugging
     disabled can be defined entirely in JSON::
 
