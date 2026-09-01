@@ -480,6 +480,10 @@ def start_server(port):
         pydev_log.info(msg)
 
         new_socket, _addr = s.accept()
+        try:
+            new_socket.setsockopt(socket_module.IPPROTO_TCP, socket_module.TCP_NODELAY, 1)
+        except (AttributeError, OSError):
+            pass  # May not be available everywhere.
         pydev_log.info("Connection accepted")
         # closing server socket is not necessary but we don't need it
         s.close()
@@ -523,6 +527,10 @@ def start_client(host, port):
         pass  # May not be available everywhere.
     try:
         s.setsockopt(socket_module.IPPROTO_TCP, socket_module.TCP_KEEPCNT, 5)
+    except (AttributeError, OSError):
+        pass  # May not be available everywhere.
+    try:
+        s.setsockopt(socket_module.IPPROTO_TCP, socket_module.TCP_NODELAY, 1)
     except (AttributeError, OSError):
         pass  # May not be available everywhere.
 
