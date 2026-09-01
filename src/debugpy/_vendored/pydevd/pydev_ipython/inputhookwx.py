@@ -44,7 +44,7 @@ def inputhook_wx1():
             # Make a temporary event loop and process system events until
             # there are no more waiting, then allow idle events (which
             # will also deal with pending or posted wx events.)
-            evtloop = wx.EventLoop()  # @UndefinedVariable
+            evtloop = wx.GUIEventLoop()  # @UndefinedVariable
             ea = wx.EventLoopActivator(evtloop)  # @UndefinedVariable
             while evtloop.Pending():
                 evtloop.Dispatch()
@@ -66,7 +66,7 @@ class EventLoopTimer(wx.Timer):  # @UndefinedVariable
 
 class EventLoopRunner(object):
     def Run(self, time):
-        self.evtloop = wx.EventLoop()  # @UndefinedVariable
+        self.evtloop = wx.GUIEventLoop()  # @UndefinedVariable
         self.timer = EventLoopTimer(self.check_stdin)
         self.timer.Start(time)
         self.evtloop.Run()
@@ -128,7 +128,7 @@ def inputhook_wx3():
             if not callable(signal.getsignal(signal.SIGINT)):
                 signal.signal(signal.SIGINT, signal.default_int_handler)
 
-            evtloop = wx.EventLoop()  # @UndefinedVariable
+            evtloop = wx.GUIEventLoop()  # @UndefinedVariable
             ea = wx.EventLoopActivator(evtloop)  # @UndefinedVariable
             t = clock()
             while not stdin_ready():
