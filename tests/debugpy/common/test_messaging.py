@@ -65,6 +65,39 @@ class JsonMemoryStream(object):
         self.output.append(value)
 
 
+class ReaderSpinning(BaseException):
+    """Raised by TruncatedReader when it is read past EOF too many times.
+
+    Derived from BaseException rather than Exception on purpose: JsonIOStream turns
+    any Exception raised by the reader into NoMoreMessages, and that is the very
+    thing the test needs to tell apart from a real EOF.
+    """
+
+
+class TruncatedReader(io.RawIOBase):
+    """Yields data once, and then EOF forever, like a socket whose peer wrote part
+    of a message and disconnected.
+    """
+
+    EOF_READS_ALLOWED = 10
+
+    def __init__(self, data):
+        super().__init__()
+        self.data = data
+        self.eof_reads = 0
+
+    def readline(self, size: int | None = -1) -> bytes:
+        if self.data:
+            data, self.data = self.data, b""
+            return data
+        self.eof_reads += 1
+        if self.eof_reads > self.EOF_READS_ALLOWED:
+            raise ReaderSpinning(
+                "readline() was called %d times at EOF" % self.eof_reads
+            )
+        return b""
+
+
 class TestJsonIOStream(object):
     MESSAGE_BODY_TEMPLATE = '{"arguments": {"threadId": 3}, "command": "next", "seq": %d, "type": "request"}'
     MESSAGES = []
@@ -91,6 +124,17 @@ class TestJsonIOStream(object):
         with pytest.raises(messaging.NoMoreMessages) as exc_info:
             stream.read_json()
         assert exc_info.value.stream is stream
+
+    def test_read_truncated_header(self):
+        # A peer that writes part of a header line and then disconnects. readline()
+        # returns the partial line once, and b"" from then on, same as a socket that
+        # is at EOF. The stream must report NoMoreMessages rather than keep reading.
+        reader = TruncatedReader(b"Content-Length: 24")
+        stream = messaging.JsonIOStream(reader, io.BytesIO(), "data")
+        with pytest.raises(messaging.NoMoreMessages) as exc_info:
+            stream.read_json()
+        assert exc_info.value.stream is stream
+        assert reader.eof_reads == 1
 
     def test_write(self):
         data = io.BytesIO()

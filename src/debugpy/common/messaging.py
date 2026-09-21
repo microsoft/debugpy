@@ -179,11 +179,16 @@ class JsonIOStream(object):
         line: bytes = b""
         while True:
             try:
-                line += reader.readline()
+                chunk = reader.readline()
             except Exception as exc:
                 raise NoMoreMessages(str(exc), stream=self)
-            if not line:
+            if not chunk:
+                # EOF. The check has to be on the chunk that was just read, not on
+                # the accumulated line - once any bytes have arrived, the line is
+                # never empty again, and readline() on a stream that is already at
+                # EOF keeps returning b"" without blocking, so retrying spins.
                 raise NoMoreMessages(stream=self)
+            line += chunk
             if line.endswith(b"\r\n"):
                 line = line[0:-2]
                 return line
