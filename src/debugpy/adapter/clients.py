@@ -447,7 +447,7 @@ class Client(components.Component):
         connect = request("connect", dict, optional=True)
         pid = request("processId", (int, str), optional=True)
         sub_pid = request("subProcessId", int, optional=True)
-        on_terminate = request("onTerminate", bool, optional=True)
+        on_terminate = request("onTerminate", str, optional=True)
 
         if on_terminate:
             self._forward_terminate_request = on_terminate == "KeyboardInterrupt"
