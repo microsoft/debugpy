@@ -66,6 +66,14 @@ The following command will ignore subprocesses started by the debugged process.
 
 For full details, see the [API reference](https://github.com/microsoft/debugpy/wiki/API-Reference).
 
+### Embedded Python hosts
+`debugpy.listen()` uses `sys.executable` to start the debug adapter by default. If Python is embedded in another application, set the path to a Python interpreter before starting the listener:
+```python
+import debugpy
+debugpy.configure(python="/path/to/python")
+debugpy.listen(("localhost", 5678))
+```
+
 ### Enabling debugging
 At the beginning of your script, import debugpy, and call `debugpy.listen()` to start the debug adapter, passing a `(host, port)` tuple as the first argument.
 ```python
