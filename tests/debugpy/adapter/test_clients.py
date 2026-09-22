@@ -30,6 +30,8 @@ class _MemoryStream(object):
 class _FakeSession(object):
     """Stands in for the reentrant session lock used by the message_handler wrapper."""
 
+    launcher = None
+
     def __init__(self, server=None):
         self.server = server
 
@@ -87,6 +89,56 @@ def test_configuration_done_out_of_order_is_rejected(start_request, has_started,
     )
     # The guard must run before any startup side effects.
     assert client.has_started is has_started
+
+
+def _attach(arguments):
+    """Runs "attach" far enough to parse its arguments, and returns the client.
+
+    "listen" and "connect" are mutually exclusive, and that check is the first one
+    after "onTerminate" is read, so the handler stops before it opens any socket.
+    """
+    stream = _MemoryStream()
+    channel = messaging.JsonMessageChannel(stream, None)
+
+    client = clients.Client.__new__(clients.Client)
+    client.session = _FakeSession()
+    client.channel = channel
+    client.start_request = None
+    client.has_started = False
+    client._forward_terminate_request = False
+    client._initialize_request = messaging.Request(
+        channel, 1, "initialize", messaging.MessageDict(None, {})
+    )
+
+    arguments = dict(arguments)
+    arguments["listen"] = {"port": 5678}
+    arguments["connect"] = {"port": 5678}
+    request = messaging.Request(
+        channel, 2, "attach", messaging.MessageDict(None, arguments)
+    )
+
+    with pytest.raises(
+        messaging.InvalidMessageError,
+        match='"listen" and "connect" are mutually exclusive',
+    ):
+        clients.Client.attach_request(client, request)
+    return client
+
+
+@pytest.mark.parametrize(
+    "arguments, expected",
+    [
+        ({"onTerminate": "KeyboardInterrupt"}, True),
+        ({"onTerminate": "kill"}, False),
+        ({}, False),
+    ],
+)
+def test_attach_honors_on_terminate(arguments, expected):
+    # "onTerminate" is a string option, and the debug server compares it against
+    # "KeyboardInterrupt". Validating it as a bool in "attach" coerced the string to
+    # True, so the comparison could never hold and graceful terminate was unreachable.
+    client = _attach(arguments)
+    assert client._forward_terminate_request is expected
 
 
 def test_evaluate_request_that_cannot_be_propagated_is_rejected():
