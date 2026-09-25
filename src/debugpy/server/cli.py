@@ -297,6 +297,9 @@ def parse_args_helper(
             raise ValueError("duplicate switch from environment: " + switch)
         # if we're parsing from the environment, and we've already seen the switch on the command line, skip it, since command line takes precedence
         elif isFromEnvironment and switch in seenFromCommandLine:
+            # also skip the switch's value, if any, so it isn't parsed as a switch or target
+            if switch and placeholder is not None:
+                next(iterator, None)
             continue
         # otherwise, the switch is new, so add it to the appropriate set
         else:
