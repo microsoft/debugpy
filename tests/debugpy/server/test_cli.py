@@ -235,6 +235,19 @@ def test_override_environment_switch(cli):
         assert options["address"] == ("127.0.0.1", 8888)
         assert options["target"] == "spam.py"
 
+
+# Test that the value of an overridden environment switch is skipped along with it
+def test_override_environment_switch_with_module_target(cli):
+    args = ["--connect", "8888", "-m", "spam"]
+
+    with mock.patch.dict(os.environ, {"DEBUGPY_EXTRA_ARGV": "--connect 5678"}):
+        _, options = cli(args)
+
+        assert options["address"] == ("127.0.0.1", 8888)
+        assert options["target_kind"] == "module"
+        assert options["target"] == "spam"
+
+
 # Test that script args (passed to target) are preserved
 def test_script_args(cli):
     args = ["--listen", "8888", "spam.py", "arg1", "arg2"]
