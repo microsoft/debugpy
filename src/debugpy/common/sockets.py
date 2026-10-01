@@ -5,6 +5,7 @@
 import socket
 import sys
 import threading
+import time
 from typing import Any, Callable, Union
 
 from debugpy.common import log
@@ -97,6 +98,28 @@ def create_server(host, port=0, backlog=socket.SOMAXCONN, timeout=None):
 def create_client(ipv6=False):
     """Return a client socket that may be connected to a remote address."""
     return _new_sock(ipv6)
+
+
+def connect(
+    address: tuple[str, int], attempts: int = 1, retry_interval: float = 0
+) -> socket.socket:
+    """Return a client socket connected to the given address."""
+    assert attempts > 0
+    ipv6 = address[0].count(":") > 1
+    while True:
+        sock = create_client(ipv6)
+        try:
+            sock.connect(address)
+            return sock
+        except ConnectionRefusedError:
+            close_socket(sock)
+            attempts -= 1
+            if attempts == 0:
+                raise
+            time.sleep(retry_interval)
+        except Exception:
+            close_socket(sock)
+            raise
 
 
 def _new_sock(ipv6=False):

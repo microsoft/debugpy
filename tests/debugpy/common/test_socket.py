@@ -8,6 +8,28 @@ import sys
 from debugpy.common import sockets
 
 
+def test_connect_retries_connection_refused(monkeypatch):
+    class Client:
+        def __init__(self, refused=False):
+            self.refused = refused
+            self.closed = False
+
+        def connect(self, address):
+            if self.refused:
+                raise ConnectionRefusedError
+
+        def close(self):
+            self.closed = True
+
+    refused_client = Client(refused=True)
+    connected_client = Client()
+    clients = [refused_client, connected_client]
+    monkeypatch.setattr(sockets, "create_client", lambda ipv6: clients.pop(0))
+    connected = sockets.connect(("127.0.0.1", 5678), attempts=2)
+    assert connected is connected_client
+    assert refused_client.closed is True
+
+
 class TestSocketServerReuse(object):
     HOST1 = "127.0.0.1"
     # NOTE: Windows allows loopback range 127/8. Some flavors of Linux support
