@@ -428,7 +428,10 @@ def run_code():
         log.describe_environment("Pre-launch environment:")
         log.info("Running code:\n\n{0}", options.target)
 
-        eval(code, {})
+        # Like "python -c", run the code as the __main__ module, so that __name__ is
+        # "__main__" and the classes and functions it defines can be pickled.
+        with runpy._TempModule("__main__") as main_module:
+            eval(code, main_module.module.__dict__)
     else:
         log.error("No target to run.")
 

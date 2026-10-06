@@ -408,3 +408,35 @@ def test_pep_768_remote_exec_called_with_backslash_path():
     finally:
         for attr, value in original_options.items():
             setattr(cli.options, attr, value)
+
+
+def test_run_code_runs_as_main(monkeypatch):
+    """run_code() must run the -c code as the __main__ module, like "python -c" does,
+    so that __name__ == "__main__" checks pass and the classes it defines can be
+    pickled. It must also put the original __main__ module back afterwards."""
+    import types
+    from debugpy.server import cli
+
+    # The code records what it sees as attributes of this module.
+    result = types.ModuleType("debugpy_run_code_result")
+    monkeypatch.setitem(sys.modules, "debugpy_run_code_result", result)
+    monkeypatch.setattr(sys, "path", list(sys.path))
+    monkeypatch.setattr(cli, "start_debugging", lambda argv_0: None)
+    monkeypatch.setattr(
+        cli.options,
+        "target",
+        "import pickle, sys\n"
+        "import debugpy_run_code_result as result\n"
+        "class Point: pass\n"
+        "result.name = __name__\n"
+        "result.is_main = sys.modules['__main__'].__dict__ is globals()\n"
+        "result.unpickled = type(pickle.loads(pickle.dumps(Point()))) is Point\n",
+    )
+
+    original_main = sys.modules["__main__"]
+    cli.run_code()
+
+    assert result.name == "__main__"
+    assert result.is_main
+    assert result.unpickled
+    assert sys.modules["__main__"] is original_main
