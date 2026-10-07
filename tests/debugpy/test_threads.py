@@ -322,3 +322,34 @@ def test_thread_identity_with_cross_thread_is_alive(pyfile, target, run):
         assert threads[stop.thread_id] == "poller"
 
         session.request_continue()
+
+
+def test_continue_while_running(pyfile, target, run):
+    """
+    A "continue" request that arrives when no thread is suspended must still be
+    answered.
+
+    Pressing Continue twice in quick succession sends the second request after the
+    first one has already resumed the debuggee. The "continue" response is sent with
+    the next resume notification, and with nothing suspended there is none coming, so
+    the adapter waited for it and stopped handling every later request.
+    """
+
+    @pyfile
+    def code_to_debug():
+        import debuggee
+        from debuggee import backchannel
+
+        debuggee.setup()
+        print("stop here")  # @bp
+        backchannel.receive()
+
+    with debug.Session() as session:
+        backchannel = session.open_backchannel()
+        with run(session, target(code_to_debug)):
+            session.set_breakpoints(code_to_debug, all)
+
+        session.wait_for_stop()
+        session.request_continue()
+        session.request_continue()
+        backchannel.send("done")
