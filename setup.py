@@ -10,7 +10,6 @@ import setuptools
 import subprocess
 import sys
 
-
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import versioneer  # noqa
 
@@ -78,12 +77,14 @@ def override_build_py(cmds):
             "Compiling pydevd Cython extension modules (set SKIP_CYTHON_BUILD=1 to omit)."
         )
         try:
-            subprocess.check_call([
-                sys.executable,
-                os.path.join(PYDEVD_ROOT, "setup_pydevd_cython.py"),
-                "build_ext",
-                "--inplace",
-            ])
+            subprocess.check_call(
+                [
+                    sys.executable,
+                    os.path.join(PYDEVD_ROOT, "setup_pydevd_cython.py"),
+                    "build_ext",
+                    "--inplace",
+                ]
+            )
         except subprocess.SubprocessError:
             # pydevd Cython extensions are optional performance enhancements, and debugpy is
             # usable without them. Thus, we want to ignore build errors here by default, so
@@ -116,7 +117,7 @@ def override_build_py(cmds):
             if tail_is(".dylib"):
                 return plat.startswith("macosx")
             if tail_is(".exe", ".dll", ".pdb", ".pyd"):
-                return plat in ("win32", "win-amd64")
+                return plat in ("win32", "win-amd64", "win-arm64")
             if tail_is("-i386-linux-gnu.so", "_linux_x86.so"):
                 return plat == "linux-i686"
             if tail_is("-x86_64-linux-gnu.so", "_linux_amd64.so"):

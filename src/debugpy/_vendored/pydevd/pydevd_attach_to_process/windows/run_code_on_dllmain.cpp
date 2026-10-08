@@ -37,20 +37,25 @@ public:
 DWORD WINAPI RunCodeInThread(LPVOID lpParam){
     NotificationHelper notificationHelper; // When we exit the scope the destructor should take care of the cleanup.
     
-#ifdef BITS_32
-    HMODULE attachModule = GetModuleHandleA("attach_x86.dll");
+#if defined(_M_ARM64)
+    const char* attachName = "attach_arm64.dll";
+#elif defined(_M_X64)
+    const char* attachName = "attach_amd64.dll";
+#elif defined(_M_IX86)
+    const char* attachName = "attach_x86.dll";
 #else
-    HMODULE attachModule = GetModuleHandleA("attach_amd64.dll");
+#error Unsupported Windows architecture
 #endif
+    HMODULE attachModule = GetModuleHandleA(attachName);
 
     if (attachModule == nullptr) {
-        std::cout << "Error: unable to get attach_x86.dll or attach_amd64.dll module handle." << std::endl;
+        std::cout << "Error: unable to get " << attachName << " module handle." << std::endl;
         return 900;
     }
 
     _RunCodeInMemoryInAttachedDll* runCode = reinterpret_cast < _RunCodeInMemoryInAttachedDll* > (GetProcAddress(attachModule, "RunCodeInMemoryInAttachedDll"));
     if (runCode == nullptr) {
-        std::cout << "Error: unable to GetProcAddress(attachModule, RunCodeInMemoryInAttachedDll) from attach_x86.dll or attach_amd64.dll." << std::endl;
+        std::cout << "Error: unable to GetProcAddress(attachModule, RunCodeInMemoryInAttachedDll) from " << attachName << "." << std::endl;
         return 901;
     }
 

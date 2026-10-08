@@ -230,15 +230,19 @@ void SuspendThreads(ThreadMap &suspendedThreads, Py_AddPendingCall* addPendingCa
                                 context.ContextFlags = CONTEXT_ALL;
                                 GetThreadContext(hThread, &context);
 
-#if defined(_X86_)
-                                if (context.Eip >= *(reinterpret_cast<DWORD*>(addPendingCall)) && context.Eip <= (*(reinterpret_cast<DWORD*>(addPendingCall))) + 0x100) {
-                                    addingPendingCall = true;
-                                }
-#elif defined(_AMD64_)
-                                if (context.Rip >= *(reinterpret_cast<DWORD64*>(addPendingCall)) && context.Rip <= *(reinterpret_cast<DWORD64*>(addPendingCall) + 0x100)) {
-                                    addingPendingCall = true;
-                                }
+#if defined(_M_IX86)
+                                uintptr_t instructionPointer = context.Eip;
+#elif defined(_M_X64)
+                                uintptr_t instructionPointer = context.Rip;
+#elif defined(_M_ARM64)
+                                uintptr_t instructionPointer = context.Pc;
+#else
+#error Unsupported Windows architecture
 #endif
+                                uintptr_t pendingCallAddress = reinterpret_cast<uintptr_t>(addPendingCall);
+                                if (instructionPointer >= pendingCallAddress && instructionPointer <= pendingCallAddress + 0x100) {
+                                    addingPendingCall = true;
+                                }
 
                                 if (addingPendingCall) {
                                     // we appear to be adding a pending call via this thread - wait for this to finish so we can add our own pending call...
@@ -637,4 +641,3 @@ extern "C"
     }
 
 }
-

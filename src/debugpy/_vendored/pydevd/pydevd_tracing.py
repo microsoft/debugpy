@@ -18,6 +18,7 @@ import platform
 import ctypes
 from io import StringIO
 import sys
+import sysconfig
 import traceback
 
 _original_settrace = sys.settrace
@@ -172,9 +173,11 @@ def get_python_helper_lib_filename():
 
     arch = ""
     if IS_WINDOWS:
-        # prefer not using platform.machine() when possible (it's a bit heavyweight as it may
-        # spawn a subprocess).
-        arch = os.environ.get("PROCESSOR_ARCHITEW6432", os.environ.get("PROCESSOR_ARCHITECTURE", ""))
+        # sysconfig identifies the interpreter, including x86/x64 emulation on ARM64.
+        arch = {"win32": "x86", "win-amd64": "amd64", "win-arm64": "arm64"}.get(sysconfig.get_platform())
+        if arch is None:
+            pydev_log.critical("Unsupported Windows interpreter platform: %s.", sysconfig.get_platform())
+            return None
 
     if not arch:
         arch = platform.machine()
@@ -184,7 +187,7 @@ def get_python_helper_lib_filename():
 
     if IS_WINDOWS:
         extension = ".dll"
-        suffix_64 = "amd64"
+        suffix_64 = "arm64" if arch == "arm64" else "amd64"
         suffix_32 = "x86"
 
     elif IS_LINUX:
