@@ -292,3 +292,68 @@ def test_single_notification_4(single_notification_behavior, notification_queue,
     join_thread(t2)
     wait_for_notification(notification_queue, "resume")
     assert notification_queue.qsize() == 0
+
+
+def test_single_notification_5(single_notification_behavior, notification_queue, _dummy_pydb):
+    """
+    5. Continue while running
+
+    - breakpoint hits -> send notification
+    - user presses continue -> resume notification -> continue is answered
+    - user presses continue again while everything is running
+      - no resume notification will come, so, it must be answered right away
+    """
+    thread_info = _ThreadInfo()
+
+    single_notification_behavior.increment_suspend_time()
+    thread_info.state = STATE_SUSPEND
+    t = run_as_pydevd_daemon_thread(_dummy_pydb, single_notification_behavior.do_wait_suspend, thread_info, CMD_SET_BREAK)
+    wait_for_notification(notification_queue, "suspend")
+
+    called = []
+    single_notification_behavior.add_on_resumed_callback(lambda: called.append(1))
+    assert called == []
+
+    thread_info.state = STATE_RUN
+    wait_for_notification(notification_queue, "resume")
+    join_thread(t)
+    assert called == [1]
+
+    single_notification_behavior.add_on_resumed_callback(lambda: called.append(2))
+    assert called == [1, 2]
+    assert notification_queue.qsize() == 0
+
+
+def test_single_notification_6(single_notification_behavior, notification_queue, _dummy_pydb):
+    """
+    6. Breakpoint in another thread before resuming
+
+    - breakpoint hits in first -> send notification
+    - user presses continue (answered on the resume notification)
+    - 2nd hits a breakpoint before the first leaves its wait loop, which suspends the
+      first again (so, the first never sends the resume notification)
+    - send the resume notification (and answer the continue) before the new suspend notification
+    """
+    thread_info1 = _ThreadInfo()
+    thread_info2 = _ThreadInfo()
+
+    single_notification_behavior.increment_suspend_time()
+    thread_info1.state = STATE_SUSPEND
+    t1 = run_as_pydevd_daemon_thread(_dummy_pydb, single_notification_behavior.do_wait_suspend, thread_info1, CMD_SET_BREAK)
+    wait_for_notification(notification_queue, "suspend")
+
+    single_notification_behavior.add_on_resumed_callback(lambda: notification_queue.put("continue answered"))
+
+    single_notification_behavior.increment_suspend_time()
+    thread_info2.state = STATE_SUSPEND
+    t2 = run_as_pydevd_daemon_thread(_dummy_pydb, single_notification_behavior.do_wait_suspend, thread_info2, CMD_SET_BREAK)
+    wait_for_notification(notification_queue, "resume")
+    wait_for_notification(notification_queue, "continue answered")
+    wait_for_notification(notification_queue, "suspend")
+
+    thread_info1.state = STATE_RUN
+    thread_info2.state = STATE_RUN
+    wait_for_notification(notification_queue, "resume")
+    join_thread(t1)
+    join_thread(t2)
+    assert notification_queue.qsize() == 0

@@ -376,6 +376,7 @@ class AbstractSingleNotificationBehavior(object):
         "_suspended_thread_id_to_thread",
         "_pause_requested",
         "_py_db",
+        "_on_resumed_callbacks",
     ]
 
     NOTIFY_OF_PAUSE_TIMEOUT = 0.5
@@ -389,6 +390,42 @@ class AbstractSingleNotificationBehavior(object):
         self._lock = thread.allocate_lock()
         self._suspended_thread_id_to_thread = {}
         self._pause_requested = False
+        self._on_resumed_callbacks = []
+
+    def add_on_resumed_callback(self, callback):
+        """
+        Calls `callback` when the last suspend notification is followed by a resume notification.
+
+        If no suspend notification is waiting for a resume (e.g.: a continue was requested after the
+        last stop was already notified as resumed), no resume notification will come, so, it's called
+        right away.
+        """
+        with self._lock:
+            if self._last_resume_notification_time < self._last_suspend_notification_time:
+                self._on_resumed_callbacks.append(callback)
+                return
+        pydev_log.info("Resume already notified: calling on resumed callback right away.")
+        callback()
+
+    def _notify_resumed(self, thread_id):
+        # Must be called with self._lock held.
+        self._last_resume_notification_time = self._last_suspend_notification_time
+        self.send_resume_notification(thread_id)
+        callbacks = self._on_resumed_callbacks
+        self._on_resumed_callbacks = []
+        for callback in callbacks:
+            callback()
+
+    def _notify_suspended(self, thread_id, thread, stop_reason, suspend_time):
+        # Must be called with self._lock held.
+        if self._on_resumed_callbacks:
+            # A resume of the previous stop was requested, but another thread reached a new
+            # stop before any suspended thread left its wait loop (so, the resume was never
+            # notified). Notify it now, otherwise the pending callbacks are never called.
+            pydev_log.info("Sending pending resume notification before new suspend notification.")
+            self._notify_resumed(thread_id)
+        self._last_suspend_notification_time = suspend_time
+        self.send_suspend_notification(thread_id, thread, stop_reason)
 
     def send_suspend_notification(self, thread_id, thread, stop_reason):
         raise AssertionError("abstract: subclasses must override.")
@@ -416,11 +453,10 @@ class AbstractSingleNotificationBehavior(object):
         with self._lock:
             if self._suspended_thread_id_to_thread:
                 if global_suspend_time > self._last_suspend_notification_time:
-                    self._last_suspend_notification_time = global_suspend_time
                     # Notify about any thread which is currently suspended.
                     pydev_log.info("Sending suspend notification after timeout.")
                     thread_id, thread = next(iter(self._suspended_thread_id_to_thread.items()))
-                    self.send_suspend_notification(thread_id, thread, CMD_THREAD_SUSPEND)
+                    self._notify_suspended(thread_id, thread, CMD_THREAD_SUSPEND, global_suspend_time)
 
     def on_thread_suspend(self, thread_id, thread, stop_reason):
         with self._lock:
@@ -436,8 +472,7 @@ class AbstractSingleNotificationBehavior(object):
             if stop_reason != CMD_THREAD_SUSPEND or pause_requested:
                 if self._suspend_time_request > self._last_suspend_notification_time:
                     pydev_log.info("Sending suspend notification.")
-                    self._last_suspend_notification_time = self._suspend_time_request
-                    self.send_suspend_notification(thread_id, thread, stop_reason)
+                    self._notify_suspended(thread_id, thread, stop_reason, self._suspend_time_request)
                 else:
                     pydev_log.info(
                         "Suspend not sent (it was already sent). Last suspend % <= Last resume %s",
@@ -455,8 +490,7 @@ class AbstractSingleNotificationBehavior(object):
             self._suspended_thread_id_to_thread.pop(thread_id)
             if self._last_resume_notification_time < self._last_suspend_notification_time:
                 pydev_log.info("Sending resume notification.")
-                self._last_resume_notification_time = self._last_suspend_notification_time
-                self.send_resume_notification(thread_id)
+                self._notify_resumed(thread_id)
             else:
                 pydev_log.info(
                     "Resume not sent (it was already sent). Last resume %s >= Last suspend %s",
@@ -474,31 +508,18 @@ class AbstractSingleNotificationBehavior(object):
 
 
 class ThreadsSuspendedSingleNotification(AbstractSingleNotificationBehavior):
-    __slots__ = AbstractSingleNotificationBehavior.__slots__ + ["multi_threads_single_notification", "_callbacks", "_callbacks_lock"]
+    __slots__ = AbstractSingleNotificationBehavior.__slots__ + ["multi_threads_single_notification"]
 
     def __init__(self, py_db):
         AbstractSingleNotificationBehavior.__init__(self, py_db)
         # If True, pydevd will send a single notification when all threads are suspended/resumed.
         self.multi_threads_single_notification = False
-        self._callbacks_lock = threading.Lock()
-        self._callbacks = []
-
-    def add_on_resumed_callback(self, callback):
-        with self._callbacks_lock:
-            self._callbacks.append(callback)
 
     @overrides(AbstractSingleNotificationBehavior.send_resume_notification)
     def send_resume_notification(self, thread_id):
         py_db = self._py_db()
         if py_db is not None:
             py_db.writer.add_command(py_db.cmd_factory.make_thread_resume_single_notification(thread_id))
-
-            with self._callbacks_lock:
-                callbacks = self._callbacks
-                self._callbacks = []
-
-            for callback in callbacks:
-                callback()
 
     @overrides(AbstractSingleNotificationBehavior.send_suspend_notification)
     def send_suspend_notification(self, thread_id, thread, stop_reason):
