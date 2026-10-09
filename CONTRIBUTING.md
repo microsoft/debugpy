@@ -191,11 +191,14 @@ agent is assumed or provisioned here.
 
 Windows helper selection follows the interpreter for in-process tracing and
 `IsWow64Process2` for PID targets, distinguishing native ARM64 from x86/x64
-emulation. Older x86/x64 Windows retains the bitness fallback. ARM64EC and
-cross-architecture PID injection are not validated support claims: selecting a
-target-matching helper does not establish that Windows can execute that helper
-from every host architecture. Native ARM64 runtime/release validation is still
-required even when cross-compilation succeeds on x64.
+emulation. Older x86/x64 Windows retains the bitness fallback.
+PID injection uses typed Windows API bindings for synchronization and shared
+memory; it does not import `winappdbg` on modern Windows.
+
+ARM64EC and cross-architecture PID injection are not validated support claims:
+selecting a target-matching helper does not establish that Windows can execute
+that helper from every host architecture. Native ARM64 runtime/release validation
+is still required even when cross-compilation succeeds on x64.
 
 ## Updating pydevd
 

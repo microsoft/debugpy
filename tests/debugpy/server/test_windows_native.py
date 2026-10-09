@@ -6,6 +6,7 @@
 
 import importlib
 import os
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 import struct
 import subprocess
@@ -81,6 +82,78 @@ def test_native_binaries_match_interpreter():
         assert frame_eval.__file__ is not None
         assert frame_eval.__file__.endswith(".pyd")
         assert pe_machine(frame_eval.__file__) == expected
+
+
+def test_native_windows_mutex_ownership():
+    kernel32 = attach._get_windows_kernel32()
+    name = f"_pydevd_pid_attach_mutex_{os.getpid()}"
+    retained_handle = kernel32.CreateMutexW(None, False, name)
+    assert retained_handle
+
+    def acquire():
+        with attach._acquire_mutex(name, 0):
+            return True
+
+    try:
+        with ThreadPoolExecutor(max_workers=1) as worker:
+            with attach._acquire_mutex(name, 1):
+                with pytest.raises(attach.TimeoutError, match="Unable to acquire mutex"):
+                    worker.submit(acquire).result(timeout=5)
+            assert worker.submit(acquire).result(timeout=5)
+    finally:
+        assert kernel32.CloseHandle(retained_handle)
+
+
+def test_native_windows_event_protocol():
+    kernel32 = attach._get_windows_kernel32()
+    kernel32.CreateEventA.argtypes = [
+        attach.ctypes.c_void_p,
+        attach.wintypes.BOOL,
+        attach.wintypes.BOOL,
+        attach.wintypes.LPCSTR,
+    ]
+    kernel32.CreateEventA.restype = attach.wintypes.HANDLE
+    kernel32.SetEvent.argtypes = [attach.wintypes.HANDLE]
+    kernel32.SetEvent.restype = attach.wintypes.BOOL
+    name = f"_pydevd_pid_event_{os.getpid()}"
+    with attach._create_win_event(name) as event:
+        assert not event.wait_for_event_set(0)
+        sender = kernel32.CreateEventA(None, False, False, name.encode("ascii"))
+        assert sender
+        try:
+            assert kernel32.SetEvent(sender)
+            assert event.wait_for_event_set(1)
+            assert not event.wait_for_event_set(0)
+        finally:
+            assert kernel32.CloseHandle(sender)
+
+
+def test_native_windows_shared_memory_protocol():
+    kernel32 = attach._get_windows_kernel32()
+    kernel32.OpenFileMappingA.argtypes = [
+        attach.wintypes.DWORD,
+        attach.wintypes.BOOL,
+        attach.wintypes.LPCSTR,
+    ]
+    kernel32.OpenFileMappingA.restype = attach.wintypes.HANDLE
+    pid = os.getpid()
+    payload = b"print(1)"
+    with attach._win_write_to_shared_named_memory(payload, pid):
+        mapping = kernel32.OpenFileMappingA(
+            0x4, False, f"__pydevd_pid_code_to_run__{pid}".encode("ascii")
+        )
+        assert mapping
+        try:
+            view = kernel32.MapViewOfFile(mapping, 0x4, 0, 0, 2048)
+            assert view
+            try:
+                assert attach.ctypes.string_at(view, 2048) == (
+                    payload + b"\0" * (2048 - len(payload))
+                )
+            finally:
+                assert kernel32.UnmapViewOfFile(view)
+        finally:
+            assert kernel32.CloseHandle(mapping)
 
 
 def test_native_pid_injection_executes_code(tmp_path, monkeypatch):

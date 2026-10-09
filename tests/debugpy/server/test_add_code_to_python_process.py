@@ -2,17 +2,15 @@
 # Licensed under the MIT License. See LICENSE in the project root
 # for license information.
 
-"""Tests for the injector selection logic in pydevd's add_code_to_python_process.
+"""Tests for the injectors and Windows IPC in pydevd's add_code_to_python_process.
 
-These cover the Linux gdb/lldb dispatcher and the lldb command line that it builds.
-Neither gdb nor lldb is actually spawned, so they run on any platform.
+Native APIs and subprocesses are mocked so these run on any platform.
 """
 
 import importlib.util
 import os
 import pytest
 import sys
-from contextlib import nullcontext
 from types import SimpleNamespace
 
 from unittest import mock
@@ -201,12 +199,23 @@ def test_windows_target_filename_missing_or_unsupported(acpp, monkeypatch):
 
 @pytest.fixture
 def windows_kernel(acpp, monkeypatch):
+    memory = acpp.ctypes.create_string_buffer(2048)
     kernel = SimpleNamespace(
         OpenProcess=mock.Mock(return_value=0x123456789),
         CloseHandle=mock.Mock(return_value=True),
         IsWow64Process2=mock.Mock(),
+        CreateMutexW=mock.Mock(return_value=0x12345678A),
+        ReleaseMutex=mock.Mock(return_value=True),
+        WaitForSingleObject=mock.Mock(return_value=0),
+        CreateEventW=mock.Mock(return_value=0x12345678C),
+        CreateFileMappingW=mock.Mock(return_value=0x12345678B),
+        MapViewOfFile=mock.Mock(return_value=acpp.ctypes.addressof(memory)),
+        UnmapViewOfFile=mock.Mock(return_value=True),
+        memory=memory,
     )
-    monkeypatch.setattr(acpp.ctypes, "WinDLL", lambda *a, **kw: kernel, raising=False)
+    monkeypatch.setattr(
+        acpp.ctypes, "WinDLL", mock.Mock(return_value=kernel), raising=False
+    )
     monkeypatch.setattr(
         acpp.ctypes,
         "WinError",
@@ -215,6 +224,221 @@ def windows_kernel(acpp, monkeypatch):
     )
     monkeypatch.setattr(acpp.ctypes, "get_last_error", lambda: 5, raising=False)
     return kernel
+
+
+def test_windows_kernel32_signatures(acpp, windows_kernel):
+    ctypes = acpp.ctypes
+    wintypes = acpp.wintypes
+    signatures = {
+        "OpenProcess": ([wintypes.DWORD, wintypes.BOOL, wintypes.DWORD], wintypes.HANDLE),
+        "CloseHandle": ([wintypes.HANDLE], wintypes.BOOL),
+        "CreateMutexW": (
+            [ctypes.c_void_p, wintypes.BOOL, wintypes.LPCWSTR],
+            wintypes.HANDLE,
+        ),
+        "ReleaseMutex": ([wintypes.HANDLE], wintypes.BOOL),
+        "WaitForSingleObject": ([wintypes.HANDLE, wintypes.DWORD], wintypes.DWORD),
+        "CreateEventW": (
+            [ctypes.c_void_p, wintypes.BOOL, wintypes.BOOL, wintypes.LPCWSTR],
+            wintypes.HANDLE,
+        ),
+        "CreateFileMappingW": (
+            [
+                wintypes.HANDLE,
+                ctypes.c_void_p,
+                wintypes.DWORD,
+                wintypes.DWORD,
+                wintypes.DWORD,
+                wintypes.LPCWSTR,
+            ],
+            wintypes.HANDLE,
+        ),
+        "MapViewOfFile": (
+            [
+                wintypes.HANDLE,
+                wintypes.DWORD,
+                wintypes.DWORD,
+                wintypes.DWORD,
+                ctypes.c_size_t,
+            ],
+            ctypes.c_void_p,
+        ),
+        "UnmapViewOfFile": ([ctypes.c_void_p], wintypes.BOOL),
+    }
+    assert acpp._get_windows_kernel32() is windows_kernel
+    acpp.ctypes.WinDLL.assert_called_once_with("kernel32", use_last_error=True)
+    for name, (args, result) in signatures.items():
+        function = getattr(windows_kernel, name)
+        assert function.argtypes == args
+        assert function.restype is result
+
+
+@pytest.mark.parametrize("result", [0, 0x80])
+def test_windows_mutex_ownership(acpp, windows_kernel, result):
+    windows_kernel.WaitForSingleObject.return_value = result
+    operations = mock.Mock()
+    operations.attach_mock(windows_kernel.ReleaseMutex, "release")
+    operations.attach_mock(windows_kernel.CloseHandle, "close")
+    with acpp._acquire_mutex("_pydevd_pid_attach_mutex_4242", 10):
+        windows_kernel.CreateMutexW.assert_called_once_with(
+            None, False, "_pydevd_pid_attach_mutex_4242"
+        )
+        windows_kernel.WaitForSingleObject.assert_called_once_with(0x12345678A, 10000)
+        assert operations.mock_calls == []
+    assert operations.mock_calls == [
+        mock.call.release(0x12345678A),
+        mock.call.close(0x12345678A),
+    ]
+
+
+@pytest.mark.parametrize("failure", ["create", "timeout", "wait", "release", "close"])
+def test_windows_mutex_errors(acpp, windows_kernel, failure):
+    if failure == "create":
+        windows_kernel.CreateMutexW.return_value = None
+    elif failure == "timeout":
+        windows_kernel.WaitForSingleObject.return_value = 0x102
+    elif failure == "wait":
+        windows_kernel.WaitForSingleObject.return_value = 0xFFFFFFFF
+    elif failure == "release":
+        windows_kernel.ReleaseMutex.return_value = False
+    else:
+        windows_kernel.CloseHandle.return_value = False
+    expected = acpp.TimeoutError if failure == "timeout" else OSError
+    with pytest.raises(expected) as exc:
+        with acpp._acquire_mutex("mutex", 10):
+            assert failure in ("release", "close")
+    if failure != "timeout":
+        assert exc.value.errno == 5
+    if failure == "create":
+        windows_kernel.WaitForSingleObject.assert_not_called()
+        windows_kernel.CloseHandle.assert_not_called()
+    else:
+        windows_kernel.CloseHandle.assert_called_once_with(0x12345678A)
+    if failure in ("create", "timeout", "wait"):
+        windows_kernel.ReleaseMutex.assert_not_called()
+    else:
+        windows_kernel.ReleaseMutex.assert_called_once_with(0x12345678A)
+
+
+@pytest.mark.parametrize("name", ["event", b"event"])
+@pytest.mark.parametrize("timeout, milliseconds", [(None, 0xFFFFFFFF), (1.25, 1250)])
+@pytest.mark.parametrize("result, signaled", [(0, True), (0x80, True), (0x102, False)])
+def test_windows_event_wait(
+    acpp, windows_kernel, name, timeout, milliseconds, result, signaled
+):
+    windows_kernel.WaitForSingleObject.return_value = result
+    with acpp._create_win_event(name) as event:
+        assert event.wait_for_event_set(timeout) is signaled
+        windows_kernel.CloseHandle.assert_not_called()
+    windows_kernel.CreateEventW.assert_called_once_with(None, False, False, "event")
+    windows_kernel.WaitForSingleObject.assert_called_once_with(0x12345678C, milliseconds)
+    windows_kernel.CloseHandle.assert_called_once_with(0x12345678C)
+
+
+@pytest.mark.parametrize("failure", ["create", "wait", "close"])
+def test_windows_event_errors(acpp, windows_kernel, failure):
+    if failure == "create":
+        windows_kernel.CreateEventW.return_value = None
+    elif failure == "wait":
+        windows_kernel.WaitForSingleObject.return_value = 0xFFFFFFFF
+    else:
+        windows_kernel.CloseHandle.return_value = False
+    with pytest.raises(OSError) as exc:
+        with acpp._create_win_event("event") as event:
+            event.wait_for_event_set(15)
+    assert exc.value.errno == 5
+    if failure == "create":
+        windows_kernel.WaitForSingleObject.assert_not_called()
+        windows_kernel.CloseHandle.assert_not_called()
+    else:
+        windows_kernel.CloseHandle.assert_called_once_with(0x12345678C)
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [b"print(1)", 'print("\u00e9")'.encode("utf-8"), b"x" * 2046],
+    ids=["ascii", "utf8", "maximum-size"],
+)
+def test_windows_shared_memory_payload(acpp, windows_kernel, payload):
+    operations = mock.Mock()
+    operations.attach_mock(windows_kernel.UnmapViewOfFile, "unmap")
+    operations.attach_mock(windows_kernel.CloseHandle, "close")
+    with acpp._win_write_to_shared_named_memory(payload, 4242):
+        assert windows_kernel.memory.raw == payload + b"\0" * (2048 - len(payload))
+        assert operations.mock_calls == []
+    windows_kernel.CreateFileMappingW.assert_called_once_with(
+        -1, None, 0x4, 0, 2048, "__pydevd_pid_code_to_run__4242"
+    )
+    windows_kernel.MapViewOfFile.assert_called_once_with(0x12345678B, 0x2, 0, 0, 0)
+    assert operations.mock_calls == [
+        mock.call.unmap(windows_kernel.MapViewOfFile.return_value),
+        mock.call.close(0x12345678B),
+    ]
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [b"", b"x" * 2047, b"x" * 2048, "print(1)"],
+    ids=["empty", "missing-terminator-space", "full-buffer", "not-bytes"],
+)
+def test_windows_shared_memory_rejects_invalid_payload(acpp, windows_kernel, payload):
+    with pytest.raises(AssertionError):
+        with acpp._win_write_to_shared_named_memory(payload, 4242):
+            pytest.fail("Invalid code must not be written")
+    windows_kernel.CreateFileMappingW.assert_not_called()
+
+
+@pytest.mark.parametrize("failure", ["create", "map", "copy", "unmap", "close"])
+def test_windows_shared_memory_errors(acpp, windows_kernel, monkeypatch, failure):
+    if failure == "create":
+        windows_kernel.CreateFileMappingW.return_value = None
+    elif failure == "map":
+        windows_kernel.MapViewOfFile.return_value = None
+    elif failure == "copy":
+        monkeypatch.setattr(
+            acpp.ctypes, "memmove", mock.Mock(side_effect=RuntimeError("copy failed"))
+        )
+    elif failure == "unmap":
+        windows_kernel.UnmapViewOfFile.return_value = False
+    else:
+        windows_kernel.CloseHandle.return_value = False
+    expected = RuntimeError if failure == "copy" else OSError
+    with pytest.raises(expected) as exc:
+        with acpp._win_write_to_shared_named_memory(b"print(1)", 4242):
+            assert failure in ("unmap", "close")
+    if failure != "copy":
+        assert exc.value.errno == 5
+    if failure == "create":
+        windows_kernel.MapViewOfFile.assert_not_called()
+        windows_kernel.CloseHandle.assert_not_called()
+    else:
+        windows_kernel.CloseHandle.assert_called_once_with(0x12345678B)
+    if failure in ("create", "map"):
+        windows_kernel.UnmapViewOfFile.assert_not_called()
+    else:
+        windows_kernel.UnmapViewOfFile.assert_called_once_with(
+            windows_kernel.MapViewOfFile.return_value
+        )
+
+
+@pytest.mark.parametrize("helper", ["mutex", "event", "shared_memory"])
+def test_windows_ipc_cleanup_on_body_error(acpp, windows_kernel, helper):
+    contexts = {
+        "mutex": acpp._acquire_mutex("mutex", 10),
+        "event": acpp._create_win_event("event"),
+        "shared_memory": acpp._win_write_to_shared_named_memory(b"print(1)", 4242),
+    }
+    with pytest.raises(RuntimeError, match="body failed"):
+        with contexts[helper]:
+            raise RuntimeError("body failed")
+    handles = {"mutex": 0x12345678A, "event": 0x12345678C, "shared_memory": 0x12345678B}
+    windows_kernel.CloseHandle.assert_called_once_with(handles[helper])
+    if helper == "mutex":
+        windows_kernel.ReleaseMutex.assert_called_once_with(0x12345678A)
+    elif helper == "shared_memory":
+        windows_kernel.UnmapViewOfFile.assert_called_once_with(
+            windows_kernel.MapViewOfFile.return_value
+        )
 
 
 @pytest.mark.parametrize(
@@ -307,19 +531,24 @@ def test_windows_legacy_api_rejects_unknown_native_architecture(
 @pytest.mark.parametrize("target_arch", ["x86", "amd64", "arm64"])
 @pytest.mark.parametrize("completed", [True, False])
 def test_windows_injection_uses_target_architecture(
-    acpp, monkeypatch, target_arch, completed
+    acpp, windows_kernel, monkeypatch, target_arch, completed
 ):
     monkeypatch.setattr(acpp, "IS_WINDOWS", True)
-    monkeypatch.setattr(
-        acpp, "get_windows_process_architecture", lambda pid: target_arch
-    )
-    monkeypatch.setattr(acpp, "_acquire_mutex", lambda *a: nullcontext())
-    monkeypatch.setattr(
-        acpp, "_win_write_to_shared_named_memory", lambda *a: nullcontext()
-    )
-    event = mock.Mock()
-    event.wait_for_event_set.return_value = completed
-    monkeypatch.setattr(acpp, "_create_win_event", lambda *a: nullcontext(event))
+    for name in (
+        "winappdbg",
+        "winappdbg.win32",
+        "winappdbg.win32.kernel32",
+        "winappdbg.win32.defines",
+    ):
+        monkeypatch.setitem(sys.modules, name, None)
+
+    def query(handle, process, native):
+        process._obj.value = {"x86": 0x014C, "amd64": 0x8664, "arm64": 0}[target_arch]
+        native._obj.value = 0xAA64
+        return True
+
+    windows_kernel.IsWow64Process2.side_effect = query
+    windows_kernel.WaitForSingleObject.side_effect = [0, 0 if completed else 0x102]
     with mock.patch.object(acpp.os.path, "exists", return_value=True):
         with mock.patch.object(acpp.subprocess, "check_call") as check_call:
             if completed:
@@ -338,3 +567,24 @@ def test_windows_injection_uses_target_architecture(
             f"run_code_on_dllmain_{target_arch}.dll",
         ],
     ]
+    windows_kernel.CreateMutexW.assert_called_once_with(
+        None, False, "_pydevd_pid_attach_mutex_4242"
+    )
+    windows_kernel.CreateEventW.assert_called_once_with(
+        None, False, False, "_pydevd_pid_event_4242"
+    )
+    assert windows_kernel.memory.raw == b"print(1)" + b"\0" * (2048 - len(b"print(1)"))
+    assert windows_kernel.WaitForSingleObject.call_args_list == [
+        mock.call(0x12345678A, 10000),
+        mock.call(0x12345678C, 15000),
+    ]
+    assert windows_kernel.CloseHandle.call_args_list == [
+        mock.call(0x123456789),
+        mock.call(0x12345678C),
+        mock.call(0x12345678B),
+        mock.call(0x12345678A),
+    ]
+    windows_kernel.ReleaseMutex.assert_called_once_with(0x12345678A)
+    windows_kernel.UnmapViewOfFile.assert_called_once_with(
+        windows_kernel.MapViewOfFile.return_value
+    )

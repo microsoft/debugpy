@@ -89,17 +89,42 @@ except NameError:
         pass
 
 
+def _get_windows_kernel32():
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+    kernel32.OpenProcess.restype = wintypes.HANDLE
+    kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+    kernel32.CloseHandle.restype = wintypes.BOOL
+    kernel32.CreateMutexW.argtypes = [ctypes.c_void_p, wintypes.BOOL, wintypes.LPCWSTR]
+    kernel32.CreateMutexW.restype = wintypes.HANDLE
+    kernel32.ReleaseMutex.argtypes = [wintypes.HANDLE]
+    kernel32.ReleaseMutex.restype = wintypes.BOOL
+    kernel32.WaitForSingleObject.argtypes = [wintypes.HANDLE, wintypes.DWORD]
+    kernel32.WaitForSingleObject.restype = wintypes.DWORD
+    kernel32.CreateEventW.argtypes = [ctypes.c_void_p, wintypes.BOOL, wintypes.BOOL, wintypes.LPCWSTR]
+    kernel32.CreateEventW.restype = wintypes.HANDLE
+    kernel32.CreateFileMappingW.argtypes = [
+        wintypes.HANDLE, ctypes.c_void_p, wintypes.DWORD, wintypes.DWORD, wintypes.DWORD, wintypes.LPCWSTR
+    ]
+    kernel32.CreateFileMappingW.restype = wintypes.HANDLE
+    kernel32.MapViewOfFile.argtypes = [wintypes.HANDLE, wintypes.DWORD, wintypes.DWORD, wintypes.DWORD, ctypes.c_size_t]
+    kernel32.MapViewOfFile.restype = ctypes.c_void_p
+    kernel32.UnmapViewOfFile.argtypes = [ctypes.c_void_p]
+    kernel32.UnmapViewOfFile.restype = wintypes.BOOL
+    return kernel32
+
+
 @contextmanager
 def _create_win_event(name):
-    from winappdbg.win32.kernel32 import CreateEventA, WaitForSingleObject, CloseHandle
+    kernel32 = _get_windows_kernel32()
 
     manual_reset = False  # i.e.: after someone waits it, automatically set to False.
     initial_state = False
-    if not isinstance(name, bytes):
-        name = name.encode("utf-8")
-    event = CreateEventA(None, manual_reset, initial_state, name)
+    if isinstance(name, bytes):
+        name = name.decode("utf-8")
+    event = kernel32.CreateEventW(None, manual_reset, initial_state, name)
     if not event:
-        raise ctypes.WinError()
+        raise ctypes.WinError(ctypes.get_last_error())
 
     class _WinEvent(object):
         def wait_for_event_set(self, timeout=None):
@@ -110,19 +135,20 @@ def _create_win_event(name):
                 timeout = 0xFFFFFFFF
             else:
                 timeout = int(timeout * 1000)
-            ret = WaitForSingleObject(event, timeout)
+            ret = kernel32.WaitForSingleObject(event, timeout)
             if ret in (0, 0x80):
                 return True
             elif ret == 0x102:
                 # Timed out
                 return False
             else:
-                raise ctypes.WinError()
+                raise ctypes.WinError(ctypes.get_last_error())
 
     try:
         yield _WinEvent()
     finally:
-        CloseHandle(event)
+        if not kernel32.CloseHandle(event):
+            raise ctypes.WinError(ctypes.get_last_error())
 
 
 IS_WINDOWS = sys.platform == "win32"
@@ -135,7 +161,7 @@ def is_python_64bit():
 
 
 def get_windows_process_architecture(pid):
-    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32 = _get_windows_kernel32()
     try:
         is_wow64_process2 = kernel32.IsWow64Process2
     except AttributeError:
@@ -147,10 +173,6 @@ def get_windows_process_architecture(pid):
             raise RuntimeError("IsWow64Process2 is required to identify a Windows ARM64 target.")
         return "amd64" if Process(pid).get_bits() == 64 else "x86"
 
-    kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
-    kernel32.OpenProcess.restype = wintypes.HANDLE
-    kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
-    kernel32.CloseHandle.restype = wintypes.BOOL
     is_wow64_process2.argtypes = [wintypes.HANDLE, ctypes.POINTER(wintypes.WORD), ctypes.POINTER(wintypes.WORD)]
     is_wow64_process2.restype = wintypes.BOOL
 
@@ -344,44 +366,29 @@ def _acquire_mutex(mutex_name, timeout):
     Only one process may be attaching to a pid, so, create a system mutex
     to make sure this holds in practice.
     """
-    from winappdbg.win32.kernel32 import CreateMutex, GetLastError, CloseHandle
-    from winappdbg.win32.defines import ERROR_ALREADY_EXISTS
-
-    initial_time = time.time()
-    while True:
-        mutex = CreateMutex(None, True, mutex_name)
-        acquired = GetLastError() != ERROR_ALREADY_EXISTS
-        if acquired:
-            break
-        if time.time() - initial_time > timeout:
-            raise TimeoutError("Unable to acquire mutex to make attach before timeout.")
-        time.sleep(0.2)
+    kernel32 = _get_windows_kernel32()
+    mutex = kernel32.CreateMutexW(None, False, mutex_name)
+    if not mutex:
+        raise ctypes.WinError(ctypes.get_last_error())
 
     try:
-        yield
+        result = kernel32.WaitForSingleObject(mutex, int(timeout * 1000))
+        if result == 0x102:  # WAIT_TIMEOUT
+            raise TimeoutError("Unable to acquire mutex to make attach before timeout.")
+        if result not in (0, 0x80):  # WAIT_OBJECT_0, WAIT_ABANDONED
+            raise ctypes.WinError(ctypes.get_last_error())
+        try:
+            yield
+        finally:
+            if not kernel32.ReleaseMutex(mutex):
+                raise ctypes.WinError(ctypes.get_last_error())
     finally:
-        CloseHandle(mutex)
+        if not kernel32.CloseHandle(mutex):
+            raise ctypes.WinError(ctypes.get_last_error())
 
 
 @contextmanager
 def _win_write_to_shared_named_memory(python_code, pid):
-    # Use the definitions from winappdbg when possible.
-    from winappdbg.win32 import defines
-    from winappdbg.win32.kernel32 import (
-        CreateFileMapping,
-        MapViewOfFile,
-        CloseHandle,
-        UnmapViewOfFile,
-    )
-
-    memmove = ctypes.cdll.msvcrt.memmove
-    memmove.argtypes = [
-        ctypes.c_void_p,
-        ctypes.c_void_p,
-        defines.SIZE_T,
-    ]
-    memmove.restype = ctypes.c_void_p
-
     # Note: BUFSIZE must be the same from run_code_in_memory.hpp
     BUFSIZE = 2048
     assert isinstance(python_code, bytes)
@@ -395,22 +402,27 @@ def _win_write_to_shared_named_memory(python_code, pid):
     INVALID_HANDLE_VALUE = -1
     PAGE_READWRITE = 0x4
     FILE_MAP_WRITE = 0x2
-    filemap = CreateFileMapping(INVALID_HANDLE_VALUE, 0, PAGE_READWRITE, 0, BUFSIZE, "__pydevd_pid_code_to_run__%s" % (pid,))
+    kernel32 = _get_windows_kernel32()
+    filemap = kernel32.CreateFileMappingW(
+        INVALID_HANDLE_VALUE, None, PAGE_READWRITE, 0, BUFSIZE, "__pydevd_pid_code_to_run__%s" % (pid,)
+    )
 
-    if filemap == INVALID_HANDLE_VALUE or filemap is None:
-        raise Exception("Failed to create named file mapping (ctypes: CreateFileMapping): %s" % (filemap,))
+    if not filemap:
+        raise ctypes.WinError(ctypes.get_last_error())
     try:
-        view = MapViewOfFile(filemap, FILE_MAP_WRITE, 0, 0, 0)
+        view = kernel32.MapViewOfFile(filemap, FILE_MAP_WRITE, 0, 0, 0)
         if not view:
-            raise Exception("Failed to create view of named file mapping (ctypes: MapViewOfFile).")
+            raise ctypes.WinError(ctypes.get_last_error())
 
         try:
-            memmove(view, python_code, BUFSIZE)
+            ctypes.memmove(view, python_code, BUFSIZE)
             yield
         finally:
-            UnmapViewOfFile(view)
+            if not kernel32.UnmapViewOfFile(view):
+                raise ctypes.WinError(ctypes.get_last_error())
     finally:
-        CloseHandle(filemap)
+        if not kernel32.CloseHandle(filemap):
+            raise ctypes.WinError(ctypes.get_last_error())
 
 
 def run_python_code_linux_gdb(pid, python_code, connect_debugger_tracing=False, show_debug_info=0):
