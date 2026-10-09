@@ -8,6 +8,7 @@ from pathlib import Path
 import runpy
 import subprocess
 import sys
+from types import SimpleNamespace
 
 import pytest
 from setuptools import Distribution
@@ -66,6 +67,8 @@ def packaging_command(tmp_path, monkeypatch):
             }
         )
         build_command = distribution.get_command_obj("build")
+        # Finalize for the host before overriding the package-data filtering target.
+        build_command.ensure_finalized()
         build_command.plat_name = platform
         command = PackagingBuildPy(distribution)
         command.ensure_finalized()
@@ -88,6 +91,25 @@ def packaging_command(tmp_path, monkeypatch):
     ],
 )
 def test_platform_package_data(packaging_command, platform, expected):
+    create, _ = packaging_command
+    assert create(platform) == expected
+
+
+@pytest.mark.parametrize(
+    "platform, expected",
+    [
+        ("win-arm64", WINDOWS_BINARIES + SOURCE),
+        ("macosx-11.0-arm64", MAC + SOURCE),
+    ],
+)
+def test_platform_package_data_on_posix_host(
+    packaging_command, monkeypatch, platform, expected
+):
+    monkeypatch.setitem(
+        build.finalize_options.__globals__,
+        "os",
+        SimpleNamespace(name="posix", path=os.path),
+    )
     create, _ = packaging_command
     assert create(platform) == expected
 
