@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import runpy
 import subprocess
+import sys
 from unittest import mock
 
 import pytest
@@ -16,6 +17,15 @@ import pydevd_tracing
 def isolated_build_environment():
     with mock.patch.dict(os.environ):
         yield
+
+
+@pytest.fixture
+def build_helper(monkeypatch):
+    vswhere = mock.Mock(spec=["get_latest_path"])
+    vswhere.get_latest_path.return_value = None
+    monkeypatch.setitem(sys.modules, "vswhere", vswhere)
+    root = Path(__file__).resolve().parents[3]
+    return runpy.run_path(str(root / "build_attach_binaries.py"))
 
 
 @pytest.mark.parametrize("os_arch", ["ARM64", "AMD64", "x86"])
@@ -54,9 +64,10 @@ def test_tracing_missing_arm64_helper_does_not_load_x64(monkeypatch):
 
 
 @pytest.mark.parametrize("target", ["win-arm64", "win-amd64", "win32"])
-def test_build_helper_requests_arm64_only_when_native(monkeypatch, target):
-    root = Path(__file__).resolve().parents[3]
-    module = runpy.run_path(str(root / "build_attach_binaries.py"))
+def test_build_helper_requests_arm64_only_when_native(
+    monkeypatch, build_helper, target
+):
+    module = build_helper
     monkeypatch.setattr(module["platform"], "system", lambda: "Windows")
     monkeypatch.setattr(module["sysconfig"], "get_platform", lambda: target)
     with mock.patch.object(module["os"].path, "exists", return_value=False):
@@ -67,9 +78,8 @@ def test_build_helper_requests_arm64_only_when_native(monkeypatch, target):
     assert command[1:] == (["arm64"] if target == "win-arm64" else [])
 
 
-def test_build_helper_propagates_failure(monkeypatch):
-    root = Path(__file__).resolve().parents[3]
-    module = runpy.run_path(str(root / "build_attach_binaries.py"))
+def test_build_helper_propagates_failure(monkeypatch, build_helper):
+    module = build_helper
     monkeypatch.setattr(module["platform"], "system", lambda: "Windows")
     with mock.patch.object(
         module["subprocess"],
@@ -80,9 +90,8 @@ def test_build_helper_propagates_failure(monkeypatch):
             module["build_pydevd_binaries"](True)
 
 
-def test_build_helper_rebuilds_incomplete_arm64_outputs(monkeypatch):
-    root = Path(__file__).resolve().parents[3]
-    module = runpy.run_path(str(root / "build_attach_binaries.py"))
+def test_build_helper_rebuilds_incomplete_arm64_outputs(monkeypatch, build_helper):
+    module = build_helper
     monkeypatch.setattr(module["platform"], "system", lambda: "Windows")
     monkeypatch.setattr(module["sysconfig"], "get_platform", lambda: "win-arm64")
     with mock.patch.object(
