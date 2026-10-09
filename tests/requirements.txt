@@ -10,6 +10,7 @@ pytest-retry
 
 importlib_metadata
 psutil
+setuptools>=65.4.1
 untangle
 
 ## Used in Python code that is run/debugged by the tests:

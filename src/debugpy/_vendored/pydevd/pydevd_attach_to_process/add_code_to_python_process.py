@@ -6,7 +6,7 @@ License: EPL.
 
 Works for Windows by using an executable that'll inject a dll to a process and call a function.
 
-Note: https://github.com/fabioz/winappdbg is used just to determine if the target process is 32 or 64 bits.
+Windows target architecture is queried with IsWow64Process2, with a winappdbg fallback on older x86/x64 Windows.
 
 Works for Linux relying on gdb.
 
@@ -70,6 +70,7 @@ See: attach_pydevd.py to attach the pydev debugger to a running python process.
 # x:\nasm\nasm-2.07-win32\nasm-2.07\nasm.exe
 # nasm.asm&x:\nasm\nasm-2.07-win32\nasm-2.07\ndisasm.exe -b arch nasm
 import ctypes
+from ctypes import wintypes
 import os
 import shutil
 import struct
@@ -88,17 +89,42 @@ except NameError:
         pass
 
 
+def _get_windows_kernel32():
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+    kernel32.OpenProcess.restype = wintypes.HANDLE
+    kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+    kernel32.CloseHandle.restype = wintypes.BOOL
+    kernel32.CreateMutexW.argtypes = [ctypes.c_void_p, wintypes.BOOL, wintypes.LPCWSTR]
+    kernel32.CreateMutexW.restype = wintypes.HANDLE
+    kernel32.ReleaseMutex.argtypes = [wintypes.HANDLE]
+    kernel32.ReleaseMutex.restype = wintypes.BOOL
+    kernel32.WaitForSingleObject.argtypes = [wintypes.HANDLE, wintypes.DWORD]
+    kernel32.WaitForSingleObject.restype = wintypes.DWORD
+    kernel32.CreateEventW.argtypes = [ctypes.c_void_p, wintypes.BOOL, wintypes.BOOL, wintypes.LPCWSTR]
+    kernel32.CreateEventW.restype = wintypes.HANDLE
+    kernel32.CreateFileMappingW.argtypes = [
+        wintypes.HANDLE, ctypes.c_void_p, wintypes.DWORD, wintypes.DWORD, wintypes.DWORD, wintypes.LPCWSTR
+    ]
+    kernel32.CreateFileMappingW.restype = wintypes.HANDLE
+    kernel32.MapViewOfFile.argtypes = [wintypes.HANDLE, wintypes.DWORD, wintypes.DWORD, wintypes.DWORD, ctypes.c_size_t]
+    kernel32.MapViewOfFile.restype = ctypes.c_void_p
+    kernel32.UnmapViewOfFile.argtypes = [ctypes.c_void_p]
+    kernel32.UnmapViewOfFile.restype = wintypes.BOOL
+    return kernel32
+
+
 @contextmanager
 def _create_win_event(name):
-    from winappdbg.win32.kernel32 import CreateEventA, WaitForSingleObject, CloseHandle
+    kernel32 = _get_windows_kernel32()
 
     manual_reset = False  # i.e.: after someone waits it, automatically set to False.
     initial_state = False
-    if not isinstance(name, bytes):
-        name = name.encode("utf-8")
-    event = CreateEventA(None, manual_reset, initial_state, name)
+    if isinstance(name, bytes):
+        name = name.decode("utf-8")
+    event = kernel32.CreateEventW(None, manual_reset, initial_state, name)
     if not event:
-        raise ctypes.WinError()
+        raise ctypes.WinError(ctypes.get_last_error())
 
     class _WinEvent(object):
         def wait_for_event_set(self, timeout=None):
@@ -109,19 +135,20 @@ def _create_win_event(name):
                 timeout = 0xFFFFFFFF
             else:
                 timeout = int(timeout * 1000)
-            ret = WaitForSingleObject(event, timeout)
+            ret = kernel32.WaitForSingleObject(event, timeout)
             if ret in (0, 0x80):
                 return True
             elif ret == 0x102:
                 # Timed out
                 return False
             else:
-                raise ctypes.WinError()
+                raise ctypes.WinError(ctypes.get_last_error())
 
     try:
         yield _WinEvent()
     finally:
-        CloseHandle(event)
+        if not kernel32.CloseHandle(event):
+            raise ctypes.WinError(ctypes.get_last_error())
 
 
 IS_WINDOWS = sys.platform == "win32"
@@ -133,7 +160,41 @@ def is_python_64bit():
     return struct.calcsize("P") == 8
 
 
-def get_target_filename(is_target_process_64=None, prefix=None, extension=None):
+def get_windows_process_architecture(pid):
+    kernel32 = _get_windows_kernel32()
+    try:
+        is_wow64_process2 = kernel32.IsWow64Process2
+    except AttributeError:
+        # Windows versions predating IsWow64Process2 only support our x86/x64 targets.
+        from winappdbg import win32
+        from winappdbg.process import Process
+
+        if win32.arch not in (win32.ARCH_I386, win32.ARCH_AMD64):
+            raise RuntimeError("IsWow64Process2 is required to identify a Windows ARM64 target.")
+        return "amd64" if Process(pid).get_bits() == 64 else "x86"
+
+    is_wow64_process2.argtypes = [wintypes.HANDLE, ctypes.POINTER(wintypes.WORD), ctypes.POINTER(wintypes.WORD)]
+    is_wow64_process2.restype = wintypes.BOOL
+
+    handle = kernel32.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+    if not handle:
+        raise ctypes.WinError(ctypes.get_last_error())
+    try:
+        process_machine = wintypes.WORD()
+        native_machine = wintypes.WORD()
+        if not is_wow64_process2(handle, ctypes.byref(process_machine), ctypes.byref(native_machine)):
+            raise ctypes.WinError(ctypes.get_last_error())
+        machine = process_machine.value or native_machine.value
+        arch = {0x014C: "x86", 0x8664: "amd64", 0xAA64: "arm64"}.get(machine)
+        if arch is None:
+            raise RuntimeError("Unsupported Windows target machine: 0x%04x." % (machine,))
+        return arch
+    finally:
+        if not kernel32.CloseHandle(handle):
+            raise ctypes.WinError(ctypes.get_last_error())
+
+
+def get_target_filename(is_target_process_64=None, prefix=None, extension=None, target_arch=None):
     # Note: we have an independent (and similar -- but not equal) version of this method in
     # `pydevd_tracing.py` which should be kept synchronized with this one (we do a copy
     # because the `pydevd_attach_to_process` is mostly independent and shouldn't be imported in the
@@ -142,33 +203,30 @@ def get_target_filename(is_target_process_64=None, prefix=None, extension=None):
     # and not from the debugger).
     libdir = os.path.dirname(os.path.abspath(__file__))
 
-    if is_target_process_64 is None:
-        if IS_WINDOWS:
-            # i.e.: On windows the target process could have a different bitness (32bit is emulated on 64bit).
-            raise AssertionError("On windows it's expected that the target bitness is specified.")
+    if IS_WINDOWS:
+        if target_arch is None:
+            if is_target_process_64 is None:
+                raise AssertionError("On Windows the target architecture must be specified.")
+            # Retain the legacy bitness argument for x86/x64 callers.
+            target_arch = "amd64" if is_target_process_64 else "x86"
+        if target_arch not in ("x86", "amd64", "arm64"):
+            raise RuntimeError("Unsupported Windows target architecture: %s." % (target_arch,))
+        filename = os.path.join(libdir, "%s%s%s" % (prefix or "attach_", target_arch, extension or ".dll"))
+        if not os.path.exists(filename):
+            print("Expected: %s to exist." % (filename,))
+            return None
+        return filename
 
+    if is_target_process_64 is None:
         # For other platforms, just use the the same bitness of the process we're running in.
         is_target_process_64 = is_python_64bit()
 
-    arch = ""
-    if IS_WINDOWS:
-        # prefer not using platform.machine() when possible (it's a bit heavyweight as it may
-        # spawn a subprocess).
-        arch = os.environ.get("PROCESSOR_ARCHITEW6432", os.environ.get("PROCESSOR_ARCHITECTURE", ""))
-
+    arch = platform.machine()
     if not arch:
-        arch = platform.machine()
-        if not arch:
-            print("platform.machine() did not return valid value.")  # This shouldn't happen...
-            return None
+        print("platform.machine() did not return valid value.")  # This shouldn't happen...
+        return None
 
-    if IS_WINDOWS:
-        if not extension:
-            extension = ".dll"
-        suffix_64 = "amd64"
-        suffix_32 = "x86"
-
-    elif IS_LINUX:
+    if IS_LINUX:
         if not extension:
             extension = ".so"
         suffix_64 = "amd64"
@@ -238,9 +296,7 @@ def get_target_filename(is_target_process_64=None, prefix=None, extension=None):
 
         if not prefix:
             # Default is looking for the attach_ / attach_linux
-            if IS_WINDOWS:  # just the extension changes
-                prefix = "attach_"
-            elif IS_MAC:
+            if IS_MAC:
                 prefix = "attach"
                 suffix = ""
             elif IS_LINUX:
@@ -261,37 +317,21 @@ def get_target_filename(is_target_process_64=None, prefix=None, extension=None):
 def run_python_code_windows(pid, python_code, connect_debugger_tracing=False, show_debug_info=0):
     assert "'" not in python_code, "Having a single quote messes with our command."
 
-    # Suppress winappdbg warning about sql package missing.
-    import warnings
-
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", category=ImportWarning)
-        from winappdbg.process import Process
-
     if not isinstance(python_code, bytes):
         python_code = python_code.encode("utf-8")
 
-    process = Process(pid)
-    bits = process.get_bits()
-    is_target_process_64 = bits == 64
-
-    # Note: this restriction no longer applies (we create a process with the proper bitness from
-    # this process so that the attach works).
-    # if is_target_process_64 != is_python_64bit():
-    #     raise RuntimeError("The architecture of the Python used to connect doesn't match the architecture of the target.\n"
-    #     "Target 64 bits: %s\n"
-    #     "Current Python 64 bits: %s" % (is_target_process_64, is_python_64bit()))
+    target_arch = get_windows_process_architecture(pid)
 
     with _acquire_mutex("_pydevd_pid_attach_mutex_%s" % (pid,), 10):
-        print("--- Connecting to %s bits target (current process is: %s) ---" % (bits, 64 if is_python_64bit() else 32))
+        print("--- Connecting to %s target (current process is: %s bits) ---" % (target_arch, 64 if is_python_64bit() else 32))
         sys.stdout.flush()
 
         with _win_write_to_shared_named_memory(python_code, pid):
-            target_executable = get_target_filename(is_target_process_64, "inject_dll_", ".exe")
+            target_executable = get_target_filename(prefix="inject_dll_", extension=".exe", target_arch=target_arch)
             if not target_executable:
                 raise RuntimeError("Could not find expected .exe file to inject dll in attach to process.")
 
-            target_dll = get_target_filename(is_target_process_64)
+            target_dll = get_target_filename(target_arch=target_arch)
             if not target_dll:
                 raise RuntimeError("Could not find expected .dll file in attach to process.")
 
@@ -302,7 +342,7 @@ def run_python_code_windows(pid, python_code, connect_debugger_tracing=False, sh
 
             # Now, if the first injection worked, go on to the second which will actually
             # run the code.
-            target_dll_run_on_dllmain = get_target_filename(is_target_process_64, "run_code_on_dllmain_", ".dll")
+            target_dll_run_on_dllmain = get_target_filename(prefix="run_code_on_dllmain_", target_arch=target_arch)
             if not target_dll_run_on_dllmain:
                 raise RuntimeError("Could not find expected .dll in attach to process.")
 
@@ -313,8 +353,7 @@ def run_python_code_windows(pid, python_code, connect_debugger_tracing=False, sh
                 subprocess.check_call(args)
 
                 if not event.wait_for_event_set(15):
-                    print("Timeout error: the attach may not have completed.")
-                    sys.stdout.flush()
+                    raise TimeoutError("Timed out waiting for code injection into pid: %s." % (pid,))
             print("--- Finished dll injection ---\n")
             sys.stdout.flush()
 
@@ -327,44 +366,29 @@ def _acquire_mutex(mutex_name, timeout):
     Only one process may be attaching to a pid, so, create a system mutex
     to make sure this holds in practice.
     """
-    from winappdbg.win32.kernel32 import CreateMutex, GetLastError, CloseHandle
-    from winappdbg.win32.defines import ERROR_ALREADY_EXISTS
-
-    initial_time = time.time()
-    while True:
-        mutex = CreateMutex(None, True, mutex_name)
-        acquired = GetLastError() != ERROR_ALREADY_EXISTS
-        if acquired:
-            break
-        if time.time() - initial_time > timeout:
-            raise TimeoutError("Unable to acquire mutex to make attach before timeout.")
-        time.sleep(0.2)
+    kernel32 = _get_windows_kernel32()
+    mutex = kernel32.CreateMutexW(None, False, mutex_name)
+    if not mutex:
+        raise ctypes.WinError(ctypes.get_last_error())
 
     try:
-        yield
+        result = kernel32.WaitForSingleObject(mutex, int(timeout * 1000))
+        if result == 0x102:  # WAIT_TIMEOUT
+            raise TimeoutError("Unable to acquire mutex to make attach before timeout.")
+        if result not in (0, 0x80):  # WAIT_OBJECT_0, WAIT_ABANDONED
+            raise ctypes.WinError(ctypes.get_last_error())
+        try:
+            yield
+        finally:
+            if not kernel32.ReleaseMutex(mutex):
+                raise ctypes.WinError(ctypes.get_last_error())
     finally:
-        CloseHandle(mutex)
+        if not kernel32.CloseHandle(mutex):
+            raise ctypes.WinError(ctypes.get_last_error())
 
 
 @contextmanager
 def _win_write_to_shared_named_memory(python_code, pid):
-    # Use the definitions from winappdbg when possible.
-    from winappdbg.win32 import defines
-    from winappdbg.win32.kernel32 import (
-        CreateFileMapping,
-        MapViewOfFile,
-        CloseHandle,
-        UnmapViewOfFile,
-    )
-
-    memmove = ctypes.cdll.msvcrt.memmove
-    memmove.argtypes = [
-        ctypes.c_void_p,
-        ctypes.c_void_p,
-        defines.SIZE_T,
-    ]
-    memmove.restype = ctypes.c_void_p
-
     # Note: BUFSIZE must be the same from run_code_in_memory.hpp
     BUFSIZE = 2048
     assert isinstance(python_code, bytes)
@@ -378,22 +402,27 @@ def _win_write_to_shared_named_memory(python_code, pid):
     INVALID_HANDLE_VALUE = -1
     PAGE_READWRITE = 0x4
     FILE_MAP_WRITE = 0x2
-    filemap = CreateFileMapping(INVALID_HANDLE_VALUE, 0, PAGE_READWRITE, 0, BUFSIZE, "__pydevd_pid_code_to_run__%s" % (pid,))
+    kernel32 = _get_windows_kernel32()
+    filemap = kernel32.CreateFileMappingW(
+        INVALID_HANDLE_VALUE, None, PAGE_READWRITE, 0, BUFSIZE, "__pydevd_pid_code_to_run__%s" % (pid,)
+    )
 
-    if filemap == INVALID_HANDLE_VALUE or filemap is None:
-        raise Exception("Failed to create named file mapping (ctypes: CreateFileMapping): %s" % (filemap,))
+    if not filemap:
+        raise ctypes.WinError(ctypes.get_last_error())
     try:
-        view = MapViewOfFile(filemap, FILE_MAP_WRITE, 0, 0, 0)
+        view = kernel32.MapViewOfFile(filemap, FILE_MAP_WRITE, 0, 0, 0)
         if not view:
-            raise Exception("Failed to create view of named file mapping (ctypes: MapViewOfFile).")
+            raise ctypes.WinError(ctypes.get_last_error())
 
         try:
-            memmove(view, python_code, BUFSIZE)
+            ctypes.memmove(view, python_code, BUFSIZE)
             yield
         finally:
-            UnmapViewOfFile(view)
+            if not kernel32.UnmapViewOfFile(view):
+                raise ctypes.WinError(ctypes.get_last_error())
     finally:
-        CloseHandle(filemap)
+        if not kernel32.CloseHandle(filemap):
+            raise ctypes.WinError(ctypes.get_last_error())
 
 
 def run_python_code_linux_gdb(pid, python_code, connect_debugger_tracing=False, show_debug_info=0):

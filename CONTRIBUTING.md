@@ -112,6 +112,94 @@ There's an internal setting `debugpy_log_passed` that if set to true will not er
 
 Using `pydevd_log.debug` you can add logging just about anywhere in the pydevd code. However this code won't be called if CYTHON support is enabled without recreating the Cython output. To temporarily disable CYTHON support, look for `CYTHON_SUPPORTED` and make sure it's set to False
 
+## Windows ARM64 wheels and native helpers
+
+This branch supports Python 3.10 through 3.14. An ARM64 wheel must contain real
+ARM64 Cython extensions; changing the wheel filename or platform tag is not a
+cross-build. Use an isolated environment and `setuptools>=65.4.1` (also required
+by `pyproject.toml`).
+
+Install the Visual Studio C++ ARM64 build tools, ARM64 Spectre-mitigated libraries,
+and a Windows SDK before building. From the repository root, in a Windows command
+prompt:
+
+```bat
+src\debugpy\_vendored\pydevd\pydevd_attach_to_process\windows\compile_windows.bat arm64
+```
+
+The script discovers Visual Studio with `vswhere`, initializes the `x64_arm64`
+toolchain, and copies `attach_arm64.dll`, `run_code_on_dllmain_arm64.dll`,
+`inject_dll_arm64.exe`, and their matching PDBs into `pydevd_attach_to_process`.
+It exits nonzero if prerequisites, compilation, linking, or copying fail.
+No argument still builds x86 and x64; `x86` and `amd64` select either explicitly.
+All targets use Spectre mitigation and CFG; CET compatibility is only used for
+x86/x64. `build_attach_binaries.py` requests ARM64 when run by native ARM64 Python.
+
+For Cython cross-compilation, use an x64 Python host with the **same CPython minor
+version** as the ARM64 target and matching ARM64 Python headers/import libraries
+(for example, the `pythonarm64` NuGet package). In the same `x64_arm64` developer
+prompt, configure setuptools using an absolute `DIST_EXTRA_CONFIG` path:
+
+```ini
+[build]
+plat_name = win-arm64
+[build_ext]
+plat_name = win-arm64
+include_dirs = C:\target-python\tools\include
+library_dirs = C:\target-python\tools\libs
+[bdist_wheel]
+plat_name = win-arm64
+```
+
+```bat
+set DIST_EXTRA_CONFIG=C:\build-config\arm64.cfg
+set SETUPTOOLS_USE_DISTUTILS=local
+set VSCMD_ARG_TGT_ARCH=arm64
+set SETUPTOOLS_EXT_SUFFIX=.cp311-win_arm64.pyd
+set REQUIRE_CYTHON_BUILD=1
+python -m build --wheel
+```
+
+Change `cp311` to the target's CPython ABI tag. Start with a clean build tree and
+no stale Cython binaries. The nested Cython build inherits this configuration;
+`REQUIRE_CYTHON_BUILD=1` makes extension failures fatal. Do not set
+`SKIP_CYTHON_BUILD` for release validation. Verify the wheel tag, each `.pyd`'s
+suffix, and PE machine type `0xAA64`, as well as the three ARM64 helpers.
+
+Run the portable packaging/selection regressions with:
+
+```bat
+python -m pytest -n0 tests\tests\test_packaging.py tests\debugpy\server\test_add_code_to_python_process.py tests\debugpy\server\test_windows_helpers.py
+```
+
+For native validation, install the candidate wheel and test dependencies into an
+ARM64 Python environment and run the following from the repository root, **without
+putting `src` on `PYTHONPATH`**:
+
+```bat
+set DEBUGPY_TEST_WINDOWS_ARM64=1
+python -m pytest -n0 tests\debugpy\server\test_windows_native.py
+```
+
+This entrypoint rejects an emulated x86/x64 interpreter, checks installed PE
+architectures and the compiled Cython import, executes code in a separate native
+Python process via PID injection, and checks tracing of an existing thread on
+CPython 3.10/3.11. CPython 3.12+ does not use that native tracing helper.
+Run it for each supported ARM64 Python version, followed by the normal debugger
+launch/attach tests, on explicitly configured ARM64 hardware. No public CI ARM64
+agent is assumed or provisioned here.
+
+Windows helper selection follows the interpreter for in-process tracing and
+`IsWow64Process2` for PID targets, distinguishing native ARM64 from x86/x64
+emulation. Older x86/x64 Windows retains the bitness fallback.
+PID injection uses typed Windows API bindings for synchronization and shared
+memory; it does not import `winappdbg` on modern Windows.
+
+ARM64EC and cross-architecture PID injection are not validated support claims:
+selecting a target-matching helper does not establish that Windows can execute
+that helper from every host architecture. Native ARM64 runtime/release validation
+is still required even when cross-compilation succeeds on x64.
+
 ## Updating pydevd
 
 Pydevd (at src/debugpy/_vendored/pydevd) is a subrepo of https://github.com/fabioz/PyDev.Debugger. We use the [subrepo](https://github.com/ingydotnet/git-subrepo) to have a copy of pydevd inside of debugpy
