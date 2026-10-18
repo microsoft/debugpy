@@ -6931,6 +6931,30 @@ print('TEST SUCEEDED')
         writer.finished_ok = True
 
 
+def test_breakpoint_in_zip_like_directory(case_setup_dap, tmpdir):
+    # See: https://github.com/microsoft/debugpy/issues/1964
+    target = tmpdir.mkdir("archive.zip_").mkdir("files").join("script.py")
+    target.write(
+        """
+print('p1')  # Break here
+print('TEST SUCEEDED')
+"""
+    )
+
+    with case_setup_dap.test_file(str(target)) as writer:
+        json_facade = JsonFacade(writer)
+
+        json_facade.write_launch(justMyCode=True)
+        bp_line = writer.get_line_index_with_content("Break here")
+        json_facade.write_set_breakpoints(bp_line, filename=str(target))
+        json_facade.write_make_initial_run()
+
+        json_hit = json_facade.wait_for_thread_stopped(line=bp_line)
+        assert json_hit.stack_trace_response.body.stackFrames[0]["source"]["path"] == str(target)
+        json_facade.write_continue()
+        writer.finished_ok = True
+
+
 _TOP_LEVEL_AWAIT_AVAILABLE = False
 try:
     from ast import PyCF_ONLY_AST, PyCF_ALLOW_TOP_LEVEL_AWAIT

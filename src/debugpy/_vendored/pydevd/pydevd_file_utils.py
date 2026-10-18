@@ -484,6 +484,29 @@ def _get_relative_filename_abs_path(filename, func, os_path_exists=os_path_exist
     return r
 
 
+def _get_zip_path_end(filename):
+    """
+    :return int:
+        The index just after the .zip/.egg file name in the given filename (so that
+        filename[:ind] is the archive and filename[ind:] is the path inside it) or -1
+        if the filename is not a path inside a .zip/.egg file.
+
+    The extension (optionally followed by "!") must end a path segment, so names such
+    as "archive.zip_", "foo.zipx" or "bar.egg-info" are not taken as archives.
+    """
+    for ext in (".zip", ".egg"):
+        ind = filename.find(ext)
+        while ind != -1:
+            ind += 4
+            end = ind
+            if filename[end : end + 1] == "!":
+                end += 1
+            if end == len(filename) or filename[end] in ("/", "\\"):
+                return ind
+            ind = filename.find(ext, ind)
+    return -1
+
+
 def _apply_func_and_normalize_case(filename, func, isabs, normalize_case, os_path_exists=os_path_exists, join=join):
     if filename.startswith("<"):
         # Not really a file, rather a synthetic name like <string> or <ipython-...>;
@@ -496,11 +519,8 @@ def _apply_func_and_normalize_case(filename, func, isabs, normalize_case, os_pat
         if not os_path_exists(r):
             r = _get_relative_filename_abs_path(filename, func)
 
-    ind = r.find(".zip")
-    if ind == -1:
-        ind = r.find(".egg")
+    ind = _get_zip_path_end(r)
     if ind != -1:
-        ind += 4
         zip_path = r[:ind]
         inner_path = r[ind:]
         if inner_path.startswith("!"):
@@ -539,12 +559,8 @@ def exists(filename):
         if os_path_exists(filename):
             return True
 
-    ind = filename.find(".zip")
-    if ind == -1:
-        ind = filename.find(".egg")
-
+    ind = _get_zip_path_end(filename)
     if ind != -1:
-        ind += 4
         zip_path = filename[:ind]
         inner_path = filename[ind:]
         if inner_path.startswith("!"):
