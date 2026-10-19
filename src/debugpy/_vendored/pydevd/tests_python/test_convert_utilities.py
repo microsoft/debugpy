@@ -480,6 +480,10 @@ def test_zip_paths_split_after_archive_name(sep):
     assert _split_at_archive(path("foo.zipx", "a.zip", "b.py")) == (path("foo.zipx", "a.zip"), "b.py")
     assert _split_at_archive(path("archive.zip_", "a.egg", "b.py")) == (path("archive.zip_", "a.egg"), "b.py")
 
+    # Paths not on disk are split at the first archive name and the rest is kept as is.
+    assert _split_at_archive(path("a.egg", "pkg", "b.zip", "c.py")) == (path("a.egg"), sep.join(("pkg", "b.zip", "c.py")))
+    assert _split_at_archive(path("a.zip", "b.zip", "c.py")) == (path("a.zip"), sep.join(("b.zip", "c.py")))
+
 
 @pytest.mark.parametrize("name", ["archive.zip_", "foo.zipx", "x.zip.bak", "bar.egg-info"])
 def test_zip_like_directory_names(tmpdir, name):
@@ -512,6 +516,36 @@ def test_exists_does_not_look_into_zip_with_similar_name(tmpdir):
     assert pydevd_file_utils.exists(str(tmpdir.join("archive.zip", "_", "mod.py")))
     # "archive.zip_" is a different (and missing) directory, not a path inside "archive.zip".
     assert not pydevd_file_utils.exists(str(tmpdir.join("archive.zip_", "mod.py")))
+
+
+def test_zip_path_inside_archive_is_not_split_again(tmpdir):
+    import zipfile
+
+    import pydevd_file_utils
+
+    egg_path = str(tmpdir.join("lib.egg"))
+    with zipfile.ZipFile(egg_path, "w") as zip_file:
+        zip_file.writestr("pkg/data.zip/mod.py", "")
+
+    # "lib.egg" is the archive and "pkg/data.zip/mod.py" is the path inside it.
+    filename = os.path.join(egg_path, "pkg", "data.zip", "mod.py")
+    assert _split_at_archive(filename) == (egg_path, os.path.join("pkg", "data.zip", "mod.py"))
+    assert pydevd_file_utils.exists(filename)
+
+
+def test_zip_path_skips_directory_with_archive_name(tmpdir):
+    import zipfile
+
+    import pydevd_file_utils
+
+    zip_path = str(tmpdir.mkdir("outer.zip").join("lib.zip"))
+    with zipfile.ZipFile(zip_path, "w") as zip_file:
+        zip_file.writestr("pkg/mod.py", "")
+
+    # "outer.zip" is a directory, so the archive is "lib.zip".
+    filename = os.path.join(zip_path, "pkg", "mod.py")
+    assert _split_at_archive(filename) == (zip_path, os.path.join("pkg", "mod.py"))
+    assert pydevd_file_utils.exists(filename)
 
 
 def test_source_mapping():

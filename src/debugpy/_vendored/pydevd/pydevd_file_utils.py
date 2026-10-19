@@ -49,6 +49,7 @@ from _pydev_bundle.pydev_log import error_once
 
 import json
 import os.path
+import re
 import sys
 import itertools
 import ntpath
@@ -484,7 +485,11 @@ def _get_relative_filename_abs_path(filename, func, os_path_exists=os_path_exist
     return r
 
 
-def _get_zip_path_end(filename):
+# A .zip/.egg extension (optionally followed by "!") which ends a path segment.
+_ZIP_PATH_END_RE = re.compile(r"\.(?:zip|egg)!?(?=[/\\]|\Z)")
+
+
+def _get_zip_path_end(filename, os_path_isdir=os.path.isdir):
     """
     :return int:
         The index just after the .zip/.egg file name in the given filename (so that
@@ -493,17 +498,16 @@ def _get_zip_path_end(filename):
 
     The extension (optionally followed by "!") must end a path segment, so names such
     as "archive.zip_", "foo.zipx" or "bar.egg-info" are not taken as archives.
+
+    Path segments are checked from left to right and the first archive found ends the
+    search, so the path inside it is kept as is even if it has other .zip/.egg names.
+    A segment which is a directory on disk (such as "outer.zip" in
+    "outer.zip/lib.zip/mod.py") is skipped, while a path which isn't on disk is only
+    checked by name.
     """
-    for ext in (".zip", ".egg"):
-        ind = filename.find(ext)
-        while ind != -1:
-            ind += 4
-            end = ind
-            if filename[end : end + 1] == "!":
-                end += 1
-            if end == len(filename) or filename[end] in ("/", "\\"):
-                return ind
-            ind = filename.find(ext, ind)
+    for match in _ZIP_PATH_END_RE.finditer(filename):
+        if not os_path_isdir(filename[: match.end()]):
+            return match.start() + 4
     return -1
 
 
