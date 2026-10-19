@@ -49,6 +49,7 @@ from _pydev_bundle.pydev_log import error_once
 
 import json
 import os.path
+import re
 import sys
 import itertools
 import ntpath
@@ -484,6 +485,32 @@ def _get_relative_filename_abs_path(filename, func, os_path_exists=os_path_exist
     return r
 
 
+# A .zip/.egg extension (optionally followed by "!") which ends a path segment.
+_ZIP_PATH_END_RE = re.compile(r"\.(?:zip|egg)!?(?=[/\\]|\Z)")
+
+
+def _get_zip_path_end(filename, os_path_isdir=os.path.isdir):
+    """
+    :return int:
+        The index just after the .zip/.egg file name in the given filename (so that
+        filename[:ind] is the archive and filename[ind:] is the path inside it) or -1
+        if the filename is not a path inside a .zip/.egg file.
+
+    The extension (optionally followed by "!") must end a path segment, so names such
+    as "archive.zip_", "foo.zipx" or "bar.egg-info" are not taken as archives.
+
+    Path segments are checked from left to right and the first archive found ends the
+    search, so the path inside it is kept as is even if it has other .zip/.egg names.
+    A segment which is a directory on disk (such as "outer.zip" in
+    "outer.zip/lib.zip/mod.py") is skipped, while a path which isn't on disk is only
+    checked by name.
+    """
+    for match in _ZIP_PATH_END_RE.finditer(filename):
+        if not os_path_isdir(filename[: match.end()]):
+            return match.start() + 4
+    return -1
+
+
 def _apply_func_and_normalize_case(filename, func, isabs, normalize_case, os_path_exists=os_path_exists, join=join):
     if filename.startswith("<"):
         # Not really a file, rather a synthetic name like <string> or <ipython-...>;
@@ -496,11 +523,8 @@ def _apply_func_and_normalize_case(filename, func, isabs, normalize_case, os_pat
         if not os_path_exists(r):
             r = _get_relative_filename_abs_path(filename, func)
 
-    ind = r.find(".zip")
-    if ind == -1:
-        ind = r.find(".egg")
+    ind = _get_zip_path_end(r)
     if ind != -1:
-        ind += 4
         zip_path = r[:ind]
         inner_path = r[ind:]
         if inner_path.startswith("!"):
@@ -539,12 +563,8 @@ def exists(filename):
         if os_path_exists(filename):
             return True
 
-    ind = filename.find(".zip")
-    if ind == -1:
-        ind = filename.find(".egg")
-
+    ind = _get_zip_path_end(filename)
     if ind != -1:
-        ind += 4
         zip_path = filename[:ind]
         inner_path = filename[ind:]
         if inner_path.startswith("!"):
