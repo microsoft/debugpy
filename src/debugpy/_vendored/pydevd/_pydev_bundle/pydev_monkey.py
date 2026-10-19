@@ -701,13 +701,26 @@ def patch_arg_str_win(arg_str):
 def monkey_patch_module(module, funcname, create_func) -> None:
     if hasattr(module, funcname):
         original_name = "original_" + funcname
-        if not hasattr(module, original_name):
-            setattr(module, original_name, getattr(module, funcname))
-            setattr(module, funcname, create_func(original_name))
+        current = getattr(module, funcname)
+        # Patch if not patched yet, or again after undo_monkey_patch_module() restored the original.
+        if not hasattr(module, original_name) or current is getattr(module, original_name):
+            setattr(module, original_name, current)
+            new_func = create_func(original_name)
+            new_func.pydevd_original_name = original_name
+            setattr(module, funcname, new_func)
 
 
 def monkey_patch_os(funcname, create_func) -> None:
     monkey_patch_module(os, funcname, create_func)
+
+
+def undo_monkey_patch_module(module, funcname) -> None:
+    original_name = "original_" + funcname
+    current = getattr(module, funcname, None)
+    # Only restore when our wrapper is still the installed function (something else may have
+    # wrapped it since), and keep original_* so that references to the wrapper still work.
+    if hasattr(module, original_name) and getattr(current, "pydevd_original_name", None) == original_name:
+        setattr(module, funcname, getattr(module, original_name))
 
 
 def warn_multiproc() -> None:
@@ -1109,6 +1122,55 @@ def patch_new_process_functions_with_warning() -> None:
             except ImportError:
                 import _winapi as _subprocess
             monkey_patch_module(_subprocess, "CreateProcess", create_CreateProcessWarnMultiproc)
+
+
+def undo_patch_new_process_functions() -> None:
+    """
+    Restores the functions replaced by patch_new_process_functions() or
+    patch_new_process_functions_with_warning().
+    """
+    for funcname in (
+        "execl",
+        "execle",
+        "execlp",
+        "execlpe",
+        "execv",
+        "execve",
+        "execvp",
+        "execvpe",
+        "spawnl",
+        "spawnle",
+        "spawnlp",
+        "spawnlpe",
+        "spawnv",
+        "spawnve",
+        "spawnvp",
+        "spawnvpe",
+        "posix_spawn",
+        "posix_spawnp",
+        "fork",
+    ):
+        undo_monkey_patch_module(os, funcname)
+
+    if not IS_JYTHON:
+        if not IS_WINDOWS:
+            try:
+                import _posixsubprocess
+
+                undo_monkey_patch_module(_posixsubprocess, "fork_exec")
+            except ImportError:
+                pass
+
+            import subprocess
+
+            undo_monkey_patch_module(subprocess, "_fork_exec")
+        else:
+            # Windows
+            try:
+                import _subprocess
+            except ImportError:
+                import _winapi as _subprocess
+            undo_monkey_patch_module(_subprocess, "CreateProcess")
 
 
 class _NewThreadStartupWithTrace:
