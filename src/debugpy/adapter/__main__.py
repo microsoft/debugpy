@@ -82,11 +82,9 @@ def main():
         )
 
         try:
-            ipv6 = localhost.count(":") > 1
-            sock = sockets.create_client(ipv6)
+            sock = sockets.connect((localhost, args.for_server), 5, 0.1)
             try:
                 sock.settimeout(None)
-                sock.connect((localhost, args.for_server))
                 sock_io = sock.makefile("wb", 0)
                 try:
                     sock_io.write(json.dumps(endpoints).encode("utf-8"))
