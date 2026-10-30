@@ -62,6 +62,36 @@ The following command will ignore subprocesses started by the debugged process.
 ```
 
 
+## Debug configuration
+
+For settings passed by a DAP client in a `launch` or `attach` request (for example, in VS Code's `launch.json`), see the [Debug configuration settings](https://github.com/microsoft/debugpy/wiki/Debug-configuration-settings).
+
+### Controlling thread suspension and stepping
+
+Both of the following Boolean settings apply to `launch` and `attach` requests:
+
+| Property | Default | Description |
+|---|---|---|
+| `stopAllThreadsOnSuspend` | `true` | When `true`, all threads are suspended when a breakpoint is hit. When `false`, only the thread that hit the breakpoint is suspended; other threads keep running. |
+| `steppingResumesAllThreads` | `true` | When `true`, a step operation resumes all threads. When `false`, it resumes only the thread being stepped; other suspended threads remain suspended. |
+
+For example, to keep background threads running while another thread is stopped at a breakpoint or being stepped:
+
+```json
+{
+    "name": "Debug with background threads",
+    "type": "debugpy",
+    "request": "launch",
+    "module": "my_module",
+    "stopAllThreadsOnSuspend": false,
+    "steppingResumesAllThreads": false
+}
+```
+
+The debugger's Pause command still suspends all threads, regardless of `stopAllThreadsOnSuspend`. Setting `steppingResumesAllThreads` to `false` does not suspend threads that are already running.
+
+These settings are supplied by the client when it launches or attaches, including when attaching to a process started with the debugpy CLI. They are not supported by the CLI's `--configure-<name>` switches or by `debugpy.configure()`.
+
 ## `debugpy` Import usage
 
 For full details, see the [API reference](https://github.com/microsoft/debugpy/wiki/API-Reference).
