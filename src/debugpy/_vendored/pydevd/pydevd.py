@@ -3359,9 +3359,10 @@ def stoptrace():
         except:
             pass
 
-    from _pydev_bundle.pydev_monkey import undo_patch_thread_modules
+    from _pydev_bundle.pydev_monkey import undo_patch_thread_modules, undo_patch_new_process_functions
 
     undo_patch_thread_modules()
+    undo_patch_new_process_functions()
 
     # Either or both standard streams can be closed at this point,
     # in which case flush() will fail.
