@@ -63,7 +63,8 @@ if __name__ == "__main__":
 
         # Do not use dirname() to walk up - this can be a relative path, e.g. ".".
         sys.path[0] = sys.path[0] + "/../"
-        import debugpy  # noqa
+        # Not an import statement: PEP 810 lazy imports could defer it past the del below.
+        __import__("debugpy")
         del sys.path[0]
 
     from debugpy.server import cli

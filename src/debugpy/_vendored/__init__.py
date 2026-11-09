@@ -107,6 +107,20 @@ def check_modules(project, match, root=None):
 
 
 @contextlib.contextmanager
+def _eager_imports():
+    """A context manager under which plain imports are not deferred by PEP 810."""
+    get_lazy_imports = getattr(sys, "get_lazy_imports", None)
+    if get_lazy_imports is None or get_lazy_imports() != "all":
+        yield
+        return
+    sys.set_lazy_imports("normal")
+    try:
+        yield
+    finally:
+        sys.set_lazy_imports("all")
+
+
+@contextlib.contextmanager
 def vendored(project, root=None):
     """A context manager under which the vendored project will be imported."""
     if root is None:
@@ -114,7 +128,10 @@ def vendored(project, root=None):
     # Add the vendored project directory, so that it gets tried first.
     sys.path.insert(0, root)
     try:
-        yield root
+        # An import resolved after the directory is removed from sys.path would
+        # fail, so everything must be loaded while it is still there.
+        with _eager_imports():
+            yield root
     finally:
         sys.path.remove(root)
 
