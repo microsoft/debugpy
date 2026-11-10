@@ -455,6 +455,8 @@ def attach_to_pid():
     }
     setup = encode(json.dumps(setup))
 
+    # __import__ rather than an import statement, which PEP 810 lazy imports could
+    # defer past `del sys.path[0]`. The name is encoded because pydevd rejects quotes.
     python_code = """
 import codecs;
 import json;
@@ -466,7 +468,7 @@ script_dir = decode({script_dir});
 setup = json.loads(decode({setup}));
 
 sys.path.insert(0, script_dir);
-import attach_pid_injected;
+attach_pid_injected = __import__(decode({module}));
 del sys.path[0];
 
 attach_pid_injected.attach(setup);
@@ -474,7 +476,9 @@ attach_pid_injected.attach(setup);
     python_code = (
         python_code.replace("\r", "")
         .replace("\n", "")
-        .format(script_dir=script_dir, setup=setup)
+        .format(
+            script_dir=script_dir, setup=setup, module=encode("attach_pid_injected")
+        )
     )
 
     # attempt pep 768 style code injection
