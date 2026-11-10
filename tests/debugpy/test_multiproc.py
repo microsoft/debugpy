@@ -508,6 +508,42 @@ def test_subprocess_unobserved(pyfile, run, target, wait):
             child_session.wait_for_terminated()
 
 
+@pytest.mark.parametrize("run", runners.all_attach_socket)
+def test_subprocess_after_stoptrace(pyfile, target, run):
+    @pyfile
+    def code_to_debug():
+        import debuggee
+        import subprocess
+        import sys
+        from debuggee import backchannel
+
+        debuggee.setup()
+        backchannel.send("running")
+        backchannel.receive()
+
+        import pydevd
+
+        pydevd.stoptrace()
+
+        # The debugger is gone, so the child must start as a plain process.
+        child = subprocess.run(
+            [sys.executable, "-c", "print('child ok')"],
+            capture_output=True,
+            timeout=30,
+        )
+        backchannel.send([child.returncode, child.stdout.decode().strip()])
+
+    with debug.Session() as session:
+        backchannel = session.open_backchannel()
+        with run(session, target(code_to_debug)):
+            pass
+
+        assert backchannel.receive() == "running"
+        session.disconnect()
+        backchannel.send("proceed")
+        assert backchannel.receive() == [0, "child ok"]
+
+
 @pytest.mark.parametrize("run", runners.all_launch)
 @pytest.mark.skipif(
     sys.platform != "win32", reason="job objects are specific to Windows"
