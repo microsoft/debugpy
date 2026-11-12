@@ -1,6 +1,6 @@
 ## Used to run the tests:
 
-pytest>=9.1.1  # CVE-2025-71176 (vulnerable <= 9.0.2)
+pytest>=9.2.0  # CVE-2025-71176 (vulnerable <= 9.0.2)
 pytest-xdist
 pytest-cov
 pytest-timeout
@@ -10,7 +10,7 @@ pytest-retry
 
 importlib_metadata
 psutil
-setuptools>=84.0.0
+setuptools>=84.2.1
 untangle
 
 ## Used in Python code that is run/debugged by the tests:
