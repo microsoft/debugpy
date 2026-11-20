@@ -196,6 +196,30 @@ def kill():
         log.swallow_exception("Failed to kill {0}", describe())
 
 
+def _restore_foreground_process_group():
+    if process is None:
+        return
+
+    try:
+        # signal.signal() only works in the main thread, and this can run in the
+        # wait_for_exit thread, so SIGTTOU is blocked in the calling thread instead.
+        old_mask = signal.pthread_sigmask(signal.SIG_BLOCK, {signal.SIGTTOU})
+        try:
+            tty = os.open("/dev/tty", os.O_RDWR)
+            try:
+                if os.tcgetpgrp(tty) == process.pid:
+                    os.tcsetpgrp(tty, os.getpgrp())
+            finally:
+                os.close(tty)
+        finally:
+            signal.pthread_sigmask(signal.SIG_SETMASK, old_mask)
+    except Exception:
+        # Not an error - /dev/tty doesn't work when there's no terminal.
+        log.swallow_exception(
+            "Failed to restore foreground process group", level="info"
+        )
+
+
 def wait_for_exit():
     try:
         # wait_for_exit() only runs after the debuggee was spawned successfully, so
@@ -212,6 +236,9 @@ def wait_for_exit():
     except Exception:
         log.swallow_exception("Couldn't determine process exit code")
         code = -1
+
+    if sys.platform != "win32":
+        _restore_foreground_process_group()
 
     log.info("{0} exited with code {1}", describe(), code)
     output.wait_for_remaining_output()
