@@ -237,11 +237,11 @@ def wait_for_exit():
         log.swallow_exception("Couldn't determine process exit code")
         code = -1
 
-    if sys.platform != "win32":
-        _restore_foreground_process_group()
-
     log.info("{0} exited with code {1}", describe(), code)
     output.wait_for_remaining_output()
+
+    if sys.platform != "win32":
+        _restore_foreground_process_group()
 
     # Determine whether we should wait or not before sending "exited", so that any
     # follow-up "terminate" requests don't affect the predicates.

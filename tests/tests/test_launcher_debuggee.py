@@ -2,7 +2,9 @@
 # Licensed under the MIT License. See LICENSE in the project root
 # for license information.
 
+import json
 import os
+import re
 import subprocess
 import sys
 import textwrap
@@ -11,6 +13,7 @@ import time
 import pytest
 
 DRIVER = textwrap.dedent("""
+    import json
     import os
     import sys
     import time
@@ -29,7 +32,10 @@ DRIVER = textwrap.dedent("""
 
     launcher.channel = Channel()
     debuggee.spawn(
-        "debuggee", [sys.executable, "-c", "pass"], dict(os.environ), False
+        "debuggee",
+        json.loads(os.environ["DEBUGGEE_ARGV"]),
+        dict(os.environ),
+        os.environ["DEBUGGEE_REDIRECT_OUTPUT"] == "1",
     )
 
     deadline = time.time() + 60
@@ -49,11 +55,32 @@ DRIVER = textwrap.dedent("""
     sys.exit(0 if foreground == os.getpgrp() else 1)
     """)
 
+DEBUGGEE_WITH_CHILD = textwrap.dedent("""
+    import subprocess
+    import sys
 
-@pytest.mark.skipif(
-    sys.platform == "win32", reason="POSIX foreground process groups only"
-)
-def test_launcher_restores_foreground_process_group(tmp_path):
+    CHILD = '''
+    import os
+    import time
+
+    deadline = time.time() + 5
+    while time.time() < deadline:
+        if os.tcgetpgrp(0) != os.getpgrp():
+            break
+        time.sleep(0.05)
+    print(
+        "Child foreground is {0}, child group is {1}.".format(
+            os.tcgetpgrp(0), os.getpgrp()
+        ),
+        flush=True,
+    )
+    '''
+
+    subprocess.Popen([sys.executable, "-c", CHILD])
+    """)
+
+
+def run_driver(tmp_path, argv, redirect_output):
     import fcntl
     import pty
     import select
@@ -65,6 +92,8 @@ def test_launcher_restores_foreground_process_group(tmp_path):
     src = os.path.join(os.path.dirname(__file__), "..", "..", "src")
     env = dict(os.environ)
     env["PYTHONPATH"] = os.path.abspath(src) + os.pathsep + env.get("PYTHONPATH", "")
+    env["DEBUGGEE_ARGV"] = json.dumps(argv)
+    env["DEBUGGEE_REDIRECT_OUTPUT"] = "1" if redirect_output else "0"
 
     master, slave = pty.openpty()
 
@@ -109,4 +138,31 @@ def test_launcher_restores_foreground_process_group(tmp_path):
     assert (
         not timed_out
     ), "Driver did not exit in time; output so far:\n" + output.decode(errors="replace")
-    assert proc.returncode == 0, output.decode(errors="replace")
+    return proc.returncode, output
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="POSIX foreground process groups only"
+)
+def test_launcher_restores_foreground_process_group(tmp_path):
+    returncode, output = run_driver(
+        tmp_path, [sys.executable, "-c", "pass"], redirect_output=False
+    )
+    assert returncode == 0, output.decode(errors="replace")
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="POSIX foreground process groups only"
+)
+def test_launcher_restores_foreground_after_surviving_child(tmp_path):
+    program = tmp_path / "debuggee.py"
+    program.write_text(DEBUGGEE_WITH_CHILD)
+
+    returncode, output = run_driver(
+        tmp_path, [sys.executable, str(program)], redirect_output=True
+    )
+    assert returncode == 0, output.decode(errors="replace")
+
+    match = re.search(rb"Child foreground is (\d+), child group is (\d+)\.", output)
+    assert match is not None, output.decode(errors="replace")
+    assert match.group(1) == match.group(2), output.decode(errors="replace")
