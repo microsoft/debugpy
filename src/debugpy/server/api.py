@@ -81,6 +81,8 @@ def configure(properties=None, **kwargs):
         properties = dict(properties)
         properties.update(kwargs)
 
+    # Validate everything before changing anything, so that a call which raises
+    # leaves the existing configuration untouched.
     for k, v in properties.items():
         if k not in _config:
             raise ValueError("Unknown property {0!r}".format(k))
@@ -90,7 +92,8 @@ def configure(properties=None, **kwargs):
         valid_values = _config_valid_values.get(k)
         if (valid_values is not None) and (v not in valid_values):
             raise ValueError("{0!r} must be one of: {1!r}".format(k, valid_values))
-        _config[k] = v
+
+    _config.update(properties)
 
 
 def _starts_debugging(func):
