@@ -51,6 +51,22 @@ class _FakeServer(object):
     channel = _UnpropagatingChannel()
 
 
+def test_initialize_advertises_terminate_debuggee():
+    stream = _MemoryStream()
+    channel = messaging.JsonMessageChannel(stream, None)
+
+    client = clients.Client.__new__(clients.Client)
+    client.session = _FakeSession()
+    client._initialize_request = None
+    request = messaging.Request(
+        channel, 1, "initialize", messaging.MessageDict(None, {})
+    )
+
+    capabilities = client.initialize_request(request)
+
+    assert capabilities["supportTerminateDebuggee"] is True
+
+
 def _make_client(start_request, has_started):
     stream = _MemoryStream()
     channel = messaging.JsonMessageChannel(stream, None)
