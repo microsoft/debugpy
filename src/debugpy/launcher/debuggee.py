@@ -197,6 +197,9 @@ def kill():
 
 
 def _restore_foreground_process_group():
+    if sys.platform == "win32":
+        return
+
     if process is None:
         return
 
@@ -240,8 +243,7 @@ def wait_for_exit():
     log.info("{0} exited with code {1}", describe(), code)
     output.wait_for_remaining_output()
 
-    if sys.platform != "win32":
-        _restore_foreground_process_group()
+    _restore_foreground_process_group()
 
     # Determine whether we should wait or not before sending "exited", so that any
     # follow-up "terminate" requests don't affect the predicates.
