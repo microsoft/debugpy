@@ -512,3 +512,76 @@ def test_monkey_patch_args_c_with_bytes() -> None:
     # The result should contain our patched debugpy setup somewhere
     result_str: str = b"".join(item.encode() if isinstance(item, str) else item for item in result).decode()
     assert "pydevd.settrace" in result_str
+
+
+def test_is_python_sys_executable_exact():
+    # Exact sys.executable should be considered python even if basename doesn't contain "python"
+    assert pydev_monkey.is_python(sys.executable) is True
+
+
+def test_is_python_sys_executable_bytes():
+    # Bytes version of sys.executable
+    assert pydev_monkey.is_python(sys.executable.encode()) is True
+
+
+def test_is_python_sys_executable_symlink(tmp_path):
+    # Same binary invoked through a symlink with non-python name should still be recognized
+    # e.g. custom native binary named "myapp" that is a symlink to python
+    import os
+
+    link_path = tmp_path / "myapp"
+    try:
+        os.symlink(sys.executable, str(link_path))
+    except (OSError, NotImplementedError):
+        pytest.skip("Symlinks not supported on this platform")
+
+    assert pydev_monkey.is_python(str(link_path)) is True
+
+
+def test_is_python_sys_executable_relative(tmp_path):
+    # Relative path to sys.executable should be recognized
+    import os
+
+    rel = os.path.relpath(sys.executable, start=str(tmp_path))
+    # Change cwd to tmp_path to make relative resolution work for realpath
+    old_cwd = os.getcwd()
+    try:
+        os.chdir(str(tmp_path))
+        assert pydev_monkey.is_python(rel) is True
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_is_python_sys_executable_normcase():
+    # On Windows, normcase makes comparison case-insensitive. On POSIX, normcase is no-op,
+    # but realpath+samefile already covers identity. This test ensures case variation
+    # doesn't break on POSIX and would work on Windows.
+    import os
+
+    upper = sys.executable.upper()
+    # If file system is case-insensitive or normcase normalizes, this should be True.
+    # On case-sensitive POSIX, upper won't exist, so samefile will fail and normcase
+    # won't match, but we at least ensure the function doesn't crash and returns a bool.
+    # To simulate Windows behavior, directly test normcase equivalence logic.
+    norm_upper = os.path.normcase(os.path.normpath(os.path.realpath(upper)))
+    norm_sys = os.path.normcase(os.path.normpath(os.path.realpath(sys.executable)))
+    if os.path.exists(upper) or norm_upper == norm_sys:
+        # Only assert True when the OS would actually consider them same
+        assert pydev_monkey.is_python(upper) is True
+    else:
+        # On case-sensitive systems, upper path likely doesn't exist, so should be False
+        # unless it accidentally matches via other heuristics - just ensure bool
+        assert isinstance(pydev_monkey.is_python(upper), bool)
+
+
+def test_is_python_non_python():
+    assert pydev_monkey.is_python("/bin/ls") is False
+    assert pydev_monkey.is_python("/usr/bin/myapp") is False
+
+
+def test_is_python_name_contains_python():
+    # Traditional detection via basename still works
+    assert pydev_monkey.is_python("/usr/bin/python3") is True
+    assert pydev_monkey.is_python("/usr/bin/python3.12") is True
+    assert pydev_monkey.is_python("C:\\Python\\python.exe") is True
+    assert pydev_monkey.is_python("/opt/pypy/bin/pypy") is True
