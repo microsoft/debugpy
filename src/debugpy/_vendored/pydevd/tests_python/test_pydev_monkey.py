@@ -1,6 +1,9 @@
 # coding: utf-8
+import importlib
 import os
+import subprocess
 import sys
+import types
 from typing import Any, Generator
 
 import pytest
@@ -512,3 +515,66 @@ def test_monkey_patch_args_c_with_bytes() -> None:
     # The result should contain our patched debugpy setup somewhere
     result_str: str = b"".join(item.encode() if isinstance(item, str) else item for item in result).decode()
     assert "pydevd.settrace" in result_str
+
+
+@pytest.mark.parametrize("patch_func", ["patch_new_process_functions", "patch_new_process_functions_with_warning"])
+def test_undo_patch_new_process_functions(patch_func) -> None:
+    modules = [os, subprocess]
+    for name in ("_posixsubprocess", "_winapi"):
+        try:
+            modules.append(importlib.import_module(name))
+        except ImportError:
+            pass
+
+    before = [dict(vars(module)) for module in modules]
+
+    def changed_functions():
+        # original_* attributes are kept on purpose, so only look at the rest.
+        return sorted(
+            (module.__name__, name)
+            for module, saved in zip(modules, before)
+            for name in set(vars(module)) | set(saved)
+            if not name.startswith("original_") and vars(module).get(name) is not saved.get(name)
+        )
+
+    getattr(pydev_monkey, patch_func)()
+    try:
+        assert changed_functions()
+    finally:
+        pydev_monkey.undo_patch_new_process_functions()
+
+    assert changed_functions() == []
+
+
+def test_undo_monkey_patch_module() -> None:
+    def run():
+        return "original"
+
+    module = types.ModuleType("fake_module")
+    module.run = run
+
+    def create_run(original_name):
+        def new_run():
+            return "patched " + getattr(module, original_name)()
+
+        return new_run
+
+    pydev_monkey.monkey_patch_module(module, "run", create_run)
+    assert module.run() == "patched original"
+    pydev_monkey.undo_monkey_patch_module(module, "run")
+    assert module.run is run
+
+    # It can be patched again after the undo.
+    pydev_monkey.monkey_patch_module(module, "run", create_run)
+    patched_run = module.run
+    assert patched_run() == "patched original"
+
+    # Something else wraps our wrapper: the undo must leave that layer in place, and our
+    # wrapper, still referenced by it, must keep working.
+    def outer_run():
+        return "outer " + patched_run()
+
+    module.run = outer_run
+    pydev_monkey.undo_monkey_patch_module(module, "run")
+    assert module.run is outer_run
+    assert module.run() == "outer patched original"
