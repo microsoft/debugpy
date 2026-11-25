@@ -82,3 +82,25 @@ def test_listen_empty_adapter_read_raises(monkeypatch):
         str(exc_info.value)
         == "error retrieving adapter endpoints: EOF while reading adapter endpoints"
     )
+
+
+@pytest.mark.parametrize(
+    "properties",
+    [
+        {"qt": "auto", "subProcess": "yes"},
+        {"qt": "pyside", "unknown": 1},
+        {"subProcess": False, "qt": "not-a-qt-mode"},
+    ],
+    ids=["bad-type", "unknown-property", "bad-value"],
+)
+def test_configure_failure_leaves_config_unchanged(monkeypatch, properties):
+    # configure() raises ValueError for a property it cannot accept. When it does,
+    # none of the other properties passed in the same call may have been applied,
+    # or the caller is left with a configuration it never asked for.
+    monkeypatch.setattr(api, "ensure_logging", lambda: None)
+    monkeypatch.setattr(api, "_config", {"qt": "none", "subProcess": True})
+
+    with pytest.raises(ValueError):
+        api.configure(properties)
+
+    assert api._config == {"qt": "none", "subProcess": True}
