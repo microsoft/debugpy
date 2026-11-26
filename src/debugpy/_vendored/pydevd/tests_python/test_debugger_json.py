@@ -3586,6 +3586,55 @@ def test_stepping(case_setup_dap):
         writer.finished_ok = True
 
 
+@pytest.mark.parametrize(
+    "break_at, steps",
+    [
+        # Leaving the stepped frame through an exception must still stop in the next frame that runs.
+        ("raise line", [("step_out", "cleanup_thrower", "call thrower line")]),
+        ("raise line", [("step_next", "cleanup_thrower", "finally line")]),
+        ("finally line", [("step_next", "via_throw", "except line")]),
+        ("finally line", [("step_out", "via_throw", "call cleanup_thrower line")]),
+        (
+            "call thrower line",
+            [
+                ("step_next", "cleanup_thrower", "finally line"),
+                ("step_next", "via_throw", "except line"),
+            ],
+        ),
+    ],
+)
+@pytest.mark.parametrize("exception_filters", [["uncaught"], []])
+@pytest.mark.parametrize("just_my_code", [True, False])
+def test_step_frame_exited_by_exception(case_setup_dap, break_at, steps, exception_filters, just_my_code):
+    with case_setup_dap.test_file("_debugger_case_step_exception_exit.py") as writer:
+        json_facade = JsonFacade(writer)
+
+        json_facade.write_launch(justMyCode=just_my_code)
+        json_facade.write_set_exception_breakpoints(exception_filters)
+        break_line = writer.get_line_index_with_content(break_at)
+        # Only stop in the second call: an unconditional breakpoint would be hit again in the
+        # next iteration, which would hide a step that never stops.
+        json_facade.write_set_breakpoints(break_line, line_to_info={break_line: {"condition": "i == 1"}})
+        json_facade.write_make_initial_run()
+
+        json_hit = json_facade.wait_for_thread_stopped(line=break_line)
+
+        for step, expected_name, expected_line_content in steps:
+            if step == "step_out":
+                json_facade.write_step_out(json_hit.thread_id)
+            else:
+                json_facade.write_step_next(json_hit.thread_id)
+            json_hit = json_facade.wait_for_thread_stopped(
+                "step", name=expected_name, line=writer.get_line_index_with_content(expected_line_content)
+            )
+            # Still in the call that hit the breakpoint.
+            assert json_facade.get_local_var(json_hit.frame_id, "i").value == "1"
+
+        json_facade.write_continue()
+
+        writer.finished_ok = True
+
+
 def test_evaluate(case_setup_dap):
     with case_setup_dap.test_file("_debugger_case_evaluate.py") as writer:
         json_facade = JsonFacade(writer)

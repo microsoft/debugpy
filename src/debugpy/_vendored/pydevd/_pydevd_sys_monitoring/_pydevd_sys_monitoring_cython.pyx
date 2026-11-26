@@ -925,6 +925,19 @@ cdef _unwind_event(code, instruction, exc):
         # threads may still want it...
         return
 
+    has_caught_exception_breakpoint_in_pydb = (
+        py_db.break_on_caught_exceptions or py_db.break_on_user_uncaught_exceptions or py_db.has_plugin_exception_breaks
+    )
+    break_on_uncaught_exceptions = py_db.break_on_uncaught_exceptions
+
+    if (
+        not has_caught_exception_breakpoint_in_pydb
+        and not break_on_uncaught_exceptions
+        and thread_info.additional_info.pydev_step_cmd == -1
+    ):
+        # Without exception breakpoints this event is only tracked for stepping (see update_monitor_events).
+        return
+
     func_code_info: FuncCodeInfo = _get_func_code_info(code, 1)
     if func_code_info.always_skip_code:
         return
@@ -932,10 +945,6 @@ cdef _unwind_event(code, instruction, exc):
     # print('_unwind_event', code, exc)
     frame = _getframe(1)
     arg = (type(exc), exc, exc.__traceback__)
-
-    has_caught_exception_breakpoint_in_pydb = (
-        py_db.break_on_caught_exceptions or py_db.break_on_user_uncaught_exceptions or py_db.has_plugin_exception_breaks
-    )
 
     if has_caught_exception_breakpoint_in_pydb:
         _should_stop, frame, user_uncaught_exc_info = should_stop_on_exception(
@@ -954,9 +963,10 @@ cdef _unwind_event(code, instruction, exc):
 
             if is_unhandled:
                 handle_exception(py_db, thread_info.thread, frame, user_uncaught_exc_info[0], EXCEPTION_TYPE_USER_UNHANDLED)
+                # The user may have requested a step while stopped at the exception.
+                _unwind_stepping(py_db, thread_info, frame)
                 return
 
-    break_on_uncaught_exceptions = py_db.break_on_uncaught_exceptions
     if break_on_uncaught_exceptions:
         if frame is _get_unhandled_exception_frame(exc, 1):
             _thread_local_info.f_reported_unhandled_exc_tag = _thread_local_info.f_unhandled_exc_tag
@@ -964,6 +974,45 @@ cdef _unwind_event(code, instruction, exc):
             del _thread_local_info.f_unhandled_frame
             stop_on_unhandled_exception(py_db, thread_info.thread, thread_info.additional_info, arg)
             return
+
+    _unwind_stepping(py_db, thread_info, frame)
+
+
+# fmt: off
+# IFDEF CYTHON -- DONT EDIT THIS FILE (it is automatically generated)
+cdef _unwind_stepping(py_db, ThreadInfo thread_info, frame):
+    cdef PyDBAdditionalThreadInfo info
+    cdef int step_cmd
+# ELSE
+# def _unwind_stepping(py_db, thread_info, frame):
+# ENDIF
+# fmt: on
+    """
+    A frame left by an exception gets PY_UNWIND and never PY_RETURN, so a step that would be
+    finished or handed on in `_return_event` when the frame returns has to be handled here
+    (otherwise it would stay bound to a frame that no longer runs and never stop).
+    """
+    info = thread_info.additional_info
+    step_cmd = info.pydev_step_cmd
+    if step_cmd == -1 or info.suspend_type != PYTHON_SUSPEND or info.pydev_state == 2:
+        return
+
+    stop_frame = info.pydev_step_stop
+    if step_cmd in (109, 160, 128):
+        if _is_same_frame(info, stop_frame, frame):
+            # Same as in `_return_event`: stop in the caller.
+            _stop_on_return(py_db, thread_info, info, step_cmd, frame, None)
+
+    elif step_cmd in (108, 159):
+        if stop_frame is frame and not info.pydev_use_scoped_step_frame:
+            # Stop in the next line that runs (i.e.: the `except` or `finally` that handles the exception
+            # in a caller), the same as the `sys.settrace` tracer does.
+            if step_cmd == 108:
+                info.pydev_step_cmd = 107
+            else:
+                info.pydev_step_cmd = 144
+            info.pydev_step_stop = None
+            _enable_code_tracing_for_frame_and_parents(thread_info, frame.f_back)
 
 
 # fmt: off
@@ -1969,7 +2018,13 @@ def update_monitor_events(suspend_requested: Optional[bool]=None) -> None:
             monitor.register_callback(DEBUGGER_ID, monitor.events.PY_UNWIND, _unwind_event)
         else:
             monitor.register_callback(DEBUGGER_ID, monitor.events.RAISE, None)
-            monitor.register_callback(DEBUGGER_ID, monitor.events.PY_UNWIND, None)
+            if suspend_requested:
+                # A thread is suspended or stepping: a step must not be lost when its frame is left
+                # by an exception (which sends PY_UNWIND and no PY_RETURN).
+                required_events |= monitor.events.PY_UNWIND
+                monitor.register_callback(DEBUGGER_ID, monitor.events.PY_UNWIND, _unwind_event)
+            else:
+                monitor.register_callback(DEBUGGER_ID, monitor.events.PY_UNWIND, None)
 
     has_breaks = py_db.has_plugin_line_breaks
     if not has_breaks:

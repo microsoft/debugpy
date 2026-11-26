@@ -62,3 +62,72 @@ def test_set_next_statement(pyfile, run, target):
             "goto", expected_frames=[some.dap.frame(code_to_debug, "inner2")]
         )
         session.request_continue()
+
+
+@pytest.mark.parametrize(
+    "break_at, steps",
+    [
+        ("raise", [("stepOut", "call_thrower")]),
+        ("raise", [("next", "finally")]),
+        ("finally", [("next", "except")]),
+        ("finally", [("stepOut", "call_cleanup_thrower")]),
+        ("call_thrower", [("next", "finally"), ("next", "except")]),
+    ],
+)
+@pytest.mark.parametrize("exception_filters", [["uncaught"], []])
+def test_step_frame_exited_by_exception(
+    pyfile, target, run, break_at, steps, exception_filters
+):
+    # A step whose frame is left by an exception must stop in the next frame that runs.
+    @pyfile
+    def code_to_debug():
+        import debuggee
+
+        debuggee.setup()
+
+        def thrower(i):
+            raise ValueError(i)  # @raise
+
+        def cleanup_thrower(i):
+            try:
+                thrower(i)  # @call_thrower
+            finally:
+                print("finally", i)  # @finally
+
+        def via_throw(i):
+            try:
+                cleanup_thrower(i)  # @call_cleanup_thrower
+            except ValueError:  # @except
+                return i * 2
+            return -1
+
+        for i in range(3):
+            print("call", i, "->", via_throw(i))
+
+    with debug.Session() as session:
+        with run(session, target(code_to_debug)):
+            session.request("setExceptionBreakpoints", {"filters": exception_filters})
+            # Only stop in the second call: an unconditional breakpoint would be hit
+            # again in the next iteration, which would hide a step that never stops.
+            session.request(
+                "setBreakpoints",
+                {
+                    "source": {"path": code_to_debug},
+                    "breakpoints": [
+                        {"line": code_to_debug.lines[break_at], "condition": "i == 1"}
+                    ],
+                },
+            )
+
+        stop = session.wait_for_stop(
+            "breakpoint", expected_frames=[some.dap.frame(code_to_debug, break_at)]
+        )
+        for step, expected_line in steps:
+            session.request(step, {"threadId": stop.thread_id})
+            stop = session.wait_for_stop(
+                "step", expected_frames=[some.dap.frame(code_to_debug, expected_line)]
+            )
+            # Still in the call that hit the breakpoint.
+            assert session.get_variable("i", frame_id=stop.frame_id)["value"] == "1"
+
+        session.request_continue()
