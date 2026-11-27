@@ -230,7 +230,12 @@ def wait_for_exit():
         # bogus clean exit (code 0) if that invariant is ever broken.
         assert process is not None
         code = process.wait()
-        if sys.platform != "win32" and code < 0:
+        if sys.platform == "win32":
+            # On Windows, the exit code is an unsigned 32-bit DWORD, but DAP requires
+            # "exitCode" to be a signed 32-bit integer. Keep the same bits, so that
+            # e.g. 0xC000013A (STATUS_CONTROL_C_EXIT) is reported as -1073741510.
+            code = ctypes.c_int32(code).value
+        elif code < 0:
             # On POSIX, if the process was terminated by a signal, Popen will use
             # a negative returncode to indicate that - but the actual exit code of
             # the process is always an unsigned number, and can be determined by
