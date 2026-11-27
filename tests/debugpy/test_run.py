@@ -355,3 +355,22 @@ backchannel.send('ok')
 
         received = backchannel.receive()
         assert received == "ok"
+
+
+@pytest.mark.parametrize("run", runners.all_launch)
+def test_exit_code(pyfile, target, run):
+    @pyfile
+    def code_to_debug():
+        import sys
+
+        import debuggee
+
+        debuggee.setup()
+        sys.exit(-1)
+
+    with debug.Session() as session:
+        # On Windows, sys.exit(-1) sets the exit code to the DWORD 0xFFFFFFFF.
+        # DAP requires "exitCode" to be a signed 32-bit integer, so it must be -1.
+        session.expected_exit_code = -1 if sys.platform == "win32" else 255
+        with run(session, target(code_to_debug)):
+            pass

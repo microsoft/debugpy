@@ -3,6 +3,7 @@
 # for license information.
 
 import collections
+import ctypes
 import itertools
 import os
 import psutil
@@ -988,7 +989,11 @@ class Session(object):
         # FIXME: "exited" event is not properly reported in attach scenarios at the
         # moment, so the exit code is only checked if it's present.
         if self.debuggee is not None and self.exit_code is not None:
-            assert self.debuggee.returncode == self.exit_code
+            returncode = self.debuggee.returncode
+            if sys.platform == "win32":
+                # Popen reports the unsigned DWORD, but "exited" reports it as int32.
+                returncode = ctypes.c_int32(returncode).value
+            assert returncode == self.exit_code
         return self.exit_code
 
     def wait_for_terminated(self):
