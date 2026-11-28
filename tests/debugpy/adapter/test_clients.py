@@ -4,6 +4,8 @@
 
 """Unit tests for debugpy.adapter.clients message handlers."""
 
+import io
+
 import pytest
 
 from debugpy.common import json, messaging
@@ -65,6 +67,32 @@ def test_initialize_advertises_terminate_debuggee():
     capabilities = client.initialize_request(request)
 
     assert capabilities["supportTerminateDebuggee"] is True
+
+
+@pytest.mark.parametrize("client_closes_early", [False, True])
+def test_disconnect_response_when_client_closes(client_closes_early):
+    stream = messaging.JsonIOStream(io.BytesIO(), io.BytesIO())
+    client = clients.Client.__new__(clients.Client)
+    client.using_stdio = False
+    channel = messaging.JsonMessageChannel(stream, client)
+    client.channel = channel
+
+    class Session(_FakeSession):
+        def finalize(self, reason, terminate_debuggee):
+            if client_closes_early:
+                stream.close()
+
+    client.session = Session()
+    request = messaging.Request(
+        channel, 1, "disconnect", messaging.MessageDict(None, {})
+    )
+    request._handle()
+
+    assert channel._closed
+    if client_closes_early:
+        assert request.response is None
+    else:
+        assert request.response is not None and request.response.success
 
 
 def _make_client(start_request, has_started):

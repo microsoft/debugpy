@@ -707,7 +707,10 @@ class Client(components.Component):
         if terminate_debuggee == ():
             terminate_debuggee = None
         self.session.finalize('client requested "disconnect"', terminate_debuggee)
-        request.respond({})
+        try:
+            request.respond({})
+        except messaging.NoMoreMessages:
+            pass
 
         if self.using_stdio:
             # There's no way for the client to reconnect to this adapter once it disconnects
@@ -725,6 +728,9 @@ class Client(components.Component):
             self.channel.close()
         except Exception:
             log.swallow_exception(level="warning")
+
+        if request.response is None:
+            return messaging.NO_RESPONSE
 
     def disconnect(self):
         super().disconnect()
