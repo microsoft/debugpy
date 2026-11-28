@@ -101,7 +101,7 @@ For responses, it is often desirable to specify success or failure in general, w
 Response(request, some.error)
 Response(request, ~some.error)  # success
 ```
-Note that you don't need to do it if you specify the body of the response explicitly, since a succesful response will always have a dict as a body, and a failed response will have an exception as a body.
+Note that you don't need to do it if you specify the body of the response explicitly, since a successful response will always have a dict as a body, and a failed response will have an exception as a body.
 
 Since it is very common to wait for a response to a particular request, there is a shortcut to do it directly via the request occurrence:
 ```py
@@ -112,7 +112,7 @@ and a further shortcut to issue a request, wait for response, and retrieve the r
 ```py
 initialize_response_body = debug_session.request('initialize', {'adapterID': 'test'})
 ```
-On success, `request()` returns the body of the sucessful response directly, rather than the `Response` object. On failure, it raises the appropriate exception.
+On success, `request()` returns the body of the successful response directly, rather than the `Response` object. On failure, it raises the appropriate exception.
 
 ## Expectation algebra
 
